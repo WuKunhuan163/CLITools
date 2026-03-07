@@ -3,6 +3,14 @@ import re
 import json
 import subprocess
 import sys
+
+
+def _git_bin():
+    try:
+        from tool.GIT.interface.main import get_system_git
+        return get_system_git()
+    except ImportError:
+        return _git_bin()
 import time
 from pathlib import Path
 from datetime import datetime
@@ -80,7 +88,7 @@ class PythonScanner:
 
     def get_release_tags(self) -> List[str]:
         """Fetches release tags from GitHub using git ls-remote."""
-        cmd = ["/usr/bin/git", "ls-remote", "--tags", REPO_URL]
+        cmd = [_git_bin(), "ls-remote", "--tags", REPO_URL]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             return []

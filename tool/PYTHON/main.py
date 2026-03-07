@@ -22,6 +22,14 @@ if str(project_root) not in sys.path:
 from logic.utils import get_python_exec, extract_resource
 from tool.PYTHON.logic.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
 
+
+def _git_bin():
+    try:
+        from tool.GIT.interface.main import get_system_git
+        return get_system_git()
+    except ImportError:
+        return "/usr/bin/git"
+
 # Try to import colors and shared utils from root proj
 try:
     from interface.config import get_color
@@ -81,12 +89,12 @@ def _get_remote_versions():
     rel_path = RESOURCE_ROOT.relative_to(project_root)
     
     # Check origin/tool first
-    cmd = ["/usr/bin/git", "ls-tree", "-r", "--name-only", "origin/tool", str(rel_path)]
+    cmd = [_git_bin(), "ls-tree", "-r", "--name-only", "origin/tool", str(rel_path)]
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(project_root))
     
     if result.returncode != 0:
         # Try local tool branch
-        cmd = ["/usr/bin/git", "ls-tree", "-r", "--name-only", "tool", str(rel_path)]
+        cmd = [_git_bin(), "ls-tree", "-r", "--name-only", "tool", str(rel_path)]
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(project_root))
     
     if result.returncode == 0:
@@ -506,12 +514,12 @@ def _install_version(version, install_dir=None, tag_filter=None, platform_filter
         if not resource_ready:
             action = _("label_fetching", "Fetching")
             print_erasable(f"{BLUE}{BOLD}{action}{RESET} {version} from git...")
-            subprocess.run(["/usr/bin/git", "fetch", "origin", "tool"], capture_output=True, cwd=str(project_root))
+            subprocess.run([_git_bin(), "fetch", "origin", "tool"], capture_output=True, cwd=str(project_root))
             
-            cmd = ["/usr/bin/git", "checkout", "origin/tool", "--", source_dir_rel]
+            cmd = [_git_bin(), "checkout", "origin/tool", "--", source_dir_rel]
             result = subprocess.run(cmd, capture_output=True, cwd=str(project_root))
             if result.returncode != 0:
-                cmd = ["/usr/bin/git", "checkout", "tool", "--", source_dir_rel]
+                cmd = [_git_bin(), "checkout", "tool", "--", source_dir_rel]
                 result = subprocess.run(cmd, capture_output=True, cwd=str(project_root))
             
             if result.returncode == 0 and full_source_path.exists():

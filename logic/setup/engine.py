@@ -3,6 +3,14 @@ import sys
 import json
 import stat
 import shutil
+
+
+def _git_bin():
+    try:
+        from tool.GIT.interface.main import get_system_git
+        return get_system_git()
+    except ImportError:
+        return _git_bin()
 import subprocess
 from pathlib import Path
 from logic.turing.models.progress import ProgressTuringMachine
@@ -296,7 +304,7 @@ class ToolEngine:
         last_err = "No source found in any branch"
         for branch in sources:
             try:
-                cmd = ["/usr/bin/git", "checkout", branch, "--", str(remote_source_path)]
+                cmd = [_git_bin(), "checkout", branch, "--", str(remote_source_path)]
                 res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
                 if res.returncode == 0:
                     return True
@@ -309,7 +317,7 @@ class ToolEngine:
         archived_path = f"resource/archived/{self.tool_name}"
         for branch in ["tool", "origin/tool"]:
             try:
-                cmd = ["/usr/bin/git", "checkout", branch, "--", archived_path]
+                cmd = [_git_bin(), "checkout", branch, "--", archived_path]
                 res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
                 if res.returncode == 0:
                     import shutil

@@ -1,2 +1,2 @@
-"""Re-export shared LLMProvider base class."""
-from logic.llm.base import LLMProvider  # noqa: F401
+"""Re-export from LLM tool."""
+from tool.LLM.logic.base import LLMProvider  # noqa: F401

@@ -8,6 +8,14 @@ if sys.path and sys.path[0] == str(script_dir):
     del sys.path[0]
 import sys
 import argparse
+
+
+def _git_bin():
+    try:
+        from tool.GIT.interface.main import get_system_git
+        return get_system_git()
+    except ImportError:
+        return _git_bin()
 import json
 import os
 import subprocess
@@ -91,8 +99,8 @@ def main():
             # Use git checkout to get the font from origin/tool
             rel_path = f"resource/tool/FONT/data/install/{norm_name}"
             try:
-                subprocess.run(["/usr/bin/git", "fetch", "origin", "tool"], capture_output=True, check=True)
-                res = subprocess.run(["/usr/bin/git", "checkout", "origin/tool", "--", rel_path], capture_output=True, text=True)
+                subprocess.run([_git_bin(), "fetch", "origin", "tool"], capture_output=True, check=True)
+                res = subprocess.run([_git_bin(), "checkout", "origin/tool", "--", rel_path], capture_output=True, text=True)
                 if res.returncode == 0:
                     print(f"\r\033[K{GREEN}Successfully installed{RESET} {family}.")
                 else:

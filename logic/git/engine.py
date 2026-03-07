@@ -4,10 +4,15 @@ import os
 import re
 from pathlib import Path
 
+def _git_bin():
+    from tool.GIT.interface.main import get_system_git
+    return get_system_git()
+
+
 def run_git_command(args, cwd=None, capture_output=True, text=True, silent=False):
     """Executes a git command and returns the result."""
     try:
-        result = subprocess.run(["/usr/bin/git"] + args, cwd=cwd, capture_output=capture_output, text=text)
+        result = subprocess.run([_git_bin()] + args, cwd=cwd, capture_output=capture_output, text=text)
         if result.returncode != 0 and not silent:
             # More friendly error message
             err = result.stderr.strip() if result.stderr else "Unknown error"
@@ -75,9 +80,11 @@ def get_current_branch(cwd=None):
 DEFAULT_SQUASH_CONFIG = {
     "base": 10,
     "levels": [
-        {"level": 1, "frequency": 1},
-        {"level": 2, "frequency": 0.5},
+        {"level": 1, "frequency": 1.0},
+        {"level": 2, "frequency": 1.0/2},
         {"level": 6, "frequency": 1.0/6},
+        {"level": 24, "frequency": 1.0/24},
+        {"level": 120, "frequency": 1.0/120},
     ]
 }
 

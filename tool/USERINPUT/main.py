@@ -136,7 +136,8 @@ def get_config():
 
 def get_project_name():
     try:
-        git_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], stderr=subprocess.DEVNULL, text=True).strip()
+        from tool.GIT.interface.main import get_system_git
+        git_root = subprocess.check_output([get_system_git(), 'rev-parse', '--show-toplevel'], stderr=subprocess.DEVNULL, text=True).strip()
         if git_root: return os.path.basename(git_root)
     except: pass
     return os.path.basename(os.getcwd()) or "root"

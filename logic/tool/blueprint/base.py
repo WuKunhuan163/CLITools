@@ -530,30 +530,24 @@ class ToolBase:
             return
 
         if subcmd == "search" and len(args) > 1:
-            query = " ".join(args[1:]).lower()
-            library_dir = self.project_root / "tool" / "SKILLS" / "data" / "library"
-            project_skills_dir = self.project_root / "skills"
-            matches = []
-            for source in [library_dir, project_skills_dir]:
-                if not source.exists(): continue
-                for skill_dir in sorted(source.iterdir()):
-                    skill_file = skill_dir / "SKILL.md"
-                    if not skill_dir.is_dir() or not skill_file.exists(): continue
-                    content = skill_file.read_text()
-                    if query in skill_dir.name.lower() or query in content.lower():
-                        desc = ""
-                        for line in content.splitlines():
-                            if line.startswith("description:"):
-                                desc = line[len("description:"):].strip()
-                                break
-                        matches.append((skill_dir.name, desc))
-            if matches:
-                print(f"{BOLD}Found {len(matches)} skill(s) matching '{query}':{RESET}\n")
-                for name, desc in matches[:20]:
-                    print(f"  {BOLD}{name}{RESET}")
-                    if desc: print(f"    {desc}")
-                if len(matches) > 20:
-                    print(f"\n  ... and {len(matches) - 20} more.")
+            DIM = get_color("DIM", "\033[2m")
+            query = " ".join(args[1:])
+            try:
+                from logic.search.tools import search_skills
+                results = search_skills(
+                    self.project_root, query, top_k=10,
+                    tool_name=self.tool_name,
+                )
+            except ImportError:
+                results = []
+            if results:
+                print(f"{BOLD}Found {len(results)} skill(s) matching '{query}':{RESET}\n")
+                for i, r in enumerate(results, 1):
+                    meta = r.get("meta", {})
+                    score_pct = int(r["score"] * 100)
+                    tool_tag = f" (tool: {meta['tool']})" if meta.get("tool") else ""
+                    print(f"  {BOLD}{i}. {r['id']}{RESET}{tool_tag} ({score_pct}%)")
+                    print(f"     {DIM}{meta.get('path', '')}{RESET}")
             else:
                 print(f"No skills found matching '{query}'.")
             return
@@ -659,6 +653,15 @@ class ToolBase:
 
         print(f"Usage: {self.tool_name} hooks [list | show <name> | enable <name> | disable <name>]")
 
+    @staticmethod
+    def _get_system_git():
+        """Resolve the real system git binary, avoiding PATH shadows."""
+        try:
+            from tool.GIT.interface.main import get_system_git
+            return get_system_git()
+        except ImportError:
+            return "/usr/bin/git"
+
     def run_system_fallback(self, capture_output=False, filtered_args=None):
         """Delegate unknown commands to the system equivalent."""
         import subprocess
@@ -666,7 +669,7 @@ class ToolBase:
         
         # Mapping for specific tools that act as wrappers
         mapping = {
-            "GIT": "/usr/bin/git",
+            "GIT": self._get_system_git(),
             "PYTHON": sys.executable 
         }
         

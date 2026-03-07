@@ -3,6 +3,14 @@ import sys
 import json
 import time
 import subprocess
+
+
+def _git_bin():
+    try:
+        from tool.GIT.interface.main import get_system_git
+        return get_system_git()
+    except ImportError:
+        return _git_bin()
 import re
 import hashlib
 import threading
@@ -68,7 +76,7 @@ class TestRunner:
         # Record current branch to restore it later
         current_branch = None
         try:
-            res = subprocess.run(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(self.project_root))
+            res = subprocess.run([_git_bin(), "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(self.project_root))
             if res.returncode == 0:
                 current_branch = res.stdout.strip()
         except: pass
@@ -120,10 +128,10 @@ class TestRunner:
             # Restore branch if it was changed during tests
             if current_branch:
                 try:
-                    res = subprocess.run(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(self.project_root))
+                    res = subprocess.run([_git_bin(), "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True, cwd=str(self.project_root))
                     if res.returncode == 0 and res.stdout.strip() != current_branch:
                         # Only restore if different
-                        subprocess.run(["/usr/bin/git", "checkout", current_branch], capture_output=True, cwd=str(self.project_root))
+                        subprocess.run([_git_bin(), "checkout", current_branch], capture_output=True, cwd=str(self.project_root))
                 except: pass
 
     @staticmethod

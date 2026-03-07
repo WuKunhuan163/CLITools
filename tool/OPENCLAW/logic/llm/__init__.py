@@ -1,8 +1,5 @@
-"""OPENCLAW LLM integration — delegates to shared logic/llm/ module.
-
-Re-exports the shared LLM infrastructure for backward compatibility.
-"""
-from logic.llm.base import LLMProvider  # noqa: F401
-from logic.llm.rate_limiter import RateLimiter  # noqa: F401
-from logic.llm.session_context import SessionContext  # noqa: F401
-from logic.llm.registry import get_provider, list_providers  # noqa: F401
+"""OPENCLAW LLM integration -- delegates to tool.LLM for provider management."""
+from tool.LLM.logic.base import LLMProvider  # noqa: F401
+from tool.LLM.logic.rate_limiter import RateLimiter  # noqa: F401
+from tool.LLM.logic.session_context import SessionContext  # noqa: F401
+from tool.LLM.logic.registry import get_provider, list_providers  # noqa: F401

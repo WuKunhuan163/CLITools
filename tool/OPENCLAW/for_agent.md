@@ -3,48 +3,108 @@
 ## Quick Start
 
 ```bash
-OPENCLAW setup-llm                     # One-time: configure NVIDIA API key
-OPENCLAW chat                          # Launch GUI (GLM-4.7 API backend)
-OPENCLAW chat --backend yuanbao_web    # Legacy: Yuanbao browser backend
+OPENCLAW                               # Launch HTML GUI (default)
+OPENCLAW cli                           # Interactive terminal agent (Claude Code-style)
 OPENCLAW status                        # Check all LLM provider status
 OPENCLAW sessions                      # List saved sessions
+OPENCLAW setup-llm                     # Configure API keys
 ```
+
+### CLI Commands (inside `OPENCLAW cli`)
+
+| Command | Description |
+|---------|-------------|
+| `/setup` | Configure API key and select model (arrow-key selector) |
+| `/help` | Show available commands |
+| `/new` | Start a new session |
+| `/sessions` | List saved sessions |
+| `/resume <id>` | Resume a previous session |
+| `/status` | Show provider and session status |
+| `/context` | Show current context token usage |
+| `/dashboard` | Launch LLM usage dashboard in browser |
+| `/quit` | Exit CLI |
+
+### External Control (for testing)
+
+```bash
+OPENCLAW cli-inject PID "task text"    # Inject a task into a running CLI
+OPENCLAW cli-status PID               # Query CLI state
+OPENCLAW cli-list                     # List active CLI instances
+```
+
+### Prompt Indicators
+- `>` default (idle) -> blue (running) -> green (step done) -> red (error)
+- Step summary replaces "Thinking..." when agent provides `<<STEP: label >>`
 
 ## Architecture
 
-OPENCLAW supports two LLM backends selected via `--backend`:
+```
+OpenClawCore (shared state)
+  +-- SessionManager
+  +-- LLM Provider (streaming + non-streaming)
+  +-- AgentEnvironment (dynamic context)
+  +-- Context compression
+  |
+  +-- CLI GUI (cli.py) -- terminal
+  +-- HTML GUI (chat_html.py) -- browser
+```
 
-### nvidia_glm47 (default, compliant)
-- GLM-4.7 via NVIDIA Build free API
-- OpenAI-compatible endpoint: `integrate.api.nvidia.com/v1/chat/completions`
-- Model: `z-ai/glm4.7` (358B params, 131K context)
-- Rate limited: 30 RPM with random jitter
-- Session context managed client-side via messages array
+### LLM Backends (via `--backend`)
 
-### yuanbao_web (legacy)
-- Tencent Yuanbao via CDMCP browser automation
-- Requires Chrome with `--remote-debugging-port=9222`
-- Manual login required (no automated auth)
-- DOM interaction via Quill editor + CDP
+| Backend | Provider | Rate Limit | Context | Streaming |
+|---------|----------|------------|---------|-----------|
+| `nvidia_glm47` | NVIDIA Build GLM-4.7 | 30 RPM | 131K | SSE |
+| `zhipu_glm4` | Zhipu GLM-4-Flash | 30 RPM | 128K | SSE |
+
+### Step Protocol
+
+Each agent response follows:
+1. `<<STEP: brief label >>` -- what the agent is doing
+2. Reasoning text + `<<EXEC: command >>` commands
+3. `<<OPENCLAW_STEP_COMPLETE>>` or `<<OPENCLAW_TASK_COMPLETE>>`
 
 ## Key Components
 
-### LLM Layer (`logic/llm/`)
-- `base.py` -- `LLMProvider` abstract interface (send, is_available, get_info)
-- `nvidia_glm47.py` -- NVIDIA Build client with OpenAI-compatible HTTP calls
-- `rate_limiter.py` -- Token-bucket rate limiter with RPM cap and jitter
-- `session_context.py` -- Messages array manager with auto-truncation
+### Core (`logic/core.py`)
+- `OpenClawCore` -- shared state layer for all GUIs
+- Owns SessionManager, provider, contexts, compression settings
+- GUIs wrap core with display-specific behavior
+
+### LLM Layer (via `tool/LLM`)
+- `base.py` -- `LLMProvider` abstract interface (send, stream, is_available)
+- `stream()` -- yields text chunks with usage tracking
+- `rate_limiter.py` -- RPM cap with jitter
+- `session_context.py` -- context management with auto-compression
+
+### Context Compression
+When context exceeds `compression_trigger` ratio of max tokens (default 0.5), the agent is asked to summarize its conversation down to `compression_target` ratio (default 0.1). The summary replaces the full history, preserving recent actions and discovered context.
+
+### Agent Environment
+Each turn sends the agent's "surroundings" -- tools, interfaces, and skills it has discovered through exploration. This is ephemeral (resets each session) and separate from persistent memory (lessons).
+
+### System Prompt (Lean)
+The system prompt does NOT list all tools or skills. Instead, the agent uses `TOOL --search` commands to discover what it needs. This keeps the prompt under 8KB.
 
 ### Pipelines
 - `pipeline_api.py` -- API-based pipeline (GLM-4.7): sends messages array, parses response, executes commands, loops
 - `pipeline.py` -- Browser-based pipeline (Yuanbao): same loop but uses CDMCP DOM interaction
 
-### Other
-- `logic/chrome/api.py` -- Yuanbao DOM interaction (create conversation, send messages, capture responses)
-- `logic/sandbox.py` -- Restricted command execution with `--openclaw-*` special commands
-- `logic/protocol.py` -- System prompt construction and response parsing
-- `logic/session.py` -- Session persistence (JSON files)
+### Interfaces
+- `logic/gui/cli.py` -- Terminal agent (Claude Code-style): interactive prompt, inline spinners, color-coded output
 - `logic/gui/chat_html.py` -- HTML GUI adapter (routes to correct pipeline based on backend)
+- `logic/gui/chat.py` -- tkinter GUI (legacy fallback)
+
+### Protocol (`logic/protocol.py`)
+- `build_system_prompt()` -- lean prompt (no full tool listings)
+- `build_task_message()` -- task + runtime state + agent environment
+- `parse_response_segments()` -- parse response into interleaved thought/command/experience segments
+- `AgentEnvironment` -- dynamic context tracking per turn
+
+### Other
+- `logic/sandbox.py` -- Restricted command execution with `--openclaw-*` special commands
+- `logic/session.py` -- Session persistence (JSON files + operation logs)
+- `logic/guardrails.py` -- Token budget, loop detection, command limits
+- `logic/skills.py` -- Active skill chaining on error
 
 ## GLM-4.7 API Details
 

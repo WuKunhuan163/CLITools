@@ -22,3 +22,4 @@ from logic.utils.system import (
     get_cpu_percent, get_variable_from_file,
 )
 from logic.utils.timezone import get_current_timezone, resolve_timezone
+from logic.utils.fuzzy import suggest_commands, suggest_with_scores, format_suggestion

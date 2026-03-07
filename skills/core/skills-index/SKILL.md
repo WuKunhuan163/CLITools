@@ -25,6 +25,14 @@ How to build, structure, and extend tools.
 | `standard-command-development` | Three-layer architecture (CLI, Logic, Interface) |
 | `tool-interface` | Cross-tool public API via `interface/main.py` |
 
+## Conventions & Style
+
+Project-wide naming and coding conventions.
+
+| Skill | Purpose |
+|-------|---------|
+| `naming-conventions` | Tool names, CLI subcommands, file/variable naming rules |
+
 ## Quality & Testing
 
 Ensuring correctness, consistency, and coverage.
@@ -45,6 +53,7 @@ Internal systems powering the framework.
 |-------|---------|
 | `localization` | Multi-language `_()` helper, translation files, audits |
 | `record-cache` | Caching patterns, `data/` directory conventions |
+| `retention-rotation` | Limit + delete-half strategy for logs, caches, and files |
 | `session-debug-log` | `tool.log()`, SessionLogger, debug file techniques |
 | `setup-tutorial-creation` | TutorialWindow multi-step GUI wizards |
 | `turing-machine-development` | TuringStage, progress pipelines, parallel workers |

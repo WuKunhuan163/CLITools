@@ -75,11 +75,23 @@ class GoogleTool(ToolBase):
             self._handle_login(args.args)
         elif args.command == "logout":
             self._handle_logout()
+        elif args.command == "boot":
+            self._handle_boot()
         elif args.command == "auth-status":
             self._handle_auth_status()
+        elif args.command == "open-tab":
+            self._handle_open_tab(args.args)
+        elif args.command == "tabs":
+            self._handle_list_tabs()
         else:
-            print(f"Unknown command: {args.command}")
-            parser.print_help()
+            _KNOWN = {"boot", "auth-status", "open-tab", "tabs", "login", "logout", "search", "drive", "trends"}
+            suggestion = ""
+            normalized = args.command.replace("_", "-")
+            if normalized in _KNOWN:
+                suggestion = f" Did you mean '{normalized}'?"
+            print(f"Unknown command: {args.command}.{suggestion}")
+            print(f"Available: boot, auth-status, open-tab, tabs, login, logout, search, drive, trends")
+            print(f"Note: Commands use hyphens, not underscores (e.g. open-tab, auth-status).")
 
     def _handle_auth_status(self):
         """Check and display Google account login state."""
@@ -126,6 +138,114 @@ class GoogleTool(ToolBase):
             print(f"{BOLD}{GREEN}Successfully signed out{RESET} of Google account.")
         else:
             print(f"{BOLD}{RED}Failed to sign out{RESET}.")
+
+    def _handle_boot(self):
+        """Ensure Chrome is running with CDP enabled."""
+        BOLD = get_color("BOLD")
+        GREEN = get_color("GREEN")
+        RED = get_color("RED")
+        BLUE = get_color("BLUE")
+        RESET = get_color("RESET")
+
+        from logic.chrome.session import is_chrome_cdp_available
+        if is_chrome_cdp_available():
+            print(f"{BOLD}{GREEN}Already running{RESET} Chrome CDP is available.")
+            return
+
+        print(f"  {BOLD}{BLUE}Launching{RESET} Chrome with CDP...")
+        try:
+            from tool.GOOGLE_CDMCP.logic.cdp.session_manager import ensure_chrome
+            result = ensure_chrome()
+        except ImportError:
+            from logic.chrome.session import CDP_PORT
+            import subprocess as _sp
+            import sys as _sys
+            chrome_paths = [
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            ]
+            chrome_bin = None
+            for p in chrome_paths:
+                if Path(p).exists():
+                    chrome_bin = p
+                    break
+            if not chrome_bin:
+                print(f"{BOLD}{RED}Failed{RESET} Chrome binary not found.")
+                return
+            profile_dir = Path.home() / ".cursor" / "chrome-cdp-profile"
+            profile_dir.mkdir(parents=True, exist_ok=True)
+            _sp.Popen([
+                chrome_bin,
+                f"--remote-debugging-port={CDP_PORT}",
+                f"--user-data-dir={str(profile_dir)}",
+                "--remote-allow-origins=*",
+            ])
+            import time
+            for _ in range(10):
+                time.sleep(1)
+                if is_chrome_cdp_available():
+                    result = {"ok": True, "action": "relaunched"}
+                    break
+            else:
+                result = {"ok": False, "error": "Timeout waiting for CDP"}
+
+        if result.get("ok"):
+            action = result.get("action", "ready")
+            print(f"{BOLD}{GREEN}Ready{RESET} Chrome CDP is now available ({action}).")
+        else:
+            print(f"{BOLD}{RED}Failed{RESET} {result.get('error', 'Unknown error')}.")
+
+    def _handle_open_tab(self, extra_args):
+        """Open a new Chrome tab via CDP. Auto-boots Chrome if not running."""
+        BOLD = get_color("BOLD")
+        GREEN = get_color("GREEN")
+        RED = get_color("RED")
+        RESET = get_color("RESET")
+
+        url = extra_args[0] if extra_args else "about:blank"
+        url = url.strip('"').strip("'")
+        if not url.startswith(("http://", "https://", "about:", "chrome:")):
+            url = "https://" + url
+
+        from logic.chrome.session import is_chrome_cdp_available, open_tab
+        if not is_chrome_cdp_available():
+            print(f"  Chrome CDP not available, booting...")
+            self._handle_boot()
+            if not is_chrome_cdp_available():
+                return
+
+        ok = open_tab(url)
+        if ok:
+            print(f"{BOLD}{GREEN}Opened{RESET} new tab: {url}")
+        else:
+            print(f"{BOLD}{RED}Failed{RESET} to open tab.")
+
+    def _handle_list_tabs(self):
+        """List open Chrome tabs via CDP."""
+        BOLD = get_color("BOLD")
+        GREEN = get_color("GREEN")
+        RED = get_color("RED")
+        RESET = get_color("RESET")
+
+        from logic.chrome.session import is_chrome_cdp_available
+        if not is_chrome_cdp_available():
+            print(f"{BOLD}{RED}Failed{RESET} Chrome CDP not available.")
+            return
+
+        import urllib.request
+        try:
+            with urllib.request.urlopen("http://localhost:9222/json/list", timeout=5) as resp:
+                tabs = json.loads(resp.read().decode())
+            if not tabs:
+                print("  No open tabs.")
+                return
+            print(f"  {BOLD}Open tabs{RESET} ({len(tabs)}):")
+            for i, t in enumerate(tabs[:20]):
+                title = t.get("title", "")[:60]
+                url = t.get("url", "")[:80]
+                print(f"    {i+1}. {title}")
+                print(f"       {url}")
+        except Exception as e:
+            print(f"{BOLD}{RED}Failed{RESET} to list tabs: {e}")
 
     def _handle_login(self, extra_args):
         """Sign in to a Google account via CDP automation."""

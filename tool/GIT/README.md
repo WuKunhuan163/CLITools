@@ -29,12 +29,15 @@ GIT maintain --base 50
 
 ## History Maintenance Model
 
-The maintenance system uses a tiered frequency model based on a `base` commit count:
-1. **Safe Zone**: The last `base` commits are always kept intact.
-2. **Maintenance Zone**: Commits older than `base` are squashed based on levels:
-   - **Level 2 (2*base)**: Interval where every 2 commits are merged into 1 (Frequency 0.5).
-   - **Level 12 (12*base)**: Interval where every 12 commits are merged into 1 (Frequency 1/12).
-   - **Level 120 (120*base)**: Interval where every 120 commits are merged into 1 (Frequency 1/120).
+The maintenance system uses a tiered frequency model based on a `base` commit count (default 10):
+
+| Zone | Range (commits back) | Level | Frequency | Keeps |
+|------|---------------------|-------|-----------|-------|
+| Safe | 0 - base | 1 | 1 | All |
+| Near | base - 2*base | 2 | 0.5 | 1 in 2 |
+| Mid | 2*base - 6*base | 6 | 1/6 | 1 in 6 |
+| Far | 6*base - 30*base | 30 | 1/30 | 1 in 30 |
+| Archive | 30*base - 120*base | 120 | 1/120 | 1 in 120 |
 
 **Constraint**: `base * level * frequency` must be an integer to ensure clean chunks.
 

@@ -14,6 +14,11 @@ from logic.turing.models.progress import ProgressTuringMachine
 _TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "tool" / "template"
 
 
+def _git_bin():
+    from tool.GIT.interface.main import get_system_git
+    return get_system_git()
+
+
 def _load_template(filename: str, **kwargs) -> str:
     """Load a .tmpl file from logic/tool/template/ and fill placeholders."""
     tmpl_path = _TEMPLATE_DIR / filename
@@ -25,9 +30,9 @@ def dev_sync(project_root: Path, quiet: bool = False, translation_func: Optional
     """Synchronize branches in a linear chain: dev -> tool -> main -> test."""
     from logic.git.utils import align_branches_logic
     from logic.git.persistence import get_persistence_manager
-    
+
     pm = get_persistence_manager(project_root)
-    locker_key = pm.save_tools_persistence()
+    locker_key = pm.save_tools_data(branch="dev")
     try:
         return align_branches_logic(project_root, quiet=quiet, translation_func=translation_func)
     finally:
@@ -44,12 +49,12 @@ def dev_reset(project_root: Path, shared_logic_dir: Path, translation_func: Opti
     RESET = get_color("RESET", "\033[0m")
 
     try:
-        current = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+        current = subprocess.check_output([_git_bin(), "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
         if current != "tool":
             warning_label = _("label_warning", "Warning")
             print(f"{BOLD}{YELLOW}{warning_label}{RESET}: " + _("reset_warning_branch", "Reset is recommended from 'tool' branch."))
             
-        subprocess.run(["/usr/bin/git", "checkout", "main"], cwd=str(project_root), check=True)
+        subprocess.run([_git_bin(), "checkout", "main"], cwd=str(project_root), check=True)
         
         init_dir = shared_logic_dir / "init"
         if (init_dir / ".gitignore").exists():
@@ -57,20 +62,20 @@ def dev_reset(project_root: Path, shared_logic_dir: Path, translation_func: Opti
         if (init_dir / ".gitattributes").exists():
             shutil.copy(init_dir / ".gitattributes", project_root / ".gitattributes")
             
-        subprocess.run(["/usr/bin/git", "add", ".gitignore", ".gitattributes"], cwd=str(project_root), check=True)
-        subprocess.run(["/usr/bin/git", "commit", "-m", "Reset main branch to template state"], cwd=str(project_root), capture_output=True)
+        subprocess.run([_git_bin(), "add", ".gitignore", ".gitattributes"], cwd=str(project_root), check=True)
+        subprocess.run([_git_bin(), "commit", "-m", "Reset main branch to template state"], cwd=str(project_root), capture_output=True)
         
-        subprocess.run(["/usr/bin/git", "clean", "-fd"], cwd=str(project_root), stderr=subprocess.DEVNULL)
+        subprocess.run([_git_bin(), "clean", "-fd"], cwd=str(project_root), stderr=subprocess.DEVNULL)
         for d in ["data", "tmp", "tool", "resource"]:
             p = project_root / d
             if p.exists() and p.is_dir():
                 shutil.rmtree(p)
-                subprocess.run(["/usr/bin/git", "rm", "-rf", "--cached", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
+                subprocess.run([_git_bin(), "rm", "-rf", "--cached", d], stderr=subprocess.DEVNULL, cwd=str(project_root))
         
-        subprocess.run(["/usr/bin/git", "commit", "--amend", "--no-edit"], cwd=str(project_root), capture_output=True)
-        subprocess.run(["/usr/bin/git", "branch", "-D", "test"], stderr=subprocess.DEVNULL, cwd=str(project_root))
-        subprocess.run(["/usr/bin/git", "checkout", "-b", "test"], cwd=str(project_root), check=True)
-        subprocess.run(["/usr/bin/git", "checkout", current], cwd=str(project_root), check=True)
+        subprocess.run([_git_bin(), "commit", "--amend", "--no-edit"], cwd=str(project_root), capture_output=True)
+        subprocess.run([_git_bin(), "branch", "-D", "test"], stderr=subprocess.DEVNULL, cwd=str(project_root))
+        subprocess.run([_git_bin(), "checkout", "-b", "test"], cwd=str(project_root), check=True)
+        subprocess.run([_git_bin(), "checkout", current], cwd=str(project_root), check=True)
         
         success_status = _("label_success", "Successfully")
         print(f"{BOLD}{GREEN}{success_status} reset{RESET} main and test branches.")
@@ -79,33 +84,59 @@ def dev_reset(project_root: Path, shared_logic_dir: Path, translation_func: Opti
         print(f"{BOLD}{RED}{error_label}{RESET}: " + _("reset_failed", "Reset failed: {error}", error=str(e)))
 
 def dev_enter(branch: str, project_root: Path, force: bool = False, translation_func: Optional[Callable] = None):
-    """Switch to main or test branch safely."""
+    """Switch to main or test branch safely, with locker save/restore."""
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))
     BOLD = get_color("BOLD", "\033[1m")
     BLUE = get_color("BLUE", "\033[34m")
+    GREEN = get_color("GREEN", "\033[32m")
     RED = get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
 
+    from logic.git.persistence import get_persistence_manager
+    pm = get_persistence_manager(project_root)
+
     try:
+        current = subprocess.check_output(
+            [_git_bin(), "rev-parse", "--abbrev-ref", "HEAD"],
+            text=True, cwd=str(project_root),
+        ).strip()
+    except Exception:
+        current = "unknown"
+
+    try:
+        # Save untracked data before leaving current branch
+        locker_key = pm.save_tools_data(branch=current)
+        if locker_key:
+            print(f"  {BOLD}Saved{RESET} untracked data to locker ({current}).")
+
         if force:
-            print(f"{BOLD}{BLUE}Force switching to {branch} branch...{RESET}")
-            subprocess.run(["/usr/bin/git", "checkout", "-f", branch], cwd=str(project_root), check=True)
-            subprocess.run(["/usr/bin/git", "clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"], cwd=str(project_root), check=True)
+            print(f"  {BOLD}{BLUE}Force switching{RESET} to '{branch}'...")
+            subprocess.run([_git_bin(), "checkout", "-f", branch], cwd=str(project_root), check=True)
+            subprocess.run([_git_bin(), "clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"],
+                           cwd=str(project_root), check=True)
         else:
-            # Auto-commit local changes if any
-            status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(project_root))
+            status = subprocess.check_output([_git_bin(), "status", "--porcelain"],
+                                             text=True, cwd=str(project_root))
             if status:
                 auto_commit_label = _("label_auto_committing", "Auto-committing")
-                print(f"{BOLD}{BLUE}{auto_commit_label}{RESET} local changes before switching...")
-                subprocess.run(["/usr/bin/git", "add", "-A"], check=True, cwd=str(project_root))
-                subprocess.run(["/usr/bin/git", "commit", "-m", f"Auto-commit before entering {branch}"], check=True, cwd=str(project_root), capture_output=True)
-            
-            subprocess.run(["/usr/bin/git", "checkout", branch], cwd=str(project_root), check=True)
-            # Always clean when entering test/main to remove leftover ignored files
-            subprocess.run(["/usr/bin/git", "clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"], cwd=str(project_root), check=True)
+                print(f"  {BOLD}{BLUE}{auto_commit_label}{RESET} local changes before switching...")
+                subprocess.run([_git_bin(), "add", "-A"], check=True, cwd=str(project_root))
+                subprocess.run([_git_bin(), "commit", "-m", f"Auto-commit before entering {branch}"],
+                               check=True, cwd=str(project_root), capture_output=True)
+
+            subprocess.run([_git_bin(), "checkout", branch], cwd=str(project_root), check=True)
+            subprocess.run([_git_bin(), "clean", "-fdx", "--exclude=tool/*/data/", "--exclude=data/"],
+                           cwd=str(project_root), check=True)
+
+        # Restore locker if one exists for the target branch
+        target_key = pm.find_locker_for_branch(branch)
+        if target_key:
+            pm.restore(target_key)
+            print(f"  {BOLD}{GREEN}Restored{RESET} untracked data from locker ({branch}).")
+
     except Exception as e:
         error_label = _("label_error", "Error")
-        print(f"{BOLD}{RED}{error_label}{RESET}: {e}")
+        print(f"  {BOLD}{RED}{error_label}{RESET}: {e}")
 
 def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Callable] = None):
     """Create a new tool template."""
@@ -120,7 +151,7 @@ def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Ca
     
     # Get current branch
     try:
-        current_branch = subprocess.check_output(["/usr/bin/git", "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
+        current_branch = subprocess.check_output([_git_bin(), "rev-parse", "--abbrev-ref", "HEAD"], text=True, cwd=str(project_root)).strip()
     except:
         current_branch = "dev"
 

@@ -50,10 +50,12 @@ tool/<NAME>/data/test_cache/
 
 ## Log Rotation
 
-Session logs auto-rotate to prevent disk bloat:
-- Logs live in `tool/<NAME>/data/logs/`
-- Default max size: 10 MB per log file
-- Default retention: 5 rotated files
+Session logs auto-rotate to prevent disk bloat using a "limit + delete half" strategy:
+- Logs live in `tool/<NAME>/data/sessions/{id}/logs/` (or `data/logs/` for standalone)
+- Default limit: 1024 entries per session
+- When limit is reached, oldest half is deleted in one batch
+
+See the **retention-rotation** skill for the full pattern and implementation template.
 
 ## Guidelines
 

@@ -1,2 +1,2 @@
-"""Re-export shared RateLimiter."""
-from logic.llm.rate_limiter import RateLimiter  # noqa: F401
+"""Re-export from LLM tool."""
+from tool.LLM.logic.rate_limiter import RateLimiter  # noqa: F401

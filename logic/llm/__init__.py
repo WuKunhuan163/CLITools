@@ -1,19 +1,9 @@
-"""Shared LLM provider infrastructure for AITerminalTools.
+"""Shared LLM module -- delegates to tool.LLM for all functionality.
 
-Provides a unified interface for calling LLM APIs from any tool.
-Inspired by OpenClaw's architecture: decision center (brain) communicates
-with LLMs via clean API contracts, never touching web UIs directly.
-
-Providers:
-  - ``nvidia_glm47``: GLM-4.7 via NVIDIA Build (free tier, OpenAI-compatible)
-
-Usage:
-    from logic.llm.registry import get_provider, list_providers
-
-    provider = get_provider("nvidia_glm47")
-    result = provider.send([
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Hello!"},
-    ])
-    print(result["text"])
+Usage from any tool:
+    from tool.LLM.interface.main import send, get_provider, SessionContext
 """
+from tool.LLM.logic.base import LLMProvider, CostModel  # noqa: F401
+from tool.LLM.logic.rate_limiter import RateLimiter  # noqa: F401
+from tool.LLM.logic.session_context import SessionContext  # noqa: F401
+from tool.LLM.logic.registry import get_provider, list_providers  # noqa: F401

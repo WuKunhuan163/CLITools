@@ -45,7 +45,8 @@ class GitEngine:
 
     def run_git(self, args: List[str], cwd: Optional[str] = None) -> subprocess.CompletedProcess:
         """Runs a git command and returns the result."""
-        return subprocess.run(["/usr/bin/git"] + args, cwd=cwd, capture_output=True, text=True)
+        from tool.GIT.interface.main import get_system_git
+        return subprocess.run([get_system_git()] + args, cwd=cwd, capture_output=True, text=True)
 
     def list_remote_files(self, remote: str, branch: str, path: str = "") -> List[str]:
         """Lists files in a remote branch at a specific path."""

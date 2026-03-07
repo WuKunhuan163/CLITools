@@ -4,6 +4,12 @@ import subprocess
 import os
 from pathlib import Path
 
+# Guard: on case-insensitive macOS, running `git` may resolve to this
+# script (bin/GIT/GIT). Detect and pass through to the real git binary.
+invoked_name = os.path.basename(sys.argv[0])
+if invoked_name.lower() == "git" and invoked_name != "GIT":
+    os.execvp("/usr/bin/git", ["/usr/bin/git"] + sys.argv[1:])
+
 # Resolve project root
 curr = Path(__file__).resolve().parent
 while curr != curr.parent:
@@ -41,7 +47,6 @@ new_paths = f"{project_root}:{main_py.parent}"
 env["PYTHONPATH"] = f"{new_paths}:{python_path}" if python_path else new_paths
 
 # Distinguish tool invocation from python/pip exec passthrough
-invoked_name = os.path.basename(sys.argv[0])
 tool_shortcut = "GIT"
 is_tool_invocation = (invoked_name == tool_shortcut)
 is_python_exec = (not is_tool_invocation and

@@ -14,12 +14,12 @@ import threading
 from typing import Dict, Any, Optional, Callable, List
 from pathlib import Path
 
-from logic.llm.base import LLMProvider
-from logic.llm.session_context import SessionContext
+from tool.LLM.logic.base import LLMProvider
+from tool.LLM.logic.session_context import SessionContext
 from tool.OPENCLAW.logic.sandbox import execute_command, get_project_summary
 from tool.OPENCLAW.logic.protocol import (
     build_system_prompt, build_task_message, build_feedback_message,
-    parse_response, TERMINATION_TOKEN,
+    parse_response, TERMINATION_TOKEN, AgentEnvironment,
 )
 from tool.OPENCLAW.logic.session import SessionManager, Session
 
@@ -50,6 +50,7 @@ class APIPipeline:
         self._thread: Optional[threading.Thread] = None
         self._iteration = 0
         self._context: Optional[SessionContext] = None
+        self._env = AgentEnvironment()
 
     def start(self, user_task: str):
         """Start the pipeline in a background thread."""
@@ -90,7 +91,7 @@ class APIPipeline:
                 max_context_tokens=32000,
             )
 
-            task_msg = build_task_message(user_task)
+            task_msg = build_task_message(user_task, environment=self._env)
             self._context.add_user(task_msg)
             self._emit_message("user", user_task)
 
@@ -180,8 +181,30 @@ class APIPipeline:
                     feedback = build_feedback_message(cmd, cmd_result)
                     feedback_parts.append(feedback)
 
+                    ok = cmd_result.get("ok", False)
                     output_preview = cmd_result.get(
                         "output", cmd_result.get("error", ""))
+                    self._env.record_result(cmd, ok, output_preview)
+
+                    # Auto-populate environment from exploration commands
+                    if ok and "--openclaw-tool-help" in cmd:
+                        tool_parts = cmd.split()
+                        if len(tool_parts) >= 2:
+                            t_name = tool_parts[-1]
+                            desc = output_preview[:100].replace("\n", " ")
+                            self._env.observe_tool(t_name, desc)
+                    elif ok and "TOOL --search tools" in cmd:
+                        for line in output_preview.split("\n"):
+                            line = line.strip()
+                            if ". " in line and "%" in line:
+                                parts_l = line.split(". ", 1)
+                                if len(parts_l) == 2:
+                                    rest = parts_l[1]
+                                    name_end = rest.find(" (")
+                                    if name_end > 0:
+                                        self._env.observe_tool(
+                                            rest[:name_end], rest)
+
                     if output_preview:
                         preview = output_preview[:200]
                         if len(output_preview) > 200:

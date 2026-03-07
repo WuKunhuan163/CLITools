@@ -9,10 +9,15 @@ from logic.turing.models.progress import ProgressTuringMachine
 from logic.turing.logic import TuringStage
 from logic.config import get_color
 
+def _git_bin():
+    from tool.GIT.interface.main import get_system_git
+    return get_system_git()
+
+
 def run_git(args, project_root: Path, stage: Optional[TuringStage] = None):
     """Helper to run git commands quietly and capture output."""
     try:
-        res = subprocess.run(["/usr/bin/git"] + args, check=True, cwd=str(project_root), capture_output=True, text=True)
+        res = subprocess.run([_git_bin()] + args, check=True, cwd=str(project_root), capture_output=True, text=True)
         if stage: stage.set_captured_output(res.stdout + res.stderr)
         return True
     except subprocess.CalledProcessError as e:
@@ -35,7 +40,7 @@ def sync_dev_logic(project_root: Path, quiet=False, translation_func: Optional[C
 
     # Auto-commit
     def auto_commit(stage: TuringStage):
-        status = subprocess.check_output(["/usr/bin/git", "status", "--porcelain"], text=True, cwd=str(project_root))
+        status = subprocess.check_output([_git_bin(), "status", "--porcelain"], text=True, cwd=str(project_root))
         if status:
             if not run_git(["add", "-A"], project_root, stage): return False
             if not run_git(["commit", "-m", f"Auto-sync changes on {start_branch}"], project_root, stage): return False
@@ -108,33 +113,53 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
 
     tm = ProgressTuringMachine(project_root=project_root, tool_name="TOOL")
 
-    # 2. dev -> tool (preserving resource/ from old tool branch)
+    # 2. dev -> tool (archive all tools, preserve resource/)
     def align_tool(stage: TuringStage):
         try:
             if not run_git(["checkout", "tool"], project_root, stage): return False
-            # Save old tool HEAD to restore resource/ later
-            res = subprocess.run(["/usr/bin/git", "rev-parse", "HEAD"],
+
+            res = subprocess.run([_git_bin(), "rev-parse", "HEAD"],
                                  cwd=str(project_root), capture_output=True, text=True)
             old_tool_sha = res.stdout.strip() if res.returncode == 0 else None
 
             if not run_git(["reset", "--hard", "dev"], project_root, stage): return False
 
-            # Restore resource/ from old tool branch (if it existed)
-            # Uses -f to bypass .gitignore (resource/ is only tracked on tool branch)
+            # Restore resource/ from old tool branch
             if old_tool_sha:
                 subprocess.run(
-                    ["/usr/bin/git", "checkout", old_tool_sha, "--", "resource/"],
+                    [_git_bin(), "checkout", old_tool_sha, "--", "resource/"],
                     cwd=str(project_root), capture_output=True, text=True
                 )
-                subprocess.run(["/usr/bin/git", "add", "-f", "resource/"],
-                               cwd=str(project_root), capture_output=True)
-                res = subprocess.run(["/usr/bin/git", "diff", "--cached", "--quiet"],
-                                     cwd=str(project_root), capture_output=True)
-                if res.returncode != 0:
-                    subprocess.run(
-                        ["/usr/bin/git", "commit", "--amend", "--no-edit"],
-                        cwd=str(project_root), capture_output=True
-                    )
+
+            # Archive all tools from tool/ -> resource/archived/
+            tool_dir = project_root / "tool"
+            archived_dir = project_root / "resource" / "archived"
+            if tool_dir.exists():
+                archived_dir.mkdir(parents=True, exist_ok=True)
+                for td in tool_dir.iterdir():
+                    if td.is_dir() and (td / "main.py").exists():
+                        dest = archived_dir / td.name
+                        if dest.exists():
+                            shutil.rmtree(dest)
+                        shutil.copytree(td, dest, dirs_exist_ok=True)
+                        # Strip data/ from archived copies (untracked, handled by locker)
+                        archived_data = dest / "data"
+                        if archived_data.exists():
+                            shutil.rmtree(archived_data)
+
+                # Remove tool/ directory entirely
+                shutil.rmtree(tool_dir)
+
+            # Stage changes and amend
+            subprocess.run([_git_bin(), "add", "-A"],
+                           cwd=str(project_root), capture_output=True)
+            res = subprocess.run([_git_bin(), "diff", "--cached", "--quiet"],
+                                 cwd=str(project_root), capture_output=True)
+            if res.returncode != 0:
+                subprocess.run(
+                    [_git_bin(), "commit", "--amend", "--no-edit"],
+                    cwd=str(project_root), capture_output=True
+                )
 
             if not run_git(["push", "origin", "tool", "--force"], project_root, stage): return False
             return True
@@ -159,25 +184,25 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
         env["GIT_INDEX_FILE"] = str(side_index)
         
         try:
-            res = subprocess.run(["/usr/bin/git", "rev-parse", "tool^{tree}"], cwd=str(project_root), capture_output=True, text=True)
+            res = subprocess.run([_git_bin(), "rev-parse", "tool^{tree}"], cwd=str(project_root), capture_output=True, text=True)
             if res.returncode != 0: return False
             tool_tree = res.stdout.strip()
-            subprocess.run(["/usr/bin/git", "read-tree", tool_tree], cwd=str(project_root), env=env, check=True, capture_output=True)
+            subprocess.run([_git_bin(), "read-tree", tool_tree], cwd=str(project_root), env=env, check=True, capture_output=True)
             
             restricted = ["tool", "resource", "data", "tmp", "bin"]
             for folder in restricted:
-                subprocess.run(["/usr/bin/git", "rm", "-rf", "--cached", "--ignore-unmatch", folder], cwd=str(project_root), env=env, capture_output=True)
+                subprocess.run([_git_bin(), "rm", "-rf", "--cached", "--ignore-unmatch", folder], cwd=str(project_root), env=env, capture_output=True)
             
-            new_tree = subprocess.check_output(["/usr/bin/git", "write-tree"], cwd=str(project_root), env=env, text=True).strip()
+            new_tree = subprocess.check_output([_git_bin(), "write-tree"], cwd=str(project_root), env=env, text=True).strip()
             
-            res = subprocess.run(["/usr/bin/git", "rev-parse", "main"], cwd=str(project_root), capture_output=True, text=True)
+            res = subprocess.run([_git_bin(), "rev-parse", "main"], cwd=str(project_root), capture_output=True, text=True)
             parent = res.stdout.strip() if res.returncode == 0 else None
             
-            commit_args = ["/usr/bin/git", "commit-tree", new_tree, "-m", "Align 'main' with 'tool' (framework only)"]
+            commit_args = [_git_bin(), "commit-tree", new_tree, "-m", "Align 'main' with 'tool' (framework only)"]
             if parent: commit_args.extend(["-p", parent])
             
             commit_sha = subprocess.check_output(commit_args, cwd=str(project_root), env=env, text=True).strip()
-            subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/main", commit_sha], cwd=str(project_root), check=True, capture_output=True)
+            subprocess.run([_git_bin(), "update-ref", "refs/heads/main", commit_sha], cwd=str(project_root), check=True, capture_output=True)
             
             return run_git(["push", "origin", "main", "--force"], project_root, stage)
         except Exception as e:
@@ -199,10 +224,10 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
     # 4. tool -> test
     def align_test(stage: TuringStage):
         try:
-            res = subprocess.run(["/usr/bin/git", "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
+            res = subprocess.run([_git_bin(), "rev-parse", "tool"], cwd=str(project_root), capture_output=True, text=True)
             if res.returncode != 0: return False
             tool_sha = res.stdout.strip()
-            subprocess.run(["/usr/bin/git", "update-ref", "refs/heads/test", tool_sha], cwd=str(project_root), check=True, capture_output=True)
+            subprocess.run([_git_bin(), "update-ref", "refs/heads/test", tool_sha], cwd=str(project_root), check=True, capture_output=True)
             return run_git(["push", "origin", "test", "--force"], project_root, stage)
         except Exception as e:
             stage.report_error("Align test failed", str(e))
@@ -221,6 +246,6 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
     success = tm.run(ephemeral=quiet, final_msg="" if quiet else None, final_newline=False)
     
     # Return to starting branch
-    subprocess.run(["/usr/bin/git", "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)
+    subprocess.run([_git_bin(), "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)
     
     return success

@@ -1,224 +1,42 @@
 """Sandboxed command execution for OPENCLAW.
 
-Provides a restricted filesystem view and command execution environment
-for the remote agent. Protects critical system code (OPENCLAW itself,
-CDMCP dependencies) from being accessed or modified.
-
-Inspired by OpenClaw's sandboxed execution model:
-- Boundary-safe file reads with path validation
-- Protected workspace areas inaccessible to the agent
-- Special --openclaw-* commands for self-improvement
+Core sandbox engine (policies, path protection, command classification)
+is provided by the EXEC tool. This module adds OPENCLAW-specific
+command handlers (--openclaw-*) and the high-level execute_command()
+dispatcher.
 """
 import os
 import json
 import subprocess
-import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-
-PROTECTED_PATTERNS = [
-    "tool/OPENCLAW",
-    "tool/GOOGLE.CDMCP",
-    "tool/GOOGLE/logic/chrome",
-    "logic/chrome",
-    "logic/cdmcp_loader.py",
-    ".cursor",
-    ".git",
-    "data/run",
-    "data/input",
-    "bin/TOOL",
-]
-
-ALLOWED_COMMANDS = {
-    "ls", "cat", "head", "tail", "wc", "grep", "find",
-    "echo", "pwd", "tree", "file", "stat",
-    "python3", "pip", "pip3",
-    "npm", "npx", "node",
-    "mkdir", "touch",
-    "curl",
-    "git",
-    "--openclaw-experience", "--openclaw-status", "--openclaw-memory-search",
-    "--openclaw-tool-help", "--openclaw-write-file", "--openclaw-web-search",
-}
-
-BLOCKED_COMMANDS = {
-    "chmod", "chown", "chgrp",
-    "kill", "pkill", "killall", "shutdown", "reboot",
-    "ssh", "scp", "rsync",
-    "sudo", "su", "doas",
-    "open", "osascript",
-}
-
-def _is_project_tool(cmd: str) -> bool:
-    """Check if a command corresponds to an installed project tool."""
-    root = _get_project_root()
-    tool_dir = root / "tool" / cmd
-    if not tool_dir.exists():
-        return False
-    if is_path_protected(str(tool_dir)):
-        return False
-    return (tool_dir / "main.py").exists()
-
-MAX_OUTPUT_LENGTH = 8000
-
-
-def _get_project_root() -> Path:
-    """Resolve project root."""
-    return Path("/Applications/AITerminalTools")
-
-
-def is_path_protected(path: str) -> bool:
-    """Check if a path falls within protected areas."""
-    norm = os.path.normpath(path).replace("\\", "/")
-    # Remove leading project root if present
-    root = str(_get_project_root())
-    if norm.startswith(root):
-        norm = norm[len(root):].lstrip("/")
-
-    for pattern in PROTECTED_PATTERNS:
-        if norm.startswith(pattern) or f"/{pattern}" in norm:
-            return True
-    return False
-
-
-def filter_listing(entries: List[str], base_dir: str) -> List[str]:
-    """Remove protected entries from a directory listing."""
-    result = []
-    for entry in entries:
-        full = os.path.join(base_dir, entry)
-        if not is_path_protected(full):
-            result.append(entry)
-    return result
-
-
-def _resolve_path(path_arg: str) -> str:
-    """Resolve a relative path against the project root."""
-    root = _get_project_root()
-    if path_arg.startswith("/"):
-        p = Path(path_arg)
-    else:
-        p = root / path_arg
-
-    try:
-        resolved = p.resolve()
-        root_resolved = root.resolve()
-        if not str(resolved).startswith(str(root_resolved)):
-            return ""
-    except Exception:
-        return ""
-
-    return str(resolved)
-
-
-def _handle_openclaw_experience(parts: list) -> Dict[str, Any]:
-    """Record an experience/lesson from the agent."""
-    lesson = " ".join(parts[1:]).strip().strip('"').strip("'")
-    if not lesson:
-        return {"ok": False, "error": "Usage: --openclaw-experience \"lesson text\""}
-
-    learnings_dir = Path("/Applications/AITerminalTools/runtime/experience")
-    learnings_dir.mkdir(parents=True, exist_ok=True)
-    learnings_file = learnings_dir / "lessons.jsonl"
-
-    import time as _time
-    entry = {
-        "lesson": lesson,
-        "source": "openclaw-agent",
-        "severity": "info",
-        "timestamp": _time.strftime("%Y-%m-%dT%H:%M:%S"),
-    }
-    try:
-        with open(learnings_file, "a") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-        return {"ok": True, "output": f"Experience recorded: {lesson}"}
-    except Exception as e:
-        return {"ok": False, "error": f"Failed to record: {e}"}
-
-
-def _handle_openclaw_status(_parts: list) -> Dict[str, Any]:
-    """Report current project/tool status."""
-    root = _get_project_root()
-    tool_dir = root / "tool"
-
-    status_lines = ["=== OPENCLAW Status ==="]
-
-    # Tool count
-    if tool_dir.exists():
-        tools = [t for t in os.listdir(tool_dir) if (tool_dir / t / "tool.json").exists()]
-        status_lines.append(f"Tools installed: {len(tools)}")
-
-    # Skills count
-    skills_dir = root / "skills" / "core"
-    if skills_dir.exists():
-        skill_count = len([s for s in os.listdir(skills_dir) if (skills_dir / s / "SKILL.md").exists()])
-        status_lines.append(f"Core skills: {skill_count}")
-
-    # Learnings count
-    learnings_file = Path("/Applications/AITerminalTools/runtime/experience/lessons.jsonl")
-    if learnings_file.exists():
-        try:
-            count = sum(1 for _ in open(learnings_file))
-            status_lines.append(f"Recorded lessons: {count}")
-        except Exception:
-            pass
-
-    return {"ok": True, "output": "\n".join(status_lines)}
-
-
-def _handle_openclaw_memory_search(parts: list) -> Dict[str, Any]:
-    """Search past lessons/experiences for relevant knowledge."""
-    query = " ".join(parts[1:]).strip().strip('"').strip("'").lower()
-    if not query:
-        return {"ok": False, "error": 'Usage: --openclaw-memory-search "search query"'}
-
-    learnings_file = Path("/Applications/AITerminalTools/runtime/experience/lessons.jsonl")
-    if not learnings_file.exists():
-        return {"ok": True, "output": "No lessons recorded yet."}
-
-    results = []
-    query_words = set(query.split())
-
-    try:
-        with open(learnings_file) as f:
-            for i, line in enumerate(f):
-                try:
-                    entry = json.loads(line.strip())
-                    lesson = entry.get("lesson", "")
-                    tool = entry.get("tool", "")
-                    context = entry.get("context", "")
-                    severity = entry.get("severity", "info")
-                    searchable = f"{lesson} {tool} {context}".lower()
-
-                    # Score by word overlap
-                    match_count = sum(1 for w in query_words if w in searchable)
-                    if match_count > 0:
-                        results.append((match_count, i, severity, tool, lesson))
-                except Exception:
-                    pass
-    except Exception as e:
-        return {"ok": False, "error": f"Failed to search: {e}"}
-
-    if not results:
-        return {"ok": True, "output": f"No lessons found matching '{query}'."}
-
-    results.sort(key=lambda x: (-x[0], -x[1]))
-    top = results[:10]
-
-    lines = [f"Found {len(results)} matching lessons (showing top {len(top)}):"]
-    for score, idx, severity, tool, lesson in top:
-        tool_tag = f" [{tool}]" if tool else ""
-        lines.append(f"  [{severity}]{tool_tag} {lesson}")
-
-    return {"ok": True, "output": "\n".join(lines)}
+from tool.EXEC.logic.sandbox import (
+    get_command_policy,
+    set_command_policy,
+    remove_command_policy,
+    list_policies,
+    reload_policies,
+    is_path_protected,
+    filter_listing,
+    resolve_path,
+    classify_command,
+    get_blocked_hint,
+    is_project_tool,
+    prompt_permission,
+    get_project_root,
+    PROTECTED_PATTERNS,
+    ALLOWED_COMMANDS,
+    BLOCKED_COMMANDS,
+    MAX_OUTPUT_LENGTH,
+)
 
 
 def execute_command(command: str) -> Dict[str, Any]:
-    """Execute a sandboxed command and return the output.
+    """Execute a sandboxed command and return the result.
 
-    The command is parsed, validated against allowed/blocked lists,
-    and path arguments are checked against protected patterns.
-    Special --openclaw-* commands are handled internally.
+    Special ``--openclaw-*`` commands are handled internally.
+    All others go through the EXEC sandbox policy engine.
     """
     command = command.strip()
     if not command:
@@ -227,6 +45,7 @@ def execute_command(command: str) -> Dict[str, Any]:
     parts = command.split()
     base_cmd = parts[0]
 
+    # OPENCLAW-specific intrinsics
     if base_cmd == "--openclaw-experience":
         return _handle_openclaw_experience(parts)
     if base_cmd == "--openclaw-status":
@@ -240,34 +59,47 @@ def execute_command(command: str) -> Dict[str, Any]:
     if base_cmd == "--openclaw-web-search":
         return _handle_openclaw_web_search(parts)
 
-    if base_cmd in BLOCKED_COMMANDS:
-        return {"ok": False, "error": f"Command '{base_cmd}' is not permitted"}
+    # Delegate to sandbox engine
+    cls = classify_command(base_cmd)
 
-    # Check if it's a project tool (e.g., BILIBILI, GMAIL, etc.)
-    if _is_project_tool(base_cmd):
-        return _execute_project_tool(command)
+    if cls == "blocked":
+        hint = get_blocked_hint(base_cmd)
+        msg = f"Command '{base_cmd}' is not permitted."
+        if hint:
+            msg += f" {hint}"
+        return {"ok": False, "error": msg, "error_type": "sandbox_blocked"}
 
-    if base_cmd not in ALLOWED_COMMANDS:
-        return {"ok": False, "error": f"Command '{base_cmd}' is not recognized. Allowed: {', '.join(sorted(ALLOWED_COMMANDS))}"}
+    if cls == "policy_deny":
+        return {"ok": False,
+                "error": f"Command '{base_cmd}' is denied by policy.",
+                "error_type": "sandbox_denied"}
 
-    # Check all path-like arguments
+    if cls == "unknown":
+        if is_project_tool(base_cmd):
+            return _execute_project_tool(command)
+        decision = prompt_permission(base_cmd)
+        if decision == "deny":
+            set_command_policy(base_cmd, "deny")
+            return {"ok": False,
+                    "error": f"Command '{base_cmd}' rejected by user.",
+                    "error_type": "sandbox_rejected"}
+
+    # Check path arguments for protected areas
     for arg in parts[1:]:
         if arg.startswith("-"):
             continue
-        resolved = _resolve_path(arg)
+        resolved = resolve_path(arg)
         if resolved and is_path_protected(resolved):
-            return {"ok": False, "error": f"Access denied: '{arg}' is in a protected area"}
+            return {"ok": False, "error": f"Access denied: '{arg}' is in a protected area.",
+                    "error_type": "sandbox_protected"}
 
-    # Special handling for 'ls' to filter protected entries
     if base_cmd == "ls":
         return _sandboxed_ls(parts)
-
     if base_cmd == "cat":
         return _sandboxed_cat(parts)
 
-    # General execution with timeout
+    root = str(get_project_root())
     try:
-        root = str(_get_project_root())
         result = subprocess.run(
             command, shell=True, capture_output=True, text=True,
             timeout=30, cwd=root,
@@ -281,7 +113,7 @@ def execute_command(command: str) -> Dict[str, Any]:
         return {
             "ok": result.returncode == 0,
             "output": output.strip(),
-            "exit_code": result.returncode
+            "exit_code": result.returncode,
         }
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "Command timed out (30s limit)"}
@@ -289,28 +121,27 @@ def execute_command(command: str) -> Dict[str, Any]:
         return {"ok": False, "error": str(e)}
 
 
-def _sandboxed_ls(parts: list) -> Dict[str, Any]:
-    """List directory with protected entries filtered out."""
-    root = _get_project_root()
-    target = str(root)
+# ---------------------------------------------------------------------------
+# Sandboxed built-ins
+# ---------------------------------------------------------------------------
 
+def _sandboxed_ls(parts: list) -> Dict[str, Any]:
+    root = get_project_root()
+    target = str(root)
     flags = []
     for p in parts[1:]:
         if p.startswith("-"):
             flags.append(p)
         else:
-            resolved = _resolve_path(p)
+            resolved = resolve_path(p)
             if not resolved:
                 return {"ok": False, "error": f"Invalid path: {p}"}
             if is_path_protected(resolved):
                 return {"ok": False, "error": f"Access denied: '{p}'"}
             target = resolved
-
     try:
-        entries = os.listdir(target)
+        entries = sorted(os.listdir(target))
         entries = filter_listing(entries, target)
-        entries.sort()
-
         if "-l" in flags or "-la" in flags or "-al" in flags:
             lines = []
             for e in entries:
@@ -319,29 +150,24 @@ def _sandboxed_ls(parts: list) -> Dict[str, Any]:
                     st = os.stat(full)
                     is_dir = os.path.isdir(full)
                     prefix = "d" if is_dir else "-"
-                    size = st.st_size
-                    lines.append(f"{prefix}  {size:>8}  {e}")
+                    lines.append(f"{prefix}  {st.st_size:>8}  {e}")
                 except Exception:
                     lines.append(f"?         ?  {e}")
             return {"ok": True, "output": "\n".join(lines)}
-        else:
-            return {"ok": True, "output": "\n".join(entries)}
+        return {"ok": True, "output": "\n".join(entries)}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
 
 def _sandboxed_cat(parts: list) -> Dict[str, Any]:
-    """Read a file with protection checks."""
     if len(parts) < 2:
         return {"ok": False, "error": "Usage: cat <file>"}
-
     target = parts[1]
-    resolved = _resolve_path(target)
+    resolved = resolve_path(target)
     if not resolved:
         return {"ok": False, "error": f"Invalid path: {target}"}
     if is_path_protected(resolved):
         return {"ok": False, "error": f"Access denied: '{target}'"}
-
     try:
         with open(resolved, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
@@ -357,19 +183,13 @@ def _sandboxed_cat(parts: list) -> Dict[str, Any]:
 
 
 def _execute_project_tool(command: str) -> Dict[str, Any]:
-    """Execute a project tool command (e.g., BILIBILI search ...).
-    
-    Runs the tool's main.py via Python as a subprocess.
-    """
-    root = _get_project_root()
+    root = get_project_root()
     parts = command.split()
     tool_name = parts[0]
     tool_args = parts[1:] if len(parts) > 1 else []
-    
     tool_main = root / "tool" / tool_name / "main.py"
     if not tool_main.exists():
         return {"ok": False, "error": f"Tool '{tool_name}' main.py not found"}
-    
     try:
         result = subprocess.run(
             ["python3", str(tool_main)] + tool_args,
@@ -377,10 +197,7 @@ def _execute_project_tool(command: str) -> Dict[str, Any]:
             cwd=str(root),
             env={**os.environ, "PYTHONPATH": str(root)},
         )
-        output = result.stdout
-        if result.stderr:
-            output += "\n" + result.stderr
-        output = output.strip()
+        output = (result.stdout + ("\n" + result.stderr if result.stderr else "")).strip()
         if len(output) > MAX_OUTPUT_LENGTH:
             output = output[:MAX_OUTPUT_LENGTH] + "\n... [truncated]"
         if result.returncode != 0:
@@ -392,50 +209,152 @@ def _execute_project_tool(command: str) -> Dict[str, Any]:
         return {"ok": False, "error": str(e)}
 
 
+# ---------------------------------------------------------------------------
+# OPENCLAW intrinsic commands
+# ---------------------------------------------------------------------------
+
+def _handle_openclaw_experience(parts: list) -> Dict[str, Any]:
+    lesson = " ".join(parts[1:]).strip().strip('"').strip("'")
+    if not lesson:
+        return {"ok": False, "error": 'Usage: --openclaw-experience "lesson text"'}
+    import time as _time
+    learnings_dir = get_project_root() / "runtime" / "experience"
+    learnings_dir.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "lesson": lesson,
+        "source": "openclaw-agent",
+        "severity": "info",
+        "timestamp": _time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+    try:
+        with open(learnings_dir / "lessons.jsonl", "a") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        return {"ok": True, "output": f"Experience recorded: {lesson}"}
+    except Exception as e:
+        return {"ok": False, "error": f"Failed to record: {e}"}
+
+
+def _handle_openclaw_status(_parts: list) -> Dict[str, Any]:
+    root = get_project_root()
+    lines = ["=== OPENCLAW Status ==="]
+    tool_dir = root / "tool"
+    if tool_dir.exists():
+        tools = [t for t in os.listdir(tool_dir) if (tool_dir / t / "tool.json").exists()]
+        lines.append(f"Tools installed: {len(tools)}")
+    skills_dir = root / "skills" / "core"
+    if skills_dir.exists():
+        count = len([s for s in os.listdir(skills_dir) if (skills_dir / s / "SKILL.md").exists()])
+        lines.append(f"Core skills: {count}")
+    learnings_file = root / "runtime" / "experience" / "lessons.jsonl"
+    if learnings_file.exists():
+        try:
+            count = sum(1 for _ in open(learnings_file))
+            lines.append(f"Recorded lessons: {count}")
+        except Exception:
+            pass
+    return {"ok": True, "output": "\n".join(lines)}
+
+
+def _handle_openclaw_memory_search(parts: list) -> Dict[str, Any]:
+    query = " ".join(parts[1:]).strip().strip('"').strip("'").lower()
+    if not query:
+        return {"ok": False, "error": 'Usage: --openclaw-memory-search "query"'}
+    learnings_file = get_project_root() / "runtime" / "experience" / "lessons.jsonl"
+    if not learnings_file.exists():
+        return {"ok": True, "output": "No lessons recorded yet."}
+    results = []
+    query_words = set(query.split())
+    try:
+        with open(learnings_file) as f:
+            for i, line in enumerate(f):
+                try:
+                    entry = json.loads(line.strip())
+                    searchable = f"{entry.get('lesson','')} {entry.get('tool','')} {entry.get('context','')}".lower()
+                    score = sum(1 for w in query_words if w in searchable)
+                    if score > 0:
+                        results.append((score, i, entry.get("severity", "info"),
+                                        entry.get("tool", ""), entry.get("lesson", "")))
+                except Exception:
+                    pass
+    except Exception as e:
+        return {"ok": False, "error": f"Failed to search: {e}"}
+    if not results:
+        return {"ok": True, "output": f"No lessons found matching '{query}'."}
+    results.sort(key=lambda x: (-x[0], -x[1]))
+    top = results[:10]
+    lines = [f"Found {len(results)} matching lessons (showing top {len(top)}):"]
+    for _, _, severity, tool, lesson in top:
+        tag = f" [{tool}]" if tool else ""
+        lines.append(f"  [{severity}]{tag} {lesson}")
+    return {"ok": True, "output": "\n".join(lines)}
+
+
+def _handle_openclaw_tool_help(parts: list) -> Dict[str, Any]:
+    root = get_project_root()
+    if len(parts) < 2:
+        tool_dir = root / "tool"
+        tools = []
+        if tool_dir.exists():
+            for t in sorted(os.listdir(tool_dir)):
+                if is_path_protected(str(tool_dir / t)):
+                    continue
+                fa = tool_dir / t / "for_agent.md"
+                tj = tool_dir / t / "tool.json"
+                desc = ""
+                if tj.exists():
+                    try:
+                        desc = json.load(open(tj)).get("description", "")
+                    except Exception:
+                        pass
+                tools.append(f"  {t} {'[doc]' if fa.exists() else '[no doc]'} {desc}")
+        return {"ok": True, "output": "Usage: --openclaw-tool-help <TOOL>\n\nAvailable tools:\n" + "\n".join(tools)}
+
+    tool_name = parts[1].upper()
+    if is_path_protected(str(root / "tool" / tool_name)):
+        return {"ok": False, "error": f"Access denied: tool '{tool_name}' is protected"}
+    for fname in ("for_agent.md", "README.md"):
+        fpath = root / "tool" / tool_name / fname
+        if fpath.exists():
+            try:
+                content = fpath.read_text(encoding="utf-8")
+                if len(content) > MAX_OUTPUT_LENGTH:
+                    content = content[:MAX_OUTPUT_LENGTH] + "\n... [truncated]"
+                return {"ok": True, "output": f"[{fname} for {tool_name}]\n{content}"}
+            except Exception as e:
+                return {"ok": False, "error": str(e)}
+    return {"ok": False, "error": f"No documentation found for tool '{tool_name}'"}
+
+
 def _handle_openclaw_write_file(command: str) -> Dict[str, Any]:
-    """Write content to a file. Format: --openclaw-write-file <path> <content>
-    
-    The content is everything after the path argument. The path is validated
-    against protected patterns. Parent directories are created automatically.
-    """
     parts = command.split(None, 2)
     if len(parts) < 3:
         return {"ok": False, "error": "Usage: --openclaw-write-file <path> <content>"}
-    
-    target = parts[1]
-    content = parts[2]
-    
-    resolved = _resolve_path(target)
+    target, content = parts[1], parts[2]
+    resolved = resolve_path(target)
     if not resolved:
         return {"ok": False, "error": f"Invalid path: {target}"}
     if is_path_protected(resolved):
         return {"ok": False, "error": f"Access denied: '{target}' is protected"}
-    
     try:
-        resolved.parent.mkdir(parents=True, exist_ok=True)
-        resolved.write_text(content, encoding="utf-8")
+        Path(resolved).parent.mkdir(parents=True, exist_ok=True)
+        Path(resolved).write_text(content, encoding="utf-8")
         return {"ok": True, "output": f"Written {len(content)} bytes to {target}"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
 
 def _handle_openclaw_web_search(parts: list) -> Dict[str, Any]:
-    """Search the web via the TAVILY tool if available."""
     if len(parts) < 2:
         return {"ok": False, "error": "Usage: --openclaw-web-search <query>"}
-    
     query = " ".join(parts[1:]).strip('"').strip("'")
-    root = _get_project_root()
+    root = get_project_root()
     tavily_main = root / "tool" / "TAVILY" / "main.py"
-    
     if not tavily_main.exists():
-        return {"ok": False, "error": "TAVILY tool not installed. Use direct curl for web searches."}
-    
+        return {"ok": False, "error": "TAVILY tool not installed."}
     try:
         result = subprocess.run(
             ["python3", str(tavily_main), "search", query, "--limit", "5"],
-            capture_output=True, text=True, timeout=30,
-            cwd=str(root),
+            capture_output=True, text=True, timeout=30, cwd=str(root),
         )
         if result.returncode == 0:
             return {"ok": True, "output": result.stdout}
@@ -446,97 +365,25 @@ def _handle_openclaw_web_search(parts: list) -> Dict[str, Any]:
         return {"ok": False, "error": str(e)}
 
 
-def _handle_openclaw_tool_help(parts: list) -> Dict[str, Any]:
-    """Return for_agent.md content of a specific tool, giving the remote agent
-    immediate knowledge of the tool's commands and capabilities without needing
-    to cat multiple files."""
-    if len(parts) < 2:
-        root = _get_project_root()
-        tool_dir = root / "tool"
-        tools = []
-        if tool_dir.exists():
-            for t in sorted(os.listdir(tool_dir)):
-                if is_path_protected(tool_dir / t):
-                    continue
-                fa = tool_dir / t / "for_agent.md"
-                tj = tool_dir / t / "tool.json"
-                desc = ""
-                if tj.exists():
-                    try:
-                        with open(tj) as f:
-                            desc = json.load(f).get("description", "")
-                    except Exception:
-                        pass
-                has_help = fa.exists()
-                tools.append(f"  {t} {'[doc]' if has_help else '[no doc]'} {desc}")
-        return {"ok": True, "output": "Usage: --openclaw-tool-help <TOOL_NAME>\n\nAvailable tools:\n" + "\n".join(tools)}
-
-    tool_name = parts[1].upper()
-    root = _get_project_root()
-    fa_path = root / "tool" / tool_name / "for_agent.md"
-
-    if is_path_protected(root / "tool" / tool_name):
-        return {"ok": False, "error": f"Access denied: tool '{tool_name}' is protected"}
-
-    if not fa_path.exists():
-        readme = root / "tool" / tool_name / "README.md"
-        if readme.exists():
-            try:
-                with open(readme, "r", encoding="utf-8") as f:
-                    content = f.read()
-                if len(content) > MAX_OUTPUT_LENGTH:
-                    content = content[:MAX_OUTPUT_LENGTH] + "\n... [truncated]"
-                return {"ok": True, "output": f"[README.md for {tool_name}]\n{content}"}
-            except Exception as e:
-                return {"ok": False, "error": str(e)}
-        return {"ok": False, "error": f"No documentation found for tool '{tool_name}'"}
-
-    try:
-        with open(fa_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        if len(content) > MAX_OUTPUT_LENGTH:
-            content = content[:MAX_OUTPUT_LENGTH] + "\n... [truncated]"
-        return {"ok": True, "output": f"[for_agent.md for {tool_name}]\n{content}"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
+_SUMMARY_HIDDEN = frozenset({
+    ".DS_Store", "__init__.py", "__pycache__", ".git", ".cursor",
+    "node_modules", ".mypy_cache", ".pytest_cache",
+})
 
 
 def get_project_summary() -> str:
     """Generate a brief summary of the project structure for the remote agent."""
-    root = _get_project_root()
-    lines = ["Project: AITerminalTools", f"Root: {root}", ""]
-
-    # Top-level directories
+    root = get_project_root()
+    lines = [f"Root: {root}", ""]
     lines.append("Top-level directories:")
     try:
         entries = sorted(os.listdir(root))
         entries = filter_listing(entries, str(root))
         for e in entries:
+            if e in _SUMMARY_HIDDEN:
+                continue
             full = root / e
-            if full.is_dir():
-                lines.append(f"  {e}/")
-            elif full.is_file():
-                lines.append(f"  {e}")
+            lines.append(f"  {e}/" if full.is_dir() else f"  {e}")
     except Exception:
         lines.append("  [error reading root]")
-
-    # Tool list
-    tool_dir = root / "tool"
-    if tool_dir.exists():
-        lines.append("")
-        lines.append("Available tools:")
-        tools = sorted(os.listdir(tool_dir))
-        tools = filter_listing(tools, str(tool_dir))
-        for t in tools:
-            tool_json = tool_dir / t / "tool.json"
-            desc = ""
-            if tool_json.exists():
-                try:
-                    with open(tool_json) as f:
-                        info = json.load(f)
-                    desc = f" - {info.get('description', '')}"
-                except Exception:
-                    pass
-            lines.append(f"  {t}{desc}")
-
     return "\n".join(lines)

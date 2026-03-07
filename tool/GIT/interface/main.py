@@ -1,35 +1,112 @@
 from tool.GIT.logic.engine import GitEngine
 from pathlib import Path
+import os
 import sys
+import shutil
 import subprocess
 import json
 
+_GIT_BINARY_CACHE = None
+
+
+def get_system_git() -> str:
+    """Resolve the real system ``git`` binary, bypassing any PATH shadows.
+
+    On macOS, ``bin/GIT/`` in PATH can shadow ``/usr/bin/git`` due to
+    case-insensitive APFS.  This function searches PATH with our project
+    ``bin/`` directories excluded, falling back to well-known locations.
+
+    Returns
+    -------
+    str
+        Absolute path to the system git binary.
+    """
+    global _GIT_BINARY_CACHE
+    if _GIT_BINARY_CACHE:
+        return _GIT_BINARY_CACHE
+
+    # Build a clean PATH excluding our project's bin/ directories
+    project_markers = ("AITerminalTools", "bin/GIT", "bin/GITHUB", "bin/GITLAB")
+    clean_dirs = []
+    for p in os.environ.get("PATH", "").split(os.pathsep):
+        if not any(m in p for m in project_markers):
+            clean_dirs.append(p)
+    clean_path = os.pathsep.join(clean_dirs)
+
+    found = shutil.which("git", path=clean_path)
+    if found:
+        _GIT_BINARY_CACHE = found
+        return found
+
+    # Fallback to well-known locations
+    for candidate in ("/usr/bin/git", "/usr/local/bin/git", "/opt/homebrew/bin/git"):
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            _GIT_BINARY_CACHE = candidate
+            return candidate
+
+    _GIT_BINARY_CACHE = "git"
+    return "git"
+
+
 def get_git_engine():
-    # Robust project root detection for the interface
+    """Return a ``GitEngine`` bound to the project root."""
     from logic.utils import find_project_root
     project_root = find_project_root(Path(__file__))
     return GitEngine(project_root)
 
+
 def run_git(args, cwd=None):
-    """
-    Interface function to run git commands.
-    By default captures output and suppresses terminal printing.
+    """Run a git command via the engine (captures output, no terminal print).
+
+    Parameters
+    ----------
+    args : list[str]
+        Git sub-command and arguments, e.g. ``["status", "--porcelain"]``.
+    cwd : str or None
+        Working directory override.
+
+    Returns
+    -------
+    subprocess.CompletedProcess
     """
     engine = get_git_engine()
-    # Use the engine's run_git which already captures output
     return engine.run_git(args, cwd=cwd)
 
 def run_git_with_status(args, cwd=None):
-    """
-    Runs git and returns (success, stdout, stderr).
+    """Run a git command and return a ``(success, stdout, stderr)`` tuple.
+
+    Parameters
+    ----------
+    args : list[str]
+        Git sub-command and arguments.
+    cwd : str or None
+        Working directory override.
+
+    Returns
+    -------
+    tuple[bool, str, str]
+        ``(success, stdout, stderr)``
     """
     res = run_git(args, cwd=cwd)
     return res.returncode == 0, res.stdout, res.stderr
 
+
 def run_git_tool_managed(args, cwd=None):
-    """
-    Runs the GIT tool itself with managed output.
-    This is what the user referred to as '托管执行'.
+    """Run git through the GIT tool binary with managed output capture.
+
+    Uses the installed ``bin/GIT/GIT`` executable, falling back to the
+    tool source.  Parses ``TOOL_RESULT_JSON`` from stdout when present.
+
+    Parameters
+    ----------
+    args : list[str]
+        Git sub-command and arguments.
+    cwd : str or None
+        Working directory override.
+
+    Returns
+    -------
+    subprocess.CompletedProcess or namedtuple
     """
     # Find the GIT tool executable
     project_root = get_git_engine().project_root

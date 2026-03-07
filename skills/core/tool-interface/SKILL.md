@@ -61,15 +61,77 @@ from tool.GOOGLE.logic.chrome.oauth import handle_oauth_if_needed, close_oauth_t
 1. Create `tool/<NAME>/interface/main.py`
 2. Import and re-export the public API
 3. Use `# noqa: F401` for re-exports
-4. Document usage in the module docstring
+4. Document every public function with a docstring (see standard below)
+5. Before creating a new interface, search for existing ones:
+   ```bash
+   TOOL --search interfaces "what you need"
+   ```
 
 ```python
-"""MY_TOOL Interface — description.
+"""MY_TOOL Interface -- public API for cross-tool access.
 
 Usage::
     from tool.MY_TOOL.interface.main import my_function
 """
 from tool.MY_TOOL.logic.core import my_function  # noqa: F401
+```
+
+## Interface Docstring Standard
+
+Every function exported through an interface MUST have a docstring following
+this format.  This enables semantic search and helps agents discover the
+right interface quickly.
+
+```python
+def get_system_git() -> str:
+    """Resolve the real system ``git`` binary, bypassing any PATH shadows.
+
+    On macOS, ``bin/GIT/`` in PATH can shadow ``/usr/bin/git`` due to
+    case-insensitive APFS.  This function searches PATH with project
+    ``bin/`` directories excluded, falling back to well-known locations.
+
+    Returns
+    -------
+    str
+        Absolute path to the system git binary.
+    """
+```
+
+### Rules
+
+1. **First line**: One-sentence summary of what the function does. Use imperative
+   mood ("Resolve ...", "Send ...", "Build ...").
+2. **Body** (optional): Extended description with context, edge cases, or
+   constraints.  Wrap at 72 characters.
+3. **Parameters**: Use NumPy-style ``Parameters`` section with type annotations.
+   ```
+   Parameters
+   ----------
+   name : str
+       Description of the parameter.
+   count : int, optional
+       Default is 10.
+   ```
+4. **Returns**: Use NumPy-style ``Returns`` section.
+   ```
+   Returns
+   -------
+   list[dict]
+       Each dict has ``id``, ``score``, ``meta`` keys.
+   ```
+5. **Raises** (if applicable): Document expected exceptions.
+6. **Examples** (optional): Show usage in a ``>>>`` block for complex APIs.
+
+### Searching Interfaces
+
+Agents should search for existing interfaces before writing new code:
+
+```bash
+# Natural language search
+TOOL --search interfaces "run a git command"
+TOOL --search interfaces "manage background processes"
+
+# Then read the matched interface file for full API details
 ```
 
 ## Path Resolution

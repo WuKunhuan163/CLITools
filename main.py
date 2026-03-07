@@ -26,6 +26,7 @@ from logic.utils import get_logic_dir, set_rtl_mode
 RESET = get_color("RESET", "\033[0m")
 GREEN = get_color("GREEN", "\033[32m")
 BOLD = get_color("BOLD", "\033[1m")
+DIM = get_color("DIM", "\033[2m")
 BLUE = get_color("BLUE", "\033[34m")
 YELLOW = get_color("YELLOW", "\033[33m")
 RED = get_color("RED", "\033[31m")
@@ -278,6 +279,29 @@ def _tool_dev_handler(dev_args):
         _dev_audit_archived()
     elif subcmd == "migrate-bin":
         _dev_migrate_bin()
+    elif subcmd == "install-hooks":
+        from logic.git.hooks import install_hooks
+        if install_hooks(ROOT_PROJECT_ROOT):
+            print(f"  {BOLD}{GREEN}Installed{RESET} post-checkout hook.")
+        else:
+            print(f"  {BOLD}{YELLOW}Skipped{RESET}: hook already exists or .git not found.")
+    elif subcmd == "uninstall-hooks":
+        from logic.git.hooks import uninstall_hooks
+        if uninstall_hooks(ROOT_PROJECT_ROOT):
+            print(f"  {BOLD}{GREEN}Removed{RESET} post-checkout hook.")
+        else:
+            print(f"  {BOLD}{YELLOW}Skipped{RESET}: no AITerminalTools hook found.")
+    elif subcmd == "locker":
+        from logic.git.persistence import get_persistence_manager
+        pm = get_persistence_manager(ROOT_PROJECT_ROOT)
+        lockers = pm.list_lockers()
+        if not lockers:
+            print(f"  No lockers.")
+        else:
+            for l in lockers:
+                branch = l.get("branch", "?")
+                size = l.get("size_mb", 0)
+                print(f"  {BOLD}{l['key']}{RESET}: branch={branch}, size={size}MB")
     else:
         print(f"Usage: TOOL --dev <command>")
         print(f"\n{BOLD}Available commands:{RESET}")
@@ -290,6 +314,9 @@ def _tool_dev_handler(dev_args):
         print(f"  audit-bin [--fix]                 Audit bin/ shortcuts")
         print(f"  audit-archived                    Check for duplicate tools")
         print(f"  migrate-bin                       Migrate flat bin/ shortcuts")
+        print(f"  install-hooks                     Install git post-checkout hook")
+        print(f"  uninstall-hooks                   Remove git post-checkout hook")
+        print(f"  locker                            List persistence lockers")
 
 
 def _tool_test_handler(test_args):
@@ -469,6 +496,76 @@ def _tool_rule_handler(rule_args):
         rp.print_help()
 
 
+def _tool_search_handler(search_args):
+    """Handle ``TOOL --search {tools,interfaces,skills} <query>``."""
+    import argparse as _ap
+    sp = _ap.ArgumentParser(prog="TOOL --search", description="Semantic search across project")
+    sub = sp.add_subparsers(dest="search_target")
+
+    tp = sub.add_parser("tools", help="Search tools by natural language")
+    tp.add_argument("query", nargs="+", help="Search query")
+    tp.add_argument("-n", "--top", type=int, default=5, help="Max results")
+
+    ip = sub.add_parser("interfaces", help="Search tool interfaces")
+    ip.add_argument("query", nargs="+", help="Search query")
+    ip.add_argument("-n", "--top", type=int, default=5, help="Max results")
+
+    skp = sub.add_parser("skills", help="Search skills")
+    skp.add_argument("query", nargs="+", help="Search query")
+    skp.add_argument("-n", "--top", type=int, default=5, help="Max results")
+    skp.add_argument("--tool", dest="skill_tool", default=None, help="Scope to a specific tool")
+
+    parsed = sp.parse_args(search_args)
+    if not parsed.search_target:
+        sp.print_help()
+        return
+
+    from logic.search.tools import search_tools, search_interfaces, search_skills
+
+    query = " ".join(parsed.query)
+    top_k = parsed.top
+
+    if parsed.search_target == "tools":
+        results = search_tools(ROOT_PROJECT_ROOT, query, top_k=top_k)
+    elif parsed.search_target == "interfaces":
+        results = search_interfaces(ROOT_PROJECT_ROOT, query, top_k=top_k)
+    elif parsed.search_target == "skills":
+        tool_name = getattr(parsed, "skill_tool", None)
+        results = search_skills(ROOT_PROJECT_ROOT, query, top_k=top_k, tool_name=tool_name)
+    else:
+        sp.print_help()
+        return
+
+    if not results:
+        print(f"  No results for: {query}")
+        return
+
+    for i, r in enumerate(results, 1):
+        meta = r.get("meta", {})
+        score_pct = int(r["score"] * 100)
+        rtype = meta.get("type", "unknown")
+
+        if rtype == "tool":
+            desc = meta.get("description") or meta.get("purpose") or ""
+            flags = []
+            if meta.get("has_readme"):
+                flags.append("README")
+            if meta.get("has_for_agent"):
+                flags.append("for_agent")
+            tag = f" [{', '.join(flags)}]" if flags else ""
+            print(f"  {BOLD}{i}. {r['id']}{RESET} ({score_pct}%){tag}")
+            if desc:
+                print(f"     {desc}")
+            print(f"     {DIM}{meta.get('path', '')}{RESET}")
+        elif rtype == "interface":
+            print(f"  {BOLD}{i}. {r['id']}{RESET} interface ({score_pct}%)")
+            print(f"     {DIM}{meta.get('path', '')}{RESET}")
+        elif rtype == "skill":
+            tool_tag = f" (tool: {meta['tool']})" if meta.get("tool") else ""
+            print(f"  {BOLD}{i}. {r['id']}{RESET}{tool_tag} ({score_pct}%)")
+            print(f"     {DIM}{meta.get('path', '')}{RESET}")
+
+
 # Maps --flag to handler function
 _TOOL_FLAG_HANDLERS = {
     "--dev": lambda args: _tool_dev_handler(args),
@@ -482,6 +579,7 @@ _TOOL_FLAG_HANDLERS = {
     "--audit": lambda args: _tool_audit_handler(args),
     "--lang": lambda args: _tool_lang_handler(args),
     "--rule": lambda args: _tool_rule_handler(args),
+    "--search": lambda args: _tool_search_handler(args),
 }
 
 
@@ -499,6 +597,7 @@ def _print_tool_help():
     print(f"  --lang <sub>             Language management (audit, list)")
     print(f"  --audit <sub>            Code quality audits (imports, quality)")
     print(f"  --rule <sub>             AI rule management (create, inject)")
+    print(f"  --search <sub> <query>  Semantic search (tools, interfaces, skills)")
     print(f"  --dev <sub>              Developer commands")
     print(f"  --test <sub>             Run tests")
     print(f"\nUse TOOL --<command> --help for details on each command.")

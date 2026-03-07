@@ -110,6 +110,55 @@ def open_tab(url: str, port: int = CDP_PORT) -> bool:
     return False
 
 
+def auto_acquire_tab(url: str, port: int = CDP_PORT,
+                     boot_timeout: int = 10) -> bool:
+    """Open a URL in Chrome, booting Chrome first if needed.
+
+    Parameters
+    ----------
+    url : str
+        URL to open.
+    port : int
+        CDP port.
+    boot_timeout : int
+        Seconds to wait for Chrome to become available after booting.
+
+    Returns
+    -------
+    bool
+        True if the tab was successfully opened.
+    """
+    if is_chrome_cdp_available(port):
+        return open_tab(url, port)
+
+    try:
+        from tool.GOOGLE.interface.main import boot_chrome
+        boot_chrome(cdp_port=port)
+    except Exception:
+        import subprocess
+        try:
+            subprocess.Popen([
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                f"--remote-debugging-port={port}",
+                "--remote-allow-origins=*",
+                "--no-first-run",
+                url,
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            for _ in range(boot_timeout * 2):
+                time.sleep(0.5)
+                if is_chrome_cdp_available(port):
+                    return True
+            return False
+        except Exception:
+            return False
+
+    for _ in range(boot_timeout * 2):
+        time.sleep(0.5)
+        if is_chrome_cdp_available(port):
+            return open_tab(url, port)
+    return False
+
+
 # ---------------------------------------------------------------------------
 # CDPSession
 # ---------------------------------------------------------------------------

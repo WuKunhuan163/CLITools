@@ -8,6 +8,14 @@ Event: on_interaction_start
 """
 import re
 import subprocess
+
+
+def _git_bin():
+    try:
+        from tool.GIT.interface.main import get_system_git
+        return get_system_git()
+    except ImportError:
+        return "/usr/bin/git"
 import sys
 import time
 from pathlib import Path
@@ -43,7 +51,7 @@ class AutoSaveRemote(HookInstance):
 
         try:
             status = subprocess.check_output(
-                ["/usr/bin/git", "status", "--porcelain"],
+                [_git_bin(), "status", "--porcelain"],
                 text=True, cwd=str(project_root), timeout=10
             ).strip()
         except subprocess.TimeoutExpired:
@@ -85,11 +93,11 @@ class AutoSaveRemote(HookInstance):
                         except Exception:
                             pass
                 subprocess.run(
-                    ["/usr/bin/git", "add", "."],
+                    [_git_bin(), "add", "."],
                     cwd=str(project_root), capture_output=True, timeout=15
                 )
                 res = subprocess.run(
-                    ["/usr/bin/git", "commit", "-m", commit_msg],
+                    [_git_bin(), "commit", "-m", commit_msg],
                     cwd=str(project_root), capture_output=True, text=True, timeout=15
                 )
                 if res.returncode != 0 and stage:
@@ -132,7 +140,7 @@ class AutoSaveRemote(HookInstance):
         def do_backup(stage=None):
             try:
                 proc = subprocess.Popen(
-                    ["/usr/bin/git", "push", "origin",
+                    [_git_bin(), "push", "origin",
                      f"HEAD:{current_branch}", "--force"],
                     cwd=str(project_root),
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE

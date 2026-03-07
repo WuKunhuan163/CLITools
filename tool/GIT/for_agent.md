@@ -17,7 +17,7 @@ This tool enforces the project's linear branch strategy:
 ## History Maintenance
 Agents MUST maintain repository health by following these rules:
 1. **Automated Maintenance**: `GIT maintain` should be triggered periodically (every 50 commits) to squash older history.
-2. **Frequency Constraints**: Any level/frequency model must satisfy `base * level * frequency = integer`.
+2. **Frequency Constraints**: Any level/frequency model must satisfy `base * level * frequency = integer`. Current tiers: L1(1), L2(0.5), L6(1/6), L30(1/30), L120(1/120).
 3. **Robustness**: Maintenance uses a `reset --hard` and `cherry-pick` strategy. Always ensure you have a clean working tree before starting.
 4. **USERINPUT Integration**: `USERINPUT` auto-commits MUST include a rolling tag `#0000` to `#9999` captured in `data/git/tag_counter.txt`.
 

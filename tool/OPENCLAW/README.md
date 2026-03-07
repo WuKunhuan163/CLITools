@@ -1,64 +1,81 @@
 # OPENCLAW
 
-OpenClaw-inspired agent autonomy framework for AITerminalTools. Supports
-two LLM backends: GLM-4.7 via NVIDIA Build API (compliant, free) and
-Tencent Yuanbao via CDMCP browser automation (legacy).
+Agent autonomy framework with multi-backend LLM integration. Supports
+exploration-driven tool discovery, persistent memory, and an evolution
+cycle (lessons -> skills -> tools -> better tools).
 
 ## Architecture
 
 ```
-OPENCLAW GUI (HTML default / tkinter fallback)
-  |-- Sidebar: session list (create, switch, delete)
-  |-- Chat area: message bubbles (user, assistant, system, feedback)
-  |-- Input area: text entry + send
+OPENCLAW (default: HTML GUI; --cli for terminal)
+  |
+  +-- OpenClawCore (shared state layer)
+  |     |-- SessionManager (sessions, messages, operation logs)
+  |     |-- LLM provider (streaming + non-streaming)
+  |     |-- AgentEnvironment (dynamic context per turn)
+  |     |-- Context compression
+  |
+  +-- CLI GUI (terminal agent, Claude Code-style)
+  |     |-- Interactive prompt with /commands
+  |     |-- External control injection (cli-inject)
+  |     |-- Step display: > step_summary -> commands -> done
+  |
+  +-- HTML GUI (browser-based, reserved)
+  |     |-- LocalHTMLServer (logic/serve/html_server.py)
+  |     |-- Sidebar sessions, chat area, input
   |
   v
-Pipeline (background thread)
+Pipeline
   |
-  +-- API Pipeline (nvidia_glm47, default)
-  |     |-- SessionContext manages messages array
-  |     |-- RateLimiter with RPM cap + jitter
-  |     |-- HTTP POST to integrate.api.nvidia.com/v1/chat/completions
-  |     |-- OpenAI-compatible format
+  +-- Step Protocol
+  |     |-- <<STEP: label >> per response
+  |     |-- <<OPENCLAW_STEP_COMPLETE>> or <<OPENCLAW_TASK_COMPLETE>>
+  |     |-- Streaming via LLM base.stream()
   |
-  +-- Browser Pipeline (yuanbao_web, legacy)
-        |-- CDMCP: Quill editor + DOM scraping
-        |-- Chrome CDP on port 9222
-        |-- Manual login required
+  +-- Sandbox (sandbox.py)
+  |     |-- Restricted filesystem view
+  |     |-- Special: --openclaw-tool-help, --openclaw-memory-search
   |
-  v
-Sandbox (sandbox.py)
-  |-- Restricted filesystem view
-  |-- Commands: ls, cat, grep, python3, etc.
-  |-- Special: --openclaw-memory-search, --openclaw-tool-help, etc.
+  +-- Guardrails
+        |-- Token budget, loop detection, command limits
 ```
 
 ## First-Time Setup
 
 ```bash
-OPENCLAW setup-llm            # Enter NVIDIA API key (from build.nvidia.com)
-OPENCLAW chat                 # Launch GUI with GLM-4.7 backend
+OPENCLAW cli                  # Launch terminal agent
+> /setup                      # Configure API key (arrow-key selector + getpass)
 ```
 
-Get your free API key at: https://build.nvidia.com/z-ai/glm4_7
+Get API keys at:
+- Zhipu: https://bigmodel.cn/usercenter/proj-mgmt/apikeys
+- NVIDIA: https://build.nvidia.com/z-ai/glm4_7
 
 ## Commands
 
 ```bash
-OPENCLAW                      # Show help
-OPENCLAW chat                 # Launch HTML chatbot (GLM-4.7 API)
-OPENCLAW chat --backend yuanbao_web  # Use Yuanbao browser backend
-OPENCLAW chat --gui tkinter   # Launch tkinter GUI
+OPENCLAW                      # Launch HTML GUI (default)
+OPENCLAW cli                  # Interactive terminal agent (Claude Code-style)
+OPENCLAW chat                 # Launch HTML chatbot
 OPENCLAW status               # Check LLM provider status
 OPENCLAW sessions             # List saved sessions
-OPENCLAW setup-llm            # Configure NVIDIA API key
+OPENCLAW setup-llm            # Configure API key
+```
+
+### External Control (for testing)
+
+```bash
+OPENCLAW cli-list             # List active CLI instances
+OPENCLAW cli-status PID       # Query a running CLI's state
+OPENCLAW cli-inject PID CMD   # Inject a command into a running CLI
 ```
 
 ## LLM Backends
 
 | Backend | Provider | Rate Limit | Context | Auth |
 |---|---|---|---|---|
-| `nvidia_glm47` (default) | NVIDIA Build GLM-4.7 | 40 RPM (30 configured) | 131K tokens | API key |
+| `nvidia_glm47` | NVIDIA Build GLM-4.7 | 40 RPM (30 configured) | 131K tokens | API key |
+| `zhipu_glm4` | Zhipu GLM-4-Flash | Rate limited | 128K tokens | API key |
 | `yuanbao_web` (legacy) | Tencent Yuanbao | N/A | N/A | Manual browser login |
 
 The default backend uses the official GLM-4.7 API via NVIDIA Build, which is
@@ -86,10 +103,12 @@ framework defined in the Yuanbao conversation:
 
 ## Protocol
 
-The remote agent communicates via special tokens:
+The agent communicates via special tokens:
+- `<<STEP: label >>` -- Step summary (first line of every response)
 - `<<EXEC: command >>` -- Execute a sandboxed command
 - `<<EXPERIENCE: lesson >>` -- Record an experience/lesson
-- `<<OPENCLAW_TASK_COMPLETE>>` -- Signal task completion
+- `<<OPENCLAW_STEP_COMPLETE>>` -- Step done, continue to next step
+- `<<OPENCLAW_TASK_COMPLETE>>` -- Entire task done
 - `TITLE: Session Title` -- Set session title (first response only)
 
 ## Security

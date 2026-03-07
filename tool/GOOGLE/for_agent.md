@@ -4,11 +4,32 @@
 
 | Command | Purpose |
 |---------|---------|
+| `GOOGLE boot` | Ensure Chrome is running with CDP (auto-launches if needed). |
 | `GOOGLE auth-status` | Check if a Google account is signed in via CDP. |
+| `GOOGLE open-tab [url]` | Open a new Chrome tab (auto-boots Chrome if needed). |
+| `GOOGLE tabs` | List currently open Chrome tabs. |
 | `GOOGLE login --email <e> --password <p>` | Sign in to Google via CDP automation. |
 | `GOOGLE login --email <e> --password <p> --recovery-code <c>` | Sign in with 2FA recovery code. |
 | `GOOGLE logout` | Sign out of the current Google account. |
 | `GOOGLE --mcp-login` | Get MCP browser login workflow (Cursor IDE browser). |
+
+## Browser Tab Management
+
+Boot Chrome with CDP (auto-launches if not running):
+```bash
+GOOGLE boot
+```
+
+Open a tab (auto-boots Chrome if needed):
+```bash
+GOOGLE open-tab https://example.com
+GOOGLE open-tab                       # opens about:blank
+```
+
+List open tabs:
+```bash
+GOOGLE tabs
+```
 
 ## Authentication Flow
 

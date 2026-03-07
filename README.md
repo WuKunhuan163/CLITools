@@ -99,13 +99,22 @@ Available skills: `tool-development-workflow`, `turing-machine-development`, `se
 - `TOOL lang set <LANG>`: Set display language.
 - `TOOL lang audit <LANG> [--turing]`: Audit translation coverage.
 
+### Semantic Search (Agent Exploration)
+- `TOOL --search tools <query>`: Find tools by natural language (e.g. "open a Chrome tab").
+- `TOOL --search interfaces <query>`: Find tool interfaces by functionality.
+- `TOOL --search skills <query> [--tool NAME]`: Find skills, optionally scoped to a tool.
+- `SKILLS search <query> [--tool NAME]`: Search skills from within the SKILLS tool.
+
+Agents explore the project using these commands. Discoveries populate the agent's
+environment (visible tools, interfaces, skills) for subsequent turns.
+
 ### Developer Workflow
 - `TOOL --dev sync`: Align all branches (dev -> tool -> main -> test) with persistence management.
 - `TOOL --dev create <NAME>`: Scaffold a new tool from template.
 - `TOOL --dev audit-test <NAME> [--fix]`: Audit test naming conventions.
 - `TOOL --dev audit-bin [--fix]` / `TOOL --dev audit-archived`: Audit shortcuts and archived tool duplicates.
-- `TOOL audit imports [--tool NAME] [--json]`: Static analysis for cross-tool import quality (IMP001-IMP004).
-- `TOOL audit quality [--tool NAME] [--json]`: Hooks, interface, and skills validation (HOOK001-HOOK006, IFACE001-IFACE005, SKILL001-SKILL003).
+- `TOOL --audit imports [--tool NAME] [--json]`: Static analysis for cross-tool import quality (IMP001-IMP004).
+- `TOOL --audit quality [--tool NAME] [--json]`: Hooks, interface, and skills validation (HOOK001-HOOK006, IFACE001-IFACE005, SKILL001-SKILL003).
 
 For detailed development guidance, run `SKILLS show tool-development-workflow`.
 

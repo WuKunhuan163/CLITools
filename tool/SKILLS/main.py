@@ -369,6 +369,12 @@ def main():
     subparsers.add_parser("sync", help="Sync skills to Cursor's skills directory")
     subparsers.add_parser("path", help="Show skills library path")
 
+    search_p = subparsers.add_parser("search", help="Semantic search for skills")
+    search_p.add_argument("query", nargs="+", help="Natural language query")
+    search_p.add_argument("-n", "--top", type=int, default=5, help="Max results")
+    search_p.add_argument("--tool", dest="search_tool", default=None,
+                          help="Scope search to a specific tool's skills")
+
     learn_p = subparsers.add_parser("learn", help="Record a lesson (error->rule->skill loop)")
     learn_p.add_argument("lesson", help="One-line description of the lesson learned")
     learn_p.add_argument("--context", default="", help="Additional context or file paths")
@@ -456,6 +462,27 @@ def main():
             print(f"{BOLD}{RED}Error{RESET}: Skill '{args.name}' not found.")
             return
         print(skill_file.read_text())
+        return
+
+    if args.command == "search":
+        from logic.search.tools import search_skills
+        DIM = get_color("DIM", "\033[2m")
+        query = " ".join(args.query)
+        results = search_skills(
+            Path(tool.project_root),
+            query,
+            top_k=args.top,
+            tool_name=getattr(args, "search_tool", None),
+        )
+        if not results:
+            print(f"  No results for: {query}")
+            return
+        for i, r in enumerate(results, 1):
+            meta = r.get("meta", {})
+            score_pct = int(r["score"] * 100)
+            tool_tag = f" (tool: {meta['tool']})" if meta.get("tool") else ""
+            print(f"  {BOLD}{i}. {r['id']}{RESET}{tool_tag} ({score_pct}%)")
+            print(f"     {DIM}{meta.get('path', '')}{RESET}")
         return
 
     if args.command == "sync":

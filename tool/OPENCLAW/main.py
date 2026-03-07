@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """OPENCLAW — Agent autonomy framework with multi-backend LLM integration.
 
-Supports two LLM backends:
-  - nvidia_glm47: GLM-4.7 via NVIDIA Build API (free tier, compliant)
-  - yuanbao_web:  Tencent Yuanbao via CDMCP browser automation (legacy)
+Supports LLM backends:
+  - nvidia_glm47: GLM-4.7 via NVIDIA Build API (free tier)
+  - zhipu_glm4:   GLM-4-Flash via Zhipu AI (free tier)
 
 Usage:
     OPENCLAW              Show help
-    OPENCLAW chat         Launch the chatbot GUI (default: GLM-4.7 API)
+    OPENCLAW cli          Interactive terminal agent
     OPENCLAW status       Check LLM provider and connection status
     OPENCLAW sessions     List saved sessions
-    OPENCLAW setup-llm    Configure the NVIDIA GLM-4.7 API key
+    OPENCLAW setup-llm    Configure API keys
 """
 import sys
 import os
@@ -30,7 +30,23 @@ setup_paths(__file__)
 from logic.tool.blueprint.base import ToolBase
 from logic.config import get_color
 
-VALID_BACKENDS = ("nvidia_glm47", "yuanbao_web")
+VALID_BACKENDS = ("nvidia_glm47", "zhipu_glm4")
+
+_CONFIG_FILE = Path(__file__).resolve().parent / "data" / "config.json"
+
+def _load_config() -> dict:
+    if _CONFIG_FILE.exists():
+        import json
+        try:
+            return json.loads(_CONFIG_FILE.read_text())
+        except Exception:
+            pass
+    return {}
+
+def _save_config(cfg: dict):
+    import json
+    _CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _CONFIG_FILE.write_text(json.dumps(cfg, indent=2, ensure_ascii=False))
 
 
 def cmd_setup_llm(args):
@@ -46,7 +62,7 @@ def cmd_setup_llm(args):
     print(f"  Get your API key from: https://build.nvidia.com/z-ai/glm4_7")
     print()
 
-    from logic.llm.nvidia_glm47 import (
+    from tool.LLM.logic.providers.nvidia_glm47 import (
         get_api_key, save_api_key, NvidiaGLM47Provider
     )
 
@@ -71,6 +87,33 @@ def cmd_setup_llm(args):
     print(f"  {BOLD}Available{RESET}: {avail}")
     print(f"  {BOLD}RPM limit{RESET}: {info['rpm_limit']}")
     print(f"  {BOLD}Max context{RESET}: {info['max_context']:,} tokens")
+
+
+def _make_core(args) -> "OpenClawCore":
+    """Create the shared OpenClawCore instance used by all GUI modes."""
+    from tool.OPENCLAW.logic.core import OpenClawCore
+    data_dir = Path(__file__).resolve().parent / "data"
+    cfg = _load_config()
+    core = OpenClawCore(
+        data_dir=data_dir,
+        backend=getattr(args, "backend", "nvidia_glm47"),
+        log_limit=cfg.get("log_limit", 1024),
+    )
+    return core
+
+
+def cmd_cli(args):
+    """Launch the interactive terminal agent."""
+    from tool.OPENCLAW.logic.gui.cli import OpenClawCLI
+
+    core = _make_core(args)
+    cli = OpenClawCLI(
+        session_mgr=core.session_mgr,
+        backend=core.backend,
+        cdp_port=args.port,
+        core=core,
+    )
+    cli.run()
 
 
 def cmd_chat(args):
@@ -123,8 +166,7 @@ chat.run()
             except Exception:
                 pass
     else:
-        label = "GLM-4.7 API" if backend == "nvidia_glm47" else "Yuanbao Web"
-        print(f"  {BOLD}{BLUE}Launching{RESET} OPENCLAW chatbot ({label})...", flush=True)
+        print(f"  {BOLD}{BLUE}Launching{RESET} OPENCLAW chatbot ({backend})...", flush=True)
         from tool.OPENCLAW.logic.session import SessionManager
         from tool.OPENCLAW.logic.gui.chat_html import OpenClawChatHTML
 
@@ -142,47 +184,22 @@ def cmd_status(args):
     BOLD = get_color("BOLD")
     GREEN = get_color("GREEN")
     RED = get_color("RED")
-    YELLOW = get_color("YELLOW")
     RESET = get_color("RESET")
 
+    from tool.LLM.logic.registry import list_providers
+    from tool.LLM.logic.config import get_config_value
+
+    providers = list_providers()
+    active = get_config_value("active_backend", "nvidia_glm47")
+
     print(f"  {BOLD}LLM Providers{RESET}:")
-
-    # GLM-4.7 API status
-    from logic.llm.nvidia_glm47 import NvidiaGLM47Provider
-    provider = NvidiaGLM47Provider()
-    info = provider.get_info()
-    avail = f"{GREEN}available{RESET}" if info["available"] else f"{RED}not configured{RESET}"
-    print(f"    {BOLD}nvidia_glm47{RESET}: {avail} ({info['model']}, {info['rpm_limit']} RPM)")
-
-    # Yuanbao web status
-    try:
-        from logic.chrome.session import is_chrome_cdp_available
-        cdp_ok = is_chrome_cdp_available(args.port)
-    except Exception:
-        cdp_ok = False
-
-    if cdp_ok:
-        try:
-            from tool.OPENCLAW.logic.chrome.api import get_auth_state, find_yuanbao_tab
-            tab = find_yuanbao_tab(args.port)
-            if tab:
-                auth = get_auth_state(args.port)
-                authed = auth.get("authenticated", False)
-                if authed:
-                    status = f"{GREEN}available{RESET}"
-                else:
-                    status = f"{YELLOW}tab found, not logged in{RESET}"
-            else:
-                status = f"{YELLOW}CDP available, no Yuanbao tab{RESET}"
-        except Exception:
-            status = f"{YELLOW}CDP available, Yuanbao check failed{RESET}"
-    else:
-        status = f"{RED}CDP unavailable{RESET}"
-    print(f"    {BOLD}yuanbao_web{RESET}:  {status} (port {args.port})")
-
+    for p in providers:
+        avail = f"{GREEN}available{RESET}" if p["available"] else f"{RED}not configured{RESET}"
+        marker = " *" if p["name"] == active else ""
+        print(f"    {BOLD}{p['name']}{RESET}: {avail} "
+              f"({p.get('model', '?')}, {p.get('rpm_limit', '?')} RPM){marker}")
     print()
-    print(f"  {BOLD}Default backend{RESET}: nvidia_glm47")
-    print(f"  Use --backend yuanbao_web for browser-based mode.")
+    print(f"  {BOLD}Active backend{RESET}: {active}")
 
 
 def cmd_sessions(args):
@@ -210,6 +227,184 @@ def cmd_sessions(args):
         print(f"    [{s.id}] {title} ({msg_count} msgs, {status}, {ts})")
 
 
+_RUN_DIR = Path(__file__).resolve().parent / "data" / "run"
+
+
+def cmd_cli_status(args):
+    """Query a running CLI instance's state by PID."""
+    import json as _json
+    BOLD = get_color("BOLD")
+    GREEN = get_color("GREEN")
+    RED = get_color("RED")
+    DIM = get_color("DIM")
+    RESET = get_color("RESET")
+
+    pid = args.pid
+    state_file = _RUN_DIR / f"cli_{pid}.json"
+    if not state_file.exists():
+        print(f"  {RED}No running CLI found for PID {pid}.{RESET}")
+        available = sorted(_RUN_DIR.glob("cli_*.json"))
+        if available:
+            print(f"  {DIM}Active CLIs:{RESET}")
+            for f in available:
+                try:
+                    d = _json.loads(f.read_text())
+                    print(f"    PID {d['pid']}: {d['status']} ({d.get('ts', '?')})")
+                except Exception:
+                    pass
+        return
+
+    state = _json.loads(state_file.read_text())
+    status_color = GREEN if state["status"] == "idle" else BOLD
+    print(f"  {BOLD}CLI Status{RESET} (PID {pid})")
+    print(f"    Status:   {status_color}{state['status']}{RESET}")
+    if state.get("detail"):
+        print(f"    Detail:   {state['detail']}")
+    print(f"    Backend:  {state.get('backend', '?')}")
+    print(f"    Session:  {state.get('session_id') or 'none'}")
+    print(f"    Updated:  {state.get('ts', '?')}")
+
+
+def cmd_cli_inject(args):
+    """Inject a command into a running CLI instance."""
+    RED = get_color("RED")
+    GREEN = get_color("GREEN")
+    RESET = get_color("RESET")
+
+    pid = args.pid
+    state_file = _RUN_DIR / f"cli_{pid}.json"
+    ctrl_file = _RUN_DIR / f"cli_{pid}.cmd"
+
+    if not state_file.exists():
+        print(f"  {RED}No running CLI found for PID {pid}.{RESET}")
+        return
+
+    command = " ".join(args.inject_args)
+    if not command:
+        print(f"  {RED}No command provided.{RESET}")
+        return
+
+    _RUN_DIR.mkdir(parents=True, exist_ok=True)
+    ctrl_file.write_text(command)
+    print(f"  {GREEN}Injected{RESET} into PID {pid}: {command}")
+
+
+def cmd_cli_list(_args):
+    """List all running CLI instances."""
+    import json as _json
+    BOLD = get_color("BOLD")
+    DIM = get_color("DIM")
+    RESET = get_color("RESET")
+
+    available = sorted(_RUN_DIR.glob("cli_*.json")) if _RUN_DIR.exists() else []
+    if not available:
+        print(f"  {DIM}No active CLI instances.{RESET}")
+        return
+
+    print(f"  {BOLD}Active CLI instances:{RESET}")
+    for f in available:
+        try:
+            d = _json.loads(f.read_text())
+            print(f"    PID {d['pid']}: {d['status']}"
+                  f" | backend={d.get('backend', '?')}"
+                  f" | {d.get('ts', '?')}")
+        except Exception:
+            pass
+
+
+_CONFIG_KEYS = {
+    "log_limit": ("int", 1024, "Max operation logs per session (deletes half when exceeded)."),
+}
+
+def cmd_config(args):
+    """View or set OPENCLAW configuration."""
+    BOLD = get_color("BOLD")
+    DIM = get_color("DIM")
+    CYAN = get_color("CYAN")
+    GREEN = get_color("GREEN")
+    RED = get_color("RED")
+    RESET = get_color("RESET")
+
+    cfg = _load_config()
+
+    if not args.key:
+        print(f"  {BOLD}OPENCLAW Config{RESET}")
+        for key, (typ, default, desc) in _CONFIG_KEYS.items():
+            val = cfg.get(key, default)
+            print(f"    {CYAN}{key}{RESET} = {BOLD}{val}{RESET}  {DIM}({desc}){RESET}")
+        print(f"\n  {DIM}Set: OPENCLAW config <key> <value>{RESET}")
+        return
+
+    key = args.key
+    if key not in _CONFIG_KEYS:
+        print(f"  {RED}{BOLD}Unknown key:{RESET} {key}")
+        print(f"  {DIM}Available: {', '.join(_CONFIG_KEYS.keys())}{RESET}")
+        return
+
+    if not args.value:
+        typ, default, desc = _CONFIG_KEYS[key]
+        val = cfg.get(key, default)
+        print(f"  {CYAN}{key}{RESET} = {BOLD}{val}{RESET}  {DIM}({desc}){RESET}")
+        return
+
+    typ, default, desc = _CONFIG_KEYS[key]
+    try:
+        if typ == "int":
+            val = int(args.value)
+        elif typ == "bool":
+            val = args.value.lower() in ("true", "1", "yes")
+        else:
+            val = args.value
+    except ValueError:
+        print(f"  {RED}{BOLD}Invalid value:{RESET} expected {typ}.")
+        return
+
+    cfg[key] = val
+    _save_config(cfg)
+    print(f"  {BOLD}Set{RESET} {CYAN}{key}{RESET} = {BOLD}{val}{RESET}.")
+
+
+def cmd_sandbox(args):
+    """View or set sandbox command policies."""
+    BOLD = get_color("BOLD")
+    DIM = get_color("DIM", "\033[2m")
+    CYAN = get_color("CYAN", "\033[36m")
+    GREEN = get_color("GREEN")
+    RED = get_color("RED")
+    RESET = get_color("RESET")
+
+    from tool.OPENCLAW.logic.sandbox import (
+        list_policies, set_command_policy, remove_command_policy,
+        ALLOWED_COMMANDS, BLOCKED_COMMANDS,
+    )
+
+    if args.sandbox_cmd and args.sandbox_policy:
+        cmd_name = args.sandbox_cmd
+        policy = args.sandbox_policy
+        if policy == "remove":
+            removed = remove_command_policy(cmd_name)
+            if removed:
+                print(f"  {BOLD}Removed{RESET} policy for {CYAN}{cmd_name}{RESET}.")
+            else:
+                print(f"  {DIM}No policy set for {cmd_name}.{RESET}")
+        else:
+            set_command_policy(cmd_name, policy)
+            print(f"  {BOLD}Set{RESET} {CYAN}{cmd_name}{RESET} = {BOLD}{policy}{RESET}.")
+        return
+
+    policies = list_policies()
+    if policies:
+        print(f"  {BOLD}User Policies{RESET}")
+        for cmd_name, pol in sorted(policies.items()):
+            pol_color = GREEN if pol == "allow" else RED
+            print(f"    {CYAN}{cmd_name:<20}{RESET} {pol_color}{BOLD}{pol}{RESET}")
+    else:
+        print(f"  {DIM}No user-configured policies.{RESET}")
+
+    print(f"\n  {DIM}Built-in: {len(ALLOWED_COMMANDS)} allowed, {len(BLOCKED_COMMANDS)} blocked.{RESET}")
+    print(f"  {DIM}Set: OPENCLAW sandbox <command> allow|deny|remove{RESET}")
+
+
 def main():
     tool = ToolBase("OPENCLAW")
 
@@ -226,9 +421,31 @@ def main():
     p_chat = subparsers.add_parser("chat", help="Launch the chatbot GUI")
     p_chat.add_argument("--gui", choices=["html", "tkinter"], default="html",
                         help="GUI mode: html (default) or tkinter")
+    subparsers.add_parser("cli", help="Interactive terminal agent (Claude Code-style)")
     subparsers.add_parser("status", help="Check LLM provider status")
     subparsers.add_parser("sessions", help="List saved sessions")
     subparsers.add_parser("setup-llm", help="Configure NVIDIA GLM-4.7 API key")
+
+    p_cli_status = subparsers.add_parser("cli-status",
+                                          help="Query a running CLI by PID")
+    p_cli_status.add_argument("pid", type=int, help="PID of the CLI instance")
+
+    p_cli_inject = subparsers.add_parser("cli-inject",
+                                          help="Inject a command into a running CLI")
+    p_cli_inject.add_argument("pid", type=int, help="PID of the CLI instance")
+    p_cli_inject.add_argument("inject_args", nargs="+", help="Command to inject")
+
+    subparsers.add_parser("cli-list", help="List active CLI instances")
+
+    p_config = subparsers.add_parser("config", help="View or set OPENCLAW config")
+    p_config.add_argument("key", nargs="?", help="Config key to set")
+    p_config.add_argument("value", nargs="?", help="Value to set")
+
+    p_sandbox = subparsers.add_parser("sandbox", help="Manage sandbox command policies")
+    p_sandbox.add_argument("sandbox_cmd", nargs="?", help="Command name")
+    p_sandbox.add_argument("sandbox_policy", nargs="?",
+                           choices=["allow", "deny", "remove"],
+                           help="Policy: allow, deny, or remove")
 
     if tool.handle_command_line(parser): return
 
@@ -239,31 +456,55 @@ def main():
 
     if args.command == "chat":
         cmd_chat(args)
+    elif args.command == "cli":
+        cmd_cli(args)
     elif args.command == "status":
         cmd_status(args)
     elif args.command == "sessions":
         cmd_sessions(args)
     elif args.command == "setup-llm":
         cmd_setup_llm(args)
+    elif args.command == "cli-status":
+        cmd_cli_status(args)
+    elif args.command == "cli-inject":
+        cmd_cli_inject(args)
+    elif args.command == "cli-list":
+        cmd_cli_list(args)
+    elif args.command == "config":
+        cmd_config(args)
+    elif args.command == "sandbox":
+        cmd_sandbox(args)
     else:
-        print(f"  {BOLD}OPENCLAW{RESET} - Agent autonomy framework.")
-        print()
-        print(f"  Commands:")
-        print(f"    chat        Launch chatbot GUI (default: GLM-4.7 API)")
-        print(f"    status      Check LLM provider and connection status")
-        print(f"    sessions    List saved sessions")
-        print(f"    setup-llm   Configure NVIDIA GLM-4.7 API key")
-        print()
-        print(f"  Options:")
-        print(f"    --port N       Chrome CDP port (default: 9222)")
-        print(f"    --backend B    nvidia_glm47 | yuanbao_web")
-        print()
-        print(f"  First-time setup:")
-        print(f"    1. OPENCLAW setup-llm      (enter NVIDIA API key)")
-        print(f"    2. OPENCLAW chat           (start with GLM-4.7)")
-        print()
-        print(f"  Legacy mode (Yuanbao browser):")
-        print(f"    OPENCLAW chat --backend yuanbao_web")
+        # Default: launch HTML GUI (or show help if --help)
+        if len(sys.argv) == 1:
+            cmd_chat(args)
+        else:
+            print(f"  {BOLD}OPENCLAW{RESET} - Agent autonomy framework.")
+            print()
+            print(f"  GUI modes (default: launches HTML GUI):")
+            print(f"    OPENCLAW             Launch HTML GUI (default)")
+            print(f"    OPENCLAW cli         Interactive terminal agent (Claude Code-style)")
+            print(f"    OPENCLAW chat        Launch chatbot GUI (browser-based)")
+            print()
+            print(f"  Management:")
+            print(f"    status           Check LLM provider and connection status")
+            print(f"    sessions         List saved sessions")
+            print(f"    setup-llm        Configure NVIDIA GLM-4.7 API key")
+            print()
+            print(f"  External control:")
+            print(f"    cli-list         List active CLI instances")
+            print(f"    cli-status PID   Query a running CLI's state")
+            print(f"    cli-inject PID CMD  Inject a command into a running CLI")
+            print()
+            print(f"  Config & Sandbox:")
+            print(f"    config           View all settings")
+            print(f"    config KEY VAL   Set a config value")
+            print(f"    sandbox          View sandbox policies")
+            print(f"    sandbox CMD POL  Set policy (allow/deny/remove)")
+            print()
+            print(f"  Options:")
+            print(f"    --port N       Chrome CDP port (default: 9222)")
+            print(f"    --backend B    nvidia_glm47 | zhipu_glm4")
 
 
 if __name__ == "__main__":

@@ -174,6 +174,12 @@ def _serialize_session(s):
 
 
 def _find_free_port(start=8765, end=8800):
+    """Find a free TCP port. Delegates to shared utility when available."""
+    try:
+        from logic.serve import find_free_port
+        return find_free_port(start, end)
+    except ImportError:
+        pass
     for port in range(start, end):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
