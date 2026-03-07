@@ -188,10 +188,28 @@ interact.mcp_type(cdp, "input[type=email]", "user@example.com", char_delay=0.04)
 interact.mcp_paste(cdp, "bulk text", selector="textarea")
 ```
 
+### Tab Window Targeting
+
+`open_tab_in_session()` uses `chrome.tabs.create` API (via extension) for
+reliable window targeting. The CDP `Target.createTarget(windowId)` parameter
+is unreliable and may open tabs in the wrong window. Falls back to CDP with
+post-creation verification and `chrome.tabs.move` correction.
+
+### Session Cleanup
+
+`close()` performs full cleanup:
+1. Closes all registered tabs (demo, tool-specific)
+2. Closes the lifetime (welcome) tab
+3. Kills the demo subprocess
+
 ## Testing
 
 ```bash
-python3 tool/GOOGLE.CDMCP/test/test_00_help.py -v       # Help test
-python3 tool/GOOGLE.CDMCP/test/test_01_overlay_visual.py -v   # Overlay tests
-python3 tool/GOOGLE.CDMCP/test/test_02_full_workflow.py -v     # Lifecycle test
+TOOL test GOOGLE.CDMCP          # Run all tests
+# Individual tests:
+test/test_00_help.py             # Help flag
+test/test_01_overlay_visual.py   # Overlay rendering
+test/test_02_full_workflow.py    # Lifecycle workflow
+test/test_03_session_boot.py     # Session boot (pin + demo)
+test/test_04_session_reboot.py   # Session reboot (window closure recovery)
 ```

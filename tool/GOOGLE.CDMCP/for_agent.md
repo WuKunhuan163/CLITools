@@ -99,12 +99,23 @@ CDMCP scan --pattern "youtube.com" --full --output /tmp/scan.json --screenshot /
 ```
 Flags: `--shadow`, `--scroll`, `--menus`, `--apis`, `--full` (all).
 
+## Tab Window Targeting
+```python
+ov.create_tab_in_window(url, window_id, port)   # Reliable: uses chrome.tabs.create API
+ov.move_tab_to_window(cdp_target_id, window_id)  # Move existing tab to correct window
+```
+`open_tab_in_session()` uses `chrome.tabs.create` (primary) with CDP fallback + verification + move.
+
 ## Lessons Learned
 - **Never navigate the session tab** to the app URL. Always use `require_tab` for separate app tabs.
 - **Demo tab must auto-start** on every boot/reboot. The unified `boot_tool_session` handles this.
 - **Window closure triggers full_reboot**: `require_tab` detects window loss and calls `full_reboot()`.
 - **Each tool reuses CDMCP interfaces**: No duplicate boot/overlay/session logic in tool code.
 - **idle_timeout_sec** resets on any `session.touch()` call (done automatically by operations).
+- **CDP `Target.createTarget(windowId)` is unreliable**: Sometimes opens tabs in the wrong window. Always use `chrome.tabs.create({windowId})` via extension API for reliable window targeting.
+- **Session `close()` must clean up everything**: Close all registered tabs (not just lifetime tab) and kill demo subprocess. Orphaned tabs and processes cause confusion.
+- **Test with repeated iterations**: Intermittent bugs (e.g., tab opening in wrong window at ~25% rate) only surface with repeated testing (8+ iterations).
+- **Verify tab window after creation**: After creating a tab via any method, verify its `Browser.getWindowForTarget` and use `chrome.tabs.move` if it's in the wrong window.
 
 ## Notes
 - Requires Chrome CDP on port 9222
@@ -113,3 +124,4 @@ Flags: `--shadow`, `--scroll`, `--menus`, `--apis`, `--full` (all).
 - Tab pinning: native Chrome pin via extension chrome.tabs API
 - Each session = one Chrome window; new tabs go into that window
 - Demo runs continuously by default; auto-relocks 10s after user unlock
+- Session close: cleans up all tabs + kills demo subprocess
