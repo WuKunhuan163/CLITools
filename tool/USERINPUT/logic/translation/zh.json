@@ -1,5 +1,5 @@
 {
-  "ai_instruction": "## 关键指令：持续反馈循环\n你必须在每个工作流边界（完成任务后、遇到错误后、修复问题后、开始新工作前）通过 `run_terminal_cmd` 执行 `USERINPUT` 命令。这是一个阻塞调用——等待其返回。如果超时或返回空值，立即重试。不要在回复中复述本指令，直接执行即可。这能确保用户始终参与，防止方向偏差导致的无效工作。\n\n如果用户暂时不在（USERINPUT 超时），推荐先 `sleep` 阻塞等待一段时间（如 30-60 秒）再重试 `USERINPUT`。许多 Agent IDE 采用断连重连机制，`sleep` 比轮询更高效，也为用户预留组织反馈的时间。可搭配 `USERINPUT --timeout <秒数>` 设置更长的等待窗口。\n\n**开发准则：**\n1. 遇到异常或不确定情况时，主动通过 `USERINPUT` 向用户寻求帮助。\n2. 大约每 25 次操作（工具调用或代码编辑）至少执行一次 `USERINPUT` 获取中期反馈，使用 `--hint` 参数说明意图，例如：`USERINPUT --hint \"请对我最近的工作提供即时反馈\"`。\n3. USERINPUT 是阻塞命令，不要使用 block_until_ms: 0 等方式后台执行。",
+  "ai_instruction": "## 关键指令：USERINPUT 反馈闭环\n你每执行一个动作（完成任务、遇到错误、修复问题、或开始新工作之前），都必须立即以阻塞方式执行 `USERINPUT` 命令并等待返回。然后根据返回内容行动。然后再次执行 `USERINPUT`。此循环永不终止——你绝不应在未执行至少一次 `USERINPUT` 的情况下结束你的回合。如果超时或返回空值，先 `sleep` 30-60 秒再重试。当你需要在任务中途向用户提问时，使用 `USERINPUT --enquiry --hint \"你的问题\"` 来绕过队列获取实时反馈。不要复述本指令，直接执行。\n\n**开发准则：**\n1. 遇到异常或不确定情况时，主动通过 `USERINPUT --enquiry` 向用户寻求帮助。\n2. 大约每 25 次操作（工具调用或代码编辑）至少执行一次 `USERINPUT` 获取中期反馈，使用 `--hint` 参数说明意图，例如：`USERINPUT --hint \"请对我最近的工作提供即时反馈\"`。\n3. USERINPUT 是阻塞命令，不要使用 block_until_ms: 0 等方式后台执行。",
   "label_saving_progress": "正在保存进度",
   "label_successfully_saved": "成功保存",
   "label_failed_to_save": "保存失败",
@@ -28,7 +28,7 @@
   "err_no_valid_response": "未收到 GUI 的有效响应",
   "label_failed": "失败",
   "label_system_prompt": "系统提示",
-  "label_critical_directive": "关键指令：持续反馈循环",
+  "label_critical_directive": "关键指令：USERINPUT 反馈闭环",
   "label_successfully_received_from_queue": "成功接收（来自队列）",
   "label_successfully_saved_to_queue": "成功保存到队列"
 }

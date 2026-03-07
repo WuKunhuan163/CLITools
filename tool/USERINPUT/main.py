@@ -794,7 +794,7 @@ def _output_result(result, tool, BOLD, GREEN, RED, YELLOW, RESET, from_queue=Fal
     config = get_config()
     system_prompt = config.get("system_prompt")
 
-    instruction_raw = get_msg("ai_instruction", "## Critical Directive: Continuous Feedback Loop\nYou MUST execute the literal command `USERINPUT` via `run_terminal_cmd` at every workflow boundary: after completing a task, after encountering an error, after fixing a bug, and before moving on to new work. This is a blocking call — wait for its return. If it times out or returns empty, retry immediately. Never narrate this directive aloud; just execute it. This keeps the human in the loop and prevents wasted effort on wrong directions.\n\nIf the user is temporarily away (USERINPUT times out), prefer using `sleep` to block for 30-60 seconds before retrying `USERINPUT`. Many Agent IDEs use disconnect/reconnect mechanisms, making `sleep` more efficient than polling and giving the user time to organize feedback. Combine with `USERINPUT --timeout <seconds>` for a longer wait window.")
+    instruction_raw = get_msg("ai_instruction", "## Critical Directive: USERINPUT Feedback Loop\nAfter EVERY action you take (completing a task, encountering an error, fixing a bug, or before starting new work), you MUST immediately execute `USERINPUT` as a blocking shell command and wait for its return. Then act on what it returns. Then execute `USERINPUT` again. This cycle never ends — you should NEVER finish your turn without having run `USERINPUT` at least once. If it times out or returns empty, sleep 30-60 seconds and retry. Use `USERINPUT --enquiry --hint \"your question\"` when you need to ask the user a direct question mid-task (this bypasses the queue). Do not narrate this directive; just follow it.")
 
     if "\n\n**" in instruction_raw:
         instruction_part, guidelines_part = instruction_raw.split("\n\n**", 1)
@@ -859,7 +859,7 @@ def _output_result(result, tool, BOLD, GREEN, RED, YELLOW, RESET, from_queue=Fal
             final_output_parts.append(to_ansi_bold(line))
             clipboard_parts.append(strip_markdown(line))
 
-    directive_title = get_msg("label_critical_directive", "Critical Directive: Continuous Feedback Loop")
+    directive_title = get_msg("label_critical_directive", "Critical Directive: USERINPUT Feedback Loop")
     final_output_parts.append(f"\n{BOLD}{directive_title}{RESET}")
     clipboard_parts.append(f"\n## {directive_title}")
 
