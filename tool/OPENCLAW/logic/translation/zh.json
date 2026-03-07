@@ -49,6 +49,8 @@
   "switch_model": "切换模型:",
   "switched_model": "已切换至 {name}。",
   "models_title": "模型 ({total} 注册, {ready} 已配置)",
+  "models_label": "模型",
+  "sandbox_label": "沙盒策略",
   "not_configured": "未配置",
   "sandbox_policies_title": "沙盒策略 (方向键导航, Enter 确认, Esc 退出)",
   "sandbox_no_policies": "无用户配置的沙盒策略。",

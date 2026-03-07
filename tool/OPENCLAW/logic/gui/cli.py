@@ -367,7 +367,7 @@ class OpenClawCLI:
                 current_key_map = {"zhipu": current_zhipu, "nvidia": current_nvidia}
                 existing = current_key_map.get(selected["value"])
 
-                print(f"    {DIM}{_('get_key_at', 'Get a key at: {url}', url=url_map[selected['value']])}{RESET}")
+                print(f"    {DIM}{_('get_key_at', 'Get key at: {url}', url=url_map[selected['value']])}{RESET}")
                 if existing:
                     masked = existing[:8] + "..." + existing[-4:] if len(existing) > 12 else existing
                     label = _("enter_api_key_label", "Enter API key")
@@ -407,7 +407,7 @@ class OpenClawCLI:
                     self.backend = ready[0]["name"]
                     self._save_backend(self.backend)
                     self._init_provider()
-                    print(f"  {_('active_model_prefix', 'Active model:')} {BOLD}{ready[0]['name']}{RESET} {DIM}({ready[0]['model']}){RESET}")
+                    print(f"  {BOLD}{_('active_model_prefix', 'Active model:')}{RESET} {ready[0]['name']} {DIM}({ready[0]['model']}){RESET}")
                     return
 
                 model_options = []
@@ -424,7 +424,7 @@ class OpenClawCLI:
                 self.backend = chosen["value"]
                 self._save_backend(self.backend)
                 self._init_provider()
-                print(f"  {_('switched_to_prefix', 'Switched to')} {BOLD}{chosen['value']}{RESET}.")
+                print(f"  {BOLD}{_('switched_to_prefix', 'Switched to')}{RESET} {chosen['value']}.")
                 return
 
     _IDLE = "\u25A1"    # □
@@ -647,7 +647,7 @@ class OpenClawCLI:
         providers = list_providers()
         ready = [p for p in providers if p["available"]]
 
-        print(f"  {BOLD}{_('models_title', 'Models ({total} registered, {ready} configured)', total=len(providers), ready=len(ready))}{RESET}")
+        print(f"  {BOLD}{_('models_label', 'Models')}{RESET} {DIM}({len(providers)} registered, {len(ready)} configured){RESET}")
         for p in providers:
             name = p["name"]
             model = p.get("model", "?")
@@ -673,7 +673,7 @@ class OpenClawCLI:
             self._save_backend(self.backend)
             self._init_provider()
             self._context = None
-            print(f"  {_('switched_to_prefix', 'Switched to')} {BOLD}{self.backend}{RESET}.")
+            print(f"  {BOLD}{_('switched_to_prefix', 'Switched to')}{RESET} {self.backend}.")
 
     def _manage_sandbox(self, direct_cmd: str = "", direct_policy: str = ""):
         """Interactive sandbox policy manager.
@@ -712,7 +712,7 @@ class OpenClawCLI:
         num_lines = len(entries) + 2
 
         def _render():
-            sys.stdout.write(f"  {BOLD}{_('sandbox_policies_title', 'Sandbox Policies (arrows to navigate, Enter to confirm, Esc to exit)')}{RESET}\n")
+            sys.stdout.write(f"  {BOLD}{_('sandbox_label', 'Sandbox Policies')}{RESET} {DIM}(arrows to navigate, Enter to confirm, Esc to exit){RESET}\n")
             for i, (cmd, pol) in enumerate(entries):
                 if pol == "allow":
                     pol_str = f"{GREEN}{BOLD}allow{RESET}"
@@ -762,7 +762,7 @@ class OpenClawCLI:
                     if changed:
                         for cmd_name, pol in entries:
                             set_command_policy(cmd_name, pol)
-                        print(f"  {BOLD}{_('sandbox_saved', 'Saved {n} policies.', n=len(entries))}{RESET}")
+                        print(f"  {BOLD}{_('saved', 'Saved.')}{RESET} {DIM}{len(entries)} policies{RESET}")
                     else:
                         print(f"  {DIM}{_('no_changes', 'No changes.')}{RESET}")
                     return
