@@ -31,7 +31,7 @@
   "configure_api_key": "配置 API Key:",
   "get_key_at": "在此获取密钥: {url}",
   "enter_api_key": "输入 API Key:",
-  "enter_api_key_keep": "输入 API Key (回车使用当前密钥 {key}):",
+  "enter_api_key_keep": "输入 API Key (回车使用当前密钥 {current_key}):",
   "using_stored_key": "使用已保存的 API Key。",
   "select_active_model": "选择活跃模型:",
   "active_model": "活跃模型: {name} ({model})。",

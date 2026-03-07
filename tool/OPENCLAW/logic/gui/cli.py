@@ -360,8 +360,8 @@ class OpenClawCLI:
                     masked = existing[:8] + "..." + existing[-4:] if len(existing) > 12 else existing
                     api_key = read_masked(
                         _("enter_api_key_keep",
-                          "Enter API key (enter to use current key {key}):",
-                          key=masked),
+                          "Enter API key (enter to use current key {current_key}):",
+                          current_key=masked),
                         allow_empty=True)
                 else:
                     api_key = read_masked(_("enter_api_key", "Enter API key:"))
@@ -1282,6 +1282,8 @@ class OpenClawCLI:
                         if self._provider and self._provider.is_available():
                             self._recolor_indicator(display_text, tracker.lines, GREEN)
                             print(_("setup_completed", "Setup completed."))
+                        else:
+                            self._recolor_indicator(display_text, tracker.lines, DIM)
                     elif text == "/help":
                         self._mark_done(display_text)
                         self._print_help()
