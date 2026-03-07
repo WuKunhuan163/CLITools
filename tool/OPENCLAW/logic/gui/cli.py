@@ -357,8 +357,11 @@ class OpenClawCLI:
 
                 print(f"    {DIM}{_('get_key_at', 'Get a key at: {url}', url=url_map[selected['value']])}{RESET}")
                 if existing:
+                    masked = existing[:8] + "..." + existing[-4:] if len(existing) > 12 else existing
                     api_key = read_masked(
-                        _("enter_api_key_keep", "Enter API key (enter to keep current):"),
+                        _("enter_api_key_keep",
+                          "Enter API key (enter to use current key {key}):",
+                          key=masked),
                         allow_empty=True)
                 else:
                     api_key = read_masked(_("enter_api_key", "Enter API key:"))
@@ -1262,7 +1265,7 @@ class OpenClawCLI:
 
                 if text in ("/quit", "/exit"):
                     self._mark_done(display_text)
-                    print(f"{DIM}{_('goodbye', 'Goodbye.')}{RESET}\n")
+                    print(f"  {DIM}{_('goodbye', 'Goodbye.')}{RESET}\n")
                     break
 
                 if text.startswith("/"):

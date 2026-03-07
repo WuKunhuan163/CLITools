@@ -22,8 +22,16 @@ import tty
 import termios
 from typing import List, Dict, Any, Optional
 
+from pathlib import Path
+
 from logic.config import get_color
+from logic.lang.utils import get_translation
 from logic.turing.terminal.keyboard import get_global_suppressor
+
+_LOGIC_DIR = str(Path(__file__).resolve().parent.parent)
+
+def _(key: str, default: str, **kwargs) -> str:
+    return get_translation(_LOGIC_DIR, key, default, **kwargs)
 
 BOLD = get_color("BOLD")
 DIM = get_color("DIM", "\033[2m")
@@ -132,7 +140,7 @@ def select_menu(
                 return None
             elif key == 'ctrl-c':
                 clear()
-                sys.stdout.write(f"{indent}{DIM}Cancelled.{RESET}\n")
+                sys.stdout.write(f"{indent}{DIM}{_('select_cancelled', 'Cancelled.')}{RESET}\n")
                 sys.stdout.flush()
                 return None
             else:
@@ -223,7 +231,7 @@ def select_horizontal(
                 sys.stdout.flush()
                 return cursor
             elif key in ('esc', 'ctrl-c'):
-                sys.stdout.write(f"\r\033[K{indent}{DIM}Cancelled.{RESET}\n")
+                sys.stdout.write(f"\r\033[K{indent}{DIM}{_('select_cancelled', 'Cancelled.')}{RESET}\n")
                 sys.stdout.flush()
                 return None
             else:
