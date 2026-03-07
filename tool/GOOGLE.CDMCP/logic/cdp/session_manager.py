@@ -347,6 +347,85 @@ class CDMCPSession:
             return True
         return False
 
+    def require_tab(self, label: str, url_pattern: str = "",
+                    open_url: str = "", auto_open: bool = True,
+                    wait_sec: float = 10.0) -> Optional[Dict[str, Any]]:
+        """Find or open a tab in this session by label/URL pattern.
+
+        Lookup order:
+          1. Check registered tabs (by label) — if still alive, return it.
+          2. Scan all Chrome tabs for *url_pattern* substring match.
+          3. If not found and *auto_open* is True, open *open_url* in the
+             session window, wait up to *wait_sec*, register, and return.
+          4. If not found and *auto_open* is False, return None.
+
+        Args:
+            label:       Unique label for this tab (e.g. "colab", "youtube").
+            url_pattern: Substring to match in tab URLs (e.g. "colab.research.google.com").
+            open_url:    Full URL to open when the tab is missing.
+            auto_open:   Open the tab automatically when not found.
+            wait_sec:    Seconds to wait for a newly opened tab to appear.
+
+        Returns:
+            Dict ``{id, url, ws, label, recovered}`` or None.
+        """
+        self.touch()
+
+        # 1. Previously registered and still alive
+        existing = self._tabs.get(label)
+        if existing:
+            for t in list_tabs(self.port):
+                if t.get("id") == existing["id"]:
+                    ws = t.get("webSocketDebuggerUrl", "")
+                    existing["ws"] = ws
+                    existing["url"] = t.get("url", existing.get("url", ""))
+                    _log_session("require_tab:found_registered", self.name,
+                                 f"label={label} id={existing['id']}")
+                    return {"id": existing["id"], "url": existing["url"],
+                            "ws": ws, "label": label, "recovered": False}
+
+        # 2. Scan all tabs by URL pattern
+        if url_pattern:
+            for t in list_tabs(self.port):
+                if url_pattern.lower() in (t.get("url", "") or "").lower() and t.get("type") == "page":
+                    tab_id = t.get("id")
+                    ws = t.get("webSocketDebuggerUrl", "")
+                    self.register_tab(label, tab_id, url=t.get("url", ""), ws=ws)
+                    _log_session("require_tab:found_by_url", self.name,
+                                 f"label={label} id={tab_id}")
+                    _save_state()
+                    return {"id": tab_id, "url": t.get("url", ""),
+                            "ws": ws, "label": label, "recovered": False}
+
+        if not auto_open or not open_url:
+            _log_session("require_tab:not_found", self.name,
+                         f"label={label} auto_open={auto_open}")
+            return None
+
+        # 3. Open the URL in the session window
+        _log_session("require_tab:opening", self.name,
+                     f"label={label} url={open_url}")
+        new_tab_id = self.open_tab_in_session(open_url)
+        if not new_tab_id:
+            return None
+
+        # Wait for the tab to appear
+        deadline = time.time() + wait_sec
+        while time.time() < deadline:
+            time.sleep(1)
+            for t in list_tabs(self.port):
+                tid = t.get("id")
+                if tid == new_tab_id or (url_pattern and url_pattern.lower() in (t.get("url", "") or "").lower()):
+                    ws = t.get("webSocketDebuggerUrl", "")
+                    self.register_tab(label, t["id"], url=t.get("url", ""), ws=ws)
+                    _log_session("require_tab:opened", self.name,
+                                 f"label={label} id={t['id']}")
+                    _save_state()
+                    return {"id": t["id"], "url": t.get("url", ""),
+                            "ws": ws, "label": label, "recovered": True}
+
+        return None
+
     # --- Serialization ---
 
     def to_dict(self) -> Dict[str, Any]:
@@ -470,6 +549,35 @@ def close_all_sessions():
         s.close()
     _sessions.clear()
     _save_state()
+
+
+def get_any_active_session() -> Optional[CDMCPSession]:
+    """Return the first non-expired booted session, or None."""
+    _cleanup_expired()
+    for s in _sessions.values():
+        if s._booted and not s.is_expired():
+            return s
+    return None
+
+
+def require_tab(label: str, url_pattern: str = "",
+                open_url: str = "", auto_open: bool = True,
+                session_name: str = "",
+                wait_sec: float = 10.0) -> Optional[Dict[str, Any]]:
+    """Module-level convenience: find/open a tab in the current session.
+
+    If *session_name* is empty, uses the first active session.
+    Returns the same dict as CDMCPSession.require_tab(), or None.
+    """
+    if session_name:
+        s = get_session(session_name)
+    else:
+        s = get_any_active_session()
+    if not s:
+        return None
+    return s.require_tab(label, url_pattern=url_pattern,
+                         open_url=open_url, auto_open=auto_open,
+                         wait_sec=wait_sec)
 
 
 def _cleanup_expired():
