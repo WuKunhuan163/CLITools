@@ -5,7 +5,7 @@ The `GIT` tool is a managed proxy for the system `git` command. It is designed t
 
 ## Core Logic
 - **`logic/engine.py`**: Contains the `GitEngine` class. Use this for programmatic Git operations within other tools.
-- **Progress Implementation**: It uses `logic.utils.run_with_progress` to capture `git`'s own `--progress` output and translate it into a single-line terminal indicator.
+- **Progress Implementation**: It uses `run_with_progress` (from `interface.utils`) to capture `git`'s own `--progress` output and translate it into a single-line terminal indicator.
 
 ## Branch Strategy
 This tool enforces the project's linear branch strategy:

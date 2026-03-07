@@ -22,6 +22,7 @@ class GitIgnoreManager:
             "",
             "# --- Framework Directories ---",
             "!/logic/",
+            "!/interface/",
             "!/bin/",
             "!/test/",
             "!/tool/",

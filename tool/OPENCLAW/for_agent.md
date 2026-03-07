@@ -53,8 +53,8 @@ OpenClawCore (shared state)
 
 | Backend | Provider | Rate Limit | Context | Streaming |
 |---------|----------|------------|---------|-----------|
-| `nvidia_glm47` | NVIDIA Build GLM-4.7 | 30 RPM | 131K | SSE |
-| `zhipu_glm4` | Zhipu GLM-4-Flash | 30 RPM | 128K | SSE |
+| `nvidia-glm-4-7b` | NVIDIA Build GLM-4.7 | 30 RPM | 131K | SSE |
+| `zhipu-glm-4-flash` | Zhipu GLM-4-Flash | 30 RPM | 128K | SSE |
 
 ### Step Protocol
 

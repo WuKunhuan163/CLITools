@@ -1,5 +1,7 @@
 # logic/lang - Agent Reference
 
+> **Import convention**: Tools should import from `interface.lang` (the facade), not directly from `logic.lang`. See `interface/for_agent.md`.
+
 ## Key Interfaces
 
 ### utils.py

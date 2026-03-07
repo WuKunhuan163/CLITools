@@ -1,6 +1,8 @@
 # interface/
 
-Public API modules for cross-tool communication. All cross-tool imports must go through interface modules, never directly into another tool's `logic/`.
+Public facade layer. **All tools MUST import shared utilities from `interface.*`**, not directly from `logic.*`. The `interface/` modules re-export stable symbols from `logic/` internals, providing a clean API boundary.
+
+This directory is auto-tracked in `.gitignore` via `GitIgnoreManager.base_patterns` (see `logic/git/manager.py`).
 
 ## Modules
 

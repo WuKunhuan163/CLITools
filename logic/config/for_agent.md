@@ -1,5 +1,7 @@
 # logic/config - Agent Reference
 
+> **Import convention**: Tools should import from `interface.config` (the facade), not directly from `logic.config`. See `interface/for_agent.md`.
+
 ## Key Interfaces
 
 ### main.py

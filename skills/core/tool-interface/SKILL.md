@@ -7,6 +7,11 @@ description: Create and use tool interfaces (interface/main.py) for cross-tool c
 
 ## Overview
 
+There are two kinds of interfaces in AITerminalTools:
+
+1. **Root `interface/`**: Facade layer re-exporting `logic/` symbols. Tools import shared utilities from here (e.g., `from interface.status import fmt_status`). See `interface/for_agent.md`.
+2. **Tool `interface/main.py`**: Per-tool public API for cross-tool communication. This skill covers this pattern.
+
 Every tool that exposes functionality to other tools should provide a `interface/main.py` file. This serves as the public API contract.
 
 ## Example: Google Tool Hierarchy

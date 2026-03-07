@@ -1,5 +1,7 @@
 # logic/gui - Agent Guide
 
+> **Import convention**: Tools should import from `interface.gui` (the facade), not directly from `logic.gui`. See `interface/for_agent.md`.
+
 ## engine.py
 
 ### is_sandboxed() -> bool

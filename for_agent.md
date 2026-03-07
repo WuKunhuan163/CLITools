@@ -3,11 +3,25 @@
 Welcome to the `AITerminalTools` ecosystem. This guide is designed to provide you with the essential context and technical framework needed to develop, maintain, and interact with tools in this project.
 
 ## 1. Core Philosophy: Symmetry & Automation
-This project follows a **Symmetrical Design Pattern**. Shared core logic resides in the root `logic/` folder, while each tool (located in `tool/`) has its own `logic/` directory for tool-specific implementations.
+This project follows a **Symmetrical Design Pattern**. Shared core logic resides in the root `logic/` folder, a stable facade layer at `interface/` re-exports key symbols for tools, and each tool (located in `tool/`) has its own `logic/` directory for tool-specific implementations.
 
 - **Isolation**: Use the `PYTHON` tool dependency to run your tool in a standalone runtime.
 - **Persistence**: Work is automatically committed and pushed every few commits via git hooks to protect progress.
 - **Persistence Manager**: `GitPersistenceManager` automatically saves and restores non-Git-tracked directories across branch switches during `TOOL dev sync` and `TOOL test`. Tools declare which directories to preserve via `"persistence_dirs": ["data"]` in their `tool.json`. This is critical for API keys, session cookies, and configs that live in `data/` on the dev branch.
+
+### Import Convention: `interface/` Facade Layer
+Tools MUST import shared utilities from `interface.*`, NOT directly from `logic.*`. The `interface/` directory re-exports stable symbols from `logic/` internals:
+
+```python
+from interface.status import fmt_status, fmt_warning, fmt_info
+from interface.utils import preflight, retry, cleanup_old_files, SessionLogger
+from interface.config import get_color
+from interface.tool import ToolBase
+from interface.turing import ProgressTuringMachine, TuringStage
+from interface.audit import run_full_audit, print_report
+```
+
+See `interface/for_agent.md` for the full module map. Direct `logic.*` imports are only for code inside `logic/` itself.
 
 ### Symmetric Root Directories
 Each tool (and the project root) shares these directory semantics:
@@ -16,6 +30,7 @@ Each tool (and the project root) shares these directory semantics:
   - `runtime/experience/` at the project root holds the agent's cross-tool experience (lessons, suggestions, evolution history).
   - Individual tools can have their own `runtime/` for tool-specific tracked runtime data.
 - **`logic/`**: Implementation code (shared at root, tool-specific under `tool/<NAME>/logic/`).
+- **`interface/`**: Stable facade layer. Re-exports from `logic/` for external consumers (tools, skills, rules). See `interface/for_agent.md`.
 - **Managed Python Environment**: Use `PYTHON --enable` to create symlinks in `bin/` so that `which python` and `pip install` use the managed environment correctly.
 - **Terminal Restoration**: The `KeyboardSuppressor` uses `atexit` to ensure terminal echoing is restored even if the process exits unexpectedly or via `KeyboardInterrupt`.
 
@@ -118,6 +133,8 @@ As an AI agent, you MUST follow these operational rules:
 - **Branch Management**: `TOOL test` automatically records your current branch and restores it after tests finish, even if tests fail. This prevents you from accidentally remaining on the `test` branch after a failure. ALWAYS verify your current branch with `git branch` before committing, especially after running sync or test commands.
 - **Binary Files**: If you must track binary files (like in `tool/PYTHON/data/install/`), ensure they are marked as `binary` in `.gitattributes` to prevent corruption by line-ending conversion.
 - **Shadowing**: When developing tools, use the Universal Path Resolver (`from logic.resolve import setup_paths; setup_paths(__file__)`) to ensure the project root is at `sys.path[0]`. This prevents a tool's local `logic/` from shadowing the root `logic/`.
+- **Import facade**: Tools MUST import from `interface.*`, not `logic.*`. See Section 1 and `interface/for_agent.md`.
+- **`.gitignore` is auto-generated**: Never edit `.gitignore` directly. Modify `GitIgnoreManager.base_patterns` in `logic/git/manager.py` instead. See Section 9.
 - **TM hygiene**: Never use `print()` inside a `TuringStage` action. Use `stage.refresh()` if you need live updates, or rely on the stage success/fail messages. Inner prints break the erasable line tracking.
 - **Keyboard Cancellation**: When a user cancels an operation (Ctrl+C or USERINPUT Cancel button), the system prints a red bold "**Operation cancelled** by user." message, ensures keyboard suppression is released, and exits with code 130 (POSIX SIGINT convention). USERINPUT's Cancel button produces the same exit code 130, so the Turing Machine's `INTERRUPTED` state handles both uniformly.
 - **Reference Counting**: The `KeyboardSuppressor` uses reference counting to prevent deadlocks and ensure input echoing is restored only after all active suppressors have stopped.
@@ -157,7 +174,19 @@ from tool.GOOGLE.logic.chrome.colab import inject_and_execute
 
 Tools with dots in their name (e.g., `GOOGLE.GCS`, `GOOGLE.GD`) cannot be imported as Python packages. Use their `interface/main.py` for the public API, or import from the parent tool's modules.
 
-## 9. Key Shared Suites (`logic/` Directory)
+## 9. Key Shared Suites
+
+### `interface/` — Facade Layer (IMPORT FROM HERE)
+Tools import shared framework utilities from `interface.*`. See `interface/for_agent.md` for the full module map. Key modules:
+- `interface.status`: Terminal formatters — `fmt_status()`, `fmt_warning()`, `fmt_info()`, `fmt_detail()`, `fmt_stage()`.
+- `interface.utils`: Preflight checks, retry, cleanup, fuzzy suggestions, logging, timezone, system paths.
+- `interface.config`: Colors, settings, global config.
+- `interface.tool`: `ToolBase`, `MCPToolBase`, `ToolEngine`.
+- `interface.turing`: `ProgressTuringMachine`, `TuringStage`, `ParallelWorkerPool`.
+- `interface.audit`: `run_full_audit()`, `print_report()`.
+- `interface.registry`: Dynamic tool interface loader — `get_tool_interface("TOOL_NAME")`.
+
+### `logic/` — Internal Implementation (DO NOT import from tools)
 - `logic.resolve`: Universal path resolver protocol (see above).
 - `logic.config`: Centralized configuration, color management, and rule generation (`config.rule`).
 - `logic.tool`: Tool lifecycle (`base`, `setup/`), dev commands (`tool.dev`), and audit caching (`tool.audit`).
@@ -166,10 +195,23 @@ Tools with dots in their name (e.g., `GOOGLE.GCS`, `GOOGLE.GD`) cannot be import
 - `logic.gui`: Tkinter blueprint framework for GUIs.
 - `logic.accessibility.keyboard`: Global keyboard monitoring (`monitor`) and shortcut settings (`settings`).
 - `logic.lang`: Language management, translation utilities, and audit.
-- `logic.git`: Git operations, persistence manager, and branch utilities.
-- `interface`: Cross-tool interface registry. Use `get_interface("TOOL_NAME")` to load any tool's interface module. (Previously at `logic.interface`, compatibility shims remain.)
+- `logic.git`: Git operations, `.gitignore` auto-generation, persistence manager, and branch utilities. **See "Auto-Generated .gitignore" below.**
 - `logic.chrome`: **Shared Chrome CDP infrastructure** — generic session management, tab finding, JS evaluation, input dispatch, screenshot capture, DOM helpers, and `fetch_api()`. Service-agnostic; used by GOOGLE, CLOUDFLARE, ASANA, ATLASSIAN, INTERCOM, KLING, LINEAR, and future CDP-based tools.
 - `logic.cdp`: Backward-compatibility shims for Chrome CDP imports (redirects to `tool.GOOGLE.logic.chrome.*`).
+- `logic.audit`: Code quality auditing infrastructure (ruff, vulture integration).
+
+### Auto-Generated `.gitignore` (CRITICAL)
+The `.gitignore` file is **auto-generated** by `GitIgnoreManager` in `logic/git/manager.py`. **Never edit `.gitignore` directly** — your changes will be overwritten on the next `TOOL --dev sync` or `initialize_git_state()` call.
+
+To add a new root directory to Git tracking:
+1. Add `"!/your_dir/"` to `GitIgnoreManager.base_patterns` in `logic/git/manager.py`.
+2. Run `TOOL --dev sync` to regenerate `.gitignore`.
+
+To add tool-specific ignore rules:
+1. Add `"git_ignore": ["pattern1", "pattern2"]` to the tool's `tool.json`.
+2. `GitIgnoreManager.get_tool_rules()` reads these and generates tool-specific sections.
+
+The base patterns use `/*` (ignore everything) then `!/dir/` (un-ignore specific directories). Currently tracked: `logic/`, `interface/`, `bin/`, `test/`, `tool/`, `report/`, `skills/`, `research/`, `runtime/`.
 
 ### Unified Logging (`tool.log()`)
 Every `ToolBase` instance provides a `log(message, extra=None, include_stack=True)` method for runtime logging. One log file per session is created in `data/log/` (e.g., `log_20260227_163000_12345.log`). The `handle_exception()` method automatically writes full tracebacks to the same session log. Log files are capped at 64 per tool, auto-cleaning oldest half when exceeded.

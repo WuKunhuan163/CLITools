@@ -1,5 +1,7 @@
 # logic/turing - Agent Reference
 
+> **Import convention**: Tools should import from `interface.turing` and `interface.status` (the facade), not directly from `logic.turing`. See `interface/for_agent.md`.
+
 ## Key Interfaces
 
 ### logic.py

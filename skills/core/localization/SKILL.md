@@ -20,7 +20,7 @@ No `en.json` -- English is always the fallback default embedded in code.
 ## The `_()` Helper
 
 ```python
-from logic.interface.lang import get_translator
+from interface.lang import get_translator
 
 _ = get_translator("TOOL_NAME")
 

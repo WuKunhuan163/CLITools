@@ -12,7 +12,7 @@ The `TutorialWindow` system provides multi-step GUI wizards for tool setup, usin
 ## Creating a Tutorial
 
 ```python
-from logic.gui.tkinter.blueprint.tutorial.gui import TutorialWindow
+from interface.gui import TutorialWindow
 
 def create_setup_tutorial():
     steps = [

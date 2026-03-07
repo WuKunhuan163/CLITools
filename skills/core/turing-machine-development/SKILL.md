@@ -12,7 +12,7 @@ The Turing machine system provides rich terminal progress displays. It supports 
 ## Core Classes
 
 ```python
-from logic.interface.turing import (
+from interface.turing import (
     TuringStage,              # Single stage definition
     ProgressTuringMachine,    # Sequential stage runner
     TuringWorker,             # Task executor with step generators
@@ -26,7 +26,7 @@ from logic.interface.turing import (
 ## Single-Stage Progress
 
 ```python
-from logic.interface.turing import ProgressTuringMachine, TuringStage
+from interface.turing import ProgressTuringMachine, TuringStage
 
 def download_action(stage):
     for i in range(100):
@@ -98,7 +98,7 @@ machine.run()
 For concurrent tasks with a shared progress display:
 
 ```python
-from logic.interface.turing import ParallelWorkerPool, TuringTask, StepResult
+from interface.turing import ParallelWorkerPool, TuringTask, StepResult
 
 def download_step(task):
     yield StepResult(success=True, message=f"Downloaded {task.name}")
@@ -114,7 +114,7 @@ results = pool.run(tasks)
 For dynamic multi-line terminal output (e.g., parallel progress bars):
 
 ```python
-from logic.interface.turing import MultiLineManager
+from interface.turing import MultiLineManager
 
 mlm = MultiLineManager.get_instance()
 mlm.update(worker_id="dl_1", text="Downloading A... 45%")
@@ -125,7 +125,7 @@ mlm.update(worker_id="dl_1", text="Downloaded A ✓", is_final=True)
 ## Display Utilities
 
 ```python
-from logic.interface.turing import _get_configured_width, truncate_to_width
+from interface.turing import _get_configured_width, truncate_to_width
 
 width = _get_configured_width()          # Terminal width (default 80)
 text = truncate_to_width("long text", width)  # Fit to terminal
@@ -134,7 +134,7 @@ text = truncate_to_width("long text", width)  # Fit to terminal
 ## Error Handling
 
 ```python
-from logic.interface.turing import TuringError
+from interface.turing import TuringError
 
 error = TuringError(brief="Auth failed", full="HTTP 401: Invalid token\n...")
 stage.report_error(brief=error.brief, full=error.full)

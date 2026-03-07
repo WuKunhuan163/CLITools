@@ -13,6 +13,12 @@ logic/tool/
 
 ## Importing ToolBase
 
+Tools should import via the facade:
+```python
+from interface.tool import ToolBase, MCPToolBase
+```
+
+Internal (inside `logic/`) imports:
 ```python
 from logic.tool.blueprint.base import ToolBase
 from logic.tool.blueprint.mcp_base import MCPToolBase

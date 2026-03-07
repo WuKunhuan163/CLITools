@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Stable facade layer for cross-tool imports. Tools import from `interface.*` instead of reaching into `logic.*` internals.
+Stable facade layer for cross-tool imports. **All tools MUST import from `interface.*`** instead of reaching into `logic.*` internals. Direct `logic.*` imports are reserved for code inside `logic/` itself.
 
 ## Module Map
 

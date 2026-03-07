@@ -1,5 +1,7 @@
 # logic/utils - Agent Reference
 
+> **Import convention**: Tools should import from `interface.utils` (the facade), not directly from `logic.utils`. See `interface/for_agent.md`.
+
 ## Key Interfaces
 
 ### display.py

@@ -1,5 +1,19 @@
 # logic/ — Technical Reference
 
+## Import Convention (CRITICAL)
+
+**Tools MUST import from `interface.*`, not directly from `logic.*`.** The `interface/` directory re-exports stable symbols. Direct `logic.*` imports are only for code inside `logic/` itself.
+
+```python
+# CORRECT (in tools):
+from interface.status import fmt_status, fmt_warning
+from interface.utils import retry, preflight
+
+# WRONG (in tools):
+from logic.turing.status import fmt_status  # DO NOT
+from logic.utils import retry               # DO NOT
+```
+
 ## Path Resolution (CRITICAL)
 
 Every tool entry point must call `setup_paths(__file__)` from `logic.resolve` before any other imports. This ensures:
@@ -52,15 +66,17 @@ If a tool declares dependencies in `tool.json`, read each dependency's `for_agen
 Every sub-package has `README.md` and `for_agent.md`. For details, read the sub-package docs directly:
 
 ```
-logic/tool/for_agent.md       # ToolBase, MCPToolBase, hooks, lifecycle
-logic/gui/for_agent.md        # GUI blueprints, widgets, style
-logic/config/for_agent.md     # Global config, colors, rules
-logic/turing/for_agent.md     # Progress display, stages, workers
-logic/test/for_agent.md       # Test runner, CPU monitoring
-logic/git/for_agent.md        # Git operations, persistence
-logic/lang/for_agent.md       # i18n, audit
-logic/utils/for_agent.md      # Display, logging, system
-logic/chrome/for_agent.md     # Chrome session, CDP
-logic/mcp/for_agent.md        # MCP infrastructure
+interface/for_agent.md         # FACADE LAYER — import from here in tools
+logic/tool/for_agent.md        # ToolBase, MCPToolBase, hooks, lifecycle
+logic/gui/for_agent.md         # GUI blueprints, widgets, style
+logic/config/for_agent.md      # Global config, colors, rules
+logic/turing/for_agent.md      # Progress display, stages, workers
+logic/test/for_agent.md        # Test runner, CPU monitoring
+logic/git/for_agent.md         # Git operations, .gitignore auto-gen, persistence
+logic/lang/for_agent.md        # i18n, audit
+logic/utils/for_agent.md       # Display, logging, system
+logic/audit/for_agent.md       # Code quality auditing
+logic/chrome/for_agent.md      # Chrome session, CDP
+logic/mcp/for_agent.md         # MCP infrastructure
 logic/accessibility/for_agent.md  # Keyboard, paste detection
 ```

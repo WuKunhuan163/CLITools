@@ -47,18 +47,18 @@ Ensuring correctness, consistency, and coverage.
 
 ## Framework Infrastructure
 
-Internal systems powering the framework. Items marked with `[infra]` have callable code in `logic/`.
+Internal systems powering the framework. Items marked with `[infra]` have callable code accessible via `interface/`.
 
-| Skill | Purpose | Infrastructure |
-|-------|---------|----------------|
+| Skill | Purpose | Import |
+|-------|---------|--------|
 | `localization` | Multi-language `_()` helper, translation files, audits | `TOOL --lang audit` |
 | `record-cache` | Caching patterns, `data/` directory conventions | `logic/audit/utils.py` |
-| `retention-rotation` | Limit + delete-half strategy for logs, caches, and files | `logic.utils.cleanup_old_files()` |
-| `session-debug-log` | `tool.log()`, SessionLogger, debug file techniques | `logic.utils.SessionLogger` |
-| `setup-tutorial-creation` | TutorialWindow multi-step GUI wizards | `logic.gui.tkinter.TutorialWindow` |
-| `turing-machine-development` | TuringStage, progress pipelines, parallel workers | `logic.turing.*` |
-| `preflight-checks` | Validate prerequisites before risky operations | `logic.utils.preflight()` |
-| `error-recovery-patterns` | Retry, fallback, partial failure handling | `logic.utils.retry()` |
+| `retention-rotation` | Limit + delete-half strategy for logs, caches, and files | `from interface.utils import cleanup_old_files` |
+| `session-debug-log` | `tool.log()`, SessionLogger, debug file techniques | `from interface.utils import SessionLogger` |
+| `setup-tutorial-creation` | TutorialWindow multi-step GUI wizards | `from interface.gui import TutorialWindow` |
+| `turing-machine-development` | TuringStage, progress pipelines, parallel workers | `from interface.turing import ProgressTuringMachine` |
+| `preflight-checks` | Validate prerequisites before risky operations | `from interface.utils import preflight` |
+| `error-recovery-patterns` | Retry, fallback, partial failure handling | `from interface.utils import retry` |
 
 ## MCP & Browser Automation
 
