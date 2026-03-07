@@ -2,7 +2,7 @@
 
 Provides a rich input experience for CLI applications:
 - Gray placeholder text when buffer is empty
-- Enter creates a new line; Ctrl+Enter submits
+- Enter creates a new line; Ctrl+D (or Ctrl+J) submits
 - Backspace on an empty line deletes that line
 - After submit, input text is reprinted in a highlight color
 - External injection support via a callable check
@@ -15,9 +15,14 @@ Usage:
 
     text = multiline_input(
         prompt=">> ",
-        placeholder="Type command here, press Ctrl+Enter to submit.",
+        placeholder="Type command here, press Ctrl+D to submit.",
         inject_check=my_inject_fn,
     )
+
+Submit keys (any of):
+    Ctrl+D (\\x04)  - standard "end of input"
+    Ctrl+J (\\x0a)  - LF / line feed
+    Ctrl+Enter      - works on terminals that send CSI u (\\x1b[13;5u)
 """
 import sys
 import os
@@ -84,14 +89,30 @@ def _read_utf8_char(fd: int) -> bytes:
     return b0 + extra
 
 
+def _read_escape_seq(fd: int) -> bytes:
+    """Read an escape sequence after the initial \\x1b byte."""
+    buf = b''
+    for _ in range(8):
+        r, _, _ = _select.select([fd], [], [], 0.02)
+        if not r:
+            break
+        b = os.read(fd, 1)
+        buf += b
+        if len(buf) >= 2 and buf[0:1] == b'[':
+            last = buf[-1:]
+            if last.isalpha() or last == b'~' or last == b'u':
+                break
+    return buf
+
+
 def multiline_input(
     prompt: str = "",
-    placeholder: str = "Type command here, press Ctrl+Enter to submit.",
+    placeholder: str = "Type here, Ctrl+D to submit.",
     submit_color: str = _SUBMIT_STYLE,
     inject_check: Optional[Callable[[], Optional[str]]] = None,
     poll_interval: float = 0.1,
 ) -> str:
-    """Read multi-line input with placeholder, Ctrl+Enter submit, and injection.
+    """Read multi-line input with placeholder, submit, and injection.
 
     Parameters
     ----------
@@ -159,13 +180,14 @@ def multiline_input(
                 _clear_area(vis_row, vis_total)
                 return "/quit"
 
+            # Ctrl+C → quit
             if ch == b'\x03':
                 _clear_area(vis_row, vis_total)
                 _raw_write("\r\n")
                 return "/quit"
 
-            # Ctrl+Enter (LF) → submit
-            if ch == b'\x0a':
+            # Ctrl+D or Ctrl+J → submit
+            if ch in (b'\x04', b'\x0a'):
                 text = "\n".join(lines)
                 _clear_area(vis_row, vis_total)
                 _show_submitted(display_prompt, text, submit_color)
@@ -221,12 +243,17 @@ def multiline_input(
                         cursor_line, cursor_col, vis_row, vis_total)
                 continue
 
-            # Escape sequences (arrow keys)
+            # Escape sequences (arrow keys, Ctrl+Enter via CSI u, etc.)
             if ch == b'\x1b':
-                seq = b''
-                ready2, _, _ = _select.select([fd], [], [], 0.05)
-                if ready2:
-                    seq = os.read(fd, 2)
+                seq = _read_escape_seq(fd)
+
+                # Ctrl+Enter via CSI u encoding: \x1b[13;5u
+                if seq == b'[13;5u':
+                    text = "\n".join(lines)
+                    _clear_area(vis_row, vis_total)
+                    _show_submitted(display_prompt, text, submit_color)
+                    return text
+
                 if seq == b'[A':
                     if cursor_line > 0:
                         cursor_line -= 1
@@ -279,6 +306,10 @@ def multiline_input(
                 display_prompt, prompt_width, lines,
                 cursor_line, cursor_col, vis_row, vis_total)
 
+    except KeyboardInterrupt:
+        _clear_area(vis_row, vis_total)
+        _raw_write("\r\n")
+        return "/quit"
     except (EOFError, OSError):
         return "/quit"
     finally:

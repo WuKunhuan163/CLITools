@@ -74,7 +74,7 @@
   "running": "执行中",
   "interrupted": "已中断。",
   "failed": "失败。",
-  "input_placeholder": "输入指令, 按 Ctrl+Enter 提交。",
+  "input_placeholder": "输入指令, 按 Ctrl+D 提交。",
   "dashboard_started": "仪表盘已启动: {url}",
   "dashboard_already_running": "仪表盘已在运行: {url}"
 }

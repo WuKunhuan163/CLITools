@@ -415,7 +415,7 @@ class OpenClawCLI:
     def _prompt(self) -> str:
         """Show idle prompt and wait for user input or injected command.
 
-        Uses the multiline_input widget: Enter for new line, Ctrl+Enter
+        Uses the multiline_input widget: Enter for new line, Ctrl+D
         to submit.  Periodically checks the control file for injection.
         """
         try:
@@ -423,7 +423,7 @@ class OpenClawCLI:
             text = multiline_input(
                 prompt=f"\n{self._IDLE} ",
                 placeholder=_("input_placeholder",
-                              "Type command here, press Ctrl+Enter to submit."),
+                              "Type here, Ctrl+D to submit."),
                 submit_color=BLUE,
                 inject_check=self._read_ctrl,
             )
