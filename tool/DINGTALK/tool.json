@@ -1,0 +1,9 @@
+{
+  "name": "DINGTALK",
+  "version": "1.0.0",
+  "description": "DingTalk messaging and workspace integration",
+  "purpose": "Send messages, manage groups, and interact with DingTalk workspace.",
+  "dependencies": [
+    "PYTHON"
+  ]
+}

@@ -6,6 +6,7 @@ import threading
 import platform
 import subprocess
 import os
+import hashlib
 import queue
 from pathlib import Path
 from typing import Optional, Dict, Any, Callable, List, Union
@@ -259,12 +260,40 @@ class BaseGUIWindow:
             self.result = {"status": status, "data": data}
             if reason:
                 self.result["reason"] = reason
+
+            if status in ("timeout", "terminated", "cancelled") and data:
+                self._salvage_content(data)
+
             self._terminate_children()
             try:
                 if self.root:
                     self.root.update_idletasks()
                     self.root.destroy()
             except: pass
+
+    def _salvage_content(self, data: str):
+        """On non-success exit, copy content to clipboard and write to a fallback file."""
+        if not data or not str(data).strip():
+            return
+        content = str(data).strip()
+        try:
+            if self.root:
+                self.root.clipboard_clear()
+                self.root.clipboard_append(content)
+                self.root.update()
+        except Exception:
+            pass
+        try:
+            fallback_dir = self.project_root / "data" / "input"
+            fallback_dir.mkdir(parents=True, exist_ok=True)
+            ts = time.strftime("%Y%m%d_%H%M%S")
+            h = hashlib.md5(f"{os.getpid()}{time.time()}".encode()).hexdigest()[:6]
+            fallback_file = fallback_dir / f"salvage_{ts}_{h}.txt"
+            with open(fallback_file, "w", encoding="utf-8") as f:
+                f.write(content)
+            self.result["fallback_file"] = str(fallback_file)
+        except Exception:
+            pass
 
     def trigger_add_time(self, increment: int, status_label: Optional[Any] = None):
         """
@@ -437,8 +466,9 @@ class BaseGUIWindow:
     def setup_label(self, parent, text, font=None, pady=5, padx=0, justify="left", is_title=False):
         """Standardized label creation with automatic wrapping."""
         import tkinter as tk
-        if "[" in text and "]" in text and "(" in text and ")" in text:
-            # Contains links, use inline link logic
+        has_links = "[" in text and "]" in text and "(" in text and ")" in text
+        has_bold = "**" in text
+        if has_links or has_bold:
             return self.add_inline_links(parent, text)
 
         if font is None:
@@ -475,49 +505,55 @@ class BaseGUIWindow:
 
     def add_inline_links(self, frame, text_content):
         """
-        Creates a tk.Text widget that supports inline clickable links.
-        Format: "Some text [Link Label](https://link.url) and more text."
+        Creates a tk.Text widget that supports inline clickable links and bold text.
+        Supported formats:
+          - Links:  [Link Label](https://link.url)
+          - Bold:   **bold text**
         """
         import webbrowser
         import re
         import tkinter as tk
+        import tkinter.font as tkfont
         
-        text_widget = tk.Text(frame, wrap=tk.WORD, font=get_label_style(), 
+        base_font = get_label_style()
+        text_widget = tk.Text(frame, wrap=tk.WORD, font=base_font, 
                               padx=20, pady=10, borderwidth=0, highlightthickness=0,
                               bg=frame.cget("bg"), height=1) 
         text_widget.pack(fill=tk.X, expand=True)
         
-        # Make it look like a label
         text_widget.config(state=tk.NORMAL)
+
+        bold_font = (base_font[0], base_font[1], "bold") if isinstance(base_font, tuple) else base_font
+        text_widget.tag_config("bold", font=bold_font)
         
-        # Regex for [label](url)
-        pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+        link_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+        bold_pattern = r'\*\*([^*]+)\*\*'
+        combined = re.compile(f'({link_pattern})|({bold_pattern})')
         
         last_idx = 0
-        for match in re.finditer(pattern, text_content):
-            # Normal text before link
+        link_counter = 0
+        for match in combined.finditer(text_content):
             text_widget.insert(tk.END, text_content[last_idx:match.start()])
             
-            # Link label
-            label, url = match.groups()
-            tag_name = f"link_{match.start()}"
-            text_widget.insert(tk.END, label, tag_name)
-            
-            text_widget.tag_config(tag_name, foreground="blue", underline=True)
-            text_widget.tag_bind(tag_name, "<Enter>", lambda e: text_widget.config(cursor="hand2"))
-            text_widget.tag_bind(tag_name, "<Leave>", lambda e: text_widget.config(cursor="arrow"))
-            text_widget.tag_bind(tag_name, "<Button-1>", lambda e, u=url: webbrowser.open_new(u))
+            if match.group(2) is not None:
+                label, url = match.group(2), match.group(3)
+                tag_name = f"link_{link_counter}"
+                link_counter += 1
+                text_widget.insert(tk.END, label, tag_name)
+                text_widget.tag_config(tag_name, foreground="blue", underline=True)
+                text_widget.tag_bind(tag_name, "<Enter>", lambda e: text_widget.config(cursor="hand2"))
+                text_widget.tag_bind(tag_name, "<Leave>", lambda e: text_widget.config(cursor="arrow"))
+                text_widget.tag_bind(tag_name, "<Button-1>", lambda e, u=url: webbrowser.open_new(u))
+            elif match.group(5) is not None:
+                text_widget.insert(tk.END, match.group(5), "bold")
             
             last_idx = match.end()
             
-        # Remaining text
         text_widget.insert(tk.END, text_content[last_idx:])
         
-        # Disable editing
         text_widget.config(state=tk.DISABLED)
         
         def _update_height(event=None):
-            # Adjust height based on content
             try:
                 num_lines = int(text_widget.index('end-1c').split('.')[0])
                 text_widget.config(height=num_lines)

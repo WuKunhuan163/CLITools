@@ -201,7 +201,7 @@ class TestRunner:
     def _run_parallel_tests(self, test_files, max_concurrent, timeout=60):
         """Run multiple tests using TuringWorker mechanism for multi-line progress."""
         from logic.turing.display.manager import MultiLineManager
-        from logic.worker import TuringWorker
+        from logic.turing.worker import TuringWorker
         from logic.turing.logic import TuringTask, StepResult, WorkerState
         
         # 1. Config

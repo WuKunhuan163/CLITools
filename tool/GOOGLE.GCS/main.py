@@ -35,8 +35,8 @@ else:
     project_root = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(project_root))
 
-from logic.tool.base import ToolBase
-from logic.config import get_color
+from logic.interface.tool import ToolBase
+from logic.interface.config import get_color
 
 
 def main():
@@ -89,17 +89,25 @@ def main():
     parser.add_argument("--folder-id", help="Target Google Drive folder ID (overrides default)")
     parser.add_argument("--bash", action="store_true", help="Generate bash script instead of Python")
     parser.add_argument("--python", action="store_true", help="Force Python script generation")
+    parser.add_argument("--raw", action="store_true", help="Raw command mode: run directly in Colab terminal with result capture")
+    parser.add_argument("--no-capture", action="store_true", dest="no_capture", help="No-capture mode: run directly without capturing output (for pip install, long tasks)")
     
     # Decide whether to use tool.handle_command_line based on command recognition
     use_system_fallback = False
     
     # Handle --options that should be intercepted before argparse
     as_python = "--python" in sys.argv
+    as_raw = "--raw" in sys.argv
+    as_no_capture = "--no-capture" in sys.argv
     if "--python" in sys.argv:
         sys.argv.remove("--python")
     if "--bash" in sys.argv:
         sys.argv.remove("--bash")
         as_python = False
+    if "--raw" in sys.argv:
+        sys.argv.remove("--raw")
+    if "--no-capture" in sys.argv:
+        sys.argv.remove("--no-capture")
     
     # Check for special --options first
     special_options = ["--setup-tutorial", "--remount", "--shell"]
@@ -159,7 +167,12 @@ def main():
         return
 
     if remote_command:
-        code = load_command("remote").execute(tool, remote_command, state_mgr, load_logic, as_python=as_python)
+        if as_no_capture:
+            code = load_command("raw_cmd").execute(tool, remote_command, state_mgr, load_logic, no_capture=True)
+        elif as_raw:
+            code = load_command("raw_cmd").execute(tool, remote_command, state_mgr, load_logic)
+        else:
+            code = load_command("remote").execute(tool, remote_command, state_mgr, load_logic, as_python=as_python)
         if code: sys.exit(code)
         return
 

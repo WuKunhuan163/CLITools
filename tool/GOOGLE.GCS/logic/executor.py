@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
 
-def generate_remote_command_script(project_root: Path, command: str, remote_cwd: str = "/content/drive/MyDrive/REMOTE_ROOT", as_python: bool = False, shell_type: str = "bash"):
+def generate_remote_command_script(project_root: Path, command: str, remote_cwd: str = "/content/drive/MyDrive/REMOTE_ROOT", as_python: bool = False, shell_type: str = "bash", finished_msg: str = ""):
     """
     Generates a script to be executed in Colab that runs a shell command
     and writes the result back to Google Drive.
@@ -87,13 +87,14 @@ result_data = {
 with open(result_file, 'w') as f:
     json.dump(result_data, f, indent=2)
 
-print("\033[1mFinished\033[0m: Execution completed and result saved. You may now press the Finished button.")
+print("\033[1mFinished\033[0m: %(finished_msg)s")
 ''' % {
             'command_repr': repr(command),
             'cwd_repr': repr(remote_cwd),
             'result_filename_repr': repr(result_filename),
             'ts_repr': repr(ts),
-            'mount_hash_repr': repr(mount_hash)
+            'mount_hash_repr': repr(mount_hash),
+            'finished_msg': finished_msg or "Execution completed and result saved. You may now press the Finished button."
         }
     else:
         # Bash version: write a self-contained script to /tmp then execute it.
@@ -173,7 +174,7 @@ with open(os.environ["GCS_RESULT_FILE"], "w") as f: json.dump(r, f, indent=2, en
 
 rm -f "$OUTPUT_FILE" "$ERROR_FILE"
 clear
-echo -e "\\033[1mFinished\\033[0m: Execution completed and result saved. You may now press the Finished button."
+echo -e "\\033[1mFinished\\033[0m: {finished_msg or 'Execution completed and result saved. You may now press the Finished button.'}"
 '''
 
         # Wrap in a cat-heredoc-then-execute pattern for safe terminal pasting
@@ -187,54 +188,75 @@ bash /tmp/gcs_run_{script_id}.sh ; rm -f /tmp/gcs_run_{script_id}.sh'''
         "result_filename": result_filename
     }
 
-def show_command_gui(project_root: Path, command: str, script: str, as_python: bool = False):
+def _get_gcs_translation(project_root, key, default, **kwargs):
+    """Get a translated string for GCS using the logic translation dir."""
+    try:
+        from logic.interface.lang import get_translation
+        logic_dir = str(project_root / "tool" / "GOOGLE.GCS" / "logic")
+        return get_translation(logic_dir, key, default, **kwargs)
+    except Exception:
+        return default.format(**kwargs) if kwargs else default
+
+
+def show_command_gui(project_root: Path, command: str, script: str, as_python: bool = False, no_capture: bool = False):
     """
-    Shows a 3-button window: Copy Script, Direct Feedback, Finished.
+    Shows a GUI window with Copy Script and action buttons.
+    When no_capture=True, the Feedback button is hidden (no result to download).
     """
-    from logic.gui.tkinter.blueprint.button_bar.gui import ButtonBarWindow
+    from logic.interface.gui import ButtonBarWindow
     import sys
+
+    _ = lambda key, default, **kw: _get_gcs_translation(project_root, key, default, **kw)
     
+    btn_copy_text = _("gui_btn_copy", "Copy Script")
+    btn_copied_text = _("gui_btn_copied", "Copied!")
+    btn_feedback_text = _("gui_btn_feedback", "Feedback")
+    btn_finished_text = _("gui_btn_finished", "Finished")
+    btn_sending_text = _("gui_btn_sending", "Sending...")
+
     def copy_to_clipboard():
         if sys.platform == "darwin":
             process = subprocess.Popen('pbcopy', env={'LANG': 'en_US.UTF-8'}, stdin=subprocess.PIPE)
             process.communicate(script.encode('utf-8'))
             
     def on_copy_click(btn):
-        old_text = btn.cget("text")
-        btn.config(text="Copied!", state="disabled")
-        btn.after(1500, lambda: btn.config(text=old_text, state="normal"))
+        btn.config(text=btn_copied_text, state="disabled")
+        btn.after(1500, lambda: btn.config(text=btn_copy_text, state="normal"))
 
     def on_feedback_click(btn):
-        btn.config(text="Sending...", state="disabled")
+        btn.config(text=btn_sending_text, state="disabled")
 
     buttons = [
         {
-            "text": "Copy Script", 
+            "text": btn_copy_text,
             "cmd": copy_to_clipboard, 
             "on_click": on_copy_click,
             "close_on_click": False
         },
-        {
-            "text": "Feedback", 
+    ]
+    if not no_capture:
+        buttons.append({
+            "text": btn_feedback_text,
+            "return_value": "Feedback",
             "cmd": None, 
             "on_click": on_feedback_click,
             "close_on_click": True,
-            "disable_seconds": 5
-        },
-        {
-            "text": "Finished", 
-            "cmd": None, 
-            "close_on_click": True,
-            "disable_seconds": 5
-        }
-    ]
+            "disable_seconds": 15
+        })
+    buttons.append({
+        "text": btn_finished_text,
+        "return_value": "Finished",
+        "cmd": None, 
+        "close_on_click": True,
+        "disable_seconds": 15
+    })
     
     # Auto-copy on startup
     copy_to_clipboard()
     
     def on_startup():
         try:
-            # First frame is main_frame, second frame inside it is button_frame
+            import tkinter as tk
             main_frame = win.root.winfo_children()[0]
             button_frame = [w for w in main_frame.winfo_children() if isinstance(w, tk.Frame)][0]
             first_btn = button_frame.winfo_children()[0]
@@ -242,16 +264,24 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
         except Exception:
             pass
 
-    cell_type = "a **Python code cell**" if as_python else "the **Terminal**"
-    instruction = f"Copy the script and run it in {cell_type} on Colab.\n\nExecuting:\n**{command}**"
+    if as_python:
+        instruction = _("gui_instruction_copy_python",
+            "Copy the script and run it in a **Python code cell** on Colab.\n\nExecuting:\n**{command}**",
+            command=command)
+    else:
+        instruction = _("gui_instruction_copy_terminal",
+            "Copy the script and run it in the **Terminal** on Colab.\n\nExecuting:\n**{command}**",
+            command=command)
 
     cmd_lines = command.count('\n') + 1
     base_height = 120
     extra_height = min(cmd_lines, 8) * 18
     win_height = base_height + extra_height
 
+    gui_title = _("gui_title_remote_command", "GCS Remote Command")
+
     win = ButtonBarWindow(
-        title="GCS Remote Command", 
+        title=gui_title, 
         timeout=600, 
         internal_dir=str(project_root / "tool" / "GOOGLE.GCS" / "logic"), 
         buttons=buttons,
@@ -273,6 +303,7 @@ if __name__ == "__main__":
     parser.add_argument("--script-path", required=True)
     parser.add_argument("--project-root", required=True)
     parser.add_argument("--as-python", action="store_true")
+    parser.add_argument("--no-capture", action="store_true")
     args = parser.parse_args()
     
     proj_root = Path(args.project_root)
@@ -282,5 +313,5 @@ if __name__ == "__main__":
     with open(args.script_path, 'r') as f:
         script_content = f.read()
         
-    res = show_command_gui(proj_root, args.command, script_content, as_python=args.as_python)
+    res = show_command_gui(proj_root, args.command, script_content, as_python=args.as_python, no_capture=args.no_capture)
 

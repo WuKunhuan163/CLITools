@@ -181,8 +181,8 @@ def _run_remote_cmd(tool, state_mgr, load_logic, utils, command):
             stage.error_brief = msg
         return False
 
-    from logic.turing.models.progress import ProgressTuringMachine
-    from logic.turing.logic import TuringStage
+    from logic.interface.turing import ProgressTuringMachine
+    from logic.interface.turing import TuringStage
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage(
@@ -204,7 +204,7 @@ def _run_remote_cmd(tool, state_mgr, load_logic, utils, command):
 
 
 def _venv_create(tool, state_mgr, load_logic, utils, env_names):
-    from logic.config import get_color
+    from logic.interface.config import get_color
     GREEN, RED, BOLD, RESET = get_color("GREEN"), get_color("RED"), get_color("BOLD"), get_color("RESET")
 
     config = utils.get_gcs_config(tool.project_root)
@@ -243,7 +243,7 @@ def _venv_create(tool, state_mgr, load_logic, utils, env_names):
 
 
 def _venv_delete(tool, state_mgr, load_logic, utils, env_names):
-    from logic.config import get_color
+    from logic.interface.config import get_color
     GREEN, RED, YELLOW, BOLD, RESET = (
         get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("BOLD"), get_color("RESET")
     )
@@ -286,7 +286,7 @@ def _venv_delete(tool, state_mgr, load_logic, utils, env_names):
 
 
 def _venv_activate(tool, state_mgr, load_logic, utils, env_name):
-    from logic.config import get_color
+    from logic.interface.config import get_color
     GREEN, RED, YELLOW, BOLD, RESET = (
         get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("BOLD"), get_color("RESET")
     )
@@ -331,7 +331,7 @@ def _venv_activate(tool, state_mgr, load_logic, utils, env_name):
 
 
 def _venv_deactivate(tool, state_mgr, load_logic, utils):
-    from logic.config import get_color
+    from logic.interface.config import get_color
     GREEN, YELLOW, BOLD, RESET = get_color("GREEN"), get_color("YELLOW"), get_color("BOLD"), get_color("RESET")
 
     sid = state_mgr.get_active_shell_id()
@@ -359,7 +359,7 @@ def _venv_deactivate(tool, state_mgr, load_logic, utils):
 
 
 def _venv_list(tool, state_mgr, load_logic, utils):
-    from logic.config import get_color
+    from logic.interface.config import get_color
     GREEN, BOLD, RESET = get_color("GREEN"), get_color("BOLD"), get_color("RESET")
 
     config = utils.get_gcs_config(tool.project_root)
@@ -398,7 +398,7 @@ def _venv_list(tool, state_mgr, load_logic, utils):
 
 
 def _venv_current(tool, state_mgr, load_logic, utils):
-    from logic.config import get_color
+    from logic.interface.config import get_color
     GREEN, BOLD, RESET = get_color("GREEN"), get_color("BOLD"), get_color("RESET")
 
     sid = state_mgr.get_active_shell_id()
@@ -419,7 +419,7 @@ def _venv_current(tool, state_mgr, load_logic, utils):
 
 
 def _venv_protect(tool, state_mgr, load_logic, utils, env_names, protected):
-    from logic.config import get_color
+    from logic.interface.config import get_color
     GREEN, RED, BOLD, RESET = get_color("GREEN"), get_color("RED"), get_color("BOLD"), get_color("RESET")
 
     config = utils.get_gcs_config(tool.project_root)

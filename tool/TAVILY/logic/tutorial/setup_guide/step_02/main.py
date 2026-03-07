@@ -2,8 +2,8 @@ import tkinter as tk
 import json
 import threading
 from pathlib import Path
-from logic.lang.utils import get_translation
-from logic.gui.tkinter.style import get_label_style
+from logic.interface.lang import get_translation
+from logic.interface.gui import get_label_style
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent.parent.parent)
 

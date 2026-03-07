@@ -1,0 +1,12 @@
+{
+  "name": "ATLASSIAN",
+  "version": "1.0.0",
+  "description": "Jira and Confluence integration via Atlassian MCP",
+  "purpose": "Manage Jira issues, Confluence pages, and Compass components.",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "npm_dependencies": [
+    "atlassian-mcp-server"
+  ]
+}

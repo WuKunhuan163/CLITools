@@ -46,9 +46,9 @@ current_dir = Path(__file__).resolve().parent
 
 try:
     # Root logic imports
-    from logic.tool.base import ToolBase
-    from logic.gui.engine import setup_gui_environment, get_safe_python_for_gui, is_sandboxed, get_sandbox_type
-    from logic.lang.utils import get_translation
+    from logic.interface.tool import ToolBase
+    from logic.interface.gui import setup_gui_environment, get_safe_python_for_gui, is_sandboxed, get_sandbox_type
+    from logic.interface.lang import get_translation
     from logic.utils import get_logic_dir, cleanup_old_files
 except ImportError:
     # Fallback
@@ -91,13 +91,18 @@ class UserInputFatalError(Exception):
     """Raised when the tool is explicitly terminated or cancelled, skipping retries."""
     pass
 
+class _FallbackFileRead(Exception):
+    """Internal: signals that content was read from a fallback file."""
+    def __init__(self, content):
+        self.content = content
+
 class UserInputTool(ToolBase):
     def __init__(self):
         super().__init__("USERINPUT")
 
     def get_python_exe(self, version=None):
         if not version:
-            from logic.config import get_setting
+            from logic.interface.config import get_setting
             version = get_setting("default_python_version", "3.11.14")
 
         # Normalize version name
@@ -106,9 +111,10 @@ class UserInputTool(ToolBase):
         elif v.startswith("python"): v = v[6:]
         
         try:
-            from tool.PYTHON.logic.config import INSTALL_DIR
-            install_root = INSTALL_DIR
-        except ImportError:
+            from logic.interface import get_interface
+            python_iface = get_interface("PYTHON")
+            install_root = python_iface.get_python_install_dir()
+        except (ImportError, AttributeError):
             install_root = self.project_root / "tool" / "PYTHON" / "data" / "install"
 
         from logic.utils import get_system_tag
@@ -192,9 +198,9 @@ import re
 from pathlib import Path
 
 try:
-    from logic.gui.tkinter.blueprint.timed_bottom_bar.gui import BaseGUIWindow, setup_common_bottom_bar
-    from logic.gui.engine import setup_gui_environment, play_notification_bell
-    from logic.gui.tkinter.style import get_label_style
+    from logic.interface.gui import BaseGUIWindow, setup_common_bottom_bar
+    from logic.interface.gui import setup_gui_environment, play_notification_bell
+    from logic.interface.gui import get_label_style
     from logic.utils import find_project_root
 except ImportError:
     sys.exit("Error: Could not import GUI blueprint components")
@@ -384,9 +390,15 @@ if __name__ == "__main__":
                 raise UserInputFatalError(get_msg("msg_terminated_external", "Instance terminated from external signal"))
         elif res.get("status") == "timeout":
             data = res.get('data', '')
+            fallback_file = res.get('fallback_file', '')
             if data and data.strip():
-                # For partial data on timeout, we return it but don't label it 'Successfully received' in main()
                 return "__PARTIAL_TIMEOUT__:" + data
+            if fallback_file:
+                raise UserInputRetryableError(
+                    get_msg("msg_timeout", "Timeout")
+                    + f"\n  Fallback file: {fallback_file}"
+                    + "\n  Write your feedback to this file; it will be read on next attempt."
+                )
             raise UserInputRetryableError(get_msg("msg_timeout", "Timeout"))
         elif res.get("status") == "error":
             err_msg = parse_gui_error(res.get("message", ""))
@@ -409,7 +421,7 @@ def main():
     args, unknown = parser.parse_known_args()
     
     if args.command in ["stop", "submit", "cancel", "add_time"]:
-        from logic.gui.manager import handle_gui_remote_command
+        from logic.interface.gui import handle_gui_remote_command
         return handle_gui_remote_command("USERINPUT", tool.project_root, args.command, sys.argv[2:], tool.get_translation)
 
     if args.command == "config":
@@ -463,7 +475,7 @@ def main():
                 json.dump(config, f, indent=2)
             
             # Print current config
-            from logic.config import get_color
+            from logic.interface.config import get_color
             BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
             print(f"{BOLD}{GREEN}Successfully updated{RESET} USERINPUT configuration:")
             for k, v in config.items():
@@ -478,20 +490,22 @@ def main():
             print("Usage: USERINPUT config [--focus-interval <int>] [--time-increment <int>] [--cpu-limit <float>] [--cpu-timeout <int>] [--add-prompt <str>] [--remove-prompt <id>]")
             return 1
 
-    from logic.config import get_color
+    from logic.interface.config import get_color
     BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
 
     # AUTO-COMMIT: Save progress before waiting for feedback
     try:
-        from tool.GIT.logic.engine import GitEngine
-        from logic.turing.logic import TuringStage
-        from logic.turing.models.progress import ProgressTuringMachine
-        
-        # ONLY attempt auto-commit if it's a git repository
+        from logic.interface import get_interface
+        from logic.interface.turing import TuringStage
+        from logic.interface.turing import ProgressTuringMachine
+
         if not (tool.project_root / ".git").exists():
             raise RuntimeError("Not a git repository")
 
-        git_engine = GitEngine(tool.project_root)
+        git_iface = get_interface("GIT")
+        if git_iface is None:
+            raise RuntimeError("GIT tool not available")
+        git_engine = git_iface.get_git_engine()
         current_branch = git_engine.get_current_branch()
         
         # Check for changes with timeout
@@ -560,15 +574,29 @@ def main():
 
             def do_backup(stage=None):
                 try:
-                    # Use --progress to potentially capture more info if we were to parse it
-                    res = subprocess.run(["/usr/bin/git", "push", "origin", f"HEAD:{current_branch}", "--force"], cwd=str(tool.project_root), capture_output=True, text=True, timeout=300)
-                    if res.returncode != 0:
-                        if stage: 
-                            stage.error_brief = get_msg("label_failed", "Failed") + f": {res.stderr.strip().splitlines()[-1] if res.stderr.strip() else 'Unknown error'}"
-                            stage.error_full = f"STDOUT:\n{res.stdout}\n\nSTDERR:\n{res.stderr}"
-                    return res.returncode == 0
-                except subprocess.TimeoutExpired:
-                    if stage: stage.error_brief = get_msg("msg_push_timeout", "Push timed out (300s)")
+                    proc = subprocess.Popen(
+                        ["/usr/bin/git", "push", "origin", f"HEAD:{current_branch}", "--force"],
+                        cwd=str(tool.project_root), stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                    )
+                    try:
+                        stdout, stderr = proc.communicate(timeout=30)
+                        if proc.returncode != 0:
+                            err_line = stderr.decode(errors="replace").strip().splitlines()[-1] if stderr else "Unknown error"
+                            if stage:
+                                stage.error_brief = get_msg("label_failed", "Failed") + f": {err_line}"
+                                stage.error_full = f"STDOUT:\n{stdout.decode(errors='replace')}\n\nSTDERR:\n{stderr.decode(errors='replace')}"
+                        return proc.returncode == 0
+                    except subprocess.TimeoutExpired:
+                        try:
+                            proc.stdout.close()
+                            proc.stderr.close()
+                        except Exception:
+                            pass
+                        if stage:
+                            stage.error_brief = get_msg("msg_push_timeout", "Push timed out (30s)")
+                        return False
+                except Exception:
+                    if stage: stage.error_brief = get_msg("msg_push_timeout", "Push timed out (30s)")
                     return False
 
             pm = tool.create_progress_machine([
@@ -604,10 +632,23 @@ def main():
         # Ignore errors during auto-commit so it doesn't block the tool
         pass
 
+    _fallback_file = None
+
     for attempt in range(3):
         try:
-            # Note: run_gui_subprocess (called via get_user_input_tkinter) 
-            # will handle displaying the "Waiting for..." message with its own PID.
+            if attempt > 0 and _fallback_file and Path(_fallback_file).exists():
+                fb = Path(_fallback_file)
+                if fb.stat().st_size > 0:
+                    content = fb.read_text(encoding="utf-8").strip()
+                    if content:
+                        result = content
+                        fb.unlink(missing_ok=True)
+                        _fallback_file = None
+                        # skip GUI, proceed directly to output
+                        sys.stdout.write("\r\033[K"); sys.stdout.flush()
+                        # jump to the result processing below
+                        raise _FallbackFileRead(result)
+
             result = get_user_input_tkinter(title=get_cursor_session_title(args.id), timeout=args.timeout, hint_text=args.hint, custom_id=args.id)
             
             # Load system prompt
@@ -709,23 +750,46 @@ def main():
             
             # Successful submission, exit loop
             return 0
+        except _FallbackFileRead as fb:
+            result = fb.content
+            # proceed to output — fall through to the success processing path
+            # (duplicate the success output here since we need it in this exception handler)
+            config = get_config()
+            system_prompt = config.get("system_prompt")
+            instruction_raw = get_msg("ai_instruction", "## Critical Directive: Continuous Feedback Loop\nYou MUST execute the literal command `USERINPUT` via `run_terminal_cmd` at every workflow boundary.")
+            if "\n\n**" in instruction_raw:
+                instruction_part, guidelines_part = instruction_raw.split("\n\n**", 1)
+                guidelines_part = re.sub(r'^(?:Development Guidelines|开发准则)[*]*[:：\s]*', '', guidelines_part, flags=re.MULTILINE | re.IGNORECASE).strip().replace("**", "").strip()
+            else:
+                instruction_part, guidelines_part = instruction_raw, ""
+            from_file_label = get_msg("label_from_fallback_file", "Received from fallback file")
+            print(f"{BOLD}{GREEN}{from_file_label}{RESET}: {result}")
+            return 0
         except UserInputFatalError as e:
             sys.stdout.write("\r\033[K"); sys.stdout.flush()
             print(f"{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
-            return 0
+            return 130
         except (UserInputRetryableError, RuntimeError) as e:
             error_str = str(e)
+            if "Fallback file:" in error_str:
+                import re as _re
+                m = _re.search(r'Fallback file:\s*(.+)', error_str)
+                if m:
+                    _fallback_file = m.group(1).strip()
+
             if any(msg in error_str.lower() or msg in error_str for msg in ["Terminated", "Cancelled"]):
                 sys.stdout.write("\r\033[K"); print(f"{RED}Fatal error{RESET}: {e}", file=sys.stderr, flush=True); return 1
             
             if attempt < 2:
-                # Use erasable line for retry message
                 sys.stdout.write(f"\r\033[KRetry {attempt+1}: {e}")
                 sys.stdout.flush()
                 time.sleep(1)
             else:
                 sys.stdout.write("\r\033[K")
-                print(f"{RED}Error{RESET}: {e}. Please execute USERINPUT again and wait for the user.", file=sys.stderr)
+                fb_msg = ""
+                if _fallback_file:
+                    fb_msg = f"\n  Fallback: write feedback to {_fallback_file}"
+                print(f"{RED}Error{RESET}: {e}.{fb_msg}", file=sys.stderr)
                 return 1
 
 if __name__ == "__main__":

@@ -5,6 +5,9 @@
   "purpose": "Efficiently download photos from iCloud with parallel workers and date filtering.",
   "dependencies": ["PYTHON"],
   "pip_dependencies": ["pyicloud", "requests", "tqdm"],
-  "git_ignore": ["data/"]
+  "git_ignore": ["data/"],
+  "persistence_dirs": [
+    "data"
+  ]
 }
 

@@ -16,8 +16,8 @@ def get_icloud_interface():
         project_root = None
 
     def run_login_gui(timeout=300, apple_id=None, error_msg=None):
-        from logic.gui.manager import run_gui_subprocess
-        from logic.tool.base import ToolBase
+        from logic.interface.gui import run_gui_subprocess
+        from logic.interface.tool import ToolBase
         import os
         
         # We need a tool instance for the manager
@@ -40,7 +40,12 @@ def get_icloud_interface():
         res = run_gui_subprocess(tool, sys.executable, gui_script, timeout, waiting_label=auth_label)
         return res
 
+    def get_local_photos_library(library_path):
+        from tool.iCloud.logic.local.photos import LocalPhotosLibrary
+        return LocalPhotosLibrary(library_path)
+
     return {
-        "run_login_gui": run_login_gui
+        "run_login_gui": run_login_gui,
+        "get_local_photos_library": get_local_photos_library,
     }
 

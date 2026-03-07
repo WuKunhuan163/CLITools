@@ -33,9 +33,9 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 try:
-    from logic.tool.base import ToolBase
-    from logic.gui.engine import setup_gui_environment, get_safe_python_for_gui
-    from logic.lang.utils import get_translation
+    from logic.interface.tool import ToolBase
+    from logic.interface.gui import setup_gui_environment, get_safe_python_for_gui
+    from logic.interface.lang import get_translation
     from logic.utils import get_logic_dir
 except ImportError:
     # Minimal fallback
@@ -64,9 +64,10 @@ class FileDialogTool(ToolBase):
     def get_python_exe(self, version=None):
         if not version: version = "3.11.14"
         try:
-            from tool.PYTHON.logic.config import INSTALL_DIR
-            install_root = INSTALL_DIR
-        except ImportError:
+            from logic.interface import get_interface
+            python_iface = get_interface("PYTHON")
+            install_root = python_iface.get_python_install_dir()
+        except (ImportError, AttributeError):
             install_root = self.project_root / "tool" / "PYTHON" / "data" / "install"
 
         system_tag = "macos"
@@ -139,7 +140,7 @@ def get_user_selection(title, initial_dir, file_types, multiple, directory_only,
         # Initialize quiet mode if needed
         tool.is_quiet = "--tool-quiet" in sys.argv
     
-    from logic.gui.engine import get_safe_python_for_gui
+    from logic.interface.gui import get_safe_python_for_gui
     python_exe = get_safe_python_for_gui()
     
     tkinter_script = r'''
@@ -157,9 +158,9 @@ if PROJECT_ROOT.exists() and str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
-    from logic.gui.tkinter.blueprint.timed_bottom_bar.gui import BaseGUIWindow, setup_common_bottom_bar
-    from logic.gui.engine import setup_gui_environment
-    from logic.gui.tkinter.style import get_label_style, get_gui_colors, get_button_style
+    from logic.interface.gui import BaseGUIWindow, setup_common_bottom_bar
+    from logic.interface.gui import setup_gui_environment
+    from logic.interface.gui import get_label_style, get_gui_colors, get_button_style
 except ImportError:
     sys.exit("Error: Could not import GUI blueprint components")
 
@@ -616,7 +617,7 @@ def main():
     args, unknown = parser.parse_known_args()
     
     if args.command in ["stop", "submit", "cancel", "add_time"]:
-        from logic.gui.manager import handle_gui_remote_command
+        from logic.interface.gui import handle_gui_remote_command
         remote_args = sys.argv[2:]
         return handle_gui_remote_command("FILEDIALOG", tool.project_root, args.command, remote_args, tool.get_translation)
 
@@ -625,7 +626,7 @@ def main():
     
     result = get_user_selection(args.title, initial_dir, file_types, args.multiple, args.directory, custom_id=args.id, tool=tool)
     
-    from logic.config import get_color
+    from logic.interface.config import get_color
     BOLD, GREEN, RED, RESET = get_color("BOLD", "\033[1m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("RESET", "\033[0m")
 
     if result['status'] == 'success':

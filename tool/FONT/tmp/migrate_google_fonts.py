@@ -19,8 +19,8 @@ project_root = script_dir.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from logic.config import get_color
-from logic.turing.display.manager import MultiLineManager
+from logic.interface.config import get_color
+from logic.interface.turing import MultiLineManager
 from tool.FONT.logic.engine import FontManager
 
 FONTS_CACHE_PATH = script_dir / "google_fonts_cache.json"

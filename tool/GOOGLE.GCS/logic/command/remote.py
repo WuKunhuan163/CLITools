@@ -2,9 +2,19 @@
 """GCS remote command execution: send bash/Python commands to Colab via GUI."""
 import sys
 from pathlib import Path
-from logic.config import get_color
-from logic.turing.models.progress import ProgressTuringMachine
-from logic.turing.logic import TuringStage
+from logic.interface.config import get_color
+from logic.interface.turing import ProgressTuringMachine
+from logic.interface.turing import TuringStage
+
+
+def _t(tool, key, default, **kwargs):
+    """Get GCS translated string."""
+    try:
+        from logic.interface.lang import get_translation
+        logic_dir = str(tool.project_root / "tool" / "GOOGLE.GCS" / "logic")
+        return get_translation(logic_dir, key, default, **kwargs)
+    except Exception:
+        return default.format(**kwargs) if kwargs else default
 
 
 def execute(tool, remote_command, state_mgr, load_logic, as_python=False, capture=False, **kwargs):
@@ -25,9 +35,11 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
         expanded_command = f"{venv_prefix} && {expanded_command}"
 
     shell_type = info.get("shell_type", "bash") if info else "bash"
+    finished_msg = _t(tool, "remote_finished_result_saved",
+                       "Execution completed and result saved. You may now press the Finished button.")
     script, metadata = executor_mod.generate_remote_command_script(
         tool.project_root, expanded_command, remote_cwd=remote_cwd, as_python=as_python,
-        shell_type=shell_type
+        shell_type=shell_type, finished_msg=finished_msg
     )
     logic_script = Path(__file__).resolve().parent.parent / "executor.py"
     gui_args = [
@@ -66,6 +78,10 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
             if res.get("data") == "Feedback":
                 feedback_mode[0] = True
             return True
+        status = res.get("status", "error")
+        reason = res.get("reason", "")
+        if status == "cancelled" or reason in ("interrupted", "signal", "stop"):
+            raise KeyboardInterrupt
         if stage:
             _set_failure_reason(stage, res)
         return False
@@ -73,11 +89,12 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
     def verify_action(stage=None):
         if feedback_mode[0]:
             if stage:
-                stage.active_status = "Waiting for"
-                stage.active_name = "user feedback"
-                stage.bold_part = "Waiting for user feedback"
-                stage.success_status = "Received"
-                stage.success_name = "user feedback"
+                fb_label = _t(tool, "turing_waiting_user_feedback", "Waiting for user feedback")
+                stage.active_status = ""
+                stage.active_name = fb_label
+                stage.bold_part = fb_label
+                stage.success_status = ""
+                stage.success_name = _t(tool, "turing_received_user_feedback", "Received user feedback")
                 stage.refresh()
             feedback_text = _run_userinput_feedback(tool)
             if feedback_text:
@@ -99,25 +116,31 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
         return False
 
     def on_failure():
-        from logic.config import get_color
+        from logic.interface.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         YELLOW = get_color("YELLOW", "\033[33m")
         RESET = get_color("RESET", "\033[0m")
-        print(f"\n{BOLD}{YELLOW}Hint{RESET}: If Google Drive is not mounted, run '{BOLD}GCS --remount{RESET}' first.")
+        hint = _t(tool, "hint_drive_not_mounted",
+                  "If Google Drive is not mounted, run '{bold}GCS --remount{reset}' first.",
+                  bold=BOLD, reset=RESET)
+        print(f"\n{BOLD}{YELLOW}Hint{RESET}: {hint}")
+
+    waiting_label = _t(tool, "turing_waiting_user_action", "Waiting for user action")
+    verifying_label = _t(tool, "turing_verifying_result", "Verifying the command result file")
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage(
         "user action", gui_action,
-        active_status="Waiting for", active_name="user action",
+        active_status="", active_name=waiting_label,
         fail_status="Failed to complete", success_status="Completed",
-        success_name="user action", bold_part="Waiting for user action"
+        success_name="user action", bold_part=waiting_label
     ))
     pm.add_stage(TuringStage(
         "command execution", verify_action,
-        active_status="Verifying", active_name="the command result file",
+        active_status="", active_name=verifying_label,
         fail_status="Failed to execute", fail_name="command",
         success_status="Retrieved", success_name="execution result",
-        bold_part="Verifying the command result file"
+        bold_part=verifying_label
     ))
 
     if pm.run(ephemeral=True):

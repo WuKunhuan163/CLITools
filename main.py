@@ -171,39 +171,39 @@ def _show_status():
 
 # --- Dev Commands ---
 def _dev_sync(quiet=False):
-    from logic.dev.commands import dev_sync
+    from logic.tool.dev.commands import dev_sync
     return dev_sync(ROOT_PROJECT_ROOT, quiet=quiet, translation_func=_)
 
 def _dev_reset():
-    from logic.dev.commands import dev_reset
+    from logic.tool.dev.commands import dev_reset
     dev_reset(ROOT_PROJECT_ROOT, SHARED_LOGIC_DIR, translation_func=_)
 
 def _dev_enter(branch, force=False):
-    from logic.dev.commands import dev_enter
+    from logic.tool.dev.commands import dev_enter
     dev_enter(branch, ROOT_PROJECT_ROOT, force=force, translation_func=_)
 
 def _dev_create(tool_name):
-    from logic.dev.commands import dev_create
+    from logic.tool.dev.commands import dev_create
     dev_create(tool_name, ROOT_PROJECT_ROOT, translation_func=_)
 
 def _dev_sanity_check(tool_name, fix=False):
-    from logic.dev.commands import dev_sanity_check
+    from logic.tool.dev.commands import dev_sanity_check
     return dev_sanity_check(tool_name, ROOT_PROJECT_ROOT, fix=fix, translation_func=_)
 
 def _dev_audit_test(tool_name, fix=False):
-    from logic.dev.commands import dev_audit_test
+    from logic.tool.dev.commands import dev_audit_test
     return dev_audit_test(tool_name, ROOT_PROJECT_ROOT, fix=fix)
 
 def _dev_audit_bin(fix=False):
-    from logic.dev.commands import dev_audit_bin
+    from logic.tool.dev.commands import dev_audit_bin
     return dev_audit_bin(ROOT_PROJECT_ROOT, fix=fix)
 
 def _dev_migrate_bin():
-    from logic.dev.commands import dev_migrate_bin
+    from logic.tool.dev.commands import dev_migrate_bin
     return dev_migrate_bin(ROOT_PROJECT_ROOT)
 
 def _dev_audit_archived():
-    from logic.dev.commands import dev_audit_archived
+    from logic.tool.dev.commands import dev_audit_archived
     return dev_audit_archived(ROOT_PROJECT_ROOT)
 
 # --- Test Commands ---
@@ -222,15 +222,15 @@ def _list_languages():
 
 # --- Rule Commands ---
 def _show_rule():
-    from logic.rule.manager import generate_ai_rule
+    from logic.config.rule.manager import generate_ai_rule
     generate_ai_rule(ROOT_PROJECT_ROOT)
 
 def _inject_rule():
-    from logic.rule.manager import inject_rule
+    from logic.config.rule.manager import inject_rule
     inject_rule(ROOT_PROJECT_ROOT)
 
 def _generate_ai_rule(name, description, globs, always_apply):
-    from logic.rule.manager import generate_ai_rule
+    from logic.config.rule.manager import generate_ai_rule
     generate_ai_rule(name, description, globs, always_apply, ROOT_PROJECT_ROOT)
 
 def main():

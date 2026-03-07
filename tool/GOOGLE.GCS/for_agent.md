@@ -22,7 +22,22 @@ Logical shells are identified by a `{timestamp}_{6-digit-hash}` ID.
 - Each shell tracks its own `shell_type` (default: `bash`). Use `GCS --shell type` to check or `GCS --shell type zsh` to switch.
 - Use `GCS --shell install zsh` to install alternative shells (zsh, fish) on the remote Colab environment. The binary is persisted at `REMOTE_ENV/shell/<name>/bin/<name>` to survive runtime restarts.
 
-### 4. Implementation Details
+### 4. Raw Mode
+`GCS --raw <command>` uses the same result capture pipeline as normal commands:
+- The remote script uses `tee` to both display output in real-time AND write it to capture files.
+- A result JSON file is written to `REMOTE_ROOT/tmp/` just like normal mode.
+- The verify stage uses `wait_for_gdrive_file` to download results, identical to normal commands.
+- The only difference is that the user's command is injected directly (no special command translation). Remote path expansion (`~`, `@`) and venv prefixes are still applied.
+
+### 4b. No-Capture Mode
+`GCS --no-capture <command>` is a variant of raw mode for commands where capturing output is impractical:
+- Output goes directly to the Colab terminal (no `tee`, no temp files, no result JSON).
+- The verify stage is skipped entirely since there is no result file.
+- The GUI only shows Copy Script and Finished buttons (no Feedback).
+- Use cases: `pip install`, `apt-get`, `git clone`, or any long-running task with heavy output.
+- Implementation: `_generate_no_capture_script` in `raw_cmd.py` produces a minimal script that validates mount, changes directory, runs the command, and shows a "Finished" message.
+
+### 5. Implementation Details
 - **IPv4 Enforcement**: The tool forces IPv4 for Google API calls to avoid 60-second timeouts caused by macOS IPv6 fallback issues.
 - **GUI Blueprints**: Uses `ButtonBarWindow` for simple multi-option interactions.
 - **Remote CWD**: The generated scripts automatically `mkdir -p` the remote working directory and `tmp` folder.

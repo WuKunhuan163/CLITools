@@ -56,7 +56,7 @@ def execute(tool, args, state_mgr, load_logic, unknown=None, **kwargs):
 
 def _bg_submit(tool, state_mgr, load_logic, utils, command):
     """Submit a command for background execution."""
-    from logic.config import get_color
+    from logic.interface.config import get_color
     GREEN, BOLD, RESET = get_color("GREEN"), get_color("BOLD"), get_color("RESET")
 
     bg_pid = f"{int(time.time())}_{random.randint(1000, 9999)}"
@@ -69,73 +69,69 @@ def _bg_submit(tool, state_mgr, load_logic, utils, command):
 
     cmd_b64 = base64.b64encode(command.encode("utf-8")).decode("ascii")
 
-    status_helper = _generate_status_helper()
-    helper_b64 = base64.b64encode(status_helper.encode("utf-8")).decode("ascii")
-
     result_writer = _generate_result_writer()
     writer_b64 = base64.b64encode(result_writer.encode("utf-8")).decode("ascii")
 
-    user_cmd_json = json.dumps(command)
+    cmd_display = command.replace('"', '\\"').replace("'", "'\\''")[:200]
 
     bootstrap = f"""
 mkdir -p {REMOTE_TMP}
 
-# Write status helper
-echo '{helper_b64}' | base64 -d > {REMOTE_TMP}/bg_helper_{bg_pid}.py
+# Write initial status using a temp file approach (avoids quoting issues)
+python3 -c "
+import json
+with open('{REMOTE_TMP}/{status_file}', 'w') as f:
+    json.dump({{'pid': '{bg_pid}', 'command': '{cmd_display}', 'status': 'starting', 'start_time': '{start_time_iso}'}}, f, indent=2)
+" 2>/dev/null
 
-# Write initial status
-python3 {REMOTE_TMP}/bg_helper_{bg_pid}.py write {REMOTE_TMP}/{status_file} \\
-  '{{"pid":"{bg_pid}","command":{user_cmd_json},"status":"starting","start_time":"{start_time_iso}"}}'
-
-# Create execution script
-cat > {REMOTE_TMP}/{script_file} << 'BGEOF'
-#!/bin/bash
-echo "[$(date +%H:%M:%S)] Background task started"
-echo "[$(date +%H:%M:%S)] PID: $$"
-
-# Decode and execute the user command
+# Create execution script in /tmp (local, no Drive FUSE delay)
 echo '{cmd_b64}' | base64 -d > /tmp/bg_user_cmd_{bg_pid}.sh
-chmod +x /tmp/bg_user_cmd_{bg_pid}.sh
-echo "[$(date +%H:%M:%S)] Executing command..."
+echo '{writer_b64}' | base64 -d > /tmp/bg_writer_{bg_pid}.py
 
+cat > /tmp/bg_exec_{bg_pid}.sh << 'BGEOF'
+#!/bin/bash
+sleep 2
+echo "[$(date +%H:%M:%S)] Background task started (PID: $$)"
+
+# Execute the user command
 bash /tmp/bg_user_cmd_{bg_pid}.sh > /tmp/bg_stdout_{bg_pid} 2> /tmp/bg_stderr_{bg_pid}
 EXIT_CODE=$?
 echo "[$(date +%H:%M:%S)] Command completed with exit code: $EXIT_CODE"
 
-# Clean up decoded script
-rm -f /tmp/bg_user_cmd_{bg_pid}.sh
-
-# Write result file
-echo '{writer_b64}' | base64 -d > /tmp/bg_writer_{bg_pid}.py
+# Write result file to Drive
 python3 /tmp/bg_writer_{bg_pid}.py \\
   {REMOTE_TMP}/{result_file} \\
   $EXIT_CODE \\
   /tmp/bg_stdout_{bg_pid} \\
   /tmp/bg_stderr_{bg_pid}
 
-# Clean up temp files
-rm -f /tmp/bg_stdout_{bg_pid} /tmp/bg_stderr_{bg_pid} /tmp/bg_writer_{bg_pid}.py
-
 # Update status to completed
-python3 {REMOTE_TMP}/bg_helper_{bg_pid}.py complete \\
-  {REMOTE_TMP}/{status_file} \\
-  {REMOTE_TMP}/{result_file} \\
-  $EXIT_CODE
+python3 -c "
+import json
+from datetime import datetime
+with open('{REMOTE_TMP}/{status_file}', 'w') as f:
+    json.dump({{'pid': '{bg_pid}', 'command': '{cmd_display}', 'status': 'completed', 'start_time': '{start_time_iso}', 'end_time': datetime.now().isoformat(), 'exit_code': $EXIT_CODE, 'result_file': '{result_file}'}}, f, indent=2)
+"
 
-# Clean up helper
-rm -f {REMOTE_TMP}/bg_helper_{bg_pid}.py
+# Clean up temp files
+rm -f /tmp/bg_user_cmd_{bg_pid}.sh /tmp/bg_stdout_{bg_pid} /tmp/bg_stderr_{bg_pid}
+rm -f /tmp/bg_writer_{bg_pid}.py /tmp/bg_exec_{bg_pid}.sh
 
 echo "[$(date +%H:%M:%S)] Background task finished"
 BGEOF
 
-chmod +x {REMOTE_TMP}/{script_file}
+chmod +x /tmp/bg_exec_{bg_pid}.sh
 
-# Launch in background
-({REMOTE_TMP}/{script_file} > {REMOTE_TMP}/{log_file} 2>&1) &
+# Launch in background (script runs from /tmp, writes results to Drive)
+(nohup /tmp/bg_exec_{bg_pid}.sh > {REMOTE_TMP}/{log_file} 2>&1) &
 REAL_PID=$!
 
 # Update status with real PID
-python3 {REMOTE_TMP}/bg_helper_{bg_pid}.py running {REMOTE_TMP}/{status_file} $REAL_PID {result_file}
+python3 -c "
+import json
+with open('{REMOTE_TMP}/{status_file}', 'w') as f:
+    json.dump({{'pid': '{bg_pid}', 'command': '{cmd_display}', 'status': 'running', 'start_time': '{start_time_iso}', 'real_pid': $REAL_PID, 'result_file': '{result_file}'}}, f, indent=2)
+"
 
 echo "Background task launched (PID: $REAL_PID)"
 """
@@ -164,7 +160,7 @@ echo "Background task launched (PID: $REAL_PID)"
 
 def _bg_status(tool, state_mgr, load_logic, utils, task_id=None):
     """Show status of background task(s)."""
-    from logic.config import get_color
+    from logic.interface.config import get_color
     GREEN, RED, YELLOW, BOLD, RESET = (
         get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("BOLD"), get_color("RESET")
     )
@@ -206,7 +202,7 @@ def _bg_log(tool, state_mgr, load_logic, utils, task_id):
 
 def _bg_result(tool, state_mgr, load_logic, utils, task_id):
     """Show result of a background task."""
-    from logic.config import get_color
+    from logic.interface.config import get_color
     GREEN, RED, BOLD, RESET = get_color("GREEN"), get_color("RED"), get_color("BOLD"), get_color("RESET")
 
     result_file = BG_RESULT_TEMPLATE.format(pid=task_id)
@@ -251,7 +247,7 @@ def _bg_result(tool, state_mgr, load_logic, utils, task_id):
 
 def _bg_cleanup(tool, state_mgr, load_logic, utils, task_id=None):
     """Clean up background task files."""
-    from logic.config import get_color
+    from logic.interface.config import get_color
     GREEN, BOLD, RESET = get_color("GREEN"), get_color("BOLD"), get_color("RESET")
 
     if task_id:
@@ -347,8 +343,8 @@ def _run_remote_cmd(tool, state_mgr, load_logic, utils, command):
             stage.error_brief = msg
         return False
 
-    from logic.turing.models.progress import ProgressTuringMachine
-    from logic.turing.logic import TuringStage
+    from logic.interface.turing import ProgressTuringMachine
+    from logic.interface.turing import TuringStage
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage(
@@ -431,45 +427,6 @@ def _format_task_list(content, GREEN, RED, YELLOW, BOLD, RESET):
             tid, status, cmd = parts
             sc = colors.get(status, RED)
             print(f"{tid:<20} {sc}{status:<12}{RESET} {cmd}")
-
-
-def _generate_status_helper():
-    """Python script that manages status JSON files on the remote."""
-    return """
-import json, sys, os
-from datetime import datetime
-
-action = sys.argv[1]
-status_file = sys.argv[2]
-
-if action == "write":
-    data = json.loads(sys.argv[3])
-    with open(status_file, "w") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-elif action == "running":
-    real_pid = int(sys.argv[3])
-    result_file = sys.argv[4]
-    with open(status_file, "r") as f:
-        data = json.load(f)
-    data["status"] = "running"
-    data["real_pid"] = real_pid
-    data["result_file"] = result_file
-    with open(status_file, "w") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-elif action == "complete":
-    result_file = sys.argv[3]
-    exit_code = int(sys.argv[4])
-    with open(status_file, "r") as f:
-        data = json.load(f)
-    data["status"] = "completed"
-    data["end_time"] = datetime.now().isoformat()
-    data["exit_code"] = exit_code
-    data["result_file"] = result_file
-    with open(status_file, "w") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-"""
 
 
 def _generate_result_writer():

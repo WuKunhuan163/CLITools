@@ -1,0 +1,9 @@
+{
+  "name": "XMIND",
+  "version": "1.0.0",
+  "description": "Mind mapping and brainstorming tool",
+  "purpose": "Create, edit, and export mind maps for project planning and brainstorming.",
+  "dependencies": [
+    "PYTHON"
+  ]
+}

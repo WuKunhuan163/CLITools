@@ -12,8 +12,8 @@ if root_str in sys.path:
     sys.path.remove(root_str)
 sys.path.insert(0, root_str)
 
-from logic.tool.base import ToolBase
-from logic.config import get_color
+from logic.interface.tool import ToolBase
+from logic.interface.config import get_color
 
 
 def main():
@@ -79,8 +79,8 @@ def main():
 
 def _search(tool, query, api_key, args):
     """Execute Tavily search and display results."""
-    from logic.turing.models.progress import ProgressTuringMachine
-    from logic.turing.logic import TuringStage
+    from logic.interface.turing import ProgressTuringMachine
+    from logic.interface.turing import TuringStage
 
     BOLD = get_color("BOLD", "\033[1m")
     GREEN = get_color("GREEN", "\033[32m")

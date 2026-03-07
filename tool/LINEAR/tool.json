@@ -1,0 +1,12 @@
+{
+  "name": "LINEAR",
+  "version": "1.0.0",
+  "description": "Product development system via Linear MCP",
+  "purpose": "Manage issues, projects, and initiatives in Linear.",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "npm_dependencies": [
+    "@linear/mcp-server"
+  ]
+}

@@ -18,8 +18,8 @@ project_root = script_path.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from logic.tool.base import ToolBase
-from logic.config import get_color
+from logic.interface.tool import ToolBase
+from logic.interface.config import get_color
 
 def main():
     tool = ToolBase("FITZ")

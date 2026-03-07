@@ -148,7 +148,7 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
             current_branch = "dev"
 
         def sync_action():
-            from logic.dev.commands import dev_sync
+            from logic.tool.dev.commands import dev_sync
             with open(os.devnull, 'w') as f:
                 import io
                 from contextlib import redirect_stdout, redirect_stderr

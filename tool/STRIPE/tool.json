@@ -1,0 +1,12 @@
+{
+  "name": "STRIPE",
+  "version": "1.0.0",
+  "description": "Payment processing via Stripe MCP",
+  "purpose": "Manage payments, customers, and subscriptions through Stripe.",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "npm_dependencies": [
+    "@stripe/mcp"
+  ]
+}

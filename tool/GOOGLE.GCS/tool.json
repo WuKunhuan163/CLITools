@@ -7,6 +7,7 @@
     "TerminalTools-turing-machine-development",
     "TerminalTools-tool-interface",
     "TerminalTools-session-debug-log",
+    "gcs-raw-debug",
     "python-best-practices",
     "cli-development",
     "error-handling"
@@ -25,5 +26,8 @@
     "requests",
     "cryptography",
     "Pillow"
+  ],
+  "persistence_dirs": [
+    "data"
   ]
 }

@@ -578,7 +578,11 @@ def wait_for_gdrive_file(project_root: Path, filename: str, timeout: int = 60, s
             if now - last_tm_update > 5:
                 if stage:
                     elapsed = int(now - start_time)
-                    stage.active_name = f"the result file ({elapsed}s elapsed)"
+                    base_name = getattr(stage, '_original_active_name', None)
+                    if base_name is None:
+                        base_name = stage.active_name or "the result file"
+                        stage._original_active_name = base_name
+                    stage.active_name = f"{base_name} ({elapsed}s)"
                     stage.refresh()
                 last_tm_update = now
                 

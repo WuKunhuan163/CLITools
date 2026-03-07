@@ -15,5 +15,8 @@
   "pip_dependencies": [
     "tavily-python",
     "requests"
+  ],
+  "persistence_dirs": [
+    "data"
   ]
 }

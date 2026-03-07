@@ -1,3 +1,0 @@
-# LFS tracking for Python binary archives
-*.tar.zst filter=lfs diff=lfs merge=lfs -text
-

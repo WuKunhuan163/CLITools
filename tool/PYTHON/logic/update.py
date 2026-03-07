@@ -37,13 +37,13 @@ try:
         sys.path.remove(str(python_tool_dir))
     sys.path.insert(1, str(python_tool_dir))
     
-    from logic.lang.utils import get_translation
-    from logic.config import get_color
+    from logic.interface.lang import get_translation
+    from logic.interface.config import get_color
     from logic.utils import get_system_tag, regularize_version_name, run_with_progress, truncate_to_display_width
-    from logic.worker import TuringWorker
-    from logic.turing.logic import TuringTask, StepResult, WorkerState
-    from logic.turing.display.manager import MultiLineManager
-    from logic.audit.utils import AuditManager
+    from logic.interface.turing import TuringWorker
+    from logic.interface.turing import TuringTask, StepResult, WorkerState
+    from logic.interface.turing import MultiLineManager
+    from logic.tool.audit.utils import AuditManager
     
     from tool.PYTHON.logic.config import DATA_DIR, AUDIT_DIR, RESOURCE_ROOT, TMP_INSTALL_DIR, PROJECT_ROOT, DEFAULT_CONCURRENCY
 except ImportError as e:
@@ -109,7 +109,7 @@ def log_debug(msg):
     except: pass
 
 def print_erasable(msg):
-    from logic.turing.display.manager import _get_configured_width
+    from logic.interface.turing import _get_configured_width
     width = _get_configured_width()
     if width > 0:
         display_text = truncate_to_display_width(msg, max(1, width - 2))

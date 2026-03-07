@@ -1,0 +1,12 @@
+{
+  "name": "SQUARE",
+  "version": "1.0.0",
+  "description": "Business and payment platform via Square MCP",
+  "purpose": "Manage payments, inventory, and business operations through Square.",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "npm_dependencies": [
+    "square-mcp-server"
+  ]
+}

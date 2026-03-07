@@ -63,7 +63,7 @@ def _execute_remote_edit(tool, state_mgr, load_logic, utils,
                          display_name, remote_path, replacements,
                          preview, backup):
     """Generate a Python edit script, encode with base64, and execute remotely."""
-    from logic.config import get_color
+    from logic.interface.config import get_color
     BOLD = get_color("BOLD")
     GREEN = get_color("GREEN")
     RED = get_color("RED")
@@ -86,8 +86,8 @@ def _execute_remote_edit(tool, state_mgr, load_logic, utils,
         tool.project_root, command, remote_cwd=remote_cwd, as_python=False
     )
 
-    from logic.turing.models.progress import ProgressTuringMachine
-    from logic.turing.logic import TuringStage
+    from logic.interface.turing import ProgressTuringMachine
+    from logic.interface.turing import TuringStage
 
     command_result = {}
 

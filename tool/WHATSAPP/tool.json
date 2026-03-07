@@ -1,0 +1,9 @@
+{
+  "name": "WHATSAPP",
+  "version": "1.0.0",
+  "description": "WhatsApp Business API integration",
+  "purpose": "Send and receive WhatsApp messages via the Business API.",
+  "dependencies": [
+    "PYTHON"
+  ]
+}

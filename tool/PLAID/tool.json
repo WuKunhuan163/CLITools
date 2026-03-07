@@ -1,0 +1,9 @@
+{
+  "name": "PLAID",
+  "version": "1.0.0",
+  "description": "Financial data integration via Plaid API",
+  "purpose": "Connect bank accounts, retrieve transactions, and verify identities.",
+  "dependencies": [
+    "PYTHON"
+  ]
+}

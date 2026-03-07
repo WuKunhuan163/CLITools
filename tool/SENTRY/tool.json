@@ -1,0 +1,12 @@
+{
+  "name": "SENTRY",
+  "version": "1.0.0",
+  "description": "AI-powered error monitoring via Sentry MCP",
+  "purpose": "Monitor errors, debug issues, and track performance with Sentry.",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "npm_dependencies": [
+    "@sentry/mcp-server"
+  ]
+}

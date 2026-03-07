@@ -1,0 +1,12 @@
+{
+  "name": "ASANA",
+  "version": "1.0.0",
+  "description": "Project management via Asana MCP",
+  "purpose": "Manage tasks, projects, and workspaces through Asana.",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "npm_dependencies": [
+    "@iflow-mcp/mcp-server-asana"
+  ]
+}

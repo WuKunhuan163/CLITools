@@ -23,7 +23,7 @@ if project_root:
     sys.path.insert(0, str(project_root))
 
 import subprocess
-from logic.tool.setup.engine import ToolEngine
+from logic.interface.tool import ToolEngine
 
 def setup():
     tool_name = "PYTHON"

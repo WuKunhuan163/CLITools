@@ -1,0 +1,19 @@
+"""Cross-tool interface for KLING."""
+import sys
+from pathlib import Path
+
+_project_root = Path(__file__).resolve().parent.parent.parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
+try:
+    from tool.KLING.main import KLINGTool
+except ImportError:
+    KLINGTool = None
+
+
+def get_kling_tool():
+    """Return an instance of the KLING tool, or None if unavailable."""
+    if KLINGTool is None:
+        return None
+    return KLINGTool()

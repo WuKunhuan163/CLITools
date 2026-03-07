@@ -1,0 +1,5 @@
+{
+  "tool_description": "通过Sentry进行AI调试和错误监控",
+  "status_label": "状态",
+  "config_set_success": "成功设置"
+}

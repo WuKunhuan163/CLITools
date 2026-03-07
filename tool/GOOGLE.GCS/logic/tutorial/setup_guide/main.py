@@ -21,8 +21,8 @@ else:
     project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
     sys.path.insert(0, str(project_root))
 
-from logic.gui.tkinter.blueprint.tutorial.gui import TutorialWindow, TutorialStep
-from logic.lang.utils import get_translation
+from logic.interface.gui import TutorialWindow, TutorialStep
+from logic.interface.lang import get_translation
 
 import importlib.util
 
@@ -44,7 +44,8 @@ def run_setup_tutorial(on_step_change=None):
         TutorialStep(_("tutorial_enable_api", "Enable API"), load_step_build_func("step_02")),
         TutorialStep(_("tutorial_service_account", "Service Account"), load_step_build_func("step_03")),
         TutorialStep(_("tutorial_json_key", "JSON Key"), load_step_build_func("step_04")),
-        TutorialStep(_("tutorial_folder_setup", "Folder Setup"), load_step_build_func("step_05"))
+        TutorialStep(_("tutorial_folder_setup", "Folder Setup"), load_step_build_func("step_05")),
+        TutorialStep(_("tutorial_remote_notebook", "Remote Notebook"), load_step_build_func("step_06"))
     ]
     
     win = TutorialWindow(

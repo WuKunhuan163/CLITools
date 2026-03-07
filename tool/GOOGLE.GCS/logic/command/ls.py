@@ -2,9 +2,9 @@
 """GCS ls command: list remote directory contents."""
 import sys
 import json
-from logic.config import get_color
-from logic.turing.models.progress import ProgressTuringMachine
-from logic.turing.logic import TuringStage
+from logic.interface.config import get_color
+from logic.interface.turing import ProgressTuringMachine
+from logic.interface.turing import TuringStage
 
 
 def execute(tool, args, state_mgr, load_logic, **kwargs):

@@ -92,6 +92,12 @@ class ButtonBarWindow(BaseGUIWindow):
         button_frame.pack(fill=tk.X, expand=True)
         
         delayed_buttons = []
+        self._keyboard_available = self._check_keyboard_capture()
+        try:
+            from logic.accessibility.keyboard.monitor import _log
+            _log(f"ButtonBar.setup_ui: keyboard_available={self._keyboard_available}")
+        except Exception:
+            pass
         
         for i, btn_cfg in enumerate(self.buttons_config):
             text = btn_cfg.get("text", f"Button {i}")
@@ -99,6 +105,8 @@ class ButtonBarWindow(BaseGUIWindow):
             close_on_click = btn_cfg.get("close_on_click", False)
             on_click_callback = btn_cfg.get("on_click")
             disable_seconds = btn_cfg.get("disable_seconds", 0)
+            if disable_seconds > 0 and not self._keyboard_available:
+                disable_seconds = 2
             
             bg = btn_cfg.get("bg")
             fg = btn_cfg.get("fg")
@@ -106,14 +114,16 @@ class ButtonBarWindow(BaseGUIWindow):
             relief = btn_cfg.get("relief")
             bd = btn_cfg.get("bd")
             
-            def create_cmd(actual_cmd, should_close, btn_ref_list, callback, btn_text=text):
+            return_value = btn_cfg.get("return_value", text)
+
+            def create_cmd(actual_cmd, should_close, btn_ref_list, callback, ret_val=return_value):
                 def wrapper():
                     if callback and btn_ref_list:
                         callback(btn_ref_list[0])
                     if actual_cmd:
                         actual_cmd()
                     if should_close:
-                        self.finalize("success", btn_text)
+                        self.finalize("success", ret_val)
                 return wrapper
 
             btn_kwargs = {
@@ -135,9 +145,14 @@ class ButtonBarWindow(BaseGUIWindow):
                 delayed_buttons.append((btn, text, disable_seconds))
 
         # Countdown-disable buttons that have disable_seconds
+        self._delayed_buttons = delayed_buttons
+        self._buttons_unlocked = False
+
         for btn, original_text, seconds in delayed_buttons:
             btn.config(state="disabled", text=f"{original_text} ({seconds}s)")
             def countdown(b=btn, t=original_text, remaining=seconds):
+                if self._buttons_unlocked:
+                    return
                 if remaining <= 1:
                     b.config(state="normal", text=t)
                     return
@@ -145,9 +160,92 @@ class ButtonBarWindow(BaseGUIWindow):
                 self.root.after(1000, lambda: countdown(b, t, remaining - 1))
             self.root.after(1000, lambda b=btn, t=original_text, s=seconds: countdown(b, t, s))
 
+        if delayed_buttons:
+            self._global_listener = None
+            self._focus_lost = False
+            self._start_focus_detection()
+            self._start_global_key_listener()
+
         if self.on_startup_callback:
             self.root.after(100, self.on_startup_callback)
 
+    @staticmethod
+    def _check_keyboard_capture() -> bool:
+        """Check if global keyboard capture (pynput + accessibility) is available."""
+        try:
+            from logic.accessibility.keyboard.monitor import is_available, check_accessibility_trusted, _log, _init_log
+            _init_log()
+            avail = is_available()
+            trusted = check_accessibility_trusted()
+            result = avail and trusted
+            _log(f"ButtonBar._check_keyboard_capture: pynput={avail}, accessibility={trusted}, result={result}")
+            return result
+        except Exception as e:
+            try:
+                from logic.accessibility.keyboard.monitor import _log
+                _log(f"ButtonBar._check_keyboard_capture: exception {e}")
+            except Exception:
+                pass
+            return False
+
+    def _start_focus_detection(self):
+        """Detect when window loses then regains focus to unlock buttons.
+        
+        When the user switches away (to paste in browser) and comes back,
+        the buttons unlock. No special permissions required.
+        """
+        def on_focus_out(event):
+            if event.widget == self.root:
+                self._focus_lost = True
+
+        def on_focus_in(event):
+            if event.widget == self.root and self._focus_lost and not self._buttons_unlocked:
+                self._unlock_delayed_buttons(reason="focus_regained")
+
+        self.root.bind("<FocusOut>", on_focus_out)
+        self.root.bind("<FocusIn>", on_focus_in)
+
+    def _start_global_key_listener(self):
+        """Start a pynput global keyboard listener to detect paste+Enter.
+        
+        Skipped entirely when keyboard capture is unavailable (no pynput
+        or no Accessibility permissions), falling back to focus detection
+        and timer only.
+        """
+        from logic.accessibility.keyboard.monitor import _log
+        if not self._keyboard_available:
+            _log("ButtonBar: skipping global key listener (keyboard capture unavailable)")
+            return
+        from logic.accessibility.keyboard.monitor import start_paste_enter_listener
+        _log("ButtonBar: starting paste+enter global listener")
+        self._global_listener = start_paste_enter_listener(
+            lambda: self.root.after(0, lambda: self._unlock_delayed_buttons(reason="paste_enter_detected"))
+        )
+
+    def _stop_global_key_listener(self):
+        from logic.accessibility.keyboard.monitor import stop_listener
+        if hasattr(self, '_global_listener'):
+            stop_listener(self._global_listener)
+            self._global_listener = None
+
+    def _unlock_delayed_buttons(self, reason="unknown"):
+        """Immediately unlock all countdown-disabled buttons."""
+        if self._buttons_unlocked:
+            return
+        self._buttons_unlocked = True
+        try:
+            from logic.accessibility.keyboard.monitor import _log
+            _log(f"ButtonBar: unlocking buttons (reason={reason})")
+        except Exception:
+            pass
+        for btn, original_text, _ in self._delayed_buttons:
+            try:
+                btn.config(state="normal", text=original_text)
+            except Exception:
+                pass
+        self._stop_global_key_listener()
+
     def run(self, custom_id: Optional[str] = None):
         super().run(self.setup_ui, custom_id=custom_id)
+        self._stop_global_key_listener()
 

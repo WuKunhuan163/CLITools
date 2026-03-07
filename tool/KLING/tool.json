@@ -1,0 +1,12 @@
+{
+  "name": "KLING",
+  "version": "1.0.0",
+  "description": "AI video generation via Kling API",
+  "purpose": "Generate AI videos, images, and lip-sync content using Kling AI models.",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "npm_dependencies": [
+    "mcp-kling"
+  ]
+}

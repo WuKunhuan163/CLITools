@@ -24,9 +24,9 @@ from tool.PYTHON.logic.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, g
 
 # Try to import colors and shared utils from root proj
 try:
-    from logic.config import get_color
-    from logic.lang.utils import get_translation
-    from logic.tool.base import ToolBase
+    from logic.interface.config import get_color
+    from logic.interface.lang import get_translation
+    from logic.interface.tool import ToolBase
 except ImportError:
     def get_color(name, default="\033[0m"): return default
     def get_translation(d, k, default): return default

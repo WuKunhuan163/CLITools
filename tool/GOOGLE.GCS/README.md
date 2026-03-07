@@ -36,6 +36,20 @@ Executes a command on the remote Colab instance.
 - **--python**: Generates an equivalent Python script to be run in a Colab code cell.
 - **Automatic Feedback**: Captures stdout, stderr, and exit codes, displaying them locally upon completion.
 
+### `GCS --raw <COMMAND>`
+Executes a command on the remote Colab instance with real-time output visibility.
+- Output is displayed directly in the Colab terminal AND captured to a result file on Drive.
+- The command is injected directly (no special translation like `ls` -> detailed listing). Remote path expansion (`~`, `@`) and venv prefix are still applied.
+- The terminal clears and shows "Finished" when done, matching the normal command experience.
+- Clicking Feedback downloads the captured result locally; clicking Finished retrieves it via Drive API.
+
+### `GCS --no-capture <COMMAND>`
+Executes a command on the remote Colab instance without capturing output.
+- Output goes directly to the Colab terminal with no result file.
+- Suitable for `pip install`, long-running tasks, or commands that produce large output where capture is impractical.
+- The GUI window only shows Copy Script and Finished buttons (no Feedback, since there is no result to download).
+- The command is injected directly (same as `--raw`).
+
 ### `GCS ls [-l]`
 Lists files in the target Google Drive folder.
 - **Default**: Shows only names (bash-style).

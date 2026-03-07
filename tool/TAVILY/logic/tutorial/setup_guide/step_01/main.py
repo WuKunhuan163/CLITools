@@ -1,6 +1,6 @@
 import tkinter as tk
 from pathlib import Path
-from logic.lang.utils import get_translation
+from logic.interface.lang import get_translation
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent.parent.parent)
 

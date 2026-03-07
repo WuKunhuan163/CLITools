@@ -7,7 +7,7 @@ from typing import List, Dict, Optional, Any, Set, Callable, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from logic.turing.display.manager import truncate_to_width, _get_configured_width
 from logic.config import get_color
-from logic.terminal.keyboard import get_global_suppressor
+from logic.turing.terminal.keyboard import get_global_suppressor
 from logic.turing.logic import TuringStage, TuringError
 from logic.turing.utils import log_turing_error
 from logic.lang.utils import get_translation
@@ -20,7 +20,7 @@ class DynamicStatusBar:
     Used for parallel tasks where status updates frequently.
     """
     def __init__(self, label: str = "Processing", use_bold_blue: bool = True, manager: Optional['MultiLineManager'] = None):
-        from logic.terminal.keyboard import get_global_suppressor
+        from logic.turing.terminal.keyboard import get_global_suppressor
         self.label = label
         self.active_items: Set[str] = set()
         self.lock = threading.Lock()

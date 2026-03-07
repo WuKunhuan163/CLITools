@@ -2,7 +2,8 @@
   "name": "TOOL",
   "version": "1.0.0",
   "dependencies": [
-    "psutil"
+    "psutil",
+    "pynput"
   ],
   "tool_dependencies": [
     "PYTHON",
@@ -18,7 +19,7 @@
     "SEARCH",
     "READ",
     "DRAW",
-    "GIT", 
+    "GIT",
     "FONT",
     "FITZ",
     "iCloud",
@@ -26,6 +27,28 @@
     "GOOGLE",
     "GOOGLE.GCS",
     "SKILLS",
-    "TAVILY"
+    "TAVILY",
+    "KLING",
+    "MIDJOURNEY",
+    "HEYGEN",
+    "XMIND",
+    "KIMI",
+    "DINGTALK",
+    "WHATSAPP",
+    "WPS",
+    "SUNO",
+    "ZAPIER",
+    "STRIPE",
+    "PAYPAL",
+    "ATLASSIAN",
+    "ASANA",
+    "LINEAR",
+    "SQUARE",
+    "GITLAB",
+    "GITHUB",
+    "SENTRY",
+    "PLAID",
+    "INTERCOM",
+    "CLOUDFLARE"
   ]
 }

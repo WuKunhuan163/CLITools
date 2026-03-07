@@ -25,8 +25,8 @@ ROOT_PROJECT_ROOT = find_project_root()
 if str(ROOT_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT_PROJECT_ROOT))
 
-from logic.tool.base import ToolBase
-from logic.config import get_color
+from logic.interface.tool import ToolBase
+from logic.interface.config import get_color
 
 class GoogleTool(ToolBase):
     def __init__(self):

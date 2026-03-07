@@ -15,8 +15,8 @@ script_dir = Path(__file__).resolve().parent
 project_root = script_dir.parent.parent
 sys.path.append(str(project_root))
 
-from logic.tool.base import ToolBase
-from logic.config import get_color
+from logic.interface.tool import ToolBase
+from logic.interface.config import get_color
 
 def main():
     tool = ToolBase("DRAW")
@@ -33,7 +33,7 @@ def main():
         RESET = get_color("RESET")
         
         import time
-        from logic.turing.display.manager import _get_configured_width, truncate_to_width
+        from logic.interface.turing import _get_configured_width, truncate_to_width
         width = _get_configured_width()
         
         for i in range(3, 0, -1):

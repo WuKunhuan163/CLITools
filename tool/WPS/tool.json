@@ -1,0 +1,9 @@
+{
+  "name": "WPS",
+  "version": "1.0.0",
+  "description": "WPS Office document integration",
+  "purpose": "Create, edit, and manage WPS Office documents programmatically.",
+  "dependencies": [
+    "PYTHON"
+  ]
+}

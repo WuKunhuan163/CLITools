@@ -32,8 +32,8 @@ if project_root:
         sys.path.remove(root_str)
     sys.path.insert(0, root_str)
 
-from logic.tool.base import ToolBase
-from logic.config import get_color
+from logic.interface.tool import ToolBase
+from logic.interface.config import get_color
 from logic.utils import format_table
 
 class BackgroundManager(ToolBase):

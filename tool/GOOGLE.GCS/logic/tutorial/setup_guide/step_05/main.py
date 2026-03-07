@@ -3,8 +3,8 @@ import tkinter as tk
 import threading
 import time
 from pathlib import Path
-from logic.gui.tkinter.style import get_label_style, get_gui_colors
-from logic.lang.utils import get_translation
+from logic.interface.gui import get_label_style, get_gui_colors
+from logic.interface.lang import get_translation
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent.parent.parent)
 def _(key, default, **kwargs):
@@ -16,15 +16,30 @@ def build_step(frame, win):
     title_block = win.add_block(frame, pady=(20, 10))
     win.setup_label(title_block, _("tutorial_step5_title", "Step 5: Share Folders & Verify Access"), is_title=True)
 
+    saved_email = ""
+    project_root = getattr(win, "project_root", None)
+    if project_root:
+        email_cfg_path = project_root / "data" / "google_cloud_console" / "config.json"
+        if email_cfg_path.exists():
+            try:
+                import json as _json
+                with open(email_cfg_path, 'r') as f:
+                    saved_email = _json.load(f).get("service_account_email", "")
+            except Exception:
+                pass
+
+    email_display = saved_email if saved_email else "the Service Account Email from Step 3"
+
     content_block = win.add_block(frame)
     content = _(
         "tutorial_step5_content",
         "1. Open [Google Drive](https://drive.google.com/).\n\n"
         "2. Create two folders:\n"
         "   - **Root**: The main workspace folder for files, commands, and results.\n"
-        "   - **Env**: A separate folder for Colab environment state (mount fingerprints, tmp files).\n\n"
-        "3. Right-click each folder > 'Share' > paste the Service Account Email from Step 3 > set 'Editor' > 'Share'.\n\n"
-        "4. Copy each folder's ID from the URL (the part after `/folders/`) and paste below."
+        "   - **Env**: A separate folder for environment state (virtual environments, command results, mount fingerprints).\n\n"
+        "3. Right-click each folder > 'Share' > paste **{email}** > set 'Editor' > 'Share'.\n\n"
+        "4. Copy each folder's ID from the URL (the part after `/folders/`) and paste below.",
+        email=email_display
     )
     win.setup_label(content_block, content)
 
@@ -99,6 +114,7 @@ def build_step(frame, win):
         if not rid or not eid:
             status_var.set(_("tutorial_step5_ids_required", "Both folder IDs are required."))
             status_label.config(fg="red")
+            win.set_step_validated(False)
             return
 
         validate_btn.config(state=tk.DISABLED, text=_("tutorial_step5_validating_btn", "Validating..."))
@@ -163,5 +179,7 @@ def build_step(frame, win):
 
     validate_btn.config(command=on_validate)
 
-    already_configured = bool(existing_root_id and existing_env_id)
-    win.set_step_validated(already_configured)
+    if existing_root_id and existing_env_id:
+        status_var.set(_("tutorial_step5_preloaded", "Previous configuration loaded. Click Validate & Save to verify."))
+        status_label.config(fg="gray")
+    win.set_step_validated(False)

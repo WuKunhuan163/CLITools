@@ -168,9 +168,23 @@ def log_remount(msg):
             f.flush()
     except: pass
 
+def _get_gcs_translation(project_root, key, default, **kwargs):
+    try:
+        from logic.interface.lang import get_translation
+        logic_dir = str(project_root / "tool" / "GOOGLE.GCS" / "logic")
+        return get_translation(logic_dir, key, default, **kwargs)
+    except Exception:
+        return default.format(**kwargs) if kwargs else default
+
 def show_remount_gui(project_root: Path, script: str, metadata: dict):
     log_remount("Entering show_remount_gui")
-    from logic.gui.tkinter.blueprint.button_bar.gui import ButtonBarWindow
+    from logic.interface.gui import ButtonBarWindow
+
+    _ = lambda key, default, **kw: _get_gcs_translation(project_root, key, default, **kw)
+
+    btn_copy_text = _("gui_btn_copy", "Copy Script")
+    btn_copied_text = _("gui_btn_copied", "Copied!")
+    btn_finished_text = _("gui_btn_finished", "Finished")
     
     def copy_to_clipboard():
         log_remount("Copy Script clicked")
@@ -179,20 +193,18 @@ def show_remount_gui(project_root: Path, script: str, metadata: dict):
             process.communicate(script.encode('utf-8'))
     
     def on_copy_click(btn):
-        old_text = btn.cget("text")
-        btn.config(text="Copied!", state="disabled")
-        # Restore after 1.5s
-        btn.after(1500, lambda: btn.config(text=old_text, state="normal"))
+        btn.config(text=btn_copied_text, state="disabled")
+        btn.after(1500, lambda: btn.config(text=btn_copy_text, state="normal"))
 
     buttons = [
         {
-            "text": "Copy Script", 
+            "text": btn_copy_text, 
             "cmd": copy_to_clipboard, 
             "on_click": on_copy_click,
             "close_on_click": False
         },
         {
-            "text": "Finished", 
+            "text": btn_finished_text, 
             "cmd": None, 
             "close_on_click": True
         }
@@ -201,10 +213,13 @@ def show_remount_gui(project_root: Path, script: str, metadata: dict):
     # Auto-copy on startup
     copy_to_clipboard()
     
-    instruction = "Please copy the script and run it in a **Python code cell** on Google Colab. Click 'Finished' once execution completes."
+    instruction = _("gui_instruction_remount",
+        "Please copy the script and run it in a **Python code cell** on Google Colab. Click 'Finished' once execution completes.")
     
+    gui_title = _("gui_title_remount", "GCS Remount")
+
     win = ButtonBarWindow(
-        title="GCS Remount", 
+        title=gui_title, 
         timeout=300, 
         internal_dir=str(project_root / "tool" / "GOOGLE.GCS" / "logic"), 
         buttons=buttons,

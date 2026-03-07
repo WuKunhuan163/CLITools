@@ -22,11 +22,11 @@ else:
     project_root = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(project_root))
 
-from logic.tool.base import ToolBase
-from logic.config import get_color
+from logic.interface.tool import ToolBase
+from logic.interface.config import get_color
 
 CURSOR_SKILLS_DIR = Path.home() / ".cursor" / "skills"
-LIBRARY_DIR = Path(__file__).resolve().parent / "data" / "library"
+LIBRARY_DIR = Path(__file__).resolve().parent / "logic" / "library"
 PROJECT_SKILLS_DIR = Path(__file__).resolve().parent.parent.parent / "skills"
 
 
@@ -66,10 +66,14 @@ def _parse_description(skill_file: Path) -> str:
 
 
 def sync_skills():
-    """Create symlinks from ~/.cursor/skills/ to all skill sources."""
+    """Create symlinks from ~/.cursor/skills/ to project skills only.
+    
+    Library skills (100 general CS topics) are NOT synced to Cursor
+    to avoid excessive context. Use 'SKILLS show <name>' to read them.
+    """
     CURSOR_SKILLS_DIR.mkdir(parents=True, exist_ok=True)
     synced = 0
-    for source_dir in [LIBRARY_DIR, PROJECT_SKILLS_DIR]:
+    for source_dir in [PROJECT_SKILLS_DIR]:
         if not source_dir.exists():
             continue
         for skill_dir in source_dir.iterdir():

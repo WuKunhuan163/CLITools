@@ -17,7 +17,7 @@ import base64
 import shlex
 import hashlib
 from pathlib import Path
-from logic.config import get_color
+from logic.interface.config import get_color
 
 
 SMALL_THRESHOLD = 1 * 1024 * 1024   # 1 MB
@@ -115,8 +115,8 @@ def _upload_small(tool, local_path, filename, file_size,
 def _upload_via_drive_desktop(tool, local_path, filename, file_size,
                                remote_dest_dir, state_mgr, load_logic, utils, as_python):
     """Upload via Google Drive Desktop: copy to sync folder, wait for sync, mv to destination."""
-    from logic.turing.models.progress import ProgressTuringMachine
-    from logic.turing.logic import TuringStage
+    from logic.interface.turing import ProgressTuringMachine
+    from logic.interface.turing import TuringStage
 
     BOLD = get_color("BOLD", "\033[1m")
     RESET = get_color("RESET", "\033[0m")
@@ -205,9 +205,9 @@ def _upload_via_drive_desktop(tool, local_path, filename, file_size,
 def _upload_large(tool, local_path, filename, file_size,
                   remote_dest_dir, state_mgr, load_logic, utils, as_python):
     """Show a GUI window instructing the user to manually upload large files."""
-    from logic.turing.models.progress import ProgressTuringMachine
-    from logic.turing.logic import TuringStage
-    from logic.gui.manager import run_gui_subprocess
+    from logic.interface.turing import ProgressTuringMachine
+    from logic.interface.turing import TuringStage
+    from logic.interface.gui import run_gui_subprocess
     gui_queue_mod = load_logic("command/gui_queue")
 
     BOLD = get_color("BOLD", "\033[1m")

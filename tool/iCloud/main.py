@@ -28,9 +28,9 @@ except ImportError:
     # print("DEBUG: logic not found in sys.path")
     pass
 
-from logic.tool.base import ToolBase
-from logic.config import get_color
-from logic.gui.engine import get_safe_python_for_gui
+from logic.interface.tool import ToolBase
+from logic.interface.config import get_color
+from logic.interface.gui import get_safe_python_for_gui
 
 # Global colors
 BOLD = get_color("BOLD")

@@ -1,0 +1,12 @@
+{
+  "name": "INTERCOM",
+  "version": "1.0.0",
+  "description": "Customer messaging via Intercom MCP",
+  "purpose": "Manage conversations, contacts, and support tickets through Intercom.",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "npm_dependencies": [
+    "mcp-intercom"
+  ]
+}

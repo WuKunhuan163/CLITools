@@ -20,7 +20,7 @@
   "msg_terminated_external": "被外部信号终止",
   "msg_timeout": "超时",
   "msg_commit_timeout": "提交超时（15秒）",
-  "msg_push_timeout": "推送超时（300秒）",
+  "msg_push_timeout": "推送超时（30秒）",
   "err_sandbox": "可能是沙箱限制所致。",
   "err_no_display": "未找到显示器，无法启动 GUI。",
   "err_sandbox_generic": "检测到沙箱：GUI 受限。",

@@ -1,0 +1,9 @@
+{
+  "name": "PAYPAL",
+  "version": "1.0.0",
+  "description": "PayPal payment integration",
+  "purpose": "Process payments and manage transactions through PayPal API.",
+  "dependencies": [
+    "PYTHON"
+  ]
+}

@@ -17,9 +17,9 @@ if str(project_root) in sys.path:
     sys.path.remove(str(project_root))
 sys.path.insert(0, str(project_root))
 
-from logic.tool.base import ToolBase
+from logic.interface.tool import ToolBase
 from tool.GIT.logic.engine import GitEngine
-from logic.config import get_color
+from logic.interface.config import get_color
 
 def main():
     tool = ToolBase("GIT")

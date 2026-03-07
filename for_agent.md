@@ -7,7 +7,7 @@ This project follows a **Symmetrical Design Pattern**. Shared core logic resides
 
 - **Isolation**: Use the `PYTHON` tool dependency to run your tool in a standalone runtime.
 - **Persistence**: Work is automatically committed and pushed every few commits via git hooks to protect progress.
-- **Persistence Manager**: Use `GitPersistenceManager` (via `TOOL dev sync` or `TOOL test`) to preserve non-Git-tracked directories (like Python installations) across branch switches.
+- **Persistence Manager**: `GitPersistenceManager` automatically saves and restores non-Git-tracked directories across branch switches during `TOOL dev sync` and `TOOL test`. Tools declare which directories to preserve via `"persistence_dirs": ["data"]` in their `tool.json`. This is critical for API keys, session cookies, and configs that live in `data/` on the dev branch.
 - **Managed Python Environment**: Use `PYTHON --enable` to create symlinks in `bin/` so that `which python` and `pip install` use the managed environment correctly.
 - **Terminal Restoration**: The `KeyboardSuppressor` uses `atexit` to ensure terminal echoing is restored even if the process exits unexpectedly or via `KeyboardInterrupt`.
 
@@ -21,7 +21,7 @@ tool/<NAME>/           # e.g., tool/iCloud/ or tool/iCloud.iCloudPD/
   │   └── translation/ # Localization (zh.json, ar.json, etc.)
   ├── main.py          # Entry point (inherits from ToolBase)
   ├── setup.py         # Installation logic
-  ├── tool.json        # Metadata & dependencies (e.g., "dependencies": ["PYTHON"])
+  ├── tool.json        # Metadata, dependencies, persistence_dirs (see below)
   ├── test/            # Tool-specific unit tests (test_xx_name.py)
   └── README.md        # Documentation
 ```
@@ -92,15 +92,21 @@ As an AI agent, you MUST follow these operational rules:
 - **Binary Files**: If you must track binary files (like in `tool/PYTHON/data/install/`), ensure they are marked as `binary` in `.gitattributes` to prevent corruption by line-ending conversion.
 - **Shadowing**: When developing tools with their own `logic/` directory, ALWAYS ensure the project root is at index 0 of `sys.path` before any imports that might find the tool's local `logic/` instead of the root `logic/`.
 - **TM hygiene**: Never use `print()` inside a `TuringStage` action. Use `stage.refresh()` if you need live updates, or rely on the stage success/fail messages. Inner prints break the erasable line tracking.
-- **Keyboard Cancellation**: When a user cancels an operation (Ctrl+C), the system prints a yellow bold "**Operation cancelled** by user." message and ensures keyboard suppression is correctly released.
+- **Keyboard Cancellation**: When a user cancels an operation (Ctrl+C or USERINPUT Cancel button), the system prints a red bold "**Operation cancelled** by user." message, ensures keyboard suppression is released, and exits with code 130 (POSIX SIGINT convention). USERINPUT's Cancel button produces the same exit code 130, so the Turing Machine's `INTERRUPTED` state handles both uniformly.
 - **Reference Counting**: The `KeyboardSuppressor` uses reference counting to prevent deadlocks and ensure input echoing is restored only after all active suppressors have stopped.
 - **Exit Codes**: If your tool is a proxy or re-executes another command, always use `sys.exit(process.returncode)` to propagate the exit status.
 - **Sanity Checks**: Every tool MUST pass `bin/TOOL dev sanity-check <NAME>`. This ensures basic files like `README.md`, `setup.py`, and `test/test_00_help.py` exist.
 
-## 8. Key Shared Suites
-- `logic.config`: Centralized configuration and color management.
-- `logic.audit`: General-purpose audit logging and caching.
-- `logic.utils`: Shared terminal utilities, path resolvers, RTL support, `SessionLogger`, and `@retry` decorator for API calls.
+## 8. Key Shared Suites (`logic/` Directory)
+- `logic.config`: Centralized configuration, color management, and rule generation (`config.rule`).
+- `logic.tool`: Tool lifecycle (`base`, `setup/`), dev commands (`tool.dev`), and audit caching (`tool.audit`).
+- `logic.turing`: State machine progress display (`models/`), multi-line terminal management (`display/`), and keyboard suppression (`terminal/`).
+- `logic.utils`: Split into submodules — `display` (formatting/tables), `system` (paths/platform), `progress` (ETA/retry), `cleanup`, `logging` (SessionLogger), `timezone`. All re-exported from `logic.utils` for backward compat.
+- `logic.gui`: Tkinter blueprint framework for GUIs.
+- `logic.accessibility.keyboard`: Global keyboard monitoring (`monitor`) and shortcut settings (`settings`).
+- `logic.lang`: Language management, translation utilities, and audit.
+- `logic.git`: Git operations, persistence manager, and branch utilities.
+- `logic.interface`: Cross-tool interface registry. Use `get_interface("TOOL_NAME")` to load any tool's interface module.
 
 ### Unified Logging (`tool.log()`)
 Every `ToolBase` instance provides a `log(message, extra=None, include_stack=True)` method for runtime logging. One log file per session is created in `data/log/` (e.g., `log_20260227_163000_12345.log`). The `handle_exception()` method automatically writes full tracebacks to the same session log. Log files are capped at 64 per tool, auto-cleaning oldest half when exceeded.
@@ -123,7 +129,7 @@ Parallel iCloud photo/video downloader with timezone management, stall detection
 
 ### GCS Tool
 Google Drive Remote Controller for Colab:
-- **Commands**: `GCS <command>` executes remotely. `GCS ls`, `GCS cd`, `GCS pwd`, `GCS upload` for file management. `--setup-tutorial`, `--remount`, `--shell` for special operations.
+- **Commands**: `GCS <command>` executes remotely. `GCS --raw <command>` executes with real-time output AND result capture. `GCS --no-capture <command>` runs without capturing output (for pip install, long tasks). `GCS ls`, `GCS cd`, `GCS pwd`, `GCS upload` for file management. `--setup-tutorial`, `--remount`, `--shell` for special operations.
 - **File Operations**: `GCS read <file> [start] [end]` (line-numbered), `GCS grep <pattern> <file>` (regex search), `GCS linter <file>` (local lint via pyflakes/shellcheck), `GCS edit <file> <json_spec>` (remote text replacement).
 - **Virtual Environments**: `GCS venv --create|--delete|--activate|--deactivate|--list|--current|--protect|--unprotect`. Active venvs inject `PYTHONPATH` into all remote commands automatically.
 - **Background Execution**: `GCS bg <command>` runs long commands (pip install, git clone) in background. Track with `--status`, `--log`, `--result`, `--cleanup`.
@@ -138,6 +144,43 @@ AI-optimized web search:
 - `TAVILY config --api-key <key>`: Store API key.
 - `TAVILY --setup-tutorial`: Guided API key configuration.
 - Options: `--depth basic|advanced`, `--max-results N`, `--include-answer`, `--raw`.
+
+### MCP-Based Tools
+The following tools wrap external MCP (Model Context Protocol) servers, providing unified CLI access to popular services. Each supports `<NAME> status`, `<NAME> config <key> <value>`, and `<NAME> setup`.
+
+**AI/Creative**:
+- `KLING`: AI video generation (text-to-video, image-to-video, lip-sync) via Kling API.
+- `MIDJOURNEY`: AI image generation/transformation via Midjourney (AceDataCloud).
+- `HEYGEN`: AI avatar video generation via HeyGen API.
+- `SUNO`: AI music generation, lyrics, covers via Suno API.
+- `KIMI`: Kimi AI assistant for long-context understanding (Moonshot).
+
+**Productivity/Collaboration**:
+- `XMIND`: Mind mapping and brainstorming.
+- `WPS`: WPS Office document integration.
+- `ATLASSIAN`: Jira issues and Confluence pages management.
+- `ASANA`: Project and task management.
+- `LINEAR`: Product development issue tracking.
+
+**Messaging/Communication**:
+- `DINGTALK`: DingTalk messaging and workspace integration.
+- `WHATSAPP`: WhatsApp Business API messaging.
+- `INTERCOM`: Customer messaging and support.
+
+**Payments/Finance**:
+- `STRIPE`: Payment processing via Stripe MCP.
+- `PAYPAL`: PayPal payment integration.
+- `SQUARE`: Business and payment platform.
+- `PLAID`: Financial data and bank account integration.
+
+**DevOps/Infrastructure**:
+- `GITHUB`: GitHub repositories, issues, PRs (depends on GIT).
+- `GITLAB`: GitLab repositories, merge requests, CI/CD.
+- `SENTRY`: AI-powered error monitoring and debugging.
+- `CLOUDFLARE`: DNS, Workers, R2 storage, analytics.
+
+**Automation**:
+- `ZAPIER`: Workflow automation across 8000+ apps.
 
 ## 10. Testing Conventions
 - **Naming**: `test_xx_name.py` (two-digit ID). Every tool must have `test_00_help.py`.
@@ -160,7 +203,7 @@ Skills are structured best-practice guides that AI agents can reference during d
 
 ### Skill Locations
 - **Project-level** (`skills/`): `TerminalTools-*` skills for this framework's patterns.
-- **Library** (`tool/SKILLS/data/library/`): 100 general CS skills (frontend, backend, DevOps, AI/ML, security, etc.).
+- **Library** (`tool/SKILLS/logic/library/`): 100 general CS skills (frontend, backend, DevOps, AI/ML, security, etc.). These are NOT synced to Cursor to avoid excessive context; use `SKILLS show <name>` to read them.
 - **Tool-level** (`tool/<NAME>/skills/`): Per-tool skills for specialized patterns.
 
 ### Accessing Skills
