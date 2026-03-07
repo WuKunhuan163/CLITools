@@ -24,8 +24,10 @@ from pathlib import Path
 
 _TOOL_DIR = Path(__file__).resolve().parent.parent.parent
 _OVERLAY_PATH = _TOOL_DIR / "logic" / "cdp" / "overlay.py"
+_SESSION_MGR_PATH = _TOOL_DIR / "logic" / "cdp" / "session_manager.py"
 
 _overlay_mod = None
+_session_mgr_mod = None
 
 
 def _overlay():
@@ -35,6 +37,26 @@ def _overlay():
         _overlay_mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(_overlay_mod)
     return _overlay_mod
+
+
+def _touch_session(session: CDPSession):
+    """Touch the owning CDMCPSession so MCP operations reset the idle timer."""
+    global _session_mgr_mod
+    try:
+        if _session_mgr_mod is None:
+            import sys as _sys
+            _mod_name = "cdmcp_sessions"
+            if _mod_name in _sys.modules:
+                _session_mgr_mod = _sys.modules[_mod_name]
+            else:
+                spec = importlib.util.spec_from_file_location(
+                    _mod_name, str(_SESSION_MGR_PATH))
+                _session_mgr_mod = importlib.util.module_from_spec(spec)
+                _sys.modules[_mod_name] = _session_mgr_mod
+                spec.loader.exec_module(_session_mgr_mod)
+        _session_mgr_mod.touch_by_cdp(session)
+    except Exception:
+        pass
 
 
 def _ensure_locked(session: CDPSession, tool_name: str = "CDMCP"):
@@ -65,6 +87,7 @@ def mcp_click(session: CDPSession, selector: str,
 
     Returns dict with 'ok', 'clicked', 'rect', 'element' keys.
     """
+    _touch_session(session)
     ov = _overlay()
     if require_lock:
         _ensure_locked(session, tool_name)
@@ -130,6 +153,7 @@ def mcp_type(session: CDPSession, selector: str, text: str,
 
     Returns dict with 'ok', 'typed', 'length' keys.
     """
+    _touch_session(session)
     ov = _overlay()
     if require_lock:
         _ensure_locked(session, tool_name)
@@ -185,6 +209,7 @@ def mcp_scroll(session: CDPSession, direction: str = "down",
         amount: Pixels to scroll.
         smooth: Use smooth scrolling.
     """
+    _touch_session(session)
     dy = amount if direction == "down" else -amount
     behavior = "smooth" if smooth else "auto"
 
@@ -216,6 +241,7 @@ def mcp_paste(session: CDPSession, text: str,
         require_lock: Auto-lock before interaction.
     """
     import platform
+    _touch_session(session)
     ov = _overlay()
     if require_lock:
         _ensure_locked(session, tool_name)
@@ -273,6 +299,7 @@ def mcp_wait_and_click(session: CDPSession, selector: str,
 
     Polls until the element is found or timeout expires.
     """
+    _touch_session(session)
     if require_lock:
         _ensure_locked(session, tool_name)
     deadline = time.time() + timeout
@@ -302,6 +329,7 @@ def mcp_navigate(session: CDPSession, url: str,
         tool_name: Name shown in lock label.
         require_lock: If True, auto-lock tab before interaction.
     """
+    _touch_session(session)
     if require_lock:
         _ensure_locked(session, tool_name)
     session.evaluate(f"window.location.href = {json.dumps(url)}")

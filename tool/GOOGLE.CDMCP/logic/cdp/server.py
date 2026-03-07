@@ -46,15 +46,23 @@ class _ChatHandler(http.server.BaseHTTPRequestHandler):
         pass
 
 
-def start_server() -> Tuple[str, int]:
-    """Start the local HTTP server and return (url, port)."""
+def start_server(preferred_port: Optional[int] = None) -> Tuple[str, int]:
+    """Start the local HTTP server and return (url, port).
+
+    If preferred_port is given, try to bind to it first (useful for resuming
+    a server on the same port after a process restart).
+    """
     global _server_instance, _server_port, _server_thread
 
     if _server_instance and _server_port:
         return f"http://127.0.0.1:{_server_port}", _server_port
 
-    port = _find_free_port()
-    server = http.server.HTTPServer(("127.0.0.1", port), _ChatHandler)
+    port = preferred_port or _find_free_port()
+    try:
+        server = http.server.HTTPServer(("127.0.0.1", port), _ChatHandler)
+    except OSError:
+        port = _find_free_port()
+        server = http.server.HTTPServer(("127.0.0.1", port), _ChatHandler)
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

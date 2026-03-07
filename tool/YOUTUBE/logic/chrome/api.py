@@ -10,13 +10,19 @@ Operations:
   - Screenshot: capture the current page
   - Transcript: extract subtitles from a video page
   - Session: boot / status / recover
+  - Playback: play, pause, seek, volume, speed, quality, captions
+  - Engagement: like, dislike, subscribe, share, save, comment
+  - Navigation: home, shorts, subscriptions, history, playlists, video URL
+  - State: comprehensive player + page state
+  - Recommendations: list recommended videos / get comments
 """
 
 import json
+import re
 import time
 import importlib.util
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from logic.chrome.session import (
     CDPSession, CDP_PORT,
@@ -694,4 +700,781 @@ def login(port: int = CDP_PORT) -> Dict[str, Any]:
         }
     except Exception as e:
         machine.transition(YTState.ERROR, {"error": str(e)})
+        return {"ok": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Navigation helpers
+# ---------------------------------------------------------------------------
+
+_NAV_TARGETS = {
+    "home": "https://www.youtube.com",
+    "shorts": "https://www.youtube.com/shorts",
+    "subscriptions": "https://www.youtube.com/feed/subscriptions",
+    "history": "https://www.youtube.com/feed/history",
+    "playlists": "https://www.youtube.com/feed/playlists",
+    "watch_later": "https://www.youtube.com/playlist?list=WL",
+    "liked": "https://www.youtube.com/playlist?list=LL",
+    "trending": "https://www.youtube.com/feed/trending",
+    "library": "https://www.youtube.com/feed/library",
+}
+
+
+def navigate(target: str, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Navigate to a YouTube section or URL.
+
+    target can be a named section (home, shorts, subscriptions, history,
+    playlists, watch_later, liked, trending, library) or a full URL.
+    """
+    machine = get_machine(_session_name)
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        url = _NAV_TARGETS.get(target.lower(), target)
+        if not url.startswith("http"):
+            return {"ok": False, "error": f"Unknown target: {target}"}
+
+        machine.transition(YTState.NAVIGATING, {"action": "navigate", "target": target})
+        interact = _load_interact()
+        interact.mcp_navigate(session, url, tool_name="YouTube")
+        time.sleep(3)
+
+        actual = session.evaluate("window.location.href") or url
+        machine.set_url(str(actual))
+
+        if "/watch" in str(actual):
+            machine.transition(YTState.WATCHING)
+        elif "/results" in str(actual):
+            machine.transition(YTState.SEARCHING)
+        else:
+            machine.transition(YTState.IDLE)
+
+        return {"ok": True, "url": str(actual), "target": target}
+    except Exception as e:
+        machine.transition(YTState.ERROR, {"error": str(e)})
+        return {"ok": False, "error": str(e)}
+
+
+def open_video(video_url: str, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Open a specific video by URL or ID with MCP effects."""
+    if not video_url.startswith("http"):
+        video_url = f"https://www.youtube.com/watch?v={video_url}"
+    return navigate(video_url, port)
+
+
+# ---------------------------------------------------------------------------
+# Playback controls — all use keyboard shortcuts for reliability
+# ---------------------------------------------------------------------------
+
+def _send_key(session: CDPSession, key: str, code: str = "",
+              modifiers: int = 0, text: str = ""):
+    """Send a keyboard event to the page."""
+    from logic.chrome.session import dispatch_key
+    dispatch_key(session, key, code or f"Key{key.upper()}", modifiers, text)
+
+
+def _player_js(session: CDPSession, js: str) -> Any:
+    """Evaluate JS in the context of the video player."""
+    return session.evaluate(f"""
+        (function(){{
+            var v = document.querySelector('video');
+            if(!v) return JSON.stringify({{ok: false, error: 'No video element'}});
+            {js}
+        }})()
+    """)
+
+
+def play(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Play the current video (keyboard shortcut k)."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        paused = _player_js(session, "return v.paused ? 'yes' : 'no'")
+        if paused == "yes":
+            interact = _load_interact()
+            interact.mcp_click(session, ".ytp-play-button",
+                               label="Play", dwell=0.5, color="#ff0000",
+                               tool_name="YouTube")
+        return {"ok": True, "action": "play", "was_paused": paused == "yes"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def pause(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Pause the current video."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        paused = _player_js(session, "return v.paused ? 'yes' : 'no'")
+        if paused == "no":
+            interact = _load_interact()
+            interact.mcp_click(session, ".ytp-play-button",
+                               label="Pause", dwell=0.5, color="#ff0000",
+                               tool_name="YouTube")
+        return {"ok": True, "action": "pause", "was_playing": paused == "no"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def seek(target: str, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Seek to a position. target can be seconds (e.g. '90'), mm:ss (e.g. '1:30'),
+    percentage (e.g. '50%'), or relative ('+10', '-10')."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        target = target.strip()
+        if target.endswith("%"):
+            pct = float(target[:-1]) / 100
+            r = _player_js(session, f"v.currentTime = v.duration * {pct}; "
+                           f"return JSON.stringify({{ok:true, time: v.currentTime, duration: v.duration}})")
+        elif target.startswith("+") or target.startswith("-"):
+            delta = float(target)
+            r = _player_js(session, f"v.currentTime += {delta}; "
+                           f"return JSON.stringify({{ok:true, time: v.currentTime}})")
+        elif ":" in target:
+            parts = target.split(":")
+            secs = sum(int(p) * (60 ** i) for i, p in enumerate(reversed(parts)))
+            r = _player_js(session, f"v.currentTime = {secs}; "
+                           f"return JSON.stringify({{ok:true, time: v.currentTime}})")
+        else:
+            secs = float(target)
+            r = _player_js(session, f"v.currentTime = {secs}; "
+                           f"return JSON.stringify({{ok:true, time: v.currentTime}})")
+        result = json.loads(r) if r else {"ok": False, "error": "No video"}
+        return result
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def volume(level: Optional[int] = None, mute: Optional[bool] = None,
+           port: int = CDP_PORT) -> Dict[str, Any]:
+    """Set volume (0-100) and/or mute state. If no args, returns current state."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        if mute is not None:
+            _player_js(session, f"v.muted = {'true' if mute else 'false'}")
+        if level is not None:
+            clamped = max(0, min(100, level))
+            _player_js(session, f"v.volume = {clamped / 100}")
+
+        r = _player_js(session,
+            "return JSON.stringify({ok:true, volume: Math.round(v.volume*100), muted: v.muted})")
+        return json.loads(r) if r else {"ok": False, "error": "No video"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def speed(rate: Optional[float] = None, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Set playback speed (0.25-2.0). If no rate, returns current speed."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        if rate is not None:
+            clamped = max(0.25, min(2.0, rate))
+            _player_js(session, f"v.playbackRate = {clamped}")
+
+        r = _player_js(session,
+            "return JSON.stringify({ok:true, speed: v.playbackRate})")
+        return json.loads(r) if r else {"ok": False, "error": "No video"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def quality(level: Optional[str] = None, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Set or get video quality. Opens settings gear to list/select quality.
+
+    level examples: '1080p', '720p', '480p', '360p', '240p', '144p', 'auto'
+    """
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        interact = _load_interact()
+
+        interact.mcp_click(session, ".ytp-settings-button",
+                           label="Settings", dwell=0.5, tool_name="YouTube")
+        time.sleep(0.8)
+
+        interact.mcp_click(session, ".ytp-menuitem[aria-haspopup='true']:last-child, "
+                           ".ytp-panel-menu .ytp-menuitem:last-child",
+                           label="Quality", dwell=0.5, tool_name="YouTube")
+        time.sleep(0.8)
+
+        items = session.evaluate("""
+            (function(){
+                var items = document.querySelectorAll('.ytp-quality-menu .ytp-menuitem, '
+                    + '.ytp-panel-menu .ytp-menuitem');
+                var out = [];
+                for(var i=0; i<items.length; i++){
+                    var label = items[i].querySelector('.ytp-menuitem-label');
+                    var text = label ? label.textContent.trim() : items[i].textContent.trim();
+                    out.push(text);
+                }
+                return JSON.stringify(out);
+            })()
+        """)
+        available = json.loads(items) if items else []
+
+        if level:
+            target_text = level.lower().replace("p", "")
+            clicked = session.evaluate(f"""
+                (function(){{
+                    var items = document.querySelectorAll('.ytp-quality-menu .ytp-menuitem, '
+                        + '.ytp-panel-menu .ytp-menuitem');
+                    for(var i=0; i<items.length; i++){{
+                        var t = items[i].textContent.trim().toLowerCase();
+                        if(t.includes('{target_text}')){{
+                            items[i].click();
+                            return 'clicked';
+                        }}
+                    }}
+                    return 'not_found';
+                }})()
+            """)
+            if clicked == "not_found":
+                session.evaluate("document.querySelector('.ytp-settings-button')?.click()")
+                return {"ok": False, "error": f"Quality '{level}' not found",
+                        "available": available}
+        else:
+            session.evaluate("document.querySelector('.ytp-settings-button')?.click()")
+
+        return {"ok": True, "available": available,
+                "selected": level if level else "current"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def captions(toggle: Optional[bool] = None, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Toggle or check subtitles/captions state."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        current = session.evaluate("""
+            (function(){
+                var btn = document.querySelector('.ytp-subtitles-button');
+                if(!btn) return 'unavailable';
+                return btn.getAttribute('aria-pressed') === 'true' ? 'on' : 'off';
+            })()
+        """)
+        if current == "unavailable":
+            return {"ok": True, "captions": "unavailable"}
+
+        if toggle is not None:
+            want_on = toggle
+            is_on = current == "on"
+            if want_on != is_on:
+                interact = _load_interact()
+                interact.mcp_click(session, ".ytp-subtitles-button",
+                                   label="Captions", dwell=0.5,
+                                   tool_name="YouTube")
+
+        current_after = session.evaluate("""
+            var btn = document.querySelector('.ytp-subtitles-button');
+            btn ? (btn.getAttribute('aria-pressed') === 'true' ? 'on' : 'off') : 'unavailable'
+        """)
+        return {"ok": True, "captions": current_after}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def fullscreen(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Toggle fullscreen mode."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        interact = _load_interact()
+        interact.mcp_click(session, ".ytp-fullscreen-button",
+                           label="Fullscreen", dwell=0.3, tool_name="YouTube")
+        return {"ok": True, "action": "fullscreen_toggled"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def theater(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Toggle theater mode."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        interact = _load_interact()
+        interact.mcp_click(session, ".ytp-size-button",
+                           label="Theater mode", dwell=0.3, tool_name="YouTube")
+        return {"ok": True, "action": "theater_toggled"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def autoplay(toggle: Optional[bool] = None, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Toggle or check autoplay state."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        current = session.evaluate("""
+            var btn = document.querySelector('.ytp-autonav-toggle');
+            btn ? (btn.getAttribute('aria-label') || '').toLowerCase() : 'not_found'
+        """) or ""
+        is_on = "on" in str(current).lower()
+
+        if toggle is not None and toggle != is_on:
+            interact = _load_interact()
+            interact.mcp_click(session, ".ytp-autonav-toggle",
+                               label="Autoplay", dwell=0.5, tool_name="YouTube")
+
+        return {"ok": True, "autoplay": is_on if toggle is None else toggle}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def pip(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Toggle picture-in-picture mode."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        r = _player_js(session, """
+            if(document.pictureInPictureElement) {
+                document.exitPictureInPicture();
+                return JSON.stringify({ok:true, pip: false});
+            } else {
+                v.requestPictureInPicture();
+                return JSON.stringify({ok:true, pip: true});
+            }
+        """)
+        return json.loads(r) if r else {"ok": False, "error": "No video"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Engagement actions (like, subscribe, share, save, comment)
+# ---------------------------------------------------------------------------
+
+def like(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Like the current video with MCP effects."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        interact = _load_interact()
+        selectors = [
+            "like-button-view-model button",
+            "#segmented-like-button button",
+            "ytd-toggle-button-renderer#like-button button",
+        ]
+        for sel in selectors:
+            r = interact.mcp_click(session, sel, label="Like", dwell=1.0,
+                                   color="#065fd4", tool_name="YouTube")
+            if r.get("ok"):
+                time.sleep(0.5)
+                aria = session.evaluate(f"""
+                    var b = document.querySelector('{sel}');
+                    b ? b.getAttribute('aria-pressed') || b.getAttribute('aria-label') || '' : ''
+                """)
+                return {"ok": True, "action": "liked", "state": str(aria)[:60]}
+        return {"ok": False, "error": "Like button not found"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def dislike(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Dislike the current video."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        interact = _load_interact()
+        selectors = [
+            "dislike-button-view-model button",
+            "#segmented-dislike-button button",
+        ]
+        for sel in selectors:
+            r = interact.mcp_click(session, sel, label="Dislike", dwell=1.0,
+                                   color="#065fd4", tool_name="YouTube")
+            if r.get("ok"):
+                return {"ok": True, "action": "disliked"}
+        return {"ok": False, "error": "Dislike button not found"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def subscribe(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Subscribe to the current video's channel."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        interact = _load_interact()
+        r = interact.mcp_click(
+            session, "ytd-subscribe-button-renderer button",
+            label="Subscribe", dwell=1.0, color="#cc0000", tool_name="YouTube")
+        if r.get("ok"):
+            time.sleep(0.5)
+            text = session.evaluate(
+                "document.querySelector('ytd-subscribe-button-renderer button')?.textContent?.trim() || ''")
+            return {"ok": True, "action": "subscribe_toggled", "button_text": str(text)}
+        return {"ok": False, "error": "Subscribe button not found"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def share(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Open share dialog and extract the share URL."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        interact = _load_interact()
+        r = interact.mcp_click(session, 'button[aria-label="Share"]',
+                               label="Share", dwell=0.8, tool_name="YouTube")
+        if not r.get("ok"):
+            r = interact.mcp_click(
+                session,
+                'ytd-button-renderer:has(yt-icon) button',
+                label="Share", dwell=0.8, tool_name="YouTube")
+
+        time.sleep(1.5)
+
+        url = session.evaluate("""
+            (function(){
+                var input = document.querySelector('#share-url, ytd-unified-share-panel-renderer input');
+                if(input) return input.value || input.getAttribute('value') || '';
+                var link = document.querySelector('a.yt-simple-endpoint[href*="youtu.be"]');
+                if(link) return link.href;
+                return '';
+            })()
+        """)
+
+        session.evaluate("""
+            var close = document.querySelector('ytd-unified-share-panel-renderer yt-icon-button, '
+                + '#share-dialog yt-icon-button[aria-label="Close"]');
+            if(close) close.click();
+        """)
+
+        return {"ok": True, "share_url": str(url) if url else "",
+                "action": "share_dialog_opened"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def save(playlist: str = "Watch later", port: int = CDP_PORT) -> Dict[str, Any]:
+    """Save current video to a playlist (default: Watch later)."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        interact = _load_interact()
+        r = interact.mcp_click(
+            session, 'button[aria-label="Save to playlist"]',
+            label="Save", dwell=0.8, tool_name="YouTube")
+        if not r.get("ok"):
+            r = interact.mcp_click(session,
+                '#flexible-item-buttons ytd-button-renderer:last-child button',
+                label="Save", dwell=0.8, tool_name="YouTube")
+
+        time.sleep(1.5)
+
+        if playlist.lower() == "watch later":
+            clicked = session.evaluate("""
+                (function(){
+                    var items = document.querySelectorAll('ytd-playlist-add-to-option-renderer, '
+                        + '#playlists tp-yt-paper-checkbox');
+                    for(var i=0; i<items.length; i++){
+                        if(items[i].textContent.trim().includes('Watch later')){
+                            items[i].click();
+                            return 'clicked';
+                        }
+                    }
+                    return 'not_found';
+                })()
+            """)
+        else:
+            safe_pl = playlist.replace("'", "\\'")
+            clicked = session.evaluate(f"""
+                (function(){{
+                    var items = document.querySelectorAll('ytd-playlist-add-to-option-renderer, '
+                        + '#playlists tp-yt-paper-checkbox');
+                    for(var i=0; i<items.length; i++){{
+                        if(items[i].textContent.trim().includes('{safe_pl}')){{
+                            items[i].click();
+                            return 'clicked';
+                        }}
+                    }}
+                    return 'not_found';
+                }})()
+            """)
+
+        time.sleep(0.5)
+        session.evaluate("""
+            var close = document.querySelector('#close-button button, '
+                + 'ytd-add-to-playlist-renderer yt-icon-button');
+            if(close) close.click();
+        """)
+
+        return {"ok": True, "playlist": playlist,
+                "saved": clicked == "clicked"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def comment(text: str, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Add a comment to the current video."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        interact = _load_interact()
+
+        interact.mcp_scroll(session, "down", 400)
+        time.sleep(1)
+
+        r = interact.mcp_click(
+            session, "#simplebox-placeholder, #placeholder-area",
+            label="Comment box", dwell=0.8, color="#065fd4",
+            tool_name="YouTube")
+        time.sleep(1)
+
+        interact.mcp_type(
+            session,
+            "#contenteditable-root, #comment-input #contenteditable-root, "
+            "div[contenteditable=\"true\"]",
+            text, label=f"Comment: {text[:30]}",
+            char_delay=0.03, tool_name="YouTube")
+        time.sleep(0.5)
+
+        interact.mcp_click(
+            session, "#submit-button button, #submit-button ytd-button-renderer button",
+            label="Submit comment", dwell=0.8, color="#065fd4",
+            tool_name="YouTube")
+
+        return {"ok": True, "action": "commented", "text": text}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Next video / recommendation interaction
+# ---------------------------------------------------------------------------
+
+def next_video(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Navigate to the next recommended video."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        interact = _load_interact()
+        machine = get_machine(_session_name)
+        machine.transition(YTState.NAVIGATING, {"action": "next_video"})
+
+        r = interact.mcp_click(
+            session,
+            "ytd-compact-video-renderer:first-of-type a#thumbnail",
+            label="Next video", dwell=1.0, color="#ff0000",
+            tool_name="YouTube")
+        if not r.get("ok"):
+            r = interact.mcp_click(
+                session,
+                ".ytp-next-button",
+                label="Next", dwell=0.5, tool_name="YouTube")
+
+        time.sleep(3)
+        url = session.evaluate("window.location.href") or ""
+        machine.set_url(str(url))
+        machine.transition(YTState.WATCHING)
+        return {"ok": True, "url": str(url)}
+    except Exception as e:
+        machine = get_machine(_session_name)
+        machine.transition(YTState.ERROR, {"error": str(e)})
+        return {"ok": False, "error": str(e)}
+
+
+def get_recommendations(limit: int = 10, port: int = CDP_PORT) -> Dict[str, Any]:
+    """List recommended videos from the sidebar."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        r = session.evaluate(f"""
+            (function(){{
+                var items = document.querySelectorAll('ytd-compact-video-renderer');
+                var out = [];
+                for(var i=0; i<Math.min(items.length, {limit}); i++){{
+                    var el = items[i];
+                    var a = el.querySelector('a#thumbnail');
+                    var title = el.querySelector('#video-title');
+                    var chan = el.querySelector('#channel-name #text, .ytd-channel-name');
+                    var views = el.querySelector('#metadata-line span:first-child');
+                    var dur = el.querySelector('#overlays span');
+                    var href = a ? a.getAttribute('href') || '' : '';
+                    var vid = href.match(/v=([^&]+)/);
+                    out.push({{
+                        title: title ? title.textContent.trim().substring(0, 100) : '',
+                        channel: chan ? chan.textContent.trim() : '',
+                        views: views ? views.textContent.trim() : '',
+                        duration: dur ? dur.textContent.trim() : '',
+                        videoId: vid ? vid[1] : '',
+                        url: vid ? 'https://www.youtube.com/watch?v=' + vid[1] : ''
+                    }});
+                }}
+                return JSON.stringify({{ok: true, count: out.length, results: out}});
+            }})()
+        """)
+        return json.loads(r) if r else {"ok": False, "error": "No response"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def get_comments(limit: int = 10, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Extract top comments from the current video page."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        interact = _load_interact()
+        interact.mcp_scroll(session, "down", 500)
+        time.sleep(2)
+
+        r = session.evaluate(f"""
+            (function(){{
+                var items = document.querySelectorAll('ytd-comment-thread-renderer');
+                var out = [];
+                for(var i=0; i<Math.min(items.length, {limit}); i++){{
+                    var el = items[i];
+                    var author = el.querySelector('#author-text span, #header-author h3 a span');
+                    var text = el.querySelector('#content-text, yt-attributed-string#content-text');
+                    var likes = el.querySelector('#vote-count-middle');
+                    var time = el.querySelector('#published-time-text a, .published-time-text a');
+                    var replies = el.querySelector('#more-replies button, #reply-count-text');
+                    out.push({{
+                        author: author ? author.textContent.trim() : '',
+                        text: text ? text.textContent.trim().substring(0, 300) : '',
+                        likes: likes ? likes.textContent.trim() : '0',
+                        time: time ? time.textContent.trim() : '',
+                        reply_count: replies ? replies.textContent.trim() : ''
+                    }});
+                }}
+                return JSON.stringify({{ok: true, count: out.length, comments: out}});
+            }})()
+        """)
+        return json.loads(r) if r else {"ok": False, "error": "No response"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Description expand/collapse
+# ---------------------------------------------------------------------------
+
+def expand_description(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Expand the video description."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        interact = _load_interact()
+        r = interact.mcp_click(
+            session, "#description-inline-expander #expand, "
+            "tp-yt-paper-button#expand, #expand",
+            label="Expand description", dwell=0.5, tool_name="YouTube")
+        if r.get("ok"):
+            time.sleep(0.5)
+            desc = session.evaluate("""
+                var d = document.querySelector('#description-inner, '
+                    + 'ytd-text-inline-expander #plain-snippet-text, '
+                    + '#attributed-snippet-text');
+                d ? d.textContent.trim().substring(0, 2000) : ''
+            """)
+            return {"ok": True, "description": str(desc) if desc else ""}
+        return r
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Comprehensive MCP state
+# ---------------------------------------------------------------------------
+
+def get_mcp_state(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Get comprehensive state of the YouTube page + player."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        machine = get_machine(_session_name)
+        r = session.evaluate("""
+            (function(){
+                var out = {};
+                out.url = window.location.href;
+                out.title = document.title;
+                out.section = out.url.includes('/watch') ? 'video'
+                    : out.url.includes('/results') ? 'search'
+                    : out.url.includes('/shorts') ? 'shorts'
+                    : 'other';
+
+                var v = document.querySelector('video');
+                if(v){
+                    out.player = {
+                        paused: v.paused,
+                        currentTime: Math.round(v.currentTime * 10) / 10,
+                        duration: Math.round(v.duration * 10) / 10,
+                        volume: Math.round(v.volume * 100),
+                        muted: v.muted,
+                        playbackRate: v.playbackRate,
+                        readyState: v.readyState,
+                        ended: v.ended,
+                        loop: v.loop
+                    };
+                    out.player.progress_pct = out.player.duration > 0
+                        ? Math.round(v.currentTime / v.duration * 1000) / 10 : 0;
+                }
+
+                var titleEl = document.querySelector('h1.ytd-watch-metadata yt-formatted-string, h1 yt-formatted-string');
+                out.video_title = titleEl ? titleEl.textContent.trim() : '';
+
+                var chanEl = document.querySelector('#channel-name a, ytd-channel-name a');
+                out.channel = chanEl ? chanEl.textContent.trim() : '';
+
+                var subBtn = document.querySelector('ytd-subscribe-button-renderer button');
+                out.subscribed = subBtn ? subBtn.textContent.trim() : '';
+
+                var likeBtn = document.querySelector('like-button-view-model button');
+                out.like_aria = likeBtn ? likeBtn.getAttribute('aria-label') || '' : '';
+                out.like_pressed = likeBtn ? likeBtn.getAttribute('aria-pressed') : '';
+
+                var captionBtn = document.querySelector('.ytp-subtitles-button');
+                out.captions = captionBtn
+                    ? (captionBtn.getAttribute('aria-pressed') === 'true' ? 'on' : 'off') : 'n/a';
+
+                var autoBtn = document.querySelector('.ytp-autonav-toggle');
+                out.autoplay = autoBtn ? autoBtn.getAttribute('aria-label') : '';
+
+                var avatar = document.querySelector('#avatar-btn img');
+                out.authenticated = !!avatar;
+
+                var recs = document.querySelectorAll('ytd-compact-video-renderer');
+                out.recommendation_count = recs.length;
+
+                var comments = document.querySelectorAll('ytd-comment-thread-renderer');
+                out.comment_count = comments.length;
+
+                var countEl = document.querySelector('#count yt-formatted-string');
+                out.total_comments = countEl ? countEl.textContent.trim() : '';
+
+                return JSON.stringify(out);
+            })()
+        """)
+        state = json.loads(r) if r else {}
+        state["machine_state"] = machine.to_dict()
+        state["ok"] = True
+        return state
+    except Exception as e:
         return {"ok": False, "error": str(e)}

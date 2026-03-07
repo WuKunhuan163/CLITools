@@ -90,6 +90,15 @@ class CDMCPTool(ToolBase):
         p_session.add_argument("--timeout", type=int, default=None,
                                help="Session timeout in seconds (default 86400)")
 
+        p_limit = sub.add_parser("session-limit",
+                                 help="Set max concurrent sessions and overflow policy")
+        p_limit.add_argument("--max", type=int, default=None, dest="max_sessions",
+                             help="Max concurrent sessions (0 = unlimited)")
+        p_limit.add_argument("--policy", choices=["fail", "kill_oldest_boot",
+                                                   "kill_oldest_activity"],
+                             default=None,
+                             help="Overflow policy")
+
         p_boot = sub.add_parser("boot", help="Boot a session (opens welcome page in new window)")
         p_boot.add_argument("name", nargs="?", default="default",
                             help="Session name to boot")
@@ -249,8 +258,17 @@ class CDMCPTool(ToolBase):
 
         elif args.command == "session":
             if args.action == "create":
-                s = api.create_session(args.name, timeout_sec=args.timeout)
-                print(f"  {BOLD}{GREEN}Created{RESET} session '{args.name}' (id: {s.session_id}).")
+                try:
+                    s = api.create_session(args.name, timeout_sec=args.timeout)
+                    print(f"  {BOLD}{GREEN}Created{RESET} session '{args.name}' (id: {s.session_id}).")
+                except Exception as e:
+                    if "Session limit reached" in str(e):
+                        print(f"  {BOLD}{RED}Session limit reached{RESET}: {e}")
+                        if hasattr(e, "active_sessions"):
+                            for info in e.active_sessions:
+                                print(f"    - {info['name']} ({info['session_id'][:8]}) idle={info['idle_sec']}s")
+                    else:
+                        raise
             elif args.action == "list":
                 sessions = api.list_sessions()
                 if sessions:
@@ -288,14 +306,36 @@ class CDMCPTool(ToolBase):
                     print(f"    [{i}] {label:<20} {alive}  id={t.get('id', '?')[:16]}")
                     print(f"        {t.get('url', '?')[:80]}")
 
-        elif args.command == "boot":
-            r = api.boot_session(args.name, url=args.url)
-            if r.get("ok"):
-                sid = r.get("session_id_short", r.get("session_id", "?")[:8])
-                print(f"  {BOLD}{GREEN}Booted{RESET} session '{args.name}' [{sid}].")
-                print(f"  Window: {r.get('windowId', '?')}")
+        elif args.command == "session-limit":
+            if args.max_sessions is not None or args.policy is not None:
+                cfg = api.get_max_sessions_config()
+                new_max = args.max_sessions if args.max_sessions is not None else cfg["max_sessions"]
+                new_pol = args.policy if args.policy is not None else cfg["overflow_policy"]
+                api.set_max_sessions(new_max, new_pol)
+                print(f"  {BOLD}{GREEN}Updated{RESET} session limit: max={new_max}, policy={new_pol}")
             else:
-                print(f"  {BOLD}{RED}Failed{RESET} to boot: {r.get('error', '?')}")
+                cfg = api.get_max_sessions_config()
+                print(f"  Max sessions: {cfg['max_sessions'] or 'unlimited'}")
+                print(f"  Overflow policy: {cfg['overflow_policy']}")
+                print(f"  Active sessions: {cfg['active_count']}")
+
+        elif args.command == "boot":
+            try:
+                r = api.boot_session(args.name, url=args.url)
+                if r.get("ok"):
+                    sid = r.get("session_id_short", r.get("session_id", "?")[:8])
+                    print(f"  {BOLD}{GREEN}Booted{RESET} session '{args.name}' [{sid}].")
+                    print(f"  Window: {r.get('windowId', '?')}")
+                else:
+                    print(f"  {BOLD}{RED}Failed{RESET} to boot: {r.get('error', '?')}")
+            except Exception as e:
+                if "Session limit reached" in str(e):
+                    print(f"  {BOLD}{RED}Session limit reached{RESET}: {e}")
+                    if hasattr(e, "active_sessions"):
+                        for info in e.active_sessions:
+                            print(f"    - {info['name']} ({info['session_id'][:8]}) idle={info['idle_sec']}s")
+                else:
+                    raise
 
         elif args.command == "scan":
             r = _run_scan(api, args, BOLD, GREEN, RED, BLUE, RESET)

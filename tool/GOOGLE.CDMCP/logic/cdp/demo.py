@@ -301,6 +301,27 @@ def run_demo_on_tab(cdp_ws_url: str, port=CDP_PORT, delay=1.2):
 
     Designed to be called from a background thread.
     """
+    # Ensure HTTP server is running so demo page survives refresh.
+    # Extract the port from the WS URL's tab listing to reuse the same port.
+    _http_port = None
+    try:
+        import json as _json, urllib.request as _ur
+        _all = _json.loads(_ur.urlopen(f"http://localhost:{port}/json").read().decode())
+        for _t in _all:
+            _u = _t.get("url", "")
+            if "127.0.0.1" in _u and "/chat" in _u:
+                _http_port = int(_u.split("127.0.0.1:")[1].split("/")[0])
+                break
+    except Exception:
+        pass
+    try:
+        _srv_spec = importlib.util.spec_from_file_location("cdmcp_srv_demo", str(_SERVER_PATH))
+        _srv_mod = importlib.util.module_from_spec(_srv_spec)
+        _srv_spec.loader.exec_module(_srv_mod)
+        _srv_mod.start_server(preferred_port=_http_port)
+    except Exception:
+        pass
+
     overlay = _load_overlay()
     interact = _load_interact()
     ds = _load_demo_state()

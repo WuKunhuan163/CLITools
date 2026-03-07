@@ -58,6 +58,19 @@ USERINPUT --hint "Hello! AITerminalTools is now operational."
 | **BACKGROUND** | Background process management with logging and lifecycle control. |
 | **TAVILY** | AI-optimized web search via Tavily API. `TAVILY --setup-tutorial` for guided configuration. |
 
+### Chrome DevTools MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| **GOOGLE.CDMCP** | Chrome DevTools MCP: session management, visual overlays, tab pinning, lock/unlock, MCP interaction interfaces (`mcp_click`, `mcp_type`, `mcp_navigate`, `mcp_scroll`, `mcp_paste`). Provides `boot_tool_session()` and `require_tab()` for all Chrome-based tools. |
+| **GOOGLE.GC** | Google Colab automation: cell CRUD, edit, run, focus, move, delete, runtime management, notebook save/clear, Turing machine state. |
+| **YOUTUBE** | YouTube MCP: playback control, search, navigation, captions, engagement, recommendations, state reporting. |
+| **BILIBILI** | Bilibili MCP: video playback, search, comments (shadow DOM), danmaku, engagement, state machine recovery. |
+| **GMAIL** | Gmail MCP: inbox reading, compose, label management, search. (In development) |
+| **GOOGLE.GS** | Google Scholar MCP: search, citations, profiles, library. (In development) |
+
+All Chrome-based tools use CDMCP session management with visual effects, auto-lock, idle timeout tracking, and max-session limits. See `SKILLS show TerminalTools-cdmcp-web-exploration` for the development methodology.
+
 ### Specialized Tools
 
 | Tool | Description |
@@ -71,7 +84,7 @@ Manages reusable AI agent skills for Cursor IDE:
 - `SKILLS show <name>`: View a skill's content.
 - `SKILLS sync`: Link skills to `~/.cursor/skills/`.
 
-Available skills: `TerminalTools-tool-development-workflow`, `TerminalTools-turing-machine-development`, `TerminalTools-setup-tutorial-creation`, `TerminalTools-code-quality-review`, `TerminalTools-session-debug-log`, `TerminalTools-tmp-test-script`. Run `SKILLS show <name>` for detailed guidance.
+Available skills: `TerminalTools-tool-development-workflow`, `TerminalTools-turing-machine-development`, `TerminalTools-setup-tutorial-creation`, `TerminalTools-code-quality-review`, `TerminalTools-session-debug-log`, `TerminalTools-tmp-test-script`, `TerminalTools-cdmcp-web-exploration`, `TerminalTools-unit-test-conventions`. Run `SKILLS show <name>` for detailed guidance.
 
 ### Internationalization (i18n)
 - `TOOL lang set <LANG>`: Set display language.
@@ -82,6 +95,7 @@ Available skills: `TerminalTools-tool-development-workflow`, `TerminalTools-turi
 - `TOOL dev create <NAME>`: Scaffold a new tool from template.
 - `TOOL dev audit-test <NAME> [--fix]`: Audit test naming conventions.
 - `TOOL dev audit-bin [--fix]` / `TOOL dev audit-archived`: Audit shortcuts and archived tool duplicates.
+- `TOOL audit imports [--tool NAME] [--json]`: Static analysis for cross-tool import quality (IMP001-IMP004).
 
 For detailed development guidance, run `SKILLS show TerminalTools-tool-development-workflow`.
 

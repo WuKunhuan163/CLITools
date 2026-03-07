@@ -182,7 +182,7 @@ _LOCK_JS_TEMPLATE = r"""
         'cursor: pointer',
         'letter-spacing: 0.3px',
     ].join('; ');
-    label.textContent = 'Locked by ' + toolName + ', Click to unlock';
+    label.textContent = "Locked by Terminal Tool '" + toolName + "', Click to unlock";
     label.title = 'Click to unlock this tab';
 
     // Timer / MCP counter in bottom-left
@@ -243,7 +243,7 @@ _LOCK_JS_TEMPLATE = r"""
 def inject_lock(session: CDPSession, base_opacity: float = 0.08,
                 flash_opacity: float = 0.25,
                 tool_name: str = "CDMCP") -> bool:
-    """Lock the tab with a semi-transparent overlay showing 'Locked by <tool_name>'."""
+    """Lock the tab with a semi-transparent overlay showing 'Locked by Terminal Tool <tool_name>'."""
     js = (_LOCK_JS_TEMPLATE
           .replace("__BASE_OPACITY__", str(base_opacity))
           .replace("__FLASH_OPACITY__", str(flash_opacity))

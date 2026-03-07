@@ -14,6 +14,7 @@ Usage::
 """
 
 import importlib.util
+import sys
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -27,10 +28,14 @@ _DEMO_STATE_PATH = _CDMCP_DIR / "logic" / "cdp" / "demo_state.py"
 
 
 def _load(name: str, path: Path):
+    """Load a module by file path, caching in sys.modules for singleton behavior."""
+    if name in sys.modules:
+        return sys.modules[name]
     if not path.exists():
         raise ImportError(f"GOOGLE.CDMCP module not found: {path}")
     spec = importlib.util.spec_from_file_location(name, str(path))
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
     spec.loader.exec_module(mod)
     return mod
 

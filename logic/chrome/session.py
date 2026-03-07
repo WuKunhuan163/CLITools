@@ -119,6 +119,7 @@ class CDPSession:
 
     def __init__(self, ws_url: str, timeout: int = 30):
         import websocket
+        self.ws_url = ws_url
         self.ws = websocket.create_connection(ws_url, timeout=timeout)
         self._msg_id = 0
 

@@ -352,6 +352,13 @@ def main():
     lang_audit_p.add_argument("code", help="Language code")
     lang_audit_p.add_argument("--force", action="store_true", help="Clear audit cache")
     lang_audit_p.add_argument("--turing", action="store_true", help="Scan Turing states")
+
+    audit_p = subparsers.add_parser("audit", help="Code quality audits")
+    audit_sub = audit_p.add_subparsers(dest="audit_command")
+    audit_imports_p = audit_sub.add_parser("imports", help="Audit cross-tool import quality")
+    audit_imports_p.add_argument("--tool", help="Audit specific tool only")
+    audit_imports_p.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
+    audit_imports_p.add_argument("--exclude", help="Comma-separated tool names to skip")
     lang_sub.add_parser("list", help="List supported languages")
 
     rule_p = subparsers.add_parser("rule", help="AI rule management")
@@ -382,6 +389,24 @@ def main():
             print(f"Current language: {current_lang}")
         elif args.config_command == "show":
             _show_config()
+    elif args.command == "audit":
+        if args.audit_command == "imports":
+            from logic.lang.audit_imports import audit_all_tools, audit_tool, format_report, to_json
+            root = Path(__file__).resolve().parent
+            exclude = [x.strip() for x in (args.exclude or "").split(",") if x.strip()]
+            if args.tool:
+                tool_dir = root / "tool" / args.tool
+                if not tool_dir.exists():
+                    print(f"Tool not found: {args.tool}")
+                else:
+                    issues = audit_tool(tool_dir, root)
+                    results = {args.tool: issues} if issues else {}
+                    print(to_json(results) if args.as_json else format_report(results))
+            else:
+                results = audit_all_tools(root, exclude=exclude or ["GOOGLE.CDMCP"])
+                print(to_json(results) if args.as_json else format_report(results))
+        else:
+            audit_p.print_help()
     elif args.command == "lang":
         if args.lang_command == "audit": _audit_lang(args.code, args.force, args.turing)
         elif args.lang_command == "list": _list_languages()

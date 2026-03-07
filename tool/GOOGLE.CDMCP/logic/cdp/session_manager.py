@@ -90,6 +90,7 @@ class CDMCPSession:
         self.window_id: Optional[int] = None
         self._tabs: Dict[str, Dict[str, Any]] = {}  # tab_label -> {id, url, ws, state}
         self._demo_pid: Optional[int] = None
+        self._http_port: Optional[int] = None
 
     def boot(self, url: str, new_window: bool = True) -> Dict[str, Any]:
         """Boot the session by opening a new tab as the lifetime anchor.
@@ -369,17 +370,36 @@ class CDMCPSession:
             self._demo_pid = None
         self._tabs.clear()
 
-        # 1. Build a file:// welcome URL
-        welcome_html = _TOOL_DIR / "data" / "welcome.html"
+        # 1. Start HTTP server and build welcome URL
+        try:
+            server_path = _TOOL_DIR / "logic" / "cdp" / "server.py"
+            _srv_spec = importlib.util.spec_from_file_location("cdmcp_srv_reboot", str(server_path))
+            _srv_mod = importlib.util.module_from_spec(_srv_spec)
+            _srv_spec.loader.exec_module(_srv_mod)
+            _srv_url, _srv_port = _srv_mod.start_server(
+                preferred_port=getattr(self, "_http_port", None))
+            self._http_port = _srv_port
+        except Exception:
+            _srv_url = None
+
         created_ts = int(self.created_at)
         idle_sec = getattr(self, "timeout_sec", 3600)
         last_act = int(self.last_activity)
-        welcome_url = (
-            f"file://{welcome_html}?session_id={self.session_id}"
-            f"&port={self.port}&timeout_sec={self.timeout_sec}"
-            f"&created_at={created_ts}"
-            f"&idle_timeout_sec={idle_sec}&last_activity={last_act}"
-        )
+        if _srv_url:
+            welcome_url = (
+                f"{_srv_url}/welcome?session_id={self.session_id}"
+                f"&port={self.port}&timeout_sec={self.timeout_sec}"
+                f"&created_at={created_ts}"
+                f"&idle_timeout_sec={idle_sec}&last_activity={last_act}"
+            )
+        else:
+            welcome_html = _TOOL_DIR / "data" / "welcome.html"
+            welcome_url = (
+                f"file://{welcome_html}?session_id={self.session_id}"
+                f"&port={self.port}&timeout_sec={self.timeout_sec}"
+                f"&created_at={created_ts}"
+                f"&idle_timeout_sec={idle_sec}&last_activity={last_act}"
+            )
         self.lifetime_tab_url = welcome_url
 
         # 2. Open new window with welcome page
@@ -431,9 +451,10 @@ class CDMCPSession:
             srv = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(srv)
 
-            srv.start_server()
-            chat_html = _TOOL_DIR / "data" / "chat_app.html"
-            chat_url = f"file://{chat_html}?session_id={self.session_id}"
+            server_url, _srv_port = srv.start_server(
+                preferred_port=getattr(self, "_http_port", None))
+            self._http_port = _srv_port
+            chat_url = f"{server_url}/chat?session_id={self.session_id}"
             demo_tab_id = self.open_tab_in_session(chat_url)
             demo_ws = None
 
@@ -499,13 +520,30 @@ class CDMCPSession:
         self.last_activity = time.time()
 
     def is_expired(self) -> bool:
-        return (time.time() - self.last_activity) > self.timeout_sec
+        """Check if the session has expired by idle or absolute timeout."""
+        now = time.time()
+        idle = (now - self.last_activity) > self.idle_timeout_sec
+        absolute = (now - self.created_at) > self.timeout_sec if self.timeout_sec else False
+        return idle or absolute
+
+    def expiry_info(self) -> Dict[str, Any]:
+        """Return detailed expiry information."""
+        now = time.time()
+        idle_remaining = max(0, self.idle_timeout_sec - (now - self.last_activity))
+        abs_remaining = max(0, self.timeout_sec - (now - self.created_at)) if self.timeout_sec else None
+        return {
+            "idle_remaining_sec": int(idle_remaining),
+            "absolute_remaining_sec": int(abs_remaining) if abs_remaining is not None else None,
+            "idle_expired": idle_remaining <= 0,
+            "absolute_expired": abs_remaining is not None and abs_remaining <= 0,
+            "expired": self.is_expired(),
+        }
 
     def close(self):
-        """Close the session: kill demo, close all tabs, reset state."""
+        """Close the session: kill demo, stop HTTP server, close window, clean state."""
         _log_session("close", self.name)
 
-        # Kill demo subprocess first to prevent reconnection
+        # 1. Kill demo subprocess to prevent reconnection
         demo_pid = getattr(self, "_demo_pid", None)
         if demo_pid:
             try:
@@ -516,6 +554,10 @@ class CDMCPSession:
                 pass
             self._demo_pid = None
 
+        # 2. Stop the HTTP server for this session
+        self._stop_http_server()
+
+        # 3. Close CDP connection
         if self._cdp:
             try:
                 self._cdp.close()
@@ -523,25 +565,106 @@ class CDMCPSession:
                 pass
             self._cdp = None
 
-        # Close all tabs in this session's window at once
-        all_tab_ids = set()
-        for label, info in self._tabs.items():
-            tid = info.get("id")
-            if tid:
-                all_tab_ids.add(tid)
-        if self.lifetime_tab_id:
-            all_tab_ids.add(self.lifetime_tab_id)
+        # 4. Close the entire Chrome window (not just tracked tabs)
+        #    This ensures stray untracked tabs in the session window are also closed.
+        window_closed = False
+        if self.window_id:
+            window_closed = self._close_window()
 
-        for tab_id in all_tab_ids:
-            try:
-                close_tab(tab_id, self.port)
-            except Exception:
-                pass
-        _log_session("close:tabs", self.name, f"closed {len(all_tab_ids)} tabs")
+        if not window_closed:
+            # Fallback: close individual tracked tabs
+            all_tab_ids = set()
+            for label, info in self._tabs.items():
+                tid = info.get("id")
+                if tid:
+                    all_tab_ids.add(tid)
+            if self.lifetime_tab_id:
+                all_tab_ids.add(self.lifetime_tab_id)
 
+            for tab_id in all_tab_ids:
+                try:
+                    close_tab(tab_id, self.port)
+                except Exception:
+                    pass
+            _log_session("close:tabs", self.name, f"closed {len(all_tab_ids)} tabs")
+
+        # 5. Clean up state file for this session
         self._tabs.clear()
         self.lifetime_tab_id = None
         self._booted = False
+        self._http_port = None
+
+    def _close_window(self) -> bool:
+        """Close the entire Chrome window that belongs to this session.
+
+        Returns True if the window was closed successfully.
+        """
+        if not self.window_id:
+            return False
+        try:
+            import urllib.request
+            ver_url = f"http://localhost:{self.port}/json/version"
+            with urllib.request.urlopen(ver_url, timeout=5) as resp:
+                data = json.loads(resp.read().decode())
+            browser_ws = data.get("webSocketDebuggerUrl")
+            if not browser_ws:
+                return False
+
+            # Find all tabs belonging to this window and close them
+            tabs_in_window = []
+            for t in list_tabs(self.port):
+                ws_url = t.get("webSocketDebuggerUrl")
+                if not ws_url:
+                    continue
+                try:
+                    s = CDPSession(ws_url, timeout=3)
+                    win_res = s.send_and_recv("Browser.getWindowForTarget", {})
+                    s.close()
+                    wid = (win_res or {}).get("result", {}).get("windowId")
+                    if wid == self.window_id:
+                        tabs_in_window.append(t.get("id"))
+                except Exception:
+                    pass
+
+            for tab_id in tabs_in_window:
+                try:
+                    close_tab(tab_id, self.port)
+                except Exception:
+                    pass
+
+            _log_session("close:window", self.name,
+                         f"windowId={self.window_id} tabs_closed={len(tabs_in_window)}")
+            self.window_id = None
+            return len(tabs_in_window) > 0
+        except Exception:
+            return False
+
+    def _stop_http_server(self):
+        """Stop the HTTP server associated with this session's port."""
+        http_port = getattr(self, "_http_port", None)
+        if not http_port:
+            return
+        try:
+            server_path = _TOOL_DIR / "logic" / "cdp" / "server.py"
+            spec = importlib.util.spec_from_file_location(
+                "cdmcp_srv_cleanup", str(server_path))
+            srv_mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(srv_mod)
+
+            # If the server module holds the same port, stop it
+            if getattr(srv_mod, "_server_port", None) == http_port:
+                srv_mod.stop_server()
+                _log_session("close:http_stopped", self.name,
+                             f"port={http_port}")
+            else:
+                # The server may be running in the demo subprocess instead.
+                # The demo subprocess kill (step 1) handles this case —
+                # when the subprocess exits, its in-process HTTP server dies.
+                _log_session("close:http_subprocess", self.name,
+                             f"port={http_port} (handled by demo kill)")
+        except Exception:
+            pass
+        self._http_port = None
 
     # --- Multi-tab tracking ---
 
@@ -706,10 +829,13 @@ class CDMCPSession:
             "lifetime_tab_url": self.lifetime_tab_url,
             "window_id": self.window_id,
             "timeout_sec": self.timeout_sec,
+            "idle_timeout_sec": self.idle_timeout_sec,
             "last_activity": self.last_activity,
-            "expired": self.is_expired(),
             "age_sec": int(time.time() - self.created_at),
+            "http_port": self._http_port,
+            "demo_pid": self._demo_pid,
             "tabs": self.list_tabs_in_session(),
+            **self.expiry_info(),
         }
 
 
@@ -723,9 +849,9 @@ _STATE_FILE = _SESSION_DIR / "state.json"
 def _save_state():
     """Persist all session metadata to disk for cross-process sharing."""
     _SESSION_DIR.mkdir(parents=True, exist_ok=True)
-    state = {}
+    sessions_data = {}
     for name, s in _sessions.items():
-        state[name] = {
+        sessions_data[name] = {
             "session_id": s.session_id,
             "window_id": s.window_id,
             "lifetime_tab_id": s.lifetime_tab_id,
@@ -733,12 +859,21 @@ def _save_state():
             "created_at": s.created_at,
             "last_activity": s.last_activity,
             "timeout_sec": s.timeout_sec,
+            "idle_timeout_sec": getattr(s, "idle_timeout_sec", 3600),
             "port": s.port,
             "tabs": {label: {"id": info["id"], "url": info.get("url", ""),
                               "state": info.get("state", "unknown")}
                      for label, info in s._tabs.items()},
             "demo_pid": getattr(s, "_demo_pid", None),
+            "http_port": getattr(s, "_http_port", None),
         }
+    state = {
+        "_config": {
+            "max_sessions": _max_sessions,
+            "overflow_policy": _overflow_policy,
+        },
+        "sessions": sessions_data,
+    }
     try:
         with open(_STATE_FILE, "w") as f:
             json.dump(state, f, indent=2)
@@ -747,7 +882,8 @@ def _save_state():
 
 
 def _load_state():
-    """Restore sessions from disk (window_id, tab_id, etc.)."""
+    """Restore sessions and config from disk."""
+    global _max_sessions, _overflow_policy
     if not _STATE_FILE.exists():
         return
     try:
@@ -755,10 +891,22 @@ def _load_state():
             state = json.load(f)
     except Exception:
         return
-    for name, info in state.items():
-        if name in _sessions:
+
+    # Load config
+    cfg = state.get("_config", {})
+    _max_sessions = cfg.get("max_sessions", 0)
+    _overflow_policy = cfg.get("overflow_policy", "fail")
+
+    # Support both old format (flat dict of sessions) and new format
+    sessions_data = state.get("sessions", {})
+    if not sessions_data and "_config" not in state:
+        sessions_data = state  # old format: top-level keys are session names
+
+    for name, info in sessions_data.items():
+        if name.startswith("_") or name in _sessions:
             continue
         s = CDMCPSession(name, timeout_sec=info.get("timeout_sec", DEFAULT_TIMEOUT_SEC),
+                         idle_timeout_sec=info.get("idle_timeout_sec", 3600),
                          port=info.get("port", CDP_PORT))
         s.session_id = info.get("session_id", s.session_id)
         s.window_id = info.get("window_id")
@@ -774,8 +922,12 @@ def _load_state():
                 "state": tab_info.get("state", "unknown"),
             }
         s._demo_pid = info.get("demo_pid")
+        s._http_port = info.get("http_port")
         if not s.is_expired():
             _sessions[name] = s
+        else:
+            _log_session("load:already_expired", name, "Cleaning up on load")
+            s.close()
 
 
 # ---------------------------------------------------------------------------
@@ -783,13 +935,102 @@ def _load_state():
 # ---------------------------------------------------------------------------
 
 _sessions: Dict[str, CDMCPSession] = {}
-_load_state()
+_max_sessions: int = 0  # 0 = unlimited
+_overflow_policy: str = "fail"  # "fail" | "kill_oldest_boot" | "kill_oldest_activity"
+_load_state()  # restores sessions + max_sessions config from disk
+
+# ---------------------------------------------------------------------------
+# Max sessions limit & overflow policy
+# ---------------------------------------------------------------------------
+
+
+def set_max_sessions(limit: int, policy: str = "fail"):
+    """Configure the maximum number of concurrent sessions.
+
+    Args:
+        limit: Maximum number of sessions (0 = unlimited).
+        policy: What to do when limit is reached:
+            - "fail": Refuse to create, return None (caller sees error + active list).
+            - "kill_oldest_boot": Close the session that was created earliest.
+            - "kill_oldest_activity": Close the session that was idle longest.
+    """
+    global _max_sessions, _overflow_policy
+    if policy not in ("fail", "kill_oldest_boot", "kill_oldest_activity"):
+        raise ValueError(f"Unknown overflow policy: {policy!r}")
+    _max_sessions = max(0, limit)
+    _overflow_policy = policy
+    _log_session("config", "max_sessions",
+                 f"limit={_max_sessions} policy={_overflow_policy}")
+    _save_state()
+
+
+def get_max_sessions_config() -> Dict[str, Any]:
+    """Return the current max sessions configuration."""
+    return {
+        "max_sessions": _max_sessions,
+        "overflow_policy": _overflow_policy,
+        "active_count": len(_sessions),
+    }
+
+
+class SessionLimitError(Exception):
+    """Raised when session creation is refused due to the limit."""
+    def __init__(self, message: str, active_sessions: List[Dict[str, Any]]):
+        super().__init__(message)
+        self.active_sessions = active_sessions
+
+
+def _enforce_session_limit(exclude_name: str = "") -> Optional[str]:
+    """Enforce max_sessions limit before creating a new session.
+
+    Returns:
+        None if creation is allowed.
+        If policy="fail", raises SessionLimitError.
+        Otherwise returns the name of the evicted session.
+    """
+    if _max_sessions <= 0:
+        return None
+    _cleanup_expired()
+    active = {n: s for n, s in _sessions.items() if n != exclude_name}
+    if len(active) < _max_sessions:
+        return None
+
+    if _overflow_policy == "fail":
+        summaries = []
+        for n, s in active.items():
+            summaries.append({
+                "name": n, "session_id": s.session_id,
+                "created_at": s.created_at, "last_activity": s.last_activity,
+                "age_sec": int(time.time() - s.created_at),
+                "idle_sec": int(time.time() - s.last_activity),
+            })
+        raise SessionLimitError(
+            f"Session limit reached ({_max_sessions}). "
+            f"Active sessions: {[s['name'] for s in summaries]}",
+            summaries,
+        )
+
+    if _overflow_policy == "kill_oldest_boot":
+        victim = min(active, key=lambda n: active[n].created_at)
+    else:  # kill_oldest_activity
+        victim = min(active, key=lambda n: active[n].last_activity)
+
+    _log_session("evict", victim,
+                 f"policy={_overflow_policy} to make room (limit={_max_sessions})")
+    _sessions[victim].close()
+    del _sessions[victim]
+    _save_state()
+    return victim
 
 
 def create_session(name: str, timeout_sec: int = DEFAULT_TIMEOUT_SEC,
                    idle_timeout_sec: int = 3600,
                    port: int = CDP_PORT) -> CDMCPSession:
-    """Create a new named session (replaces any existing session with the same name)."""
+    """Create a new named session (replaces any existing session with the same name).
+
+    Raises SessionLimitError if max_sessions is reached and policy is 'fail'.
+    """
+    _enforce_session_limit(exclude_name=name)
     if name in _sessions:
         _sessions[name].close()
     session = CDMCPSession(name, timeout_sec=timeout_sec,
@@ -797,6 +1038,7 @@ def create_session(name: str, timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     _sessions[name] = session
     _log_session("create", name, f"timeout={timeout_sec}s idle={idle_timeout_sec}s")
     _save_state()
+    start_watchdog()
     return session
 
 
@@ -907,7 +1149,9 @@ def boot_tool_session(
         spec = importlib.util.spec_from_file_location("cdmcp_srv_boot", str(server_path))
         srv = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(srv)
-        server_url, _ = srv.start_server()
+        server_url, _srv_port = srv.start_server(
+            preferred_port=getattr(session, "_http_port", None))
+        session._http_port = _srv_port
     except Exception as e:
         return {"ok": False, "error": f"Server start failed: {e}"}
 
@@ -942,10 +1186,9 @@ def boot_tool_session(
     except Exception:
         pass
 
-    # Open demo tab
+    # Open demo tab (use HTTP server URL for reliable refresh)
     try:
-        chat_html = _TOOL_DIR / "data" / "chat_app.html"
-        chat_url = f"file://{chat_html}?session_id={session.session_id}"
+        chat_url = f"{server_url}/chat?session_id={session.session_id}"
         demo_tab_id = session.open_tab_in_session(chat_url)
         if demo_tab_id:
             time.sleep(1.5)
@@ -1003,11 +1246,86 @@ def boot_tool_session(
     }
 
 
+# ---------------------------------------------------------------------------
+# CDP-to-session lookup — allows interact module to touch owning session
+# ---------------------------------------------------------------------------
+
+def touch_by_cdp(cdp_session: CDPSession):
+    """Find the CDMCPSession that owns *cdp_session* and call touch().
+
+    Matches by websocket URL against all registered tabs. This is called
+    automatically by the interact module so that every MCP operation
+    (mcp_click, mcp_type, mcp_navigate, etc.) resets the idle timer.
+    """
+    ws = getattr(cdp_session, "ws_url", None) or ""
+    if not ws:
+        return
+    for s in _sessions.values():
+        if s.is_expired():
+            continue
+        for tab_info in s._tabs.values():
+            if tab_info.get("ws") == ws:
+                s.touch()
+                return
+        if s._cdp and getattr(s._cdp, "ws_url", None) == ws:
+            s.touch()
+            return
+
+
 def _cleanup_expired():
+    """Clean up all expired sessions (idle + absolute timeout)."""
     expired = [n for n, s in _sessions.items() if s.is_expired()]
     for n in expired:
+        info = _sessions[n].expiry_info()
+        reason = "idle" if info.get("idle_expired") else "absolute"
+        _log_session("expired_cleanup", n, f"reason={reason}")
         _sessions[n].close()
         del _sessions[n]
-        _log_session("expired_cleanup", n)
     if expired:
         _save_state()
+    return expired
+
+
+# ---------------------------------------------------------------------------
+# Background watchdog thread — proactively cleans up expired sessions
+# ---------------------------------------------------------------------------
+
+_watchdog_thread: Optional[threading.Thread] = None
+_watchdog_running = False
+_WATCHDOG_INTERVAL_SEC = 60
+
+
+def _watchdog_loop():
+    """Background loop that periodically checks and cleans expired sessions."""
+    global _watchdog_running
+    while _watchdog_running:
+        try:
+            expired = _cleanup_expired()
+            if expired:
+                _log_session("watchdog", ",".join(expired),
+                             f"cleaned {len(expired)} expired session(s)")
+        except Exception:
+            pass
+        time.sleep(_WATCHDOG_INTERVAL_SEC)
+
+
+def start_watchdog():
+    """Start the background watchdog thread (idempotent)."""
+    global _watchdog_thread, _watchdog_running
+    if _watchdog_running:
+        return
+    _watchdog_running = True
+    _watchdog_thread = threading.Thread(target=_watchdog_loop, daemon=True,
+                                        name="cdmcp-watchdog")
+    _watchdog_thread.start()
+
+
+def stop_watchdog():
+    """Stop the background watchdog thread."""
+    global _watchdog_running
+    _watchdog_running = False
+
+
+# Auto-start watchdog when module loads if there are active sessions
+if _sessions:
+    start_watchdog()

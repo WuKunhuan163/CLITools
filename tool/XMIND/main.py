@@ -52,6 +52,34 @@ def main():
 
     sub.add_parser("nodes", help="List all visible nodes in the mind map")
     sub.add_parser("home", help="Navigate to XMind home page")
+    sub.add_parser("undo", help="Undo last action")
+    sub.add_parser("redo", help="Redo last undone action")
+    sub.add_parser("state", help="Get comprehensive MCP state")
+    sub.add_parser("select-all", help="Select all nodes")
+    sub.add_parser("fit", help="Zoom to fit the entire map")
+
+    p_zoom = sub.add_parser("zoom", help="Zoom control")
+    p_zoom.add_argument("level", nargs="?", default=None,
+                        help="Zoom level: fit, actual, or percentage")
+
+    p_export = sub.add_parser("export", help="Export the mind map")
+    p_export.add_argument("format", help="Export format (png, jpeg, svg, pdf, markdown, word, excel, powerpoint, opml, textbundle)")
+
+    p_insert = sub.add_parser("insert", help="Insert an item on a node")
+    p_insert.add_argument("item_type", help="Item type (note, todo, task, hyperlink, callout, label, comment, zone, boundary, summary, relationship)")
+    p_insert.add_argument("text", nargs="?", default=None, help="Text content for the item")
+    p_insert.add_argument("--node", default=None, help="Node to attach the item to")
+
+    p_rename = sub.add_parser("rename", help="Rename the current map")
+    p_rename.add_argument("new_name", help="New name for the map")
+
+    p_copy = sub.add_parser("copy-node", help="Copy a node")
+    p_copy.add_argument("node_text", nargs="?", default=None, help="Node text to copy")
+
+    sub.add_parser("paste-node", help="Paste the copied node")
+
+    p_collapse = sub.add_parser("collapse", help="Collapse/expand a branch")
+    p_collapse.add_argument("node_text", help="Node text to collapse/expand")
 
     p_shot = sub.add_parser("screenshot", help="Take a screenshot")
     p_shot.add_argument("--output", default=None, help="Output file path")
@@ -71,7 +99,9 @@ def main():
         get_auth_state, get_page_info, get_maps, get_sidebar,
         boot_session, get_session_status, create_map, open_map,
         add_node, edit_node, delete_node, take_screenshot,
-        navigate_home, get_map_nodes,
+        navigate_home, get_map_nodes, undo, redo, zoom, export_map,
+        insert_item, rename_map, fit_map, get_mcp_state, select_all,
+        copy_node, paste_node, collapse_node,
         _recover,
     )
 
@@ -197,6 +227,101 @@ def main():
         r = take_screenshot(output_path=args.output)
         if r.get("ok"):
             print(f"  {BOLD}{GREEN}Screenshot saved:{RESET} {r['path']} ({r['size']} bytes)")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "undo":
+        r = undo()
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Undo{RESET} performed.")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "redo":
+        r = redo()
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Redo{RESET} performed.")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "zoom":
+        r = zoom(args.level)
+        if r.get("ok"):
+            if r.get("current"):
+                print(f"  Zoom: {BOLD}{r['current']}%{RESET}")
+            else:
+                print(f"  {BOLD}{GREEN}Zoom{RESET}: {r.get('action', '?')}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "fit":
+        r = fit_map()
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Fit to view{RESET}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "export":
+        r = export_map(args.format)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Export triggered{RESET}: {args.format}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "insert":
+        r = insert_item(args.item_type, text=args.text, node=args.node)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Inserted{RESET} {args.item_type}" +
+                  (f": {args.text}" if args.text else ""))
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "rename":
+        r = rename_map(args.new_name)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Renamed{RESET} to '{args.new_name}'")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "state":
+        r = get_mcp_state()
+        if r.get("ok"):
+            print(f"  Title: {BOLD}{r.get('title', '?')}{RESET}")
+            print(f"  Editor: {'Yes' if r.get('is_editor') else 'No'}")
+            print(f"  Zoom: {r.get('zoom', '?')}")
+            print(f"  Nodes ({r.get('node_count', 0)}):")
+            for n in r.get("nodes", []):
+                print(f"    - {n.get('text', '?')}")
+            sm = r.get("state_machine", {})
+            print(f"  Machine: {sm.get('state', '?')}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "select-all":
+        r = select_all()
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Selected all{RESET}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "copy-node":
+        r = copy_node(args.node_text)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Copied{RESET}" + (f" '{args.node_text}'" if args.node_text else ""))
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "paste-node":
+        r = paste_node()
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Pasted{RESET}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "collapse":
+        r = collapse_node(args.node_text)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Toggled{RESET} collapse: {args.node_text}")
         else:
             print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
 

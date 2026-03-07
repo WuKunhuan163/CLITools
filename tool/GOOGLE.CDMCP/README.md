@@ -31,10 +31,26 @@ Session timeouts:
 Sessions can be "checked out" -- the active session receives all new
 operations until explicitly switched.
 
+Session concurrency limits:
+```bash
+CDMCP session-limit --max 3 --policy fail              # Refuse when limit reached
+CDMCP session-limit --max 3 --policy kill_oldest_boot   # Evict oldest-created session
+CDMCP session-limit --max 3 --policy kill_oldest_activity # Evict least-recently-used session
+CDMCP session-limit                                      # Query current config
+```
+
+| Policy | Behavior |
+|--------|----------|
+| `fail` | Refuse creation, raise error listing active sessions |
+| `kill_oldest_boot` | Evict the session with the earliest `created_at` |
+| `kill_oldest_activity` | Evict the session with the oldest `last_activity` |
+
+Config is persisted across process restarts.
+
 ### Visual Overlays
 1. **Badge** -- Blue "CDMCP [session_id]" tag in top-right corner
 2. **Focus border** -- Subtle colored border when agent is watching
-3. **Lock overlay** -- Gray shade with tool name (e.g., "Locked by GCS"), flash on click, "Click to unlock" label
+3. **Lock overlay** -- Gray shade with tool name (e.g., "Locked by Terminal Tool 'GCS'"), flash on click, "Click to unlock" label
 4. **Element highlight** -- Orange outline + label with element metadata
 5. **Custom favicon** -- SVG icon on tab for visual identification
 6. **Tab pinning** -- Native Chrome pin via CDP
@@ -56,7 +72,7 @@ interact.mcp_paste(session, "text to paste", selector="input#field")
 ```
 
 Each operation: highlight element -> hold for dwell time -> perform action -> remove highlight.
-All operations auto-lock the tab and increment the MCP counter.
+All operations auto-lock the tab, increment the MCP counter, and reset the session idle timer.
 
 ### Unified Tool Boot (for tool developers)
 
@@ -135,6 +151,8 @@ CDMCP highlight example.com "input[name=q]" --label "Search"
 CDMCP cleanup example.com                       # Remove all overlays
 CDMCP config                                    # Show config
 CDMCP config --set allow_oauth_windows true     # Set config value
+CDMCP session-limit --max 3 --policy fail       # Set max concurrent sessions
+CDMCP session-limit                             # Query current limit
 CDMCP tutorial                                  # Interactive setup guide
 ```
 

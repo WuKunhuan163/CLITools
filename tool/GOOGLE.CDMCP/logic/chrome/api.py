@@ -143,6 +143,20 @@ def close_session(name: str) -> bool:
     return _get_session_mgr().close_session(name)
 
 
+def set_max_sessions(limit: int, policy: str = "fail"):
+    """Configure max concurrent sessions.
+
+    Args:
+        limit: Max number (0 = unlimited).
+        policy: "fail" | "kill_oldest_boot" | "kill_oldest_activity".
+    """
+    _get_session_mgr().set_max_sessions(limit, policy)
+
+
+def get_max_sessions_config() -> Dict[str, Any]:
+    return _get_session_mgr().get_max_sessions_config()
+
+
 # ---------------------------------------------------------------------------
 # Tab lifecycle
 # ---------------------------------------------------------------------------
