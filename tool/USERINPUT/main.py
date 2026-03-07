@@ -216,6 +216,8 @@ class UserInputWindow(BaseGUIWindow):
         self.time_increment = time_increment
         self.text_widget = None
         self._last_trigger_time = 0
+        self._paste_time = 0
+        self._kb_listener = None
         self.is_triggering_subtool = False
 
     def get_current_state(self):
@@ -262,15 +264,49 @@ class UserInputWindow(BaseGUIWindow):
         )
         self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
-        # Only bind to Key (press), not KeyRelease, to avoid double trigger
         self.text_widget.bind("<Key>", self.on_any_key)
+        self.text_widget.bind("<<Paste>>", self._on_paste, add="+")
         scrollbar.config(command=self.text_widget.yview)
         
         if self.hint_text:
             display_hint = self.hint_text.replace("\\n", "\n")
             self.text_widget.insert("1.0", display_hint)
             self.text_widget.focus_set()
+        self._start_kb_monitor()
         self.start_timer(self.status_label)
+
+    def _start_kb_monitor(self):
+        """Start pynput keyboard monitor to detect Cmd/Ctrl+V globally."""
+        try:
+            from pynput import keyboard as kb
+            _CMD = ('cmd', 'cmd_l', 'cmd_r')
+            _CTRL = ('ctrl_l', 'ctrl_r')
+            _CMD_VK = (55, 54)
+            _state = {"modifier": False}
+            window = self
+
+            def on_press(key):
+                name = getattr(key, 'name', '')
+                char = getattr(key, 'char', '')
+                vk = getattr(key, 'vk', None)
+                if name in _CMD or name in _CTRL or (vk is not None and vk in _CMD_VK):
+                    _state["modifier"] = True
+                    return
+                if _state["modifier"] and char and char.lower() == 'v':
+                    window._paste_time = time.time()
+
+            def on_release(key):
+                name = getattr(key, 'name', '')
+                vk = getattr(key, 'vk', None)
+                if name in _CMD or name in _CTRL or (vk is not None and vk in _CMD_VK):
+                    _state["modifier"] = False
+
+            listener = kb.Listener(on_press=on_press, on_release=on_release)
+            listener.daemon = True
+            listener.start()
+            self._kb_listener = listener
+        except Exception:
+            pass
 
     def log_debug(self, msg):
         try:
@@ -279,14 +315,23 @@ class UserInputWindow(BaseGUIWindow):
             with open(log_file, "a") as f: f.write(f"[{ts}] {msg}\n")
         except: pass
 
+    def finalize(self, status, data, reason=None):
+        if self._kb_listener:
+            try: self._kb_listener.stop()
+            except: pass
+        super().finalize(status, data, reason)
+
+    def _on_paste(self, event):
+        self._paste_time = time.time()
+
     def on_any_key(self, event):
-        # Immediate debounce check
         now = time.time()
         if now - self._last_trigger_time < 0.8: return
+        # Skip if a paste operation happened within the last 0.5s
+        if now - self._paste_time < 0.5: return
 
         is_shift_2 = (event.keysym == "2" and (event.state & 0x1))
         if event.char == "@" or event.keysym == "at" or is_shift_2:
-            # Update time IMMEDIATELY to prevent repeat triggers
             self._last_trigger_time = now
             self.root.after(10, self.run_file_dialog_trigger)
 
