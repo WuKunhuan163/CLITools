@@ -13,7 +13,6 @@ sys.path.insert(0, str(_r))
 from logic.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.blueprint.base import ToolBase
 from logic.tool.blueprint.mcp import MCPToolBase
 from interface.config import get_color
 
@@ -237,11 +236,9 @@ def _run_cell_action(tool, args):
     Uses CDMCP session.require_tab() for tab lifecycle management:
     if the Colab tab is missing, CDMCP auto-opens it in the session window.
     """
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
-    from interface.config import get_color
 
-    action = getattr(args, "cell_action", None) or "add"
+    getattr(args, "cell_action", None) or "add"
     cell_text = getattr(args, "text", "") or ""
     cell_type = getattr(args, "cell_type", "code") or "code"
 
@@ -327,7 +324,6 @@ def _run_cell_edit(tool, args):
       --line N --insert T  Insert text at end of line N
       --line N --col C --insert T  Insert text at line N, column C
     """
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
 
     cell_idx = getattr(args, "index", 0)
@@ -344,7 +340,7 @@ def _run_cell_edit(tool, args):
     ctx, stage_connect, stage_find_tab, stage_cleanup_shared = _colab_connect_stages()
 
     def stage_select_cell(stage=None):
-        import time, json as _json
+        import time
         cdp = ctx["cdp"]
         interact = ctx["interact"]
         ov = ctx["overlay"]
@@ -381,7 +377,7 @@ def _run_cell_edit(tool, args):
         import time, json as _json
         cdp = ctx["cdp"]
         ov = ctx["overlay"]
-        interact = ctx["interact"]
+        ctx["interact"]
         idx = cell_idx
 
         if do_clear:
@@ -562,7 +558,6 @@ def _run_cell_edit(tool, args):
 
 def _run_cell_execute(tool, args):
     """Handle 'GOOGLE.GC cell run' — click the run button and wait for completion."""
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
 
     cell_idx = getattr(args, "index", 0)
@@ -572,7 +567,6 @@ def _run_cell_execute(tool, args):
     _output = [""]
 
     def stage_run_cell(stage=None):
-        import time
         cdp = ctx["cdp"]
         interact = ctx["interact"]
         ov = ctx["overlay"]
@@ -600,9 +594,8 @@ def _run_cell_execute(tool, args):
         return True
 
     def stage_wait_complete(stage=None):
-        import time
         cdp = ctx["cdp"]
-        ov = ctx["overlay"]
+        ctx["overlay"]
 
         poll_js = f"""(function(){{
             var cells = document.querySelectorAll('.cell.code');
@@ -785,7 +778,6 @@ def _colab_connect_stages():
 def _run_cell_delete(tool, args):
     """Handle 'GOOGLE.GC cell delete --index N'."""
     import time
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
 
     cell_idx = getattr(args, "index", -1)
@@ -794,7 +786,7 @@ def _run_cell_delete(tool, args):
     def stage_delete(stage=None):
         cdp = ctx["cdp"]
         ov = ctx["overlay"]
-        interact = ctx["interact"]
+        ctx["interact"]
 
         cell_count = cdp.evaluate(
             "(function(){ var c = colab.global.notebook.cells;"
@@ -853,7 +845,6 @@ def _run_cell_delete(tool, args):
 def _run_cell_move(tool, args):
     """Handle 'GOOGLE.GC cell move --index N --direction up/down'."""
     import time
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
 
     cell_idx = getattr(args, "index", 0)
@@ -930,7 +921,6 @@ def _run_cell_move(tool, args):
 def _run_runtime_action(tool, args):
     """Handle 'GOOGLE.GC runtime <action>' — run-all, interrupt, restart."""
     import time
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
 
     action = getattr(args, "rt_action", None) or "run-all"
@@ -1018,7 +1008,6 @@ def _run_runtime_action(tool, args):
 def _run_notebook_action(tool, args):
     """Handle 'GOOGLE.GC notebook <action>' — save, clear-outputs."""
     import time
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
 
     action = getattr(args, "nb_action", None) or "save"
@@ -1282,8 +1271,7 @@ def _click_cell_more_menu_item(cdp, menu_text: str, cell_idx: int = -1):
     menu items don't respond to element.click().
     Returns 'clicked', 'no_toolbar', 'no_menu', or 'no_item'.
     """
-    import time as _time, json as _json
-    from logic.chrome.session import real_click
+    import time as _time
 
     result = _click_cell_toolbar_button(cdp, "button-more-actions", cell_idx)
     if result != "clicked":
@@ -1317,7 +1305,6 @@ def _click_cell_more_menu_item(cdp, menu_text: str, cell_idx: int = -1):
 def _run_cell_focus(tool, args):
     """Handle 'GOOGLE.GC cell focus --index N [--toolbar-click BUTTON] [--menu-click ITEM]'."""
     import time
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
 
     cell_idx = getattr(args, "index", 0)
@@ -1461,7 +1448,6 @@ def _run_cell_focus(tool, args):
 def _run_toolbar_action(tool, args):
     """Handle 'GOOGLE.GC toolbar <button>'."""
     import time
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
 
     button_name = getattr(args, "button", "")
@@ -1538,7 +1524,6 @@ def _run_toolbar_action(tool, args):
 def _run_menu_action(tool, args):
     """Handle 'GOOGLE.GC menu <menu_name> [--item TEXT]'."""
     import time
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
 
     menu_name = getattr(args, "menu_name", "")
@@ -1644,7 +1629,6 @@ def _run_menu_action(tool, args):
 def _run_bottom_action(tool, args):
     """Handle 'GOOGLE.GC bottom <panel>'."""
     import time
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
 
     panel = getattr(args, "panel", "")
@@ -1733,7 +1717,6 @@ _SETTINGS_PREFS = {
 def _run_settings_action(tool, args):
     """Handle 'GOOGLE.GC settings <action>'."""
     import time
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
 
     action = getattr(args, "settings_action", "show")
@@ -1932,7 +1915,6 @@ def _run_settings_action(tool, args):
 def _run_sidebar_action(tool, args):
     """Handle 'GOOGLE.GC sidebar <panel>'."""
     import time
-    from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
 
     panel = getattr(args, "panel", "toc")
@@ -2107,15 +2089,15 @@ def main():
     # GOOGLE.GC runtime <action>
     rt_p = subparsers.add_parser("runtime", help="Control Colab runtime via MCP")
     rt_sub = rt_p.add_subparsers(dest="rt_action", help="Runtime action")
-    rt_run_all = rt_sub.add_parser("run-all", help="Run all cells")
-    rt_interrupt = rt_sub.add_parser("interrupt", help="Interrupt execution")
-    rt_restart = rt_sub.add_parser("restart", help="Restart runtime session")
+    rt_sub.add_parser("run-all", help="Run all cells")
+    rt_sub.add_parser("interrupt", help="Interrupt execution")
+    rt_sub.add_parser("restart", help="Restart runtime session")
 
     # GOOGLE.GC notebook <action>
     nb_p = subparsers.add_parser("notebook", help="Notebook-level operations via MCP")
     nb_sub = nb_p.add_subparsers(dest="nb_action", help="Notebook action")
-    nb_save = nb_sub.add_parser("save", help="Save notebook")
-    nb_clear = nb_sub.add_parser("clear-outputs", help="Clear all cell outputs")
+    nb_sub.add_parser("save", help="Save notebook")
+    nb_sub.add_parser("clear-outputs", help="Clear all cell outputs")
 
     # GOOGLE.GC reopen
     reopen_p = subparsers.add_parser("reopen", help="Open a Colab notebook in the CDMCP session")
@@ -2142,8 +2124,8 @@ def main():
     RESET = get_color("RESET")
 
     from logic.chrome.session import is_chrome_cdp_available, CDPSession, CDP_PORT, list_tabs
-    from tool.GOOGLE.logic.chrome.colab import find_colab_tab, reopen_colab_tab, inject_and_execute
-    from tool.GOOGLE.logic.chrome.oauth import handle_oauth_if_needed, close_oauth_tabs
+    from tool.GOOGLE.logic.chrome.colab import find_colab_tab, inject_and_execute
+    from tool.GOOGLE.logic.chrome.oauth import handle_oauth_if_needed
 
     if args.command == "state":
         if getattr(args, "json", False):

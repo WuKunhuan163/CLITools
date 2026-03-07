@@ -19,15 +19,12 @@ Usage:
 """
 import json
 import os
-import signal
 import socket
-import subprocess
-import sys
 import threading
 import time
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from typing import Callable, Dict, Optional
+from typing import Callable, Optional
 
 _RUN_DIR = Path("/Applications/AITerminalTools/data/serve")
 

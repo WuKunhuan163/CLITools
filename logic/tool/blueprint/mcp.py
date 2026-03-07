@@ -8,9 +8,7 @@ MCP-enabled tools inherit from MCPToolBase to gain:
   - MCP state reporting (get_mcp_state) for monitoring tab/tool status
 """
 import sys
-import time
-from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
 from logic.tool.blueprint.base import ToolBase
 
@@ -127,7 +125,6 @@ class MCPToolBase(ToolBase):
     @staticmethod
     def _print_mcp_help(parser):
         """Print help with --mcp- prefix for all subcommands."""
-        import re
         help_text = parser.format_help()
         subparsers_action = None
         for action in parser._actions:
@@ -325,7 +322,7 @@ class MCPToolBase(ToolBase):
         from interface.config import get_color
         BOLD = get_color("BOLD")
         GREEN = get_color("GREEN")
-        BLUE = get_color("BLUE")
+        get_color("BLUE")
         RED = get_color("RED")
         YELLOW = get_color("YELLOW")
         RESET = get_color("RESET")

@@ -1,7 +1,5 @@
 import subprocess
 import sys
-import os
-import re
 from pathlib import Path
 
 def _git_bin():
@@ -297,7 +295,7 @@ def push_with_progress(remote="origin", branch=None, cwd=None, silent_success=Fa
     from logic.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
     BLUE = get_color("BLUE", "\033[34m")
-    GREEN = get_color("GREEN", "\033[32m")
+    get_color("GREEN", "\033[32m")
     RED = get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
     

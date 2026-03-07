@@ -94,7 +94,7 @@ def main():
     GREEN = get_color("GREEN")
     RED = get_color("RED")
     YELLOW = get_color("YELLOW")
-    BLUE = get_color("BLUE")
+    get_color("BLUE")
     RESET = get_color("RESET")
 
     from tool.XMIND.logic.chrome.api import (
@@ -104,7 +104,6 @@ def main():
         navigate_home, get_map_nodes, undo, redo, zoom, export_map,
         insert_item, rename_map, fit_map, get_mcp_state, select_all,
         copy_node, paste_node, collapse_node,
-        _recover,
     )
 
     if args.command == "boot":

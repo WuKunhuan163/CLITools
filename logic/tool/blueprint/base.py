@@ -3,8 +3,6 @@ import sys
 import subprocess
 from pathlib import Path
 import json
-import traceback
-from datetime import datetime
 
 class ToolBase:
     """Base class for all tools to handle dependencies, common utilities, and exception logging."""
@@ -16,7 +14,7 @@ class ToolBase:
         import inspect
         caller_file = Path(inspect.stack()[1].filename).resolve()
 
-        from logic.resolve import setup_paths, find_project_root, get_tool_module_path
+        from logic.resolve import setup_paths, get_tool_module_path
         self.project_root = setup_paths(caller_file)
 
         curr = caller_file.parent
@@ -367,8 +365,8 @@ class ToolBase:
         """Built-in --dev commands available for every tool."""
         from logic.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
-        GREEN = get_color("GREEN", "\033[32m")
-        BLUE = get_color("BLUE", "\033[34m")
+        get_color("GREEN", "\033[32m")
+        get_color("BLUE", "\033[34m")
         RESET = get_color("RESET", "\033[0m")
 
         subcmd = args[0] if args else ""
@@ -512,7 +510,7 @@ class ToolBase:
         from logic.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         GREEN = get_color("GREEN", "\033[32m")
-        BLUE = get_color("BLUE", "\033[34m")
+        get_color("BLUE", "\033[34m")
         YELLOW = get_color("YELLOW", "\033[33m")
         RED = get_color("RED", "\033[31m")
         RESET = get_color("RESET", "\033[0m")
@@ -580,7 +578,7 @@ class ToolBase:
         from logic.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         GREEN = get_color("GREEN", "\033[32m")
-        BLUE = get_color("BLUE", "\033[34m")
+        get_color("BLUE", "\033[34m")
         YELLOW = get_color("YELLOW", "\033[33m")
         RED = get_color("RED", "\033[31m")
         RESET = get_color("RESET", "\033[0m")
@@ -704,7 +702,7 @@ class ToolBase:
         """Print tool-specific rules from tool.json."""
         from logic.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
-        BLUE = get_color("BLUE", "\033[34m")
+        get_color("BLUE", "\033[34m")
         RESET = get_color("RESET", "\033[0m")
         
         print(f"--- {BOLD}{self.tool_name}{RESET} Rule ---")

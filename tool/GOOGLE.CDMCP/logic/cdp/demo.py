@@ -11,10 +11,9 @@ import random
 import hashlib
 import importlib.util
 from pathlib import Path
-from typing import Optional, Dict, Any
 
 from logic.chrome.session import (
-    CDPSession, CDP_PORT, find_tab, real_click, insert_text, dispatch_key,
+    CDPSession, CDP_PORT,
 )
 
 _TOOL_DIR = Path(__file__).resolve().parent.parent.parent
@@ -240,7 +239,7 @@ def _recover_cdp(session, overlay, port):
 def run_demo(port=CDP_PORT, delay=1.2, continuous=True):
     overlay = _load_overlay()
     session_mgr = _load_session_mgr()
-    server_mod = _load_server()
+    _load_server()
     interact = _load_interact()
     ds = _load_demo_state()
     machine = ds.get_demo_machine()
@@ -324,7 +323,7 @@ def run_demo_on_tab(cdp_ws_url: str, port=CDP_PORT, delay=1.2):
     overlay = _load_overlay()
     interact = _load_interact()
     ds = _load_demo_state()
-    session_mgr = _load_session_mgr()
+    _load_session_mgr()
     machine = ds.get_demo_machine()
     machine.reset()
     machine.transition(ds.DemoState.BOOTING)

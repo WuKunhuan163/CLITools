@@ -1,8 +1,6 @@
 EXPECTED_CPU_LIMIT = 70.0
 import unittest
 import subprocess
-import sys
-import re
 from pathlib import Path
 
 class TestPythonVersion(unittest.TestCase):

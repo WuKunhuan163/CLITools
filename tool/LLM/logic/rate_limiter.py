@@ -7,7 +7,7 @@ detection on upstream services.
 import time
 import random
 import threading
-from typing import Callable, Any
+from typing import Callable
 
 
 class RateLimiter:

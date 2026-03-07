@@ -3,7 +3,6 @@
 STRIPE Tool - Payment processing via Stripe MCP
 MCP-based integration wrapping @stripe/mcp.
 """
-import os
 import sys
 import json
 import argparse

@@ -15,8 +15,7 @@ import time
 from typing import Optional, Dict, Any
 
 from logic.chrome.session import (
-    CDPSession, CDP_PORT,
-    real_click, insert_text, dispatch_key,
+    CDPSession, real_click, insert_text,
 )
 
 import importlib.util
@@ -317,7 +316,7 @@ def mcp_paste(session: CDPSession, text: str,
     if selector:
         if not label:
             label = f"Paste: {text[:30]}{'...' if len(text) > 30 else ''}"
-        hl = ov.inject_highlight(session, selector, label=label, color=color)
+        ov.inject_highlight(session, selector, label=label, color=color)
         time.sleep(0.3)
         session.evaluate(f"document.querySelector({json.dumps(selector)}).focus()")
         time.sleep(0.15)

@@ -17,7 +17,6 @@ Usage:
     SHOWDOC screenshot [--output]    Take screenshot of current page
 """
 import sys
-import json
 import argparse
 from pathlib import Path
 

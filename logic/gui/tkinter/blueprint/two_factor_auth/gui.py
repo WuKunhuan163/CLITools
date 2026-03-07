@@ -1,8 +1,6 @@
-from pathlib import Path
-import sys
 from typing import Any, List, Optional, Callable, Dict
 from logic.gui.tkinter.blueprint.base import BaseGUIWindow, setup_common_bottom_bar
-from logic.gui.tkinter.style import get_label_style, get_gui_colors
+from logic.gui.tkinter.style import get_gui_colors
 
 class TwoFactorAuthWindow(BaseGUIWindow):
     """
@@ -28,7 +26,6 @@ class TwoFactorAuthWindow(BaseGUIWindow):
         return "".join([v.get() for v in self.code_vars])
 
     def on_key_press(self, event, index):
-        import tkinter as tk
         char = event.char
         
         if char in self.allowed_chars and char != "":

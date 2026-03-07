@@ -9,7 +9,6 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from interface.tool import ToolEngine
-from logic.utils import print_success_status
 
 def setup():
     tool_name = "TAVILY"

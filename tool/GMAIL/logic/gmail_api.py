@@ -11,7 +11,6 @@ OAuth2 flow:
   4. Tokens are stored locally and auto-refreshed as needed
 """
 import json
-import os
 import time
 import base64
 import urllib.request

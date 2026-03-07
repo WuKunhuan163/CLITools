@@ -705,7 +705,7 @@ def _run_scan(api, args, BOLD, GREEN, RED, BLUE, RESET):
     """Scan a tab for all interactive elements."""
     import time
     from logic.chrome.session import (
-        CDPSession, list_tabs, capture_screenshot, find_tab, dispatch_key,
+        CDPSession, capture_screenshot, find_tab,
     )
 
     pattern = args.pattern
@@ -1196,7 +1196,7 @@ def _poll_login(tab_id, timeout=300):
     """Synchronous poll for login completion. Closes the tab on success."""
     import time as _t
     from interface.config import get_color
-    from logic.chrome.session import CDPSession, list_tabs, close_tab, CDP_PORT
+    from logic.chrome.session import CDPSession, list_tabs, CDP_PORT
     auth_mod = _load_auth_mod()
     BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
     completed = False
@@ -1250,7 +1250,7 @@ def _poll_logout(tab_id, timeout=60):
     """Synchronous poll for logout completion. Locks tab, clicks Continue, closes tab."""
     import time as _t
     from interface.config import get_color
-    from logic.chrome.session import CDPSession, list_tabs, close_tab, CDP_PORT
+    from logic.chrome.session import CDPSession, list_tabs, CDP_PORT
     auth_mod = _load_auth_mod()
     BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
     clicked = False

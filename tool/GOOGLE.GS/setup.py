@@ -15,7 +15,7 @@ setup_paths(__file__)
 
 def main():
     from logic.tool.blueprint.base import ToolBase
-    tool = ToolBase("GOOGLE.GS")
+    ToolBase("GOOGLE.GS")
     print("GOOGLE.GS setup complete. Requires GOOGLE.CDMCP and Chrome with CDP.")
 
 

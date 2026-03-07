@@ -19,11 +19,9 @@ Usage:
 import asyncio
 import json
 import threading
-import os
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
-from functools import partial
+from typing import Any, Callable, Optional
 import socket
 import logging
 

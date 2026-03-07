@@ -1,7 +1,7 @@
 import fitz
 import os
 import sys
-from typing import Optional, Any
+from typing import Optional
 
 # Global suppression of mupdf errors
 fitz.TOOLS.mupdf_display_errors(False)

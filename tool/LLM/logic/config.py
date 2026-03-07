@@ -4,7 +4,7 @@ Stores API keys and provider settings in ``data/llm_config.json``.
 """
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 _TOOL_DIR = Path(__file__).resolve().parent.parent
 _DATA_DIR = _TOOL_DIR / "data"

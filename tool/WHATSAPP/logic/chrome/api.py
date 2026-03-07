@@ -9,12 +9,10 @@ auto-dialing, or automation." Data operations should use the WhatsApp
 Business Cloud API (developers.facebook.com/docs/whatsapp/).
 """
 import json
-import time as _time
 from typing import Dict, Any, Optional
 
 from logic.chrome.session import (
     CDPSession, CDP_PORT,
-    is_chrome_cdp_available,
     find_tab,
 )
 

@@ -7,7 +7,6 @@ Walks the user through:
   4. Running the first overlay injection
 """
 import sys
-import json
 import time
 from pathlib import Path
 

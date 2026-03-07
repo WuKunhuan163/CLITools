@@ -1056,7 +1056,7 @@ def draw_line(x1: int, y1: int, x2: int, y2: int, port: int = CDP_PORT) -> Dict[
     if not session:
         return {"ok": False, "error": "No Lucidchart session"}
     try:
-        line_result = add_shape("Line", x=x1, y=y1, port=port)
+        add_shape("Line", x=x1, y=y1, port=port)
 
         ov = _overlay()
         ov.set_lock_passthrough(session, True)
@@ -1119,7 +1119,7 @@ def set_fill_color(color: str, port: int = CDP_PORT) -> Dict[str, Any]:
             })
             time.sleep(0.5)
 
-            typed = session.evaluate(f"""
+            session.evaluate(f"""
                 (function(){{
                     var inputs = document.querySelectorAll('input[type="text"], input[aria-label*="color"], input[aria-label*="hex"]');
                     for(var inp of inputs){{

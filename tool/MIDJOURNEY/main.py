@@ -3,7 +3,6 @@
 MIDJOURNEY Tool - AI image generation via Midjourney API
 MCP-based integration wrapping mcp-midjourney.
 """
-import os
 import sys
 import json
 import argparse

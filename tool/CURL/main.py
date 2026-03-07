@@ -77,7 +77,7 @@ def cmd_request(args):
     BOLD = get_color("BOLD")
     GREEN = get_color("GREEN")
     RED = get_color("RED")
-    DIM = get_color("DIM", "\033[2m")
+    get_color("DIM", "\033[2m")
     RESET = get_color("RESET")
 
     method = args.method

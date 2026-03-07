@@ -1,12 +1,10 @@
 #!/usr/bin/env python3 -u
-import os
 import json
 import time
 import hashlib
 import sys
 import subprocess
 from pathlib import Path
-from datetime import datetime
 
 def generate_remount_script(project_root: Path):
     # 1. Load GCS config

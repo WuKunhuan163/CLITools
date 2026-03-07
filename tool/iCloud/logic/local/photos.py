@@ -2,7 +2,7 @@ import os
 import shutil
 import sqlite3
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import List, Optional
 from datetime import datetime, timedelta
 
 class LocalPhotosLibrary:

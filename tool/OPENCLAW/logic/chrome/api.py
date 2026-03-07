@@ -5,7 +5,7 @@ and the authenticated yuanbao.tencent.com/chat session for conversation.
 """
 import json
 import time as _time
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 from logic.chrome.session import (
     CDPSession, CDP_PORT,

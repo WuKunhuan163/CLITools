@@ -17,7 +17,7 @@ import time
 import enum
 import threading
 from pathlib import Path
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Dict, Any
 
 _TOOL_DIR = Path(__file__).resolve().parent.parent.parent
 _STATE_DIR = _TOOL_DIR / "data" / "state"

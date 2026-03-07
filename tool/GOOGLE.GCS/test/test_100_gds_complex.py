@@ -13,8 +13,6 @@ Usage:
 import unittest
 import subprocess
 import sys
-import os
-import re
 import json
 import time
 import hashlib
@@ -517,7 +515,7 @@ class TestNavigation(_GCSTestBase):
 
     def test_nav_09_cd_home_parent(self):
         """cd ~/.. should fail or stay at root."""
-        r = self.gcs(["cd", "~/.."])
+        self.gcs(["cd", "~/.."])
         # Either fail or stay at root - both acceptable
 
     def test_nav_10_cd_and_ls(self):
@@ -727,7 +725,7 @@ class TestEdit(_GCSTestBase):
         f = self._create_edit_file("edit7.txt", "nothing matches")
         import shlex
         spec = json.dumps([["ZZZZZ", "replacement"]])
-        r = self.gcs(args=[f"edit {f} {shlex.quote(spec)}"])
+        self.gcs(args=[f"edit {f} {shlex.quote(spec)}"])
         # Should succeed or warn - either is acceptable
 
     def test_edit_08_special_chars(self):
@@ -758,7 +756,7 @@ class TestLinter(_GCSTestBase):
         """linter on invalid Python detects errors."""
         f = self.td("lint_invalid.py")
         self.gcs_ok([f'echo "def f(:\\n  pass" > {f}'])
-        r = self.gcs(args=[f"linter {f}"])
+        self.gcs(args=[f"linter {f}"])
         # Should detect syntax error (may return 0 or non-0 depending on severity)
 
     def test_linter_03_json_valid(self):
@@ -783,7 +781,7 @@ class TestLinter(_GCSTestBase):
         """linter on empty file."""
         f = self.td("lint_empty.py")
         self.gcs_ok([f"touch {f}"])
-        r = self.gcs(args=[f"linter {f}"])
+        self.gcs(args=[f"linter {f}"])
         # Empty file lint - either pass or warn
 
 
@@ -826,19 +824,19 @@ class TestVenv(_GCSLocalBase):
         name = f"test_prot_{int(time.time())}"
         self.gcs_local_ok(["venv", "--create", name])
         self.gcs_local_ok(["venv", "--protect", name])
-        r = self.gcs_local(["venv", "--delete", name])
+        self.gcs_local(["venv", "--delete", name])
         self.gcs_local_ok(["venv", "--unprotect", name])
         self.gcs_local(["venv", "--delete", name])
 
     def test_venv_06_delete_nonexistent(self):
         """venv --delete nonexistent warns."""
-        r = self.gcs_local(["venv", "--delete", "no_such_env_xyz"])
+        self.gcs_local(["venv", "--delete", "no_such_env_xyz"])
 
     def test_venv_07_create_duplicate(self):
         """venv --create duplicate name."""
         name = f"test_dup_{int(time.time())}"
         self.gcs_local_ok(["venv", "--create", name])
-        r = self.gcs_local(["venv", "--create", name])
+        self.gcs_local(["venv", "--create", name])
         self.gcs_local(["venv", "--delete", name])
 
     def test_venv_08_list_after_create(self):
@@ -906,7 +904,7 @@ class TestBackground(_GCSTestBase):
 
     def test_bg_03_cleanup(self):
         """bg --cleanup cleans completed tasks."""
-        r = self.gcs(args=["bg", "--cleanup"])
+        self.gcs(args=["bg", "--cleanup"])
         # May return 0 or warn if no tasks
 
     def test_bg_04_submit_and_check(self):
@@ -995,7 +993,7 @@ class TestAtPath(_GCSTestBase):
 
     def test_at_02_at_expansion(self):
         """@ path expands to REMOTE_ENV."""
-        r = self.gcs(args=["ls @/venv"])
+        self.gcs(args=["ls @/venv"])
         # May or may not exist, but should not crash
 
 

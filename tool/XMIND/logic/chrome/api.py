@@ -17,12 +17,10 @@ from typing import Dict, Any, Optional
 
 from logic.chrome.session import (
     CDPSession, CDP_PORT,
-    is_chrome_cdp_available,
-    find_tab,
 )
 
 from tool.XMIND.logic.chrome.state_machine import (
-    XMState, get_machine, XMindStateMachine,
+    XMState, get_machine,
 )
 
 XMIND_HOME = "https://app.xmind.com"

@@ -3,7 +3,6 @@
 DINGTALK Tool - DingTalk messaging and workspace integration
 MCP-based integration wrapping custom API.
 """
-import os
 import sys
 import json
 import argparse

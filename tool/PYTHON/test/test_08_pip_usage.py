@@ -2,9 +2,6 @@ EXPECTED_CPU_LIMIT = 40.0
 import unittest
 import subprocess
 import os
-import sys
-import shutil
-import re
 from pathlib import Path
 
 class TestPythonPipUsage(unittest.TestCase):

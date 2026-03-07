@@ -12,9 +12,7 @@ from typing import Dict, Any, Optional
 
 from logic.chrome.session import (
     CDPSession, CDP_PORT,
-    is_chrome_cdp_available,
     find_tab,
-    fetch_api,
 )
 
 PAYPAL_URL_PATTERN = "paypal.com"

@@ -1,8 +1,7 @@
 import tkinter as tk
 import json
-import os
 from pathlib import Path
-from interface.gui import get_label_style, get_gui_colors
+from interface.gui import get_label_style
 from interface.lang import get_translation
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent.parent.parent)

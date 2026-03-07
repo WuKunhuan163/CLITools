@@ -12,15 +12,10 @@ FILEDIALOG Tool (v3)
 
 import os
 import sys
-import json
 import argparse
 import platform
-import subprocess
-import threading
-import time
 import tempfile
 from pathlib import Path
-from typing import List, Tuple, Optional, Any
 
 # Fix shadowing
 script_dir = Path(__file__).resolve().parent

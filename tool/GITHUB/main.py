@@ -3,7 +3,6 @@
 GITHUB Tool - GitHub integration via GitHub MCP
 MCP-based integration wrapping @modelcontextprotocol/server-github.
 """
-import os
 import sys
 import json
 import argparse

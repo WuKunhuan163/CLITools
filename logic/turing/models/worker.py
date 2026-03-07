@@ -4,15 +4,14 @@ import os
 import time
 import inspect
 from typing import List, Dict, Optional, Any, Set, Callable, Tuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from logic.turing.display.manager import truncate_to_width, _get_configured_width
 from logic.config import get_color
 from logic.turing.terminal.keyboard import get_global_suppressor
-from logic.turing.logic import TuringStage, TuringError
+from logic.turing.logic import TuringStage
 from logic.turing.utils import log_turing_error
 from logic.lang.utils import get_translation
-from logic.utils import get_logic_dir, find_project_root, format_seconds
-from pathlib import Path
+from logic.utils import get_logic_dir, find_project_root
 
 class DynamicStatusBar:
     """

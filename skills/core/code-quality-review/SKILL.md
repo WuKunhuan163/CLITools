@@ -1,9 +1,36 @@
 ---
 name: code-quality-review
-description: Static analysis and quality auditing for AITerminalTools. Covers import rules (IMP001-IMP004), hooks/interface validation, language coverage, and test structure audits.
+description: Static analysis and quality auditing for AITerminalTools. Covers dead code detection, unused imports/variables, syntax errors, import rules (IMP001-IMP004), hooks/interface validation, language coverage, and test structure audits.
 ---
 
 # Code Quality Review
+
+## Dead Code & Static Analysis
+
+The `TOOL --audit code` command runs automated checks via ruff and vulture:
+
+| Check | Description |
+|-------|-------------|
+| Unused imports (F401) | `import X` where X is never referenced |
+| Unused variables (F841) | Local variables assigned but never read |
+| Syntax errors (E9) | Invalid Python syntax, indentation errors |
+
+```bash
+TOOL --audit code                  # Full scan of logic/, tool/, interface/
+TOOL --audit code --fix            # Auto-fix safe issues (unused imports/variables)
+TOOL --audit code --targets tool/  # Scan specific directory
+```
+
+Programmatic access:
+
+```python
+from logic.audit.code_quality import run_full_audit, print_report
+
+report = run_full_audit(auto_fix=True)
+print_report(report)
+```
+
+Implementation: `logic/audit/code_quality.py`
 
 ## Import Rules
 

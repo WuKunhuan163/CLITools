@@ -2,7 +2,6 @@
 import sys
 import argparse
 import json
-import subprocess
 from pathlib import Path
 
 # Universal path resolver bootstrap
@@ -159,7 +158,6 @@ class GoogleTool(ToolBase):
         except ImportError:
             from logic.chrome.session import CDP_PORT
             import subprocess as _sp
-            import sys as _sys
             chrome_paths = [
                 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
             ]
@@ -222,7 +220,7 @@ class GoogleTool(ToolBase):
     def _handle_list_tabs(self):
         """List open Chrome tabs via CDP."""
         BOLD = get_color("BOLD")
-        GREEN = get_color("GREEN")
+        get_color("GREEN")
         RED = get_color("RED")
         RESET = get_color("RESET")
 

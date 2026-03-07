@@ -8,7 +8,6 @@ Without args, checks git-staged files.
 Exit codes: 0 = pass, 1 = violations found.
 """
 
-import re
 import subprocess
 import sys
 from pathlib import Path

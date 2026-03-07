@@ -27,18 +27,17 @@ External control interface (for testing and automation):
     - EditableListWindow.cmd_save()               Trigger save action.
     - EditableListWindow.cmd_cancel()             Trigger cancel action.
 """
-import os
 import sys
 from pathlib import Path
-from typing import Any, Optional, Callable, List
+from typing import Optional, Callable, List
 
 _script_path = Path(__file__).resolve()
 _project_root = _script_path.parent.parent.parent.parent.parent.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from logic.gui.tkinter.blueprint.bottom_bar.gui import BottomBarWindow, setup_bottom_bar
-from logic.gui.tkinter.style import get_label_style, get_button_style, get_gui_colors
+from logic.gui.tkinter.blueprint.bottom_bar.gui import BottomBarWindow
+from logic.gui.tkinter.style import get_label_style, get_button_style
 
 
 class EditableListWindow(BottomBarWindow):

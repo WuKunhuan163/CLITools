@@ -83,7 +83,7 @@ def _search(tool, query, api_key, args):
     from interface.turing import TuringStage
 
     BOLD = get_color("BOLD", "\033[1m")
-    GREEN = get_color("GREEN", "\033[32m")
+    get_color("GREEN", "\033[32m")
     BLUE = get_color("BLUE", "\033[34m")
     RESET = get_color("RESET", "\033[0m")
 

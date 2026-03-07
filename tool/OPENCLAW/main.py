@@ -53,7 +53,7 @@ def cmd_setup_llm(args):
     """Configure the NVIDIA GLM-4.7 API key (one-time setup)."""
     BOLD = get_color("BOLD")
     GREEN = get_color("GREEN")
-    BLUE = get_color("BLUE")
+    get_color("BLUE")
     RESET = get_color("RESET")
 
     print(f"  {BOLD}OPENCLAW LLM Setup{RESET}")
@@ -328,7 +328,7 @@ def cmd_config(args):
     BOLD = get_color("BOLD")
     DIM = get_color("DIM")
     CYAN = get_color("CYAN")
-    GREEN = get_color("GREEN")
+    get_color("GREEN")
     RED = get_color("RED")
     RESET = get_color("RESET")
 

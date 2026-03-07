@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import sys
-from pathlib import Path
 
 def get_python_install_dir():
     """Returns the directory where Python versions are installed."""

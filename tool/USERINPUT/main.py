@@ -19,12 +19,8 @@ import warnings
 import subprocess
 import platform
 import time
-import random
 import json
 import argparse
-import signal
-import traceback
-import threading
 import tempfile
 from pathlib import Path
 
@@ -464,7 +460,7 @@ if __name__ == "__main__":
 def _handle_queue(tool, args, unknown):
     """Handle all --queue sub-commands."""
     from interface.config import get_color
-    BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
+    BOLD, GREEN, RED, _YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
 
     _qmod = _load_queue_module()
 
@@ -717,7 +713,7 @@ def _handle_system_prompt(tool, args, unknown):
     if args.delete is not None:
         idx = args.delete
         if 0 <= idx < len(prompts):
-            removed = prompts.pop(idx)
+            prompts.pop(idx)
             config["system_prompt"] = prompts
             with open(TOOL_INTERNAL / "config.json", 'w') as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)

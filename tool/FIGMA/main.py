@@ -164,7 +164,7 @@ def main():
     GREEN = get_color("GREEN")
     RED = get_color("RED")
     YELLOW = get_color("YELLOW")
-    BLUE = get_color("BLUE")
+    get_color("BLUE")
     RESET = get_color("RESET")
 
     from tool.FIGMA.logic.chrome import api

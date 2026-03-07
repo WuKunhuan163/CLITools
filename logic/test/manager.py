@@ -4,7 +4,7 @@ import subprocess
 import time
 import json
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Callable
+from typing import Optional, Callable
 
 
 def _git_bin():
@@ -38,8 +38,8 @@ def _resolve_tool_name(name: str, project_root: Path) -> str:
 def test_tool_with_args(args, project_root: Path, translation_func: Optional[Callable] = None):
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))
     BOLD = get_color("BOLD", "\033[1m")
-    BLUE = get_color("BLUE", "\033[34m")
-    GREEN = get_color("GREEN", "\033[32m")
+    get_color("BLUE", "\033[34m")
+    get_color("GREEN", "\033[32m")
     RED = get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
 
@@ -158,7 +158,6 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
         def sync_action():
             from logic.dev.commands import dev_sync
             with open(os.devnull, 'w') as f:
-                import io
                 from contextlib import redirect_stdout, redirect_stderr
                 with redirect_stdout(f), redirect_stderr(f):
                     success = dev_sync(project_root, quiet=True, translation_func=_)

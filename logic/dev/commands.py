@@ -9,7 +9,6 @@ from typing import Optional, Callable
 
 from logic.config import get_color
 from logic.utils import get_logic_dir
-from logic.turing.models.progress import ProgressTuringMachine
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "tool" / "template"
 
@@ -24,7 +23,6 @@ def _load_template(filename: str, **kwargs) -> str:
     tmpl_path = _TEMPLATE_DIR / filename
     content = tmpl_path.read_text()
     return content.format(**kwargs)
-from logic.turing.logic import TuringStage
 
 def dev_sync(project_root: Path, quiet: bool = False, translation_func: Optional[Callable] = None) -> bool:
     """Synchronize branches in a linear chain: dev -> tool -> main -> test."""
@@ -453,7 +451,7 @@ def dev_audit_archived(project_root: Path) -> bool:
             print(f"  {name}")
         return False
 
-    total = len(active_tools) + len(archived_tools)
+    len(active_tools) + len(archived_tools)
     print(f"{BOLD}{GREEN}No duplicates{RESET}: {len(active_tools)} active, {len(archived_tools)} archived tools.")
     return True
 
@@ -553,7 +551,7 @@ def dev_migrate_bin(project_root: Path) -> bool:
     """Migrate flat bin/ shortcuts to the new bin/<tool>/ directory structure."""
     BOLD = get_color("BOLD", "\033[1m")
     GREEN = get_color("GREEN", "\033[32m")
-    YELLOW = get_color("YELLOW", "\033[33m")
+    get_color("YELLOW", "\033[33m")
     BLUE = get_color("BLUE", "\033[34m")
     RESET = get_color("RESET", "\033[0m")
 

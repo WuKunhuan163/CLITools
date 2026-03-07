@@ -71,7 +71,7 @@ def execute(tool, args, state_mgr, load_logic, unknown=None, **kwargs):
     BOLD = get_color("BOLD")
     GREEN = get_color("GREEN")
     RED = get_color("RED")
-    YELLOW = get_color("YELLOW")
+    get_color("YELLOW")
     RESET = get_color("RESET")
 
     status_color = RED if has_errors else GREEN

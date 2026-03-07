@@ -17,7 +17,7 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
     Unified handler for remote GUI commands (stop, submit, cancel, add_time).
     """
     from logic.config import get_color
-    BOLD, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
+    BOLD, RED, _YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
     
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--id", type=str)
@@ -343,7 +343,6 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     from logic.config import get_color
     from logic.gui.engine import get_sandbox_type
     from logic.utils import cleanup_old_files
-    import platform
     
     BOLD, BLUE, GREEN, RED, YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
     
@@ -376,7 +375,7 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     # Display Hint if provided
     if initial_content:
         hint_label = _("fallback_hint_label", "Hint")
-        WHITE = get_color("WHITE", "\033[37m")
+        get_color("WHITE", "\033[37m")
         print(f"{BOLD}{BOLD}{hint_label}{RESET}: {initial_content}")
 
     try:
@@ -404,7 +403,7 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     print(full_msg, flush=True)
     
     # 4. Polling loop
-    bell_path = tool_instance.project_root / "logic" / "asset" / "audio" / "bell.mp3"
+    tool_instance.project_root / "logic" / "asset" / "audio" / "bell.mp3"
     
     # Try to get focus interval from config
     fi = 90

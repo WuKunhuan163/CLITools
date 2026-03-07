@@ -19,10 +19,8 @@ The engine:
 
 import json
 import importlib.util
-import sys
-import traceback
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Callable
+from typing import Dict, List, Any, Optional
 
 
 class HookInterface:

@@ -114,7 +114,7 @@ def _cmd_boot(tool):
 def _cmd_status(tool):
     from logic.chrome.session import CDPSession, is_chrome_cdp_available
     BOLD = get_color("BOLD")
-    GREEN = get_color("GREEN")
+    get_color("GREEN")
     RED = get_color("RED")
     RESET = get_color("RESET")
 

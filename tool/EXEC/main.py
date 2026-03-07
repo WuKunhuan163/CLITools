@@ -30,7 +30,7 @@ from logic.config import get_color
 def cmd_run(args):
     """Execute a shell command."""
     BOLD = get_color("BOLD")
-    GREEN = get_color("GREEN")
+    get_color("GREEN")
     RED = get_color("RED")
     RESET = get_color("RESET")
 
@@ -68,7 +68,7 @@ def cmd_sandbox(args):
 
     from tool.EXEC.logic.sandbox import (
         list_policies, set_command_policy, remove_command_policy,
-        get_command_policy, classify_command, get_blocked_hint,
+        classify_command, get_blocked_hint,
         ALLOWED_COMMANDS, BLOCKED_COMMANDS,
     )
 

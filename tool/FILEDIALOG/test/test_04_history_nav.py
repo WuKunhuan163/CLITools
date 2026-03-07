@@ -3,7 +3,6 @@ import unittest
 import subprocess
 import time
 import os
-import json
 from pathlib import Path
 
 class TestFileDialogHistoryNav(unittest.TestCase):

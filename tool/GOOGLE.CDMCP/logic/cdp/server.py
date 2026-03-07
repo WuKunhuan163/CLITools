@@ -132,7 +132,7 @@ def start_server(preferred_port: Optional[int] = None) -> Tuple[str, int]:
     log_file = log_dir / "server.log"
 
     with open(log_file, "a") as lf:
-        proc = subprocess.Popen(
+        subprocess.Popen(
             [py, str(_STANDALONE_SCRIPT), str(port),
              "--state-file", str(_STATE_FILE)],
             stdout=lf,

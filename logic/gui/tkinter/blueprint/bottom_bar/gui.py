@@ -12,7 +12,6 @@ Inheritance:
 Use this as a base class when building GUIs that need a persistent
 action bar but not the timed interaction model.
 """
-import os
 import sys
 from pathlib import Path
 from typing import Any, Optional, Callable
@@ -23,7 +22,7 @@ if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 from logic.gui.tkinter.blueprint.base import BaseGUIWindow
-from logic.gui.tkinter.style import get_label_style, get_button_style, get_status_style, get_gui_colors
+from logic.gui.tkinter.style import get_button_style, get_status_style
 
 
 def setup_bottom_bar(parent, window_instance: BaseGUIWindow,

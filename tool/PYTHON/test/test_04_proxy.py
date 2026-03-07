@@ -2,7 +2,6 @@ EXPECTED_CPU_LIMIT = 70.0
 #!/usr/bin/env python3
 import subprocess
 import sys
-import os
 from pathlib import Path
 
 def test_python_proxy():

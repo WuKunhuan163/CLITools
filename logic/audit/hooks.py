@@ -26,11 +26,9 @@ Skills checks (SKILL001-SKILL003):
 
 import ast
 import json
-import re
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-from logic.audit.utils import AuditManager
 
 
 class Severity:
@@ -121,7 +119,6 @@ def _parse_classes(py_path: Path) -> List[dict]:
 
 def audit_hooks(tool_dir: Path, project_root: Path) -> List[AuditIssue]:
     """Audit hook interfaces and instances for a single tool."""
-    tool_name = tool_dir.name
     issues: List[AuditIssue] = []
     hooks_dir = tool_dir / "hooks"
     base_hooks_dir = project_root / "logic" / "tool" / "hooks" / "base"

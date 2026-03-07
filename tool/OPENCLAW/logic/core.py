@@ -11,18 +11,16 @@ Both CLI and HTML GUIs wrap this core. It owns:
 The core is GUI-agnostic: no terminal codes, no browser references.
 GUIs call core methods and render the results in their own way.
 """
-import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Optional
+from typing import Any, Dict, List, Optional
 
-from tool.OPENCLAW.logic.session import SessionManager, Session, SessionLog
+from tool.OPENCLAW.logic.session import SessionManager, Session
 from tool.OPENCLAW.logic.sandbox import execute_command, get_project_summary
 from tool.OPENCLAW.logic.protocol import (
     build_system_prompt, build_task_message, build_feedback_message,
-    parse_response_segments, TERMINATION_TOKEN, STEP_COMPLETE_TOKEN,
+    parse_response_segments,
 )
 from tool.OPENCLAW.logic.skills import build_skill_hint
-from tool.OPENCLAW.logic.guardrails import PipelineGuardrails
 
 MAX_ITERATIONS = 50
 

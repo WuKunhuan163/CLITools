@@ -1,13 +1,10 @@
 import os
-import sys
 import subprocess
 import shutil
-import json
 from pathlib import Path
-from typing import List, Optional, Callable
+from typing import Optional, Callable
 from logic.turing.models.progress import ProgressTuringMachine
 from logic.turing.logic import TuringStage
-from logic.config import get_color
 
 def _git_bin():
     from tool.GIT.interface.main import get_system_git

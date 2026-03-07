@@ -1,9 +1,8 @@
-import sys
 import tkinter as tk
 import threading
 import time
 from pathlib import Path
-from interface.gui import get_label_style, get_gui_colors
+from interface.gui import get_label_style
 from interface.lang import get_translation
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent.parent.parent)
@@ -158,7 +157,7 @@ def build_step(frame, win):
                     callback_queue.append(on_fail_env)
                     return
 
-                saved_path = auth_mod.save_gcs_config(project_root, rid, eid)
+                auth_mod.save_gcs_config(project_root, rid, eid)
 
                 def on_success():
                     status_var.set(_("tutorial_step5_success", "Validated and saved! Root: {root_msg}, Env: {env_msg}", root_msg=msg_root, env_msg=msg_env))
@@ -167,7 +166,7 @@ def build_step(frame, win):
                     win.set_step_validated(True)
                 callback_queue.append(on_success)
 
-            except Exception as e:
+            except Exception:
                 def on_err():
                     status_var.set(_("tutorial_step5_error", "Error: {error}", error=str(e)))
                     status_label.config(fg="red")

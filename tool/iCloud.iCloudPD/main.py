@@ -12,8 +12,7 @@ import json
 import os
 import time
 from pathlib import Path
-from datetime import datetime, date
-import subprocess
+from datetime import datetime
 
 # Add project root to sys.path
 def find_root():
@@ -82,7 +81,7 @@ def main():
         if not args.before:
             args.before = args.between[1]
     
-    BOLD, GREEN, BLUE, RESET, YELLOW, RED = get_color("BOLD"), get_color("GREEN"), get_color("BLUE"), get_color("RESET"), get_color("YELLOW"), get_color("RED")
+    BOLD, GREEN, _BLUE, RESET, _YELLOW, RED = get_color("BOLD"), get_color("GREEN"), get_color("BLUE"), get_color("RESET"), get_color("YELLOW"), get_color("RED")
     
     # 0. Local Photos Library Setup
     local_library = None

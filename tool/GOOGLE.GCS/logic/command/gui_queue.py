@@ -7,12 +7,11 @@ this queue ensures they execute sequentially. Uses file-based locking for
 cross-process synchronization.
 """
 import os
-import sys
 import json
 import time
 import fcntl
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 
 class GUIQueue:

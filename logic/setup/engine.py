@@ -12,7 +12,6 @@ def _git_bin():
     except ImportError:
         return _git_bin()
 import subprocess
-from pathlib import Path
 from logic.turing.models.progress import ProgressTuringMachine
 from logic.turing.logic import TuringStage
 from logic.config import get_color
@@ -226,7 +225,7 @@ class ToolEngine:
 
         # Start TM
         from logic.utils import print_success_status
-        success_label = self._("label_successfully_installed", "Successfully installed")
+        self._("label_successfully_installed", "Successfully installed")
         
         # Use ephemeral=True to erase progress lines
         # Top-level tool prints success status via interface

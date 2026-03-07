@@ -4,7 +4,6 @@ import os
 import sys
 import json
 import base64
-from pathlib import Path
 
 REMOTE_ENV_VENV = "/content/drive/MyDrive/REMOTE_ENV/venv"
 VENV_STATES_FILE = f"{REMOTE_ENV_VENV}/venv_states.json"
@@ -293,7 +292,7 @@ def _venv_delete(tool, state_mgr, load_logic, utils, env_names):
 
 def _venv_activate(tool, state_mgr, load_logic, utils, env_name):
     from interface.config import get_color
-    GREEN, RED, YELLOW, BOLD, RESET = (
+    GREEN, RED, _YELLOW, BOLD, RESET = (
         get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("BOLD"), get_color("RESET")
     )
 

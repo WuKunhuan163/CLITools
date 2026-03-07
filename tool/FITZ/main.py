@@ -8,9 +8,7 @@ if sys.path and sys.path[0] == str(script_dir):
     del sys.path[0]
 import sys
 import argparse
-import os
 from pathlib import Path
-from contextlib import redirect_stderr
 
 # Add project root to sys.path
 script_path = Path(__file__).resolve()
@@ -19,7 +17,6 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from logic.tool.blueprint.base import ToolBase
-from interface.config import get_color
 
 def main():
     tool = ToolBase("FITZ")

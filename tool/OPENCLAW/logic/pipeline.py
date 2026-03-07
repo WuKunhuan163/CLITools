@@ -7,14 +7,13 @@ Orchestrates the loop:
 """
 import time
 import threading
-from typing import Dict, Any, Optional, Callable
-from pathlib import Path
+from typing import Optional, Callable
 
 from tool.OPENCLAW.logic.chrome import api as yuanbao
 from tool.OPENCLAW.logic.sandbox import execute_command, get_project_summary
 from tool.OPENCLAW.logic.protocol import (
     build_system_prompt, build_task_message, build_feedback_message,
-    parse_response, TERMINATION_TOKEN,
+    parse_response,
 )
 from tool.OPENCLAW.logic.session import SessionManager, Session
 

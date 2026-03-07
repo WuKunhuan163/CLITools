@@ -11,15 +11,14 @@ Architecture (from YAB-Bridge spec):
 """
 import time
 import threading
-from typing import Dict, Any, Optional, Callable, List
-from pathlib import Path
+from typing import Optional, Callable
 
 from tool.LLM.logic.base import LLMProvider
 from tool.LLM.logic.session_context import SessionContext
 from tool.OPENCLAW.logic.sandbox import execute_command, get_project_summary
 from tool.OPENCLAW.logic.protocol import (
     build_system_prompt, build_task_message, build_feedback_message,
-    parse_response, TERMINATION_TOKEN, AgentEnvironment,
+    parse_response, AgentEnvironment,
 )
 from tool.OPENCLAW.logic.session import SessionManager, Session
 

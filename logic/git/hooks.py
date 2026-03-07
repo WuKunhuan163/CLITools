@@ -3,7 +3,6 @@
 Provides installation of a ``post-checkout`` hook that triggers the
 persistence locker automatically when using raw ``git checkout``.
 """
-import os
 import stat
 from pathlib import Path
 

@@ -1,4 +1,4 @@
-import sys, os
+import sys
 sys.path.insert(0, '/Applications/AITerminalTools')
 sys.path.insert(0, '/Applications/AITerminalTools/tool/GOOGLE.CDMCP')
 from logic.resolve import setup_paths

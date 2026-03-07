@@ -15,8 +15,7 @@ Supports creating any native Google Workspace file type in a specified folder:
 
 The workflow uses the Drive UI's "New" menu via the built-in browser.
 """
-import json
-from logic.mcp.browser import BrowserMCPConfig, BrowserSize
+from logic.mcp.browser import BrowserMCPConfig
 
 
 DRIVE_FILE_TYPES = {

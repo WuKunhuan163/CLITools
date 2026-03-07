@@ -3,7 +3,6 @@
 GITLAB Tool - GitLab integration via GitLab MCP
 MCP-based integration wrapping gitlab-mcp.
 """
-import os
 import sys
 import json
 import argparse

@@ -17,7 +17,6 @@ def _git_bin():
     except ImportError:
         return _git_bin()
 import json
-import os
 import subprocess
 from pathlib import Path
 
@@ -59,7 +58,7 @@ def main():
     parser_get.add_argument("name", type=str, help="Font name")
     
     # List
-    parser_list = subparsers.add_parser("list", help="List installed fonts")
+    subparsers.add_parser("list", help="List installed fonts")
     
     # Download (Legacy, now part of --install)
     parser_download = subparsers.add_parser("download", help="Download font family from Google Fonts")

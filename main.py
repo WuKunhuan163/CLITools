@@ -411,6 +411,9 @@ def _tool_audit_handler(audit_args):
     qp.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
     qp.add_argument("--exclude", help="Comma-separated tool names to skip")
     qp.add_argument("--no-skills", action="store_true", help="Skip skills audit")
+    cp = audit_sub.add_parser("code", help="Dead code, unused imports/variables, syntax errors")
+    cp.add_argument("--fix", action="store_true", help="Auto-fix safe issues")
+    cp.add_argument("--targets", nargs="*", help="Directories to scan (default: logic/ tool/ interface/)")
 
     parsed = ap.parse_args(audit_args)
     root = Path(__file__).resolve().parent
@@ -449,6 +452,11 @@ def _tool_audit_handler(audit_args):
             results = audit_all_quality(root, exclude=exclude)
             print(quality_to_json(results, skills_issues) if parsed.as_json
                   else format_quality_report(results, skills_issues))
+    elif parsed.audit_command == "code":
+        from logic.audit.code_quality import run_full_audit, print_report
+        targets = parsed.targets or None
+        report = run_full_audit(targets=targets, auto_fix=parsed.fix)
+        print_report(report)
     else:
         ap.print_help()
 
@@ -595,7 +603,7 @@ def _print_tool_help():
     print(f"  --status                 Show installed tools and their status")
     print(f"  --config <sub>           Manage global configuration (set, show, show-lang)")
     print(f"  --lang <sub>             Language management (audit, list)")
-    print(f"  --audit <sub>            Code quality audits (imports, quality)")
+    print(f"  --audit <sub>            Code quality audits (imports, quality, code)")
     print(f"  --rule <sub>             AI rule management (create, inject)")
     print(f"  --search <sub> <query>  Semantic search (tools, interfaces, skills)")
     print(f"  --dev <sub>              Developer commands")

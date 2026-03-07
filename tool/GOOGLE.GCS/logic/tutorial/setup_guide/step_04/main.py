@@ -6,9 +6,8 @@ import os
 import threading
 import time
 import hashlib
-import shutil
 from pathlib import Path
-from interface.gui import get_label_style, get_gui_colors
+from interface.gui import get_label_style
 from interface.lang import get_translation
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent.parent.parent)
@@ -228,7 +227,7 @@ def build_step(frame, win):
                 
                 def final_update():
                     if is_valid:
-                        saved_path = auth_module.save_console_key(project_root, info)
+                        auth_module.save_console_key(project_root, info)
                         status_var.set(_("tutorial_step4_success", "Successfully validated and saved!"))
                         status_label.config(fg="green")
                         win.set_step_validated(True)
@@ -240,7 +239,7 @@ def build_step(frame, win):
                     validate_btn.config(state=tk.NORMAL, text=_("tutorial_step4_validate_btn", "Validate"))
                 
                 callback_queue.append(final_update)
-            except Exception as e:
+            except Exception:
                 def on_err():
                     status_var.set(_("tutorial_step4_logic_error", "Validation Logic Error: {error}", error=str(e)))
                     status_label.config(fg="red")

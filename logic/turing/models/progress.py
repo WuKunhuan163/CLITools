@@ -1,13 +1,11 @@
 import sys
 import os
-import time
 import re
 import inspect
 from typing import List, Optional
 from pathlib import Path
 from logic.turing.logic import TuringStage
 from logic.config import get_color
-from logic.turing.display.manager import truncate_to_width, _get_configured_width
 from logic.turing.terminal.keyboard import get_global_suppressor
 from logic.lang.utils import get_translation
 from logic.utils import get_logic_dir, find_project_root
@@ -106,9 +104,9 @@ class ProgressTuringMachine:
         suppressor = get_global_suppressor()
         
         BOLD = get_color("BOLD", "\033[1m")
-        RED = get_color("RED", "\033[31m")
+        get_color("RED", "\033[31m")
         RESET = get_color("RESET", "\033[0m")
-        GREEN = get_color("GREEN", "\033[32m")
+        get_color("GREEN", "\033[32m")
         
         with suppressor:
             try:

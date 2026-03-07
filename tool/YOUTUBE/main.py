@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import sys
 import argparse
-import json
 from pathlib import Path
 
 _r = Path(__file__).resolve().parent
@@ -98,7 +97,7 @@ def main():
     sub.add_parser("dislike", help="Dislike the current video")
     sub.add_parser("subscribe", help="Subscribe/unsubscribe to channel")
 
-    p_share = sub.add_parser("share", help="Open share dialog and get URL")
+    sub.add_parser("share", help="Open share dialog and get URL")
 
     p_save = sub.add_parser("save", help="Save video to playlist")
     p_save.add_argument("--playlist", default="Watch later", help="Playlist name")

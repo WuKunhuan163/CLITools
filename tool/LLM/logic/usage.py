@@ -6,13 +6,12 @@ aggregation queries for daily/total usage summaries.
 
 Storage: tool/LLM/data/usage.db
 """
-import json
 import time
 import sqlite3
 import threading
 from pathlib import Path
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, asdict
+from typing import Dict, Any, List
+from dataclasses import dataclass
 
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 _DB_PATH = _DATA_DIR / "usage.db"

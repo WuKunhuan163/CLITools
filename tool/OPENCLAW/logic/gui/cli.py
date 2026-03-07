@@ -15,7 +15,7 @@ import time
 import threading
 import shutil
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 try:
     import readline  # noqa: F401 -- enables arrow keys/history in input()
@@ -26,7 +26,7 @@ from logic.config import get_color
 from logic.lang.utils import get_translation
 from logic.turing.display.manager import truncate_to_width, _get_configured_width
 from logic.turing.status import fmt_status, fmt_detail, fmt_stage
-from tool.OPENCLAW.logic.session import SessionManager, Session, SessionLog
+from tool.OPENCLAW.logic.session import SessionManager, Session
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent)
 
@@ -35,12 +35,11 @@ def _(key: str, default: str, **kwargs) -> str:
     return get_translation(_LOGIC_DIR, key, default, **kwargs)
 from tool.OPENCLAW.logic.sandbox import (
     execute_command, get_project_summary,
-    list_policies, set_command_policy, remove_command_policy,
-    ALLOWED_COMMANDS, BLOCKED_COMMANDS,
+    list_policies, set_command_policy, ALLOWED_COMMANDS, BLOCKED_COMMANDS,
 )
 from tool.OPENCLAW.logic.protocol import (
     build_system_prompt, build_task_message, build_feedback_message,
-    parse_response, parse_response_segments, TERMINATION_TOKEN,
+    parse_response_segments,
 )
 from tool.OPENCLAW.logic.guardrails import PipelineGuardrails
 
@@ -1047,7 +1046,6 @@ class OpenClawCLI:
             print(self._detail(
                 _('breakpoint_msg', '[BREAKPOINT] Bootstrap state written to log.')
                 + f" {bp_path}"))
-            return True
 
             # Guardrail: step + duration limits
             step_err = guardrails.check_step_limit()
@@ -1263,7 +1261,7 @@ class OpenClawCLI:
             all_feedback = "\n\n".join(feedback_parts)
 
             # Active skill chaining: inject relevant skills on error
-            error_context = " ".join(
+            " ".join(
                 f.split("\n")[0] for f in feedback_parts
                 if "[Command FAILED]" in f
             )

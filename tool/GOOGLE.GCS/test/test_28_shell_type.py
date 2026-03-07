@@ -8,7 +8,6 @@ EXPECTED_TIMEOUT = 60
 EXPECTED_CPU_LIMIT = 60.0
 
 import unittest
-import sys
 from pathlib import Path
 
 project_root = Path("/Applications/AITerminalTools")

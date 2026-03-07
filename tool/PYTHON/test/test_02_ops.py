@@ -1,7 +1,6 @@
 EXPECTED_CPU_LIMIT = 70.0
 import unittest
 import subprocess
-import os
 from pathlib import Path
 
 class TestPythonOps(unittest.TestCase):

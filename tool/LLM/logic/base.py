@@ -10,7 +10,7 @@ The base class handles:
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 
 @dataclass
@@ -118,11 +118,10 @@ class LLMProvider(ABC):
         full_text_parts = []
         chunk_count = 0
         ttft = None
-        last_error = None
 
         for chunk in self.send_streaming(messages, temperature, max_tokens):
             if not chunk.get("ok"):
-                last_error = chunk.get("error", "Stream error")
+                chunk.get("error", "Stream error")
                 yield chunk
                 return
 

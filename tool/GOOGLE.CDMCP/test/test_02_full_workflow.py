@@ -18,7 +18,7 @@ from logic.resolve import setup_paths
 setup_paths(__file__)
 
 from logic.chrome.session import (
-    is_chrome_cdp_available, find_tab, open_tab, list_tabs, CDP_PORT,
+    is_chrome_cdp_available, find_tab, open_tab,
 )
 from logic.cdmcp_loader import load_cdmcp_overlay
 _ov = load_cdmcp_overlay()

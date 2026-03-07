@@ -1,7 +1,5 @@
 import unittest
 import subprocess
-import sys
-from pathlib import Path
 
 class TestUserInput(unittest.TestCase):
     def test_hint_timeout(self):

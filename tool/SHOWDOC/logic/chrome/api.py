@@ -15,12 +15,11 @@ import time
 import base64
 import importlib.util
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 from logic.chrome.session import (
     CDPSession, CDP_PORT,
     is_chrome_cdp_available,
-    find_tab,
 )
 
 SHOWDOC_HOME = "https://www.showdoc.com.cn"

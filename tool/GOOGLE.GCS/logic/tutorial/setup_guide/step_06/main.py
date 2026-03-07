@@ -87,7 +87,7 @@ def build_step(frame, win):
 
     action_block = win.add_block(frame, pady=(15, 5))
     bg = action_block.cget("bg")
-    colors = get_gui_colors()
+    get_gui_colors()
 
     status_var = tk.StringVar(value="")
     status_label = tk.Label(action_block, textvariable=status_var,
@@ -137,7 +137,7 @@ def build_step(frame, win):
                         win.set_step_validated(False)
                     callback_queue.append(on_fail)
 
-            except Exception as e:
+            except Exception:
                 def on_err():
                     status_var.set(_("tutorial_step6_error", "Error: {msg}", msg=str(e)))
                     status_label.config(fg="red")

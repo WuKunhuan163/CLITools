@@ -16,9 +16,7 @@ def _git_bin():
         return get_system_git()
     except ImportError:
         return "/usr/bin/git"
-import sys
 import time
-from pathlib import Path
 
 from logic.hooks.engine import HookInstance
 
@@ -181,7 +179,7 @@ class AutoSaveRemote(HookInstance):
                     )
                 return False
 
-        from interface.turing import TuringStage, ProgressTuringMachine
+        from interface.turing import TuringStage
 
         pm = tool.create_progress_machine([
             TuringStage(

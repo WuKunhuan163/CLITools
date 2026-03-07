@@ -1,4 +1,3 @@
-import os
 import re
 import json
 import ast
@@ -118,7 +117,7 @@ class LangAuditor:
         # Simulation Logic (simplified ProgressTuringMachine.run formatting)
         from logic.config import get_color
         BLUE = get_color("BLUE", "\033[34m")
-        BOLD = get_color("BOLD", "\033[1m")
+        get_color("BOLD", "\033[1m")
         RESET = get_color("RESET", "\033[0m")
         
         def format_state(status, n, color_code, bold_p):
@@ -163,7 +162,6 @@ class LangAuditor:
                     
                     key = self._resolve_ast_value(key_node, file_path)
                     # Try to translate
-                    from logic.utils import get_logic_dir
                     target_dir = str(self.project_root / "logic")
                     for parent in Path(file_path).parents:
                         if (parent / "logic").is_dir():

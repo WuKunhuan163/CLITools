@@ -3,7 +3,6 @@
 KIMI Tool - Kimi AI assistant API integration
 MCP-based integration wrapping custom API.
 """
-import os
 import sys
 import json
 import argparse

@@ -129,7 +129,7 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", full_display_col
 
     num_cols = len(headers)
     full_display_cols = full_display_cols or []
-    is_rtl = get_rtl_mode()
+    get_rtl_mode()
     
     display_headers = headers
     display_rows = []

@@ -1,7 +1,6 @@
 import unittest
 import subprocess
 import os
-from pathlib import Path
 
 class TestUserInputTimeout(unittest.TestCase):
     def test_timeout_retry(self):

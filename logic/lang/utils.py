@@ -1,7 +1,6 @@
 import json
 import os
 from pathlib import Path
-from logic.config import get_global_config
 
 def get_translation(tool_logic_dir, key, default_text, lang_code=None, **kwargs):
     """

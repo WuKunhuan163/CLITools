@@ -4,7 +4,6 @@ import os
 import sys
 import subprocess
 import argparse
-import platform
 import json
 from pathlib import Path
 

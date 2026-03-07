@@ -1,4 +1,3 @@
-import tkinter as tk
 from pathlib import Path
 from interface.lang import get_translation
 

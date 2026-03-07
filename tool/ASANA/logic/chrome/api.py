@@ -4,11 +4,10 @@ Uses the authenticated ``app.asana.com`` session to make API calls
 through the same-origin Asana REST API at ``/api/1.0/``.
 """
 import json
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 from logic.chrome.session import (
     CDPSession, CDP_PORT,
-    is_chrome_cdp_available,
     find_tab,
 )
 

@@ -6,7 +6,6 @@ from pathlib import Path
 script_dir = Path(__file__).resolve().parent
 if sys.path and sys.path[0] == str(script_dir):
     del sys.path[0]
-import os
 import sys
 from pathlib import Path
 

@@ -1,5 +1,4 @@
 import os
-import re
 import json
 import subprocess
 import argparse
@@ -7,7 +6,6 @@ import sys
 import shutil
 import hashlib
 from pathlib import Path
-from datetime import datetime
 
 # Import shared utilities for translation and config
 try:
@@ -121,8 +119,8 @@ def download_and_verify(asset, target_root, silent=False):
     
     if tmp_dir.exists(): shutil.rmtree(tmp_dir)
     tmp_dir.mkdir(parents=True)
-    
-        zst_path = tmp_dir / asset["name"]
+
+    zst_path = tmp_dir / asset["name"]
     extract_dir = tmp_dir / "extract"
     target_dir = target_root / v_tag
     
@@ -145,32 +143,26 @@ def download_and_verify(asset, target_root, silent=False):
         return True
             
     def verify_action(stage=None):
-        # Astral builds extract to a 'python' folder, sometimes with an inner 'install' folder
         py_home = extract_dir / "python"
         if not py_home.exists(): py_home = extract_dir
         if (py_home / "install").exists(): py_home = py_home / "install"
-            
+
         py_bin = py_home / "bin" / "python3" if sys.platform != "win32" else py_home / "python.exe"
-        
+
         try:
-        res = subprocess.run([str(py_bin), "--version"], capture_output=True, text=True)
-        if asset["version"] in res.stdout or asset["version"] in res.stderr:
-            # Move to final location
+            res = subprocess.run([str(py_bin), "--version"], capture_output=True, text=True)
+            if asset["version"] in res.stdout or asset["version"] in res.stderr:
                 if target_dir.exists(): shutil.rmtree(target_dir)
-            
-            # Re-wrap in 'install' folder for consistency
                 final_install = target_dir / "install"
-            final_install.mkdir(parents=True)
-            for item in list(py_home.iterdir()):
-                shutil.move(str(item), str(final_install / item.name))
-            
-            # Write metadata
+                final_install.mkdir(parents=True)
+                for item in list(py_home.iterdir()):
+                    shutil.move(str(item), str(final_install / item.name))
                 save_json(target_dir / "PYTHON.json", {
-                "release": asset["tag"],
-                "asset": asset["name"],
-                "version": asset["version"],
-                "platform": asset["platform"]
-            })
+                    "release": asset["tag"],
+                    "asset": asset["name"],
+                    "version": asset["version"],
+                    "platform": asset["platform"]
+                })
                 return True
             else:
                 if stage: stage.report_error("Version Mismatch", f"Expected {asset['version']}, got {res.stdout or res.stderr}")
@@ -209,7 +201,7 @@ def main():
     args = parser.parse_args()
 
     # Use the unified cache with filters applied directly
-    scanner = PythonScanner(silent=args.tool_quiet)
+    PythonScanner(silent=args.tool_quiet)
     filtered = get_all_assets_from_cache(tag_filter=args.tag, version_filter=args.version, platform_filter=args.platform)
     if not filtered:
         from logic.turing.status import fmt_warning

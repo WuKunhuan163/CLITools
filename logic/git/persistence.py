@@ -5,7 +5,6 @@ configs) to a system temp location before a branch switch, and restores
 them afterward. Lockers are identified by opaque keys and subject to a
 count limit and a TTL (time-to-live) expiry.
 """
-import os
 import shutil
 import json
 import tempfile

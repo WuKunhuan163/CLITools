@@ -6,7 +6,6 @@ import json
 import argparse
 import shutil
 import re
-import platform
 from pathlib import Path
 
 # Fix shadowing: Remove script directory from sys.path[0] if present
@@ -19,8 +18,7 @@ project_root = script_dir.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from logic.utils import get_python_exec, extract_resource
-from tool.PYTHON.logic.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, get_rel_install_path, ensure_dirs
+from tool.PYTHON.logic.config import INSTALL_DIR, RESOURCE_ROOT, get_rel_install_path
 
 
 def _git_bin():
@@ -140,7 +138,7 @@ def main():
     filtered_args = []
     
     from logic.utils import get_system_tag
-    tag = get_system_tag()
+    get_system_tag()
     install_root = INSTALL_DIR
 
     for arg in raw_args:
@@ -172,7 +170,7 @@ def main():
     RED = get_color("RED")
     BOLD = get_color("BOLD")
     BLUE = get_color("BLUE")
-    GREEN = get_color("GREEN")
+    get_color("GREEN")
     RESET = get_color("RESET")
 
     if args.py_list:
@@ -563,7 +561,7 @@ def _install_version(version, install_dir=None, tag_filter=None, platform_filter
                 # For now, install.py will find the latest matching asset.
                 
                 # DO NOT capture output so the user sees progress
-                res = subprocess.run(cmd)
+                subprocess.run(cmd)
                 
                 # Check if it was successfully installed
                 if (target_parent / version).exists():

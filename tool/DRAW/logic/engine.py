@@ -1,5 +1,5 @@
 from PIL import Image, ImageDraw, ImageFont
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any
 
 def draw_rects_with_alpha(image: Image.Image, rects: List[Dict[str, Any]]) -> Image.Image:
     """Draw rectangles with alpha transparency on a copy of the image."""
@@ -104,7 +104,6 @@ def append_legend(image: Image.Image, items: List[Dict[str, Any]]) -> Image.Imag
     font = ImageFont.load_default()
     
     # Calculate dimensions
-    line_h = 20
     item_spacing = 20
     
     def get_text_width(text, font):

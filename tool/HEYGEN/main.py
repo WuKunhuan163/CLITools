@@ -3,7 +3,6 @@
 HEYGEN Tool - AI avatar video generation via HeyGen API
 MCP-based integration wrapping heygen-mcp-server.
 """
-import os
 import sys
 import json
 import argparse

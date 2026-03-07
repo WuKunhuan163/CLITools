@@ -198,7 +198,7 @@ def introspect(max_transcripts=5):
     total_messages = 0
     user_messages = 0
     assistant_messages = 0
-    topics = Counter()
+    Counter()
 
     tool_names_pattern = re.compile(
         r'\b(WHATSAPP|GMAIL|GOOGLE\.GCS|GOOGLE\.GC|GOOGLE\.GD|GOOGLE\.CDMCP|GOOGLE\.GS|'

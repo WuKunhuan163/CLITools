@@ -54,7 +54,7 @@ try:
     from logic.audit.utils import AuditManager
     
     from tool.PYTHON.logic.config import DATA_DIR, AUDIT_DIR, RESOURCE_ROOT, TMP_INSTALL_DIR, PROJECT_ROOT, DEFAULT_CONCURRENCY
-except ImportError as e:
+except ImportError:
     # Basic fallbacks
     def get_translation(dir, key, default): return default
     def get_color(name, default="\033[0m"): return default

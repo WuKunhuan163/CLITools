@@ -10,7 +10,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from logic.gui.tkinter.blueprint.tutorial.gui import TutorialWindow, TutorialStep
-from logic.gui.tkinter.style import get_label_style, get_gui_colors
+from logic.gui.tkinter.style import get_label_style
 
 def build_step_1(frame, win):
     tk.Label(frame, text="Welcome to the Tutorial", font=("Arial", 16, "bold")).pack(pady=(40, 10))

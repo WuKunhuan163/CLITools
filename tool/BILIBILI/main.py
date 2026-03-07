@@ -191,7 +191,7 @@ def main():
     G = get_color("GREEN")
     R = get_color("RED")
     Y = get_color("YELLOW")
-    BL = get_color("BLUE")
+    get_color("BLUE")
     E = get_color("RESET")
 
     from tool.BILIBILI.logic.chrome import api

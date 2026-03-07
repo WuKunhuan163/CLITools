@@ -4,7 +4,6 @@ Reads usage records and provider info, embeds them as JSON into the
 HTML template, and writes the result to a standalone HTML file.
 """
 import json
-import time
 import datetime
 from pathlib import Path
 from typing import Dict, Any

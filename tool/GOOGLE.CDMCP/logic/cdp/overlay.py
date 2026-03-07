@@ -14,8 +14,7 @@ import time
 from typing import Optional, Dict, Any
 
 from logic.chrome.session import (
-    CDPSession, CDP_PORT, CDP_TIMEOUT,
-    is_chrome_cdp_available, list_tabs, find_tab, open_tab,
+    CDPSession, CDP_PORT, list_tabs, find_tab,
 )
 
 CDMCP_OVERLAY_ID = "__cdmcp_overlay_root__"
@@ -915,7 +914,7 @@ def pin_tab_by_target_id(cdp_target_id: str, pinned: bool = True,
         return False
 
     target_url = target_tab.get("url", "")
-    target_title = target_tab.get("title", "")
+    target_tab.get("title", "")
     pin_str = "true" if pinned else "false"
 
     ws = _ws.create_connection(browser_ws, timeout=10)

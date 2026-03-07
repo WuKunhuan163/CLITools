@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import sys
 import argparse
-import json
 from pathlib import Path
 
 _r = Path(__file__).resolve().parent

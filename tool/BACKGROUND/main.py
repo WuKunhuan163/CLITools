@@ -9,9 +9,7 @@ if sys.path and sys.path[0] == str(script_dir):
 import sys
 import argparse
 import subprocess
-import os
 import json
-import time
 import psutil
 from pathlib import Path
 from datetime import datetime

@@ -3,7 +3,6 @@
 ZAPIER Tool - Workflow automation via Zapier MCP
 MCP-based integration wrapping custom API.
 """
-import os
 import sys
 import json
 import argparse

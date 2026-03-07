@@ -5,9 +5,7 @@ import sys
 import json
 import time
 import base64
-import hashlib
 import random
-from pathlib import Path
 
 REMOTE_TMP = "/content/drive/MyDrive/REMOTE_ENV/tmp"
 
@@ -64,7 +62,7 @@ def _bg_submit(tool, state_mgr, load_logic, utils, command):
     start_time_iso = time.strftime("%Y-%m-%dT%H:%M:%S")
 
     status_file = BG_STATUS_TEMPLATE.format(pid=bg_pid)
-    script_file = BG_SCRIPT_TEMPLATE.format(pid=bg_pid)
+    BG_SCRIPT_TEMPLATE.format(pid=bg_pid)
     log_file = BG_LOG_TEMPLATE.format(pid=bg_pid)
     result_file = BG_RESULT_TEMPLATE.format(pid=bg_pid)
 

@@ -24,10 +24,7 @@ External control interface (for testing and automation):
 Dependency chain:
     BaseGUIWindow (base.py) -> ChatbotWindow (this file)
 """
-import os
 import sys
-import queue
-import threading
 from pathlib import Path
 from typing import Optional, Callable, Dict, Any, List
 
@@ -212,7 +209,6 @@ class ChatbotWindow(BaseGUIWindow):
         self._load_sessions()
 
     def _on_canvas_configure(self, event):
-        import tkinter as tk
         self.msg_canvas.itemconfig(self.msg_canvas_window, width=event.width)
 
     def _on_enter(self, event):

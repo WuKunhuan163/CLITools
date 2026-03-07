@@ -19,8 +19,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 from logic.chrome.session import (
-    CDPSession, CDP_PORT, CDP_TIMEOUT,
-    is_chrome_cdp_available, list_tabs, find_tab, open_tab, close_tab,
+    CDPSession, CDP_PORT, is_chrome_cdp_available, list_tabs, find_tab, open_tab, close_tab,
 )
 
 _TOOL_DIR = Path(__file__).resolve().parent.parent.parent
@@ -486,7 +485,6 @@ class CDMCPSession:
         """
         import importlib.util
         import subprocess
-        import sys
 
         _log_session("full_reboot", self.name, "Starting full reboot...")
 

@@ -1,7 +1,6 @@
 EXPECTED_CPU_LIMIT = 70.0
 import unittest
 import subprocess
-import os
 import shutil
 import re
 from pathlib import Path

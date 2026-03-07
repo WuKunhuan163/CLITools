@@ -11,7 +11,6 @@ Upload strategy by file size:
 import os
 import sys
 import time
-import json
 import shutil
 import base64
 import shlex
@@ -25,14 +24,13 @@ LARGE_THRESHOLD = 10 * 1024 * 1024  # 10 MB
 
 
 def execute(tool, args, state_mgr, load_logic, as_python=False, **kwargs):
-    BOLD = get_color("BOLD", "\033[1m")
-    GREEN = get_color("GREEN", "\033[32m")
-    RED = get_color("RED", "\033[31m")
-    YELLOW = get_color("YELLOW", "\033[33m")
-    RESET = get_color("RESET", "\033[0m")
+    get_color("BOLD", "\033[1m")
+    get_color("GREEN", "\033[32m")
+    get_color("RED", "\033[31m")
+    get_color("YELLOW", "\033[33m")
+    get_color("RESET", "\033[0m")
 
     local_path = os.path.abspath(args.local_path)
-    remote_path = args.remote_path
 
     if not os.path.exists(local_path):
         print(f"upload: cannot stat '{args.local_path}': No such file or directory", file=sys.stderr)
@@ -225,7 +223,6 @@ def _upload_large(tool, local_path, filename, file_size,
     """Show a GUI window instructing the user to manually upload large files."""
     from interface.turing import ProgressTuringMachine
     from interface.turing import TuringStage
-    from interface.gui import run_gui_subprocess
     gui_queue_mod = load_logic("command/gui_queue")
 
     BOLD = get_color("BOLD", "\033[1m")

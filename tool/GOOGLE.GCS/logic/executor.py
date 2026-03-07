@@ -2,11 +2,9 @@
 import os
 import json
 import time
-import base64
 import hashlib
 import subprocess
 from pathlib import Path
-from typing import Tuple, Optional, Dict, Any
 
 def generate_remote_command_script(project_root: Path, command: str, remote_cwd: str = "/content/drive/MyDrive/REMOTE_ROOT", as_python: bool = False, shell_type: str = "bash", finished_msg: str = "", executing_msg: str = "", finished_label: str = "", cdp_mode: bool = False):
     """

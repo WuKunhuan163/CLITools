@@ -9,14 +9,11 @@ import os
 import json
 import subprocess
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 from tool.EXEC.logic.sandbox import (
-    get_command_policy,
     set_command_policy,
-    remove_command_policy,
     list_policies,
-    reload_policies,
     is_path_protected,
     filter_listing,
     resolve_path,
@@ -25,7 +22,6 @@ from tool.EXEC.logic.sandbox import (
     is_project_tool,
     prompt_permission,
     get_project_root,
-    PROTECTED_PATTERNS,
     ALLOWED_COMMANDS,
     BLOCKED_COMMANDS,
     MAX_OUTPUT_LENGTH,

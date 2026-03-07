@@ -1,8 +1,6 @@
 import tkinter as tk
-from pathlib import Path
 from typing import List, Dict, Any, Callable, Optional
 from logic.gui.tkinter.blueprint.base import BaseGUIWindow
-from logic.gui.tkinter.style import get_label_style
 
 class ButtonBarWindow(BaseGUIWindow):
     """
@@ -36,7 +34,7 @@ class ButtonBarWindow(BaseGUIWindow):
         self._disable_auto_unlock = disable_auto_unlock
 
     def setup_ui(self):
-        from logic.gui.tkinter.style import get_button_style, get_label_style, get_gui_colors
+        from logic.gui.tkinter.style import get_button_style, get_label_style
         self.root.geometry(self.window_size)
         self.root.resizable(True, True)
         

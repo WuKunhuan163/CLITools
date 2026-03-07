@@ -1,7 +1,6 @@
 """Unit tests for the queue storage module (logic/queue.py)."""
 import unittest
 import sys
-import json
 from pathlib import Path
 
 EXPECTED_TIMEOUT = 30

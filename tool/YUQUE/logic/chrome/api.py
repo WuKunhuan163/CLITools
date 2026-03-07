@@ -16,7 +16,6 @@ from logic.chrome.session import CDPSession, CDP_PORT
 from logic.cdmcp_loader import (
     load_cdmcp_overlay,
     load_cdmcp_sessions,
-    load_cdmcp_interact,
 )
 
 YUQUE_HOME = "https://www.yuque.com"

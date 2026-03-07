@@ -7,7 +7,7 @@ Verifies:
   3. Session has correct timeout parameters
   4. Session can be closed cleanly
 """
-import sys, time, json
+import sys, time
 from pathlib import Path
 
 _r = Path(__file__).resolve().parent.parent.parent.parent
@@ -15,7 +15,7 @@ sys.path.insert(0, str(_r))
 from logic.resolve import setup_paths
 setup_paths(str(_r / "tool" / "GOOGLE.CDMCP" / "main.py"))
 
-from logic.chrome.session import list_tabs, CDPSession
+from logic.chrome.session import list_tabs
 
 import importlib.util
 sm_path = _r / "tool" / "GOOGLE.CDMCP" / "logic" / "cdp" / "session_manager.py"

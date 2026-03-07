@@ -3,7 +3,6 @@
 PLAID Tool - Financial data integration via Plaid API
 MCP-based integration wrapping custom API.
 """
-import os
 import sys
 import json
 import argparse

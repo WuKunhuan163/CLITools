@@ -1,5 +1,4 @@
 """Step 4: Trial execution — test CDP automation with a user command."""
-import json
 import time
 import hashlib
 import tkinter as tk

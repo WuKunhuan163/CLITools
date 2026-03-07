@@ -12,7 +12,7 @@ before calling any function.
 
 import json
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from logic.chrome.session import CDPSession, list_tabs, CDP_PORT
 

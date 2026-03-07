@@ -22,17 +22,16 @@ import re
 import time
 import importlib.util
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 from logic.chrome.session import (
     CDPSession, CDP_PORT,
     is_chrome_cdp_available,
     capture_screenshot,
-    real_click, insert_text,
 )
 
 from tool.YOUTUBE.logic.chrome.state_machine import (
-    YouTubeStateMachine, YTState, TranscriptState, get_machine,
+    YTState, TranscriptState, get_machine,
 )
 
 YOUTUBE_URL_PATTERN = "youtube.com"
@@ -1301,7 +1300,7 @@ def comment(text: str, port: int = CDP_PORT) -> Dict[str, Any]:
         interact.mcp_scroll(session, "down", 400)
         time.sleep(1)
 
-        r = interact.mcp_click(
+        interact.mcp_click(
             session, "#simplebox-placeholder, #placeholder-area",
             label="Comment box", dwell=0.8, color="#065fd4",
             tool_name="YouTube")

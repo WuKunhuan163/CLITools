@@ -1,7 +1,6 @@
 import os
 import sys
 import json
-import re
 import numpy as np
 import fitz
 from fpdf import FPDF

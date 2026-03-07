@@ -11,8 +11,6 @@ from typing import Dict, Any, Optional
 
 from logic.chrome.session import (
     CDPSession, CDP_PORT,
-    is_chrome_cdp_available,
-    find_tab,
     capture_screenshot,
 )
 
@@ -23,7 +21,7 @@ from logic.cdmcp_loader import (
 )
 
 from tool.FIGMA.logic.chrome.state_machine import (
-    FigmaState, get_machine, FigmaStateMachine,
+    FigmaState, get_machine,
 )
 
 FIGMA_HOME = "https://www.figma.com/files"
@@ -306,7 +304,7 @@ def open_file(file_title: str, port: int = CDP_PORT) -> Dict[str, Any]:
         """)
 
         if found == "found":
-            result = interact.mcp_click(
+            interact.mcp_click(
                 cdp, '[data-figma-target="true"]',
                 label=f"Open: {file_title}", dwell=0.5, color="#a259ff",
                 tool_name="Figma",
@@ -1029,7 +1027,7 @@ def resize_selection(width: int, height: int,
     cdp = _ensure_session(port)
     if not cdp:
         return {"ok": False, "error": "No session"}
-    interact = _load_interact()
+    _load_interact()
     try:
         js = f"""
         (function() {{
@@ -1098,7 +1096,7 @@ def add_stroke(color: str = "#000000", width: int = 2,
         return {"ok": False, "error": "No session"}
     interact = _load_interact()
     try:
-        r = interact.mcp_click(cdp, '[class*="stroke"] [class*="add"], '
+        interact.mcp_click(cdp, '[class*="stroke"] [class*="add"], '
                                'button[aria-label*="troke"]',
                                label="Add stroke", dwell=0.3, tool_name="Figma")
         time.sleep(0.5)
@@ -1133,7 +1131,7 @@ def rename_layer(old_name: str, new_name: str,
     cdp = _ensure_session(port)
     if not cdp:
         return {"ok": False, "error": "No session"}
-    interact = _load_interact()
+    _load_interact()
     ov = _load_overlay()
     try:
         js = f"""
@@ -1421,7 +1419,7 @@ def open_plugins_menu(port: int = CDP_PORT) -> Dict[str, Any]:
             return {"ok": False, "error": "Main menu button not found"}
         time.sleep(1)
 
-        plugins = cdp.evaluate("""
+        cdp.evaluate("""
         (function() {
             var els = document.querySelectorAll('*');
             for (var i = 0; i < els.length; i++) {

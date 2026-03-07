@@ -116,7 +116,7 @@ def inject_rule(project_root: Path, translation_func=None):
     BOLD = get_color("BOLD", "\033[1m")
     GREEN = get_color("GREEN", "\033[32m")
     YELLOW = get_color("YELLOW", "\033[33m")
-    RED = get_color("RED", "\033[31m")
+    get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
 
     rules_dir = project_root / ".cursor" / "rules"

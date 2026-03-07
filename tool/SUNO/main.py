@@ -3,7 +3,6 @@
 SUNO Tool - AI music generation via Suno API
 MCP-based integration wrapping mcp-suno.
 """
-import os
 import sys
 import json
 import argparse

@@ -1629,7 +1629,7 @@ def add_to_watchlater(port: int = CDP_PORT) -> Dict[str, Any]:
     if not session:
         return {"ok": False, "error": "No Bilibili session"}
     try:
-        interact = _interact()
+        _interact()
         r = session.evaluate("""
             (function(){
                 var btn = document.querySelector(
@@ -1740,7 +1740,7 @@ def play_watchlater(port: int = CDP_PORT) -> Dict[str, Any]:
 
 def navigate_live(category: Optional[str] = None, port: int = CDP_PORT) -> Dict[str, Any]:
     """Navigate to Bilibili Live, optionally to a specific category."""
-    machine = get_machine(_session_name)
+    get_machine(_session_name)
     session = _ensure_session(port)
     if not session:
         return {"ok": False, "error": "No Bilibili session"}
@@ -1768,7 +1768,7 @@ def enter_live_room(room_id: Optional[str] = None, port: int = CDP_PORT) -> Dict
             url = f"https://live.bilibili.com/{room_id}"
             return navigate(url, port)
 
-        interact = _interact()
+        _interact()
         href = session.evaluate("""
             (function(){
                 var card = document.querySelector(
@@ -2170,7 +2170,7 @@ def post_dynamic(text: str, poll_options: Optional[list] = None,
                 '.editor-toolbar [title*="投票"]',
                 label="Add poll", dwell=0.5, tool_name="Bilibili")
             time.sleep(1)
-            inputs = session.evaluate("""
+            session.evaluate("""
                 var inputs = document.querySelectorAll(
                     '.vote-option input, .poll-option input, '
                     + '.vote-input input');
@@ -2204,7 +2204,7 @@ def batch_reply_comments(reply_text: str, count: int = 3,
     try:
         session.evaluate("window.scrollTo(0, 700)")
         time.sleep(2)
-        interact = _interact()
+        _interact()
         replied = 0
 
         for i in range(count):

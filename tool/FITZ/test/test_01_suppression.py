@@ -1,6 +1,5 @@
 import unittest
 import sys
-import os
 import io
 from pathlib import Path
 from contextlib import redirect_stderr

@@ -76,7 +76,7 @@ def _execute_remote_edit(tool, state_mgr, load_logic, utils,
     script_b64 = base64.b64encode(script_content.encode('utf-8')).decode('ascii')
     command = f"python3 -c \"import base64; exec(base64.b64decode('{script_b64}').decode('utf-8'))\""
 
-    remote_cmd_mod = load_logic("command/remote")
+    load_logic("command/remote")
     executor_mod = load_logic("executor")
 
     sid = state_mgr.get_active_shell_id()

@@ -1,7 +1,6 @@
 import sys
 import json
 from pathlib import Path
-from typing import Dict, Any
 
 from logic.config import get_color
 from logic.setup.engine import ToolEngine

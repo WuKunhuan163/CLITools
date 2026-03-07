@@ -78,7 +78,7 @@ def main():
     BOLD = get_color("BOLD")
     GREEN = get_color("GREEN")
     RED = get_color("RED")
-    YELLOW = get_color("YELLOW")
+    get_color("YELLOW")
     RESET = get_color("RESET")
 
     from tool.CHARTCUBE.logic.chrome.api import (

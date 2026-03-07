@@ -2,12 +2,9 @@ import sys
 import os
 import threading
 import shutil
-import re
 import time
-import unicodedata
 import json
 from typing import Optional, Callable
-from pathlib import Path
 from logic.utils import get_display_width as get_visible_len, truncate_to_display_width, get_rtl_mode
 from logic.config import get_global_config, PROJECT_ROOT
 

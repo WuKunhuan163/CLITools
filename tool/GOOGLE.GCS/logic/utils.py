@@ -251,7 +251,6 @@ except Exception as e:
             except:
                 pass
         
-        import sys as _sys
         env = os.environ.copy()
         env["PYTHONPATH"] = str(project_root)
         proc = subprocess.run(

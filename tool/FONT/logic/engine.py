@@ -1,11 +1,9 @@
-import os
 import sys
 import json
 import requests
 import zipfile
 import shutil
 import re
-import subprocess
 from pathlib import Path
 
 class FontManager:
