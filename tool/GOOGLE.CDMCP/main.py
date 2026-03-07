@@ -34,15 +34,7 @@ def _load_api():
     spec = importlib.util.spec_from_file_location("cdmcp_api", str(api_path))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return {
-        "navigate": mod.navigate, "focus_tab": mod.focus_tab,
-        "lock_tab": mod.lock_tab, "unlock_tab": mod.unlock_tab,
-        "highlight_element": mod.highlight_element, "clear_highlight": mod.clear_highlight,
-        "cleanup_tab": mod.cleanup_tab, "status": mod.status,
-        "list_managed": mod.list_managed, "get_config": mod.get_config,
-        "set_config_value": mod.set_config_value, "reset_config": mod.reset_config,
-        "show_config_str": mod.show_config_str,
-    }
+    return mod
 
 
 class CDMCPTool(ToolBase):
@@ -57,6 +49,7 @@ class CDMCPTool(ToolBase):
         sub = parser.add_subparsers(dest="command", help="Subcommand")
 
         sub.add_parser("status", help="Check Chrome CDP availability and managed tabs")
+        sub.add_parser("tutorial", help="Run interactive setup tutorial")
 
         p_nav = sub.add_parser("navigate", help="Open URL in a managed CDMCP tab")
         p_nav.add_argument("url", help="URL to navigate to")
@@ -89,6 +82,20 @@ class CDMCPTool(ToolBase):
 
         sub.add_parser("tabs", help="List all managed CDMCP tabs")
 
+        p_session = sub.add_parser("session", help="Manage CDMCP sessions")
+        p_session.add_argument("action", choices=["create", "list", "close"],
+                               help="Session action")
+        p_session.add_argument("name", nargs="?", default="default",
+                               help="Session name")
+        p_session.add_argument("--timeout", type=int, default=None,
+                               help="Session timeout in seconds (default 86400)")
+
+        p_demo = sub.add_parser("demo", help="Run interactive demo on Chat app")
+        p_demo.add_argument("--delay", type=float, default=1.5,
+                            help="Delay between steps (seconds)")
+        p_demo.add_argument("--loop", action="store_true",
+                            help="Run continuously, cycling through contacts/messages")
+
         if self.handle_command_line(parser):
             return
 
@@ -102,11 +109,24 @@ class CDMCPTool(ToolBase):
 
         api = _load_api()
 
-        if args.command == "status":
-            r = api["status"]()
+        if args.command == "tutorial":
+            try:
+                import importlib.util
+                tut_path = _TOOL_DIR / "logic" / "tutorial" / "setup_guide.py"
+                spec = importlib.util.spec_from_file_location("cdmcp_tutorial", str(tut_path))
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                mod.run_setup_tutorial()
+            except Exception as e:
+                print(f"  {BOLD}{RED}Failed{RESET} to run tutorial: {e}")
+            return
+
+        elif args.command == "status":
+            r = api.status()
             avail = r.get("chrome_available", False)
             print(f"  Chrome CDP: {BOLD}{GREEN if avail else RED}{'Available' if avail else 'Not available'}{RESET}")
             print(f"  Managed tabs: {r.get('managed_tabs', 0)}")
+            print(f"  Sessions: {r.get('sessions', 0)}")
             if r.get("focused_tab"):
                 print(f"  Focused: {r['focused_tab']}")
             if r.get("locked_tab"):
@@ -116,35 +136,35 @@ class CDMCPTool(ToolBase):
             print(f"  Logging: {cfg.get('log_interactions', True)}")
 
         elif args.command == "navigate":
-            r = api["navigate"](args.url)
+            r = api.navigate(args.url)
             if r.get("ok"):
                 print(f"  {BOLD}{GREEN}Navigated{RESET} to {args.url} ({r.get('action', 'unknown')}).")
             else:
                 print(f"  {BOLD}{RED}Failed{RESET} to navigate: {r.get('error', 'unknown')}")
 
         elif args.command == "focus":
-            r = api["focus_tab"](args.pattern)
+            r = api.focus_tab(args.pattern)
             if r.get("ok"):
                 print(f"  {BOLD}{GREEN}Focused{RESET} on tab: {r.get('url', args.pattern)}")
             else:
                 print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
 
         elif args.command == "lock":
-            r = api["lock_tab"](args.pattern)
+            r = api.lock_tab(args.pattern)
             if r.get("ok"):
                 print(f"  {BOLD}{BLUE}Locked{RESET} tab: {args.pattern}")
             else:
                 print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
 
         elif args.command == "unlock":
-            r = api["unlock_tab"](args.pattern)
+            r = api.unlock_tab(args.pattern)
             if r.get("ok"):
                 print(f"  {BOLD}{GREEN}Unlocked{RESET} tab: {args.pattern}")
             else:
                 print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
 
         elif args.command == "highlight":
-            r = api["highlight_element"](args.pattern, args.selector, label=args.label)
+            r = api.highlight_element(args.pattern, args.selector, label=args.label)
             if r.get("ok"):
                 print(f"  {BOLD}{GREEN}Highlighted{RESET}: {r.get('selector', args.selector)}")
                 rect = r.get("rect", {})
@@ -159,14 +179,14 @@ class CDMCPTool(ToolBase):
                 print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
 
         elif args.command == "clear":
-            r = api["clear_highlight"](args.pattern)
+            r = api.clear_highlight(args.pattern)
             if r.get("ok"):
                 print(f"  {BOLD}{GREEN}Cleared{RESET} highlight.")
             else:
                 print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', 'unknown')}")
 
         elif args.command == "cleanup":
-            r = api["cleanup_tab"](args.pattern)
+            r = api.cleanup_tab(args.pattern)
             if r.get("ok"):
                 removed = r.get("removed", [])
                 print(f"  {BOLD}{GREEN}Cleaned up{RESET} {len(removed)} overlays.")
@@ -175,7 +195,7 @@ class CDMCPTool(ToolBase):
 
         elif args.command == "config":
             if args.reset:
-                api["reset_config"]()
+                api.reset_config()
                 print(f"  {BOLD}{GREEN}Reset{RESET} configuration to defaults.")
             elif args.set:
                 key, val = args.set
@@ -183,14 +203,14 @@ class CDMCPTool(ToolBase):
                     parsed = json.loads(val)
                 except json.JSONDecodeError:
                     parsed = val
-                api["set_config_value"](key, parsed)
+                api.set_config_value(key, parsed)
                 print(f"  {BOLD}{GREEN}Set{RESET} {key} = {json.dumps(parsed)}")
             else:
                 print(f"  {BOLD}CDMCP Configuration{RESET}:")
-                print(api["show_config_str"]())
+                print(api.show_config_str())
 
         elif args.command == "tabs":
-            tabs = api["list_managed"]()
+            tabs = api.list_managed()
             if tabs:
                 for i, t in enumerate(tabs):
                     focused = " [FOCUSED]" if t.get("_cdmcp_focused") else ""
@@ -199,6 +219,32 @@ class CDMCPTool(ToolBase):
                     print(f"      {t.get('url', '?')}")
             else:
                 print(f"  {YELLOW}No managed tabs.{RESET}")
+
+        elif args.command == "session":
+            if args.action == "create":
+                s = api.create_session(args.name, timeout_sec=args.timeout)
+                print(f"  {BOLD}{GREEN}Created{RESET} session '{args.name}' (id: {s.session_id}).")
+            elif args.action == "list":
+                sessions = api.list_sessions()
+                if sessions:
+                    for s in sessions:
+                        exp = " [EXPIRED]" if s.get("expired") else ""
+                        boot = " [BOOTED]" if s.get("booted") else ""
+                        print(f"  {s['name']} ({s['session_id']}) age={s['age_sec']}s{boot}{exp}")
+                else:
+                    print(f"  {YELLOW}No active sessions.{RESET}")
+            elif args.action == "close":
+                if api.close_session(args.name):
+                    print(f"  {BOLD}{GREEN}Closed{RESET} session '{args.name}'.")
+                else:
+                    print(f"  {BOLD}{RED}Not found{RESET}: session '{args.name}'")
+
+        elif args.command == "demo":
+            r = api.run_demo(delay=args.delay, continuous=args.loop)
+            if r.get("ok"):
+                print(f"\n  {BOLD}{GREEN}Demo completed successfully{RESET}.")
+            else:
+                print(f"\n  {BOLD}{RED}Demo had failures{RESET}: {r.get('error', 'check steps')}")
 
         else:
             parser.print_help()

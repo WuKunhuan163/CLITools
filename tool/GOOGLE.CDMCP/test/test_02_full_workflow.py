@@ -20,11 +20,19 @@ setup_paths(__file__)
 from logic.chrome.session import (
     is_chrome_cdp_available, find_tab, open_tab, list_tabs, CDP_PORT,
 )
-from logic.cdp.overlay import (
-    get_session, inject_badge, inject_focus, inject_lock,
-    inject_highlight, remove_all_overlays, is_locked,
-    CDMCP_BADGE_ID, CDMCP_FOCUS_ID, CDMCP_LOCK_ID, CDMCP_HIGHLIGHT_ID,
-)
+from logic.cdmcp_loader import load_cdmcp_overlay
+_ov = load_cdmcp_overlay()
+get_session = _ov.get_session
+inject_badge = _ov.inject_badge
+inject_focus = _ov.inject_focus
+inject_lock = _ov.inject_lock
+inject_highlight = _ov.inject_highlight
+remove_all_overlays = _ov.remove_all_overlays
+is_locked = _ov.is_locked
+CDMCP_BADGE_ID = _ov.CDMCP_BADGE_ID
+CDMCP_FOCUS_ID = _ov.CDMCP_FOCUS_ID
+CDMCP_LOCK_ID = _ov.CDMCP_LOCK_ID
+CDMCP_HIGHLIGHT_ID = _ov.CDMCP_HIGHLIGHT_ID
 
 EXPECTED_TIMEOUT = 300
 EXPECTED_CPU_LIMIT = 40.0

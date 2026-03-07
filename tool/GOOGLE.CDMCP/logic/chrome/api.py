@@ -2,11 +2,13 @@
 
 Orchestrates tab management, overlay injection, element highlighting, and
 privacy-aware navigation for agent-controlled Chrome sessions.
+All overlay code lives inside this tool (not in root logic/).
 """
 
 import json
 import time
 import datetime
+import importlib.util
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -17,19 +19,41 @@ from logic.chrome.session import (
     capture_screenshot, get_dom_text, get_dom_attribute,
     query_selector_all_text, fetch_api,
 )
-from logic.cdp.overlay import (
-    inject_badge, remove_badge,
-    inject_focus, remove_focus,
-    inject_lock, remove_lock, is_locked,
-    inject_highlight, remove_highlight,
-    inject_all_overlays, remove_all_overlays,
-    get_session,
-)
 
 _TOOL_DIR = Path(__file__).resolve().parent.parent.parent
+_OVERLAY_PATH = _TOOL_DIR / "logic" / "cdp" / "overlay.py"
+_SESSION_PATH = _TOOL_DIR / "logic" / "cdp" / "session_manager.py"
+_SERVER_PATH = _TOOL_DIR / "logic" / "cdp" / "server.py"
+_DEMO_PATH = _TOOL_DIR / "logic" / "cdp" / "demo.py"
 _REPORT_DIR = _TOOL_DIR / "data" / "report"
 _CONFIG_DIR = _TOOL_DIR / "data" / "config"
 _CONFIG_FILE = _CONFIG_DIR / "cdmcp_config.json"
+
+
+def _load_mod(name, path):
+    spec = importlib.util.spec_from_file_location(name, str(path))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_overlay = None
+_session_mgr = None
+
+
+def _get_overlay():
+    global _overlay
+    if _overlay is None:
+        _overlay = _load_mod("cdmcp_overlay", _OVERLAY_PATH)
+    return _overlay
+
+
+def _get_session_mgr():
+    global _session_mgr
+    if _session_mgr is None:
+        _session_mgr = _load_mod("cdmcp_session_mgr", _SESSION_PATH)
+    return _session_mgr
+
 
 DEFAULT_CONFIG = {
     "allow_oauth_windows": True,
@@ -44,6 +68,7 @@ DEFAULT_CONFIG = {
     "focus_border_color": "#1a73e8",
     "highlight_color": "#e8710a",
     "auto_unlock_timeout_sec": 0,
+    "session_default_timeout_sec": 86400,
 }
 
 
@@ -76,10 +101,6 @@ _focused_tab_id: Optional[str] = None
 _locked_tab_id: Optional[str] = None
 
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
-
 def _log(action: str, detail: str = ""):
     cfg = _load_config()
     if not cfg.get("log_interactions", True):
@@ -98,24 +119,49 @@ def _log(action: str, detail: str = ""):
 
 
 # ---------------------------------------------------------------------------
+# Session management (delegated)
+# ---------------------------------------------------------------------------
+
+def create_session(name: str, timeout_sec: int = None,
+                   port: int = CDP_PORT) -> Any:
+    cfg = _load_config()
+    if timeout_sec is None:
+        timeout_sec = cfg.get("session_default_timeout_sec", 86400)
+    mgr = _get_session_mgr()
+    return mgr.create_session(name, timeout_sec=timeout_sec, port=port)
+
+
+def get_session_by_name(name: str):
+    return _get_session_mgr().get_session(name)
+
+
+def list_sessions() -> List[Dict[str, Any]]:
+    return _get_session_mgr().list_sessions()
+
+
+def close_session(name: str) -> bool:
+    return _get_session_mgr().close_session(name)
+
+
+# ---------------------------------------------------------------------------
 # Tab lifecycle
 # ---------------------------------------------------------------------------
 
 def navigate(url: str, port: int = CDP_PORT) -> Dict[str, Any]:
-    """Open a URL in a managed CDMCP tab with badge and focus overlays."""
     global _focused_tab_id
     _log("navigate", url)
     cfg = _load_config()
+    ov = _get_overlay()
 
     domain = url.split("//")[-1].split("/")[0] if "//" in url else url
     tab = find_tab(domain, port=port)
     if tab:
-        session = get_session(tab)
+        session = ov.get_session(tab)
         if session:
             try:
                 session.evaluate(f"window.location.href = {json.dumps(url)}")
                 time.sleep(1)
-                inject_all_overlays(
+                ov.inject_all_overlays(
                     session, locked=False, focus=True,
                     badge_text=cfg.get("badge_text", "CDMCP"),
                     badge_color=cfg.get("badge_color", "#1a73e8"),
@@ -133,10 +179,10 @@ def navigate(url: str, port: int = CDP_PORT) -> Dict[str, Any]:
         time.sleep(1)
         tab = find_tab(domain, port=port)
         if tab:
-            session = get_session(tab)
+            session = ov.get_session(tab)
             if session:
                 try:
-                    inject_all_overlays(
+                    ov.inject_all_overlays(
                         session, locked=False, focus=True,
                         badge_text=cfg.get("badge_text", "CDMCP"),
                         badge_color=cfg.get("badge_color", "#1a73e8"),
@@ -152,22 +198,20 @@ def navigate(url: str, port: int = CDP_PORT) -> Dict[str, Any]:
 
 
 def focus_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
-    """Set focus on a tab matching url_pattern with overlay."""
     global _focused_tab_id
     _log("focus_tab", url_pattern)
     cfg = _load_config()
+    ov = _get_overlay()
     tab = find_tab(url_pattern, port=port)
     if not tab:
         return {"ok": False, "error": f"Tab not found: {url_pattern}"}
-
-    session = get_session(tab)
+    session = ov.get_session(tab)
     if not session:
         return {"ok": False, "error": "Cannot connect to tab"}
-
     try:
-        inject_badge(session, text=cfg.get("badge_text", "CDMCP"),
-                     color=cfg.get("badge_color", "#1a73e8"))
-        inject_focus(session, color=cfg.get("focus_border_color", "#1a73e8"))
+        ov.inject_badge(session, text=cfg.get("badge_text", "CDMCP"),
+                        color=cfg.get("badge_color", "#1a73e8"))
+        ov.inject_focus(session, color=cfg.get("focus_border_color", "#1a73e8"))
         tid = tab.get("id", "")
         _managed_tabs[tid] = tab
         _focused_tab_id = tid
@@ -177,43 +221,38 @@ def focus_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
 
 
 def lock_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
-    """Lock a tab with overlay."""
     global _locked_tab_id
     _log("lock_tab", url_pattern)
     cfg = _load_config()
+    ov = _get_overlay()
     tab = find_tab(url_pattern, port=port)
     if not tab:
         return {"ok": False, "error": f"Tab not found: {url_pattern}"}
-
-    session = get_session(tab)
+    session = ov.get_session(tab)
     if not session:
         return {"ok": False, "error": "Cannot connect to tab"}
-
     try:
-        inject_lock(session,
-                    base_opacity=cfg.get("overlay_opacity", 0.08),
-                    flash_opacity=cfg.get("overlay_lock_flash_opacity", 0.25))
-        tid = tab.get("id", "")
-        _locked_tab_id = tid
-        return {"ok": True, "locked": True, "tabId": tid}
+        ov.inject_lock(session,
+                       base_opacity=cfg.get("overlay_opacity", 0.08),
+                       flash_opacity=cfg.get("overlay_lock_flash_opacity", 0.25))
+        _locked_tab_id = tab.get("id", "")
+        return {"ok": True, "locked": True, "tabId": _locked_tab_id}
     finally:
         session.close()
 
 
 def unlock_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
-    """Unlock a tab."""
     global _locked_tab_id
     _log("unlock_tab", url_pattern)
+    ov = _get_overlay()
     tab = find_tab(url_pattern, port=port)
     if not tab:
         return {"ok": False, "error": f"Tab not found: {url_pattern}"}
-
-    session = get_session(tab)
+    session = ov.get_session(tab)
     if not session:
         return {"ok": False, "error": "Cannot connect to tab"}
-
     try:
-        remove_lock(session)
+        ov.remove_lock(session)
         _locked_tab_id = None
         return {"ok": True, "locked": False, "tabId": tab.get("id")}
     finally:
@@ -222,52 +261,49 @@ def unlock_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
 
 def highlight_element(url_pattern: str, selector: str,
                       label: str = "", port: int = CDP_PORT) -> Dict[str, Any]:
-    """Highlight an element by CSS selector on a matching tab."""
     _log("highlight_element", f"{url_pattern} | {selector} | {label}")
     cfg = _load_config()
+    ov = _get_overlay()
     tab = find_tab(url_pattern, port=port)
     if not tab:
         return {"ok": False, "error": f"Tab not found: {url_pattern}"}
-
-    session = get_session(tab)
+    session = ov.get_session(tab)
     if not session:
         return {"ok": False, "error": "Cannot connect to tab"}
-
     try:
-        return inject_highlight(session, selector, label,
-                                color=cfg.get("highlight_color", "#e8710a"))
+        return ov.inject_highlight(session, selector, label,
+                                   color=cfg.get("highlight_color", "#e8710a"))
     finally:
         session.close()
 
 
 def clear_highlight(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
+    ov = _get_overlay()
     tab = find_tab(url_pattern, port=port)
     if not tab:
         return {"ok": False, "error": f"Tab not found: {url_pattern}"}
-    session = get_session(tab)
+    session = ov.get_session(tab)
     if not session:
         return {"ok": False, "error": "Cannot connect to tab"}
     try:
-        remove_highlight(session)
+        ov.remove_highlight(session)
         return {"ok": True}
     finally:
         session.close()
 
 
 def cleanup_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
-    """Remove all CDMCP overlays from a tab."""
     global _focused_tab_id, _locked_tab_id
     _log("cleanup_tab", url_pattern)
+    ov = _get_overlay()
     tab = find_tab(url_pattern, port=port)
     if not tab:
         return {"ok": False, "error": f"Tab not found: {url_pattern}"}
-
-    session = get_session(tab)
+    session = ov.get_session(tab)
     if not session:
         return {"ok": False, "error": "Cannot connect to tab"}
-
     try:
-        result = remove_all_overlays(session)
+        result = ov.remove_all_overlays(session)
         tid = tab.get("id", "")
         _managed_tabs.pop(tid, None)
         if _focused_tab_id == tid:
@@ -279,6 +315,12 @@ def cleanup_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
         session.close()
 
 
+def run_demo(port: int = CDP_PORT, delay: float = 1.5,
+             continuous: bool = False) -> Dict[str, Any]:
+    demo_mod = _load_mod("cdmcp_demo", _DEMO_PATH)
+    return demo_mod.run_demo(port=port, delay=delay, continuous=continuous)
+
+
 # ---------------------------------------------------------------------------
 # Status & listing
 # ---------------------------------------------------------------------------
@@ -286,12 +328,14 @@ def cleanup_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
 def status(port: int = CDP_PORT) -> Dict[str, Any]:
     available = is_chrome_cdp_available(port)
     cfg = _load_config()
+    sessions = list_sessions()
     return {
         "ok": True,
         "chrome_available": available,
         "managed_tabs": len(_managed_tabs),
         "focused_tab": _focused_tab_id,
         "locked_tab": _locked_tab_id,
+        "sessions": len(sessions),
         "config": {
             "allow_oauth": cfg.get("allow_oauth_windows", True),
             "log_interactions": cfg.get("log_interactions", True),
@@ -308,10 +352,6 @@ def list_managed() -> List[Dict[str, Any]]:
         result.append(entry)
     return result
 
-
-# ---------------------------------------------------------------------------
-# Config helpers (exposed for CLI)
-# ---------------------------------------------------------------------------
 
 def get_config() -> Dict[str, Any]:
     return _load_config()
@@ -338,6 +378,7 @@ def show_config_str() -> str:
         "overlay_opacity": "Base opacity for lock overlay (0.0 - 1.0).",
         "overlay_lock_flash_opacity": "Flash opacity on user click during lock.",
         "auto_unlock_timeout_sec": "Auto-unlock after N seconds (0 = never).",
+        "session_default_timeout_sec": "Default session timeout (seconds, default 86400 = 24h).",
     }
     lines = []
     for key, val in sorted(cfg.items()):

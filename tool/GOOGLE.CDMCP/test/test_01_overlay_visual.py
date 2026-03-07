@@ -18,15 +18,25 @@ from logic.resolve import setup_paths
 setup_paths(__file__)
 
 from logic.chrome.session import is_chrome_cdp_available, find_tab, open_tab, close_tab, CDP_PORT
-from logic.cdp.overlay import (
-    get_session, get_session_for_url,
-    inject_badge, remove_badge,
-    inject_focus, remove_focus,
-    inject_lock, remove_lock, is_locked,
-    inject_highlight, remove_highlight,
-    inject_all_overlays, remove_all_overlays,
-    CDMCP_BADGE_ID, CDMCP_FOCUS_ID, CDMCP_LOCK_ID, CDMCP_HIGHLIGHT_ID,
-)
+from logic.cdmcp_loader import load_cdmcp_overlay
+_ov = load_cdmcp_overlay()
+get_session = _ov.get_session
+get_session_for_url = _ov.get_session_for_url
+inject_badge = _ov.inject_badge
+remove_badge = _ov.remove_badge
+inject_focus = _ov.inject_focus
+remove_focus = _ov.remove_focus
+inject_lock = _ov.inject_lock
+remove_lock = _ov.remove_lock
+is_locked = _ov.is_locked
+inject_highlight = _ov.inject_highlight
+remove_highlight = _ov.remove_highlight
+inject_all_overlays = _ov.inject_all_overlays
+remove_all_overlays = _ov.remove_all_overlays
+CDMCP_BADGE_ID = _ov.CDMCP_BADGE_ID
+CDMCP_FOCUS_ID = _ov.CDMCP_FOCUS_ID
+CDMCP_LOCK_ID = _ov.CDMCP_LOCK_ID
+CDMCP_HIGHLIGHT_ID = _ov.CDMCP_HIGHLIGHT_ID
 
 TEST_URL = "https://example.com"
 TEST_DOMAIN = "example.com"
@@ -36,10 +46,20 @@ EXPECTED_CPU_LIMIT = 40.0
 
 
 def _ensure_test_tab():
-    """Open a test tab if not already open."""
+    """Open a test tab and ensure it loads example.com correctly."""
+    from logic.chrome.session import CDPSession as _CDP
     tab = find_tab(TEST_DOMAIN)
     if tab:
-        return tab
+        ws = tab.get("webSocketDebuggerUrl")
+        if ws:
+            s = _CDP(ws)
+            url = s.evaluate("window.location.href") or ""
+            if "example.com" not in str(url):
+                s.evaluate(f"window.location.href = '{TEST_URL}'")
+                time.sleep(2)
+            s.close()
+            tab = find_tab(TEST_DOMAIN)
+            return tab
     open_tab(TEST_URL)
     time.sleep(2)
     return find_tab(TEST_DOMAIN)
