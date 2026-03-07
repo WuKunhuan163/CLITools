@@ -112,6 +112,9 @@ def main():
                 sys.exit(cdp_mod.run_mcp_setup_tutorial())
             else:
                 sys.exit(cdp_mod.run_mcp_status())
+        elif "--remount" in sys.argv:
+            os.environ["GCS_CDP_ENABLED"] = "1"
+            sys.argv = [a for a in sys.argv if a not in ("--mcp", "--json")]
         else:
             # MCP decorator: GCS <command> --mcp
             # With CDP: run the normal GCS flow (executor.py handles CDP auto-injection)

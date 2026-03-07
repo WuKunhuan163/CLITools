@@ -304,17 +304,22 @@ def run_mcp_boot():
     """GCS --mcp boot: Launch debug Chrome and open a Colab tab."""
     print(f"{BOLD}MCP Boot{RESET}: Initializing CDP-based Colab environment...")
 
+    chrome_launched = False
     if _is_cdp_available():
         print(f"  {BOLD}Connected{RESET} to Chrome CDP on port {CDP_PORT}.")
     else:
         print(f"  Launching debug Chrome...")
         if _launch_chrome_debug():
             print(f"  {BOLD}Launched{RESET} Chrome with debug port {CDP_PORT}.")
+            chrome_launched = True
         else:
             hint = _get_chrome_launch_hint()
             print(f"  {BOLD}{RED}Failed to launch{RESET} Chrome.")
             print(f"  Please run manually:\n    {hint}")
             return 1
+
+    time.sleep(2)
+    _restore_cdmcp_session(close_orphans=chrome_launched)
 
     existing = _find_colab_tab()
     if existing:
@@ -326,13 +331,64 @@ def run_mcp_boot():
         else:
             print(f"  {BOLD}{YELLOW}Could not open{RESET} tab automatically. Open {_COLAB_HOME} manually.")
 
-    time.sleep(2)
     tab = _find_colab_tab()
     if tab:
         print(f"\n{BOLD}{GREEN}MCP Boot complete{RESET}. CDP ready for automated execution.")
     else:
         print(f"\n{BOLD}{YELLOW}MCP Boot partial{RESET}. Colab tab not yet detected (page may still be loading).")
     return 0
+
+
+def _load_cdmcp_session_manager():
+    """Load the CDMCP session_manager module."""
+    import importlib.util
+    cdmcp_dir = _get_project_root() / "tool" / "GOOGLE.CDMCP"
+    sm_path = cdmcp_dir / "logic" / "cdp" / "session_manager.py"
+    spec = importlib.util.spec_from_file_location("cdmcp_sm", str(sm_path))
+    sm = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sm)
+    return sm
+
+
+def _restore_cdmcp_session(close_orphans=False):
+    """Restore or boot a CDMCP session using the shared CDMCP interface.
+
+    Delegates all session management to CDMCP's session_manager module:
+    - restore_stale_session_tabs(): Fix stale localhost tabs after Chrome restart
+    - boot_tool_session(): Create a fresh session if no stale tabs found
+    - start_demo_on_tab(): Launch the demo subprocess
+    - close_orphan_newtabs(): Clean up leftover New Tab pages (only when Chrome was just launched)
+    """
+    try:
+        sm = _load_cdmcp_session_manager()
+
+        restore = sm.restore_stale_session_tabs(port=CDP_PORT)
+        fixed = restore.get("fixed", 0)
+        session_id = restore.get("session_id")
+        srv_port = restore.get("server_port", 0)
+
+        if fixed:
+            print(f"  {BOLD}Refreshed{RESET} {fixed} stale session tab(s).")
+            pid = sm.start_demo_on_tab(srv_port, session_id, port=CDP_PORT)
+            if pid:
+                print(f"  {BOLD}Started{RESET} demo subprocess (pid {pid}).")
+        else:
+            result = sm.boot_tool_session("gc_colab", timeout_sec=86400, port=CDP_PORT)
+            if result.get("ok"):
+                action = result.get("action", "unknown")
+                sid = result.get("session_id", "?")[:8]
+                print(f"  {BOLD}Booted{RESET} CDMCP session [{sid}] ({action}).")
+                if close_orphans:
+                    session = result.get("session")
+                    wid = getattr(session, "window_id", None) if session else None
+                    closed = sm.close_orphan_newtabs(wid, port=CDP_PORT)
+                    if closed:
+                        print(f"  {BOLD}Closed{RESET} {closed} orphan tab(s).")
+            else:
+                err = result.get("error", "unknown")
+                print(f"  {BOLD}{YELLOW}CDMCP session boot failed{RESET}: {err}")
+    except Exception:
+        pass
 
 
 def run_mcp_shutdown():

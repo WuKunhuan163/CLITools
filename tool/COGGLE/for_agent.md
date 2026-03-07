@@ -1,32 +1,24 @@
-# COGGLE — Agent Quick Reference
+# COGGLE -- For Agent Reference
 
-## Built-in Commands
+Coggle mind mapping automation via CDMCP.
 
-| Command | Description |
-|---------|-------------|
-| `COGGLE --demo` | Run demo countdown |
-| `COGGLE --setup` | Run tool setup |
-| `COGGLE --test` | Run unit tests |
-| `COGGLE --dev <cmd>` | Developer commands |
-| `COGGLE --rule` | Show AI rules |
-| `COGGLE hooks list` | List available hooks |
-| `COGGLE skills list` | List tool skills |
+## Quick Reference
 
-## MCP Commands Convention
-
-If this tool implements CDMCP browser automation, all MCP commands must use the `--mcp-` prefix.
-For example: `COGGLE --mcp-boot`, `COGGLE --mcp-status`, `COGGLE --mcp-navigate <target>`.
-The base class transparently rewrites `--mcp-<cmd>` to bare subcommands for argparse compatibility.
-
-## Hooks
-
-This tool supports the hooks system. See `COGGLE hooks list` for available events and instances.
-
-## Interface
-
-Other tools can import this tool's interface:
-```python
-from interface import get_interface
-iface = get_interface("COGGLE")
-info = iface.get_info()
+```bash
+COGGLE --mcp-boot          # Boot session
+COGGLE --mcp-status        # Auth & page state
+COGGLE --mcp-state         # Full JSON state
+COGGLE --mcp-diagrams      # List diagrams
+COGGLE --mcp-explore       # DOM exploration
 ```
+
+## Key Behaviors
+
+- Uses CDMCP session management (auto-recovery, visual overlays).
+- Brand color: `#62D0F1` (Coggle cyan).
+- URL pattern: `coggle.it`.
+- Requires active Chrome session with coggle.it logged in.
+
+## Development Status
+
+Early exploration phase. Use `--mcp-explore` to discover interactive elements.

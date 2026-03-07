@@ -1291,6 +1291,161 @@ def _ensure_demo_tab(session: "CDMCPSession", server_url: str, port: int = CDP_P
         pass
 
 
+def restore_stale_session_tabs(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Fix stale localhost session tabs after Chrome restart.
+
+    When Chrome restores tabs from a previous profile, tabs pointing to an
+    old (dead) HTTP server show "This site can't be reached". This function
+    starts the server and navigates those tabs to the new port.
+
+    Also converts chrome://newtab/ pages into demo tabs when a session_id
+    can be extracted from a stale welcome tab.
+
+    Returns: {"fixed": int, "session_id": str|None, "server_port": int}
+    """
+    import re
+    result = {"fixed": 0, "session_id": None, "server_port": 0}
+
+    try:
+        server_path = _TOOL_DIR / "logic" / "cdp" / "server.py"
+        spec = importlib.util.spec_from_file_location("cdmcp_srv_restore", str(server_path))
+        srv_mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(srv_mod)
+
+        server_url, srv_port = srv_mod.start_server()
+        result["server_port"] = srv_port
+
+        all_tabs = list_tabs(port)
+        page_tabs = [t for t in all_tabs if t.get("type") == "page"]
+
+        fixed = 0
+        session_id = None
+        newtab_ws = None
+
+        for tab in page_tabs:
+            tab_url = tab.get("url", "")
+            ws = tab.get("webSocketDebuggerUrl")
+            if not ws:
+                continue
+
+            is_stale = (
+                "127.0.0.1" in tab_url
+                and ("/welcome" in tab_url or "/chat" in tab_url)
+                and f":{srv_port}" not in tab_url
+            )
+
+            if is_stale:
+                new_url = re.sub(r'127\.0\.0\.1:\d+', f'127.0.0.1:{srv_port}', tab_url)
+                try:
+                    s = CDPSession(ws, timeout=10)
+                    s.send_and_recv("Page.navigate", {"url": new_url})
+                    s.close()
+                    fixed += 1
+                except Exception:
+                    pass
+
+                m = re.search(r'session_id=([^&]+)', tab_url)
+                if m:
+                    session_id = m.group(1)
+
+            elif tab_url in ("chrome://newtab/", "chrome://new-tab-page/"):
+                newtab_ws = ws
+
+        if newtab_ws and session_id:
+            chat_url = f"http://127.0.0.1:{srv_port}/chat?session_id={session_id}"
+            try:
+                s = CDPSession(newtab_ws, timeout=10)
+                s.send_and_recv("Page.navigate", {"url": chat_url})
+                s.close()
+                fixed += 1
+            except Exception:
+                pass
+
+        result["fixed"] = fixed
+        result["session_id"] = session_id
+    except Exception:
+        pass
+
+    return result
+
+
+def close_orphan_newtabs(session_window_id: Optional[int] = None,
+                         port: int = CDP_PORT) -> int:
+    """Close chrome://newtab/ tabs not in the given session window.
+
+    Returns the number of tabs closed.
+    """
+    closed = 0
+    if not session_window_id:
+        return closed
+    try:
+        import urllib.request
+        for t in list_tabs(port):
+            url = t.get("url", "")
+            ws = t.get("webSocketDebuggerUrl")
+            if ws and url in ("chrome://newtab/", "chrome://new-tab-page/"):
+                try:
+                    s = CDPSession(ws, timeout=5)
+                    resp = s.send_and_recv("Browser.getWindowForTarget", {})
+                    tab_wid = resp.get("result", {}).get("windowId") if resp else None
+                    s.close()
+                    if tab_wid and tab_wid != session_window_id:
+                        tid = t.get("id", "")
+                        close_url = f"http://localhost:{port}/json/close/{tid}"
+                        urllib.request.urlopen(close_url, timeout=3)
+                        closed += 1
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return closed
+
+
+def start_demo_on_tab(srv_port: int, session_id: Optional[str] = None,
+                      port: int = CDP_PORT) -> Optional[int]:
+    """Start the demo subprocess on the chat tab. Returns the PID or None."""
+    if not session_id:
+        return None
+
+    time.sleep(1.5)
+
+    demo_ws = None
+    for t in list_tabs(port):
+        url = t.get("url", "")
+        ws = t.get("webSocketDebuggerUrl")
+        if ws and f":{srv_port}" in url and "/chat" in url:
+            demo_ws = ws
+            break
+
+    if not demo_ws:
+        return None
+
+    demo_py = str(_TOOL_DIR / "logic" / "cdp" / "demo.py")
+    project_root = str(_PROJECT_ROOT)
+
+    py_path = _find_project_python()
+    inline_code = (
+        f"import sys, os; os.chdir({project_root!r}); "
+        f"sys.path.insert(0, {project_root!r}); "
+        "import importlib.util; "
+        f"spec = importlib.util.spec_from_file_location('demo', {demo_py!r}); "
+        "mod = importlib.util.module_from_spec(spec); "
+        "spec.loader.exec_module(mod); "
+        f"mod.run_demo_on_tab({demo_ws!r}, port={port})"
+    )
+
+    _REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    log_file = _REPORT_DIR / "demo_subprocess.log"
+
+    with open(log_file, "a") as lf:
+        proc = subprocess.Popen(
+            [py_path, "-c", inline_code],
+            stdout=lf, stderr=lf,
+            start_new_session=True,
+        )
+    return proc.pid
+
+
 def boot_tool_session(
     session_name: str,
     timeout_sec: int = 86400,
@@ -1299,17 +1454,15 @@ def boot_tool_session(
 ) -> Dict[str, Any]:
     """Unified session boot for any tool.
 
-    Creates or reuses a CDMCP session with the standard lifecycle:
-      1. Create session
-      2. Boot with welcome page in new window
-      3. Pin the session tab + apply CDMCP overlays
-      4. Open demo tab automatically
-      5. Return the ready session
+    Session reuse strategy (in order of priority):
+      1. Reuse an existing session with the same name if alive.
+      2. Reuse ANY active session (shares the Chrome window).
+      3. Create a new session + Chrome window as last resort.
 
-    Tools should call this instead of implementing their own boot.
-    After calling, use session.require_tab() to open tool-specific tabs.
+    After boot, tools call session.require_tab() to open their specific tabs.
 
-    Returns: {"ok": bool, "session": CDMCPSession | None, ...}
+    Returns: {"ok": bool, "session": CDMCPSession, "action": str, ...}
+      action is one of: "already_booted", "reused_active", "booted".
     """
     def _ensure_http_server():
         """Start or discover the shared persistent HTTP server."""
@@ -1339,6 +1492,35 @@ def boot_tool_session(
 
             _ensure_demo_tab(existing, server_url or f"http://127.0.0.1:{_srv_port}", port)
 
+            try:
+                overlay_path = _TOOL_DIR / "logic" / "cdp" / "overlay.py"
+                spec = importlib.util.spec_from_file_location(
+                    "cdmcp_ov_reboot", str(overlay_path))
+                ov = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(ov)
+                if existing.lifetime_tab_id:
+                    ov.pin_tab_by_target_id(
+                        existing.lifetime_tab_id, pinned=True, port=port)
+                sid_short = existing.session_id[:8]
+                ov.inject_favicon(cdp, svg_color="#1a73e8", letter="C")
+                ov.inject_badge(cdp, text=f"CDMCP [{sid_short}]", color="#1a73e8")
+                ov.inject_focus(cdp, color="#1a73e8")
+            except Exception:
+                pass
+
+            try:
+                auth_path = _TOOL_DIR / "logic" / "cdp" / "google_auth.py"
+                auth_spec = importlib.util.spec_from_file_location(
+                    "cdmcp_gauth_reboot", str(auth_path))
+                auth_mod = importlib.util.module_from_spec(auth_spec)
+                auth_spec.loader.exec_module(auth_mod)
+                auth_mod.start_auth_monitor(
+                    get_session_fn=lambda: get_session(session_name),
+                    interval=1.0
+                )
+            except Exception:
+                pass
+
             return {
                 "ok": True, "action": "already_booted",
                 "session": existing,
@@ -1346,6 +1528,28 @@ def boot_tool_session(
                 "window_id": existing.window_id,
             }
         close_session(session_name)
+
+    active = get_any_active_session()
+    if active:
+        cdp = active.get_cdp()
+        if cdp:
+            _sessions[session_name] = active
+            _save_state()
+            _log_session("reuse", session_name,
+                         f"sharing window from '{active.name}'")
+            try:
+                server_url, _srv_port = _ensure_http_server()
+                if active._http_port != _srv_port:
+                    active._http_port = _srv_port
+                    _save_state()
+            except Exception:
+                pass
+            return {
+                "ok": True, "action": "reused_active",
+                "session": active,
+                "session_id": active.session_id,
+                "window_id": active.window_id,
+            }
 
     session = create_session(
         session_name,

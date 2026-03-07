@@ -41,7 +41,7 @@ Executes a command on the remote Colab instance with real-time output visibility
 - Output is displayed directly in the Colab terminal AND captured to a result file on Drive.
 - The command is injected directly (no special translation like `ls` -> detailed listing). Remote path expansion (`~`, `@`) and venv prefix are still applied.
 - The terminal clears and shows "Finished" when done, matching the normal command experience.
-- Clicking Feedback downloads the captured result locally; clicking Finished retrieves it via Drive API.
+- Clicking Finished retrieves the captured result via Drive API; clicking Feedback opens USERINPUT for the user to provide text feedback directly.
 
 ### `GCS --no-capture <COMMAND>`
 Executes a command on the remote Colab instance without capturing output.
@@ -120,7 +120,7 @@ When running in an MCP-capable environment (e.g., Cursor IDE), GCS commands can 
 Launches debug Chrome and opens a Colab tab (or reuses an existing one).
 
 #### `GCS --mcp-remount`
-Fully automated Google Drive remount via CDP. Injects the remount script into a Colab cell, handles the OAuth consent dialog and popup automatically, waits for completion, and verifies the result via Drive API. Uses a 4-stage Turing machine: inject -> OAuth -> wait -> verify.
+Fully automated Google Drive remount via CDP. Injects the remount script into a Colab cell, handles the OAuth consent dialog and popup automatically, waits for completion, and verifies the result via Drive API. Uses a 4-stage Turing machine: inject -> OAuth -> wait -> verify. A GUI fallback window opens during execution with "Copy Script" and "Feedback" buttons; it auto-closes on success and stays open on failure for manual intervention.
 
 #### `GCS <command> --mcp [--json]`
 Generates an MCP workflow for browser-based execution.
@@ -157,4 +157,4 @@ In CDP/MCP mode (`--mcp`), the tool performs an automatic mount verification via
 - **Keys**: `data/google_cloud_console/console_key.json`
 - **Shell State**: `tool/GOOGLE.GCS/data/shell_state.json`
 - **Reconnection State**: `tool/GOOGLE.GCS/data/run/reconnection_*.json`
-- **Debug Logs**: `tool/GOOGLE.GCS/tmp/gcs_debug.log`
+- **Debug Logs**: `tool/GOOGLE.GCS/data/log/` (Turing Machine and Drive API logs), `tmp/remount_debug.log` (CDP remount debug)

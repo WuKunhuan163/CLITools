@@ -1,9 +1,12 @@
 {
   "name": "COGGLE",
   "version": "1.0.0",
-  "description": "Template tool COGGLE",
-  "purpose": "Showcase tool development guidelines",
+  "description": "Coggle mind mapping via CDMCP",
+  "purpose": "Access Coggle mind maps, diagrams, and collaborative features via the authenticated coggle.it session.",
   "dependencies": [
     "PYTHON"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

@@ -1,62 +1,30 @@
 # COGGLE
 
-COGGLE tool template.
+Coggle mind mapping automation via CDMCP (Chrome DevTools MCP).
 
-## Quick Start
+## Purpose
 
-```bash
-COGGLE --demo         # Run demo
-COGGLE --setup        # Install dependencies
-COGGLE --help         # Show help
-```
+Access Coggle mind maps, diagrams, and collaborative features via the authenticated coggle.it session using Chrome DevTools Protocol.
 
 ## MCP Commands
 
-If this tool implements CDMCP browser automation, all MCP commands use the `--mcp-` prefix:
-
 ```bash
-COGGLE --mcp-boot          # Boot session
-COGGLE --mcp-status        # Check status
-COGGLE --mcp-<command>     # Any MCP operation
+COGGLE --mcp-boot          # Boot CDMCP session with Coggle tab
+COGGLE --mcp-status        # Check auth state and page info
+COGGLE --mcp-state         # Get full MCP state as JSON
+COGGLE --mcp-session       # Show session details
+COGGLE --mcp-diagrams      # List diagrams on current page
+COGGLE --mcp-explore       # Run DOM exploration (Phase 1)
 ```
 
-## Built-in Commands
+## Setup
 
-| Command | Description |
-|---------|-------------|
-| `--setup` | Run tool setup |
-| `--test` | Run unit tests |
-| `--dev <cmd>` | Developer commands |
-| `--rule` | Show AI rules |
+1. Ensure Chrome is running with remote debugging on port 9222.
+2. Log into coggle.it in Chrome.
+3. Run `COGGLE --mcp-boot` to create a CDMCP session.
 
-## Hooks
+## Dependencies
 
-Event-driven callback system.
-
-```bash
-COGGLE hooks list                  # List events and instances
-COGGLE hooks enable demo_logger    # Enable the demo logger hook
-COGGLE hooks disable demo_logger   # Disable it
-```
-
-### Hook Events
-
-| Event | Description |
-|-------|-------------|
-| `on_tool_start` | Fired when the tool begins execution (base) |
-| `on_tool_exit` | Fired when the tool finishes execution (base) |
-| `on_demo_action` | Fired during --demo countdown |
-
-## Interface
-
-```python
-from interface import get_interface
-iface = get_interface("COGGLE")
-info = iface.get_info()  # {"name": "COGGLE", "version": "1.0.0"}
-```
-
-## Testing
-
-```bash
-TOOL --test COGGLE
-```
+- PYTHON (runtime)
+- websocket-client (CDP communication)
+- GOOGLE.CDMCP (session management, overlays, interactions)

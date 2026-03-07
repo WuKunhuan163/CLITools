@@ -188,26 +188,47 @@ class EditableListWindow(BottomBarWindow):
 
     def _show_input_dialog(self, title: str, initial: str, callback: Callable):
         import tkinter as tk
+
+        line_count = max(3, min(15, initial.count("\n") + 1))
+        char_width = 60
+        longest_line = max((len(l) for l in initial.split("\n")), default=0) if initial else 0
+        if longest_line > char_width:
+            line_count = max(line_count, min(15, line_count + longest_line // char_width))
+        dlg_height = 80 + line_count * 22
+
         dlg = tk.Toplevel(self.root)
         dlg.title(title)
-        dlg.geometry("450x120")
+        dlg.geometry(f"550x{dlg_height}")
+        dlg.minsize(400, 160)
         dlg.transient(self.root)
         dlg.grab_set()
 
         frame = tk.Frame(dlg, padx=15, pady=15)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        entry = tk.Entry(frame, font=get_label_style())
-        entry.pack(fill=tk.X, pady=(0, 10))
-        entry.insert(0, initial)
-        entry.select_range(0, "end")
-        entry.focus_set()
+        text_frame = tk.Frame(frame)
+        text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        scrollbar = tk.Scrollbar(text_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        text_widget = tk.Text(
+            text_frame, font=get_label_style(), wrap=tk.WORD,
+            height=line_count, yscrollcommand=scrollbar.set
+        )
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text_widget.yview)
+
+        if initial:
+            text_widget.insert("1.0", initial)
+            text_widget.tag_add("sel", "1.0", "end")
+        text_widget.focus_set()
 
         btn_frame = tk.Frame(frame)
         btn_frame.pack(fill=tk.X)
 
         def on_ok():
-            callback(entry.get())
+            callback(text_widget.get("1.0", tk.END).strip())
             dlg.destroy()
 
         tk.Button(btn_frame, text="OK", command=on_ok,
@@ -215,8 +236,7 @@ class EditableListWindow(BottomBarWindow):
         tk.Button(btn_frame, text="Cancel", command=dlg.destroy,
                   font=get_button_style()).pack(side=tk.RIGHT, padx=(0, 10))
 
-        dlg.bind("<Return>", lambda e: on_ok())
-        dlg.bind("<Escape>", lambda e: dlg.destroy())
+        text_widget.bind("<Escape>", lambda e: dlg.destroy())
 
     # ── External control commands ──────────────────────────
 

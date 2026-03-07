@@ -4,6 +4,7 @@ import os
 import sys
 import json
 import time
+import subprocess
 from pathlib import Path
 from interface.config import get_color
 from interface.turing import ProgressTuringMachine
@@ -70,6 +71,50 @@ def _is_cell_done(session, cell_idx=0, min_exec_count=0):
         return False
 
 
+def _launch_mcp_gui(tool, script, metadata):
+    """Launch the remount GUI in background for MCP mode fallback."""
+    logic_script = Path(__file__).resolve().parent.parent / "remount.py"
+    tmp_script = tool.project_root / "tmp" / f"gcs_remount_{metadata['ts']}.py"
+    tmp_script.parent.mkdir(parents=True, exist_ok=True)
+    with open(tmp_script, "w") as f:
+        f.write(script)
+
+    env = os.environ.copy()
+    env["TK_SILENCE_DEPRECATION"] = "1"
+    env["GDS_GUI_MANAGED"] = "1"
+
+    cmd = [
+        sys.executable, str(logic_script),
+        "--script-path", str(tmp_script),
+        "--ts", metadata["ts"],
+        "--hash", metadata["session_hash"],
+        "--project-root", str(tool.project_root),
+        "--mcp",
+    ]
+
+    proc = subprocess.Popen(
+        cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        start_new_session=True, env=env,
+    )
+    _debug_log(f"_launch_mcp_gui: pid={proc.pid}")
+    return proc, tmp_script
+
+
+def _close_mcp_gui(tool, proc):
+    """Auto-close the MCP GUI via submit flag file."""
+    if not proc or proc.poll() is not None:
+        return
+    stops_dir = tool.project_root / "data" / "run" / "stops"
+    stops_dir.mkdir(parents=True, exist_ok=True)
+    submit_file = stops_dir / f"{proc.pid}.submit"
+    submit_file.touch()
+    _debug_log(f"_close_mcp_gui: created {submit_file}")
+    try:
+        proc.wait(timeout=5)
+    except Exception:
+        pass
+
+
 def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
     """Remount via CDP with 4 Turing Machine stages.
 
@@ -120,6 +165,10 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
             pass
 
     _load_overlay()
+
+    gui_proc, gui_tmp_script = None, None
+    if not no_feedback:
+        gui_proc, gui_tmp_script = _launch_mcp_gui(tool, script, metadata)
 
     # -- Stage 1: inject ------------------------------------------------
     def stage_inject(stage=None):
@@ -345,6 +394,13 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
         )
         _debug_log(f"stage_oauth: result={result}")
 
+        if ov:
+            try:
+                ov.set_lock_passthrough(session, False)
+                _debug_log("stage_oauth: lock passthrough disabled")
+            except Exception:
+                pass
+
         if result == "not_needed":
             if stage:
                 stage.success_status = _t(tool, "remount_oauth_skipped", "Skipped")
@@ -459,6 +515,13 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
     ))
 
     if pm.run(ephemeral=True):
+        if gui_proc:
+            _close_mcp_gui(tool, gui_proc)
+        if gui_tmp_script and gui_tmp_script.exists():
+            try:
+                gui_tmp_script.unlink()
+            except Exception:
+                pass
         print(
             f"{get_color('BOLD')}{get_color('GREEN')}Successfully remounted"
             f"{get_color('RESET')} Google Drive from Google Colab."
@@ -476,6 +539,11 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
         _cleanup_overlays(session_holder[0])
         try:
             session_holder[0].close()
+        except Exception:
+            pass
+    if gui_tmp_script and gui_tmp_script.exists():
+        try:
+            gui_tmp_script.unlink()
         except Exception:
             pass
     return 1

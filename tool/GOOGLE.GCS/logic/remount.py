@@ -176,7 +176,7 @@ def _get_gcs_translation(project_root, key, default, **kwargs):
     except Exception:
         return default.format(**kwargs) if kwargs else default
 
-def show_remount_gui(project_root: Path, script: str, metadata: dict):
+def show_remount_gui(project_root: Path, script: str, metadata: dict, mcp_mode=False):
     log_remount("Entering show_remount_gui")
     from interface.gui import ButtonBarWindow
 
@@ -208,30 +208,37 @@ def show_remount_gui(project_root: Path, script: str, metadata: dict):
             "on_click": on_copy_click,
             "close_on_click": False
         },
-        {
+    ]
+    if not mcp_mode:
+        buttons.append({
             "text": btn_finished_text,
             "return_value": "Finished",
             "cmd": None,
             "close_on_click": True,
             "disable_seconds": 15
-        },
-        {
-            "text": btn_feedback_text,
-            "return_value": "Feedback",
-            "cmd": None,
-            "on_click": on_feedback_click,
-            "close_on_click": True,
-            "disable_seconds": 15
-        }
-    ]
+        })
+    buttons.append({
+        "text": btn_feedback_text,
+        "return_value": "Feedback",
+        "cmd": None,
+        "on_click": on_feedback_click,
+        "close_on_click": True,
+        "disable_seconds": 0 if mcp_mode else 15
+    })
     
     # Auto-copy on startup
     copy_to_clipboard()
     
-    instruction = _("gui_instruction_remount",
-        "Please copy the script and run it in a **Python code cell** on Google Colab. Click 'Finished' once execution completes.")
+    if mcp_mode:
+        instruction = _("gui_instruction_remount_mcp",
+            "MCP is automatically executing the remount script. Use **Copy Script** for manual execution, or **Feedback** to report issues.")
+    else:
+        instruction = _("gui_instruction_remount",
+            "Please copy the script and run it in a **Python code cell** on Google Colab. Click 'Finished' once execution completes.")
     
     gui_title = _("gui_title_remount", "GCS Remount")
+    if mcp_mode:
+        gui_title += " [MCP]"
 
     win = ButtonBarWindow(
         title=gui_title, 
@@ -256,6 +263,7 @@ if __name__ == "__main__":
     parser.add_argument("--ts", required=True)
     parser.add_argument("--hash", required=True)
     parser.add_argument("--project-root", required=True)
+    parser.add_argument("--mcp", action="store_true")
     args = parser.parse_args()
     
     proj_root = Path(args.project_root)
@@ -276,7 +284,7 @@ if __name__ == "__main__":
         script_content = f.read()
         
     metadata = {"ts": args.ts, "session_hash": args.hash}
-    res = show_remount_gui(proj_root, script_content, metadata)
+    res = show_remount_gui(proj_root, script_content, metadata, mcp_mode=args.mcp)
 
 def verify_local_remount_result(project_root: Path, ts: str, session_hash: str, stage=None):
     """
