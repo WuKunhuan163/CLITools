@@ -181,7 +181,7 @@ _LOCK_JS_TEMPLATE = r"""
         'cursor: pointer',
         'letter-spacing: 0.3px',
     ].join('; ');
-    label.textContent = 'Locked by CDMCP  |  Click to unlock';
+    label.textContent = 'Locked by CDMCP, Click to unlock';
     label.title = 'Click to unlock this tab';
 
     shade.addEventListener('mousedown', function(e) {
@@ -230,6 +230,26 @@ def remove_lock(session: CDPSession) -> bool:
 
 def is_locked(session: CDPSession) -> bool:
     return session.evaluate("!!window.__cdmcp_locked__") is True
+
+
+def set_lock_passthrough(session: CDPSession, passthrough: bool = True) -> bool:
+    """Toggle pointer-events on the lock shade for agent interactions.
+
+    When passthrough=True, the shade remains visible but CDP clicks pass through
+    to underlying elements. The unlock label stays clickable.
+    """
+    pe_value = "none" if passthrough else "auto"
+    js = f"""
+    (function() {{
+        var shade = document.getElementById('{CDMCP_LOCK_ID}');
+        if (!shade) return 'not_found';
+        shade.style.pointerEvents = '{pe_value}';
+        var label = shade.querySelector('div');
+        if (label) label.style.pointerEvents = 'auto';
+        return 'ok';
+    }})()
+    """
+    return session.evaluate(js) == "ok"
 
 
 # ---------------------------------------------------------------------------

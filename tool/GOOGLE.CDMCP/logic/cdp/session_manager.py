@@ -61,26 +61,39 @@ class CDMCPSession:
         self._cdp: Optional[CDPSession] = None
         self._booted = False
 
-    def boot(self, url: str) -> Dict[str, Any]:
-        """Boot the session by opening a new tab as the lifetime anchor."""
+    def boot(self, url: str, new_window: bool = True) -> Dict[str, Any]:
+        """Boot the session by opening a new tab as the lifetime anchor.
+
+        Args:
+            url: The URL to open in the lifetime tab.
+            new_window: If True, open in a brand new Chrome window (not alongside
+                        existing tabs). Uses Target.createTarget with newWindow=true.
+        """
         self.lifetime_tab_url = url
-        _log_session("boot", self.name, f"url={url}")
+        _log_session("boot", self.name, f"url={url} new_window={new_window}")
 
         if not is_chrome_cdp_available(self.port):
             return {"ok": False, "error": "Chrome CDP not available"}
 
-        # Open a new tab
-        if not open_tab(url, self.port):
+        if new_window:
+            tab_id = self._open_in_new_window(url)
+        else:
+            tab_id = self._open_in_existing_window(url)
+
+        if not tab_id:
             return {"ok": False, "error": "Failed to open tab"}
 
         time.sleep(1.5)
 
-        # Find the newly opened tab
-        domain = url.split("//")[-1].split("/")[0] if "//" in url else url
-        tab = find_tab(domain, port=self.port)
+        # Find the tab by ID first, then by domain
+        tab = None
+        for t in list_tabs(self.port):
+            if t.get("id") == tab_id:
+                tab = t
+                break
+
         if not tab:
-            # Retry with broader search
-            time.sleep(1)
+            domain = url.split("//")[-1].split("/")[0] if "//" in url else url
             tab = find_tab(domain, port=self.port)
 
         if not tab:
@@ -99,6 +112,39 @@ class CDMCPSession:
             "tabId": self.lifetime_tab_id,
             "url": url,
         }
+
+    def _open_in_new_window(self, url: str) -> Optional[str]:
+        """Open a URL in a completely new Chrome window via browser-level CDP."""
+        import urllib.request
+        try:
+            ver_url = f"http://localhost:{self.port}/json/version"
+            with urllib.request.urlopen(ver_url, timeout=5) as resp:
+                data = json.loads(resp.read().decode())
+            browser_ws = data.get("webSocketDebuggerUrl")
+            if not browser_ws:
+                return None
+            bs = CDPSession(browser_ws, timeout=10)
+            result = bs.send_and_recv("Target.createTarget", {
+                "url": url,
+                "newWindow": True,
+            })
+            bs.close()
+            if not result:
+                return None
+            # CDP response: {"id": N, "result": {"targetId": "..."}}
+            inner = result.get("result", result)
+            return inner.get("targetId")
+        except Exception:
+            return None
+
+    def _open_in_existing_window(self, url: str) -> Optional[str]:
+        """Open a URL as a new tab in an existing window."""
+        if open_tab(url, self.port):
+            time.sleep(1)
+            domain = url.split("//")[-1].split("/")[0] if "//" in url else url
+            tab = find_tab(domain, port=self.port)
+            return tab.get("id") if tab else None
+        return None
 
     def _connect(self, tab: Dict[str, Any]) -> bool:
         """Establish a CDP WebSocket connection to the lifetime tab."""

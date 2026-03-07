@@ -59,6 +59,23 @@ def _step_log(step: int, total: int, msg: str):
     print(f"  [{step}/{total}] {msg}")
 
 
+def _countdown_badge(overlay, cdp, seconds: int, prefix: str = "Next in"):
+    """Show a countdown on the badge, updating every second."""
+    for remaining in range(seconds, 0, -1):
+        overlay.inject_badge(cdp, text=f"{prefix} {remaining}s", color="#ea8600")
+        time.sleep(1)
+    overlay.inject_badge(cdp, text="CDMCP Demo", color="#1a73e8")
+
+
+def _ensure_locked(overlay, cdp, relock_wait: float = 10.0):
+    """If the lock was removed (user clicked unlock), wait then re-lock."""
+    locked = overlay.is_locked(cdp)
+    if not locked:
+        print(f"  >> User unlocked. Re-locking in {relock_wait:.0f}s...")
+        time.sleep(relock_wait)
+        overlay.inject_lock(cdp, base_opacity=0.08, flash_opacity=0.25)
+
+
 def _do_send_message(overlay, cdp, contact: str, message: str,
                      delay: float = 1.0) -> bool:
     """Execute one full send-message interaction on the chat app."""
@@ -159,6 +176,7 @@ def run_demo(port: int = CDP_PORT, delay: float = 1.5,
 
     if continuous:
         _step_log(4, 8, "Starting continuous demo loop (Ctrl+C to stop)...")
+        overlay.inject_lock(cdp, base_opacity=0.08, flash_opacity=0.25)
         msg_idx = 0
         contact_idx = 0
         try:
@@ -179,14 +197,24 @@ def run_demo(port: int = CDP_PORT, delay: float = 1.5,
                         break
                     overlay.inject_badge(cdp, text="CDMCP Demo", color="#1a73e8")
                     overlay.inject_focus(cdp, color="#1a73e8")
+                    overlay.inject_lock(cdp, base_opacity=0.08, flash_opacity=0.25)
 
+                # If user unlocked, wait 10s then re-lock
+                _ensure_locked(overlay, cdp, relock_wait=10.0)
+
+                # Keep lock visible but allow clicks through during interaction
+                overlay.set_lock_passthrough(cdp, True)
                 sent = _do_send_message(overlay, cdp, contact, message, delay=delay)
+                overlay.set_lock_passthrough(cdp, False)
                 status_text = "Delivered" if sent else "Not verified"
                 print(f"  >> {status_text}.")
 
                 msg_idx += 1
                 contact_idx += 1
-                time.sleep(delay * 2)
+
+                # Countdown badge between interactions
+                wait_sec = max(3, int(delay * 4))
+                _countdown_badge(overlay, cdp, wait_sec, prefix="Next in")
         except KeyboardInterrupt:
             print("\n  >> Continuous demo stopped by user.")
         results["steps"].append({"step": 4, "action": "continuous_loop", "ok": True,
@@ -214,7 +242,7 @@ def run_demo(port: int = CDP_PORT, delay: float = 1.5,
         time.sleep(delay)
 
         _step_log(6, 8, "Typing message...")
-        overlay.remove_lock(cdp)
+        overlay.set_lock_passthrough(cdp, True)
         overlay.inject_highlight(cdp, '#messageInput', label="Message input")
         time.sleep(delay * 0.5)
         cdp.evaluate("document.getElementById('messageInput').focus()")
@@ -247,11 +275,12 @@ def run_demo(port: int = CDP_PORT, delay: float = 1.5,
         sent_ok = "CDMCP" in str(last_msg or "")
         results["steps"].append({"step": 8, "action": "verify", "ok": sent_ok})
 
-    # Final badge
+    # For continuous mode, final badge shows after KeyboardInterrupt
+    # For single mode, clean up and restore badge
     cdp = session.get_cdp()
     if cdp:
         overlay.remove_all_overlays(cdp)
-        overlay.inject_badge(cdp, text="CDMCP Demo [Done]", color="#34a853")
+        overlay.inject_badge(cdp, text="CDMCP Demo", color="#34a853")
         overlay.inject_favicon(cdp, svg_color="#34a853", letter="C")
 
     results["ok"] = all(s.get("ok", False) for s in results["steps"])
