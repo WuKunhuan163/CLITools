@@ -562,7 +562,7 @@ class OpenClawCLI:
         if target_id:
             s = self.session_mgr.get_session(target_id)
             if not s:
-                print(f"  {BOLD}{_('session_not_found', 'Session not found: {sid}', sid=target_id)}{RESET}")
+                print(f"  {BOLD}{_('session_not_found_label', 'Session not found.')}{RESET} {DIM}{target_id}{RESET}")
                 return
             if self.session:
                 print(f"  {DIM}{_('leaving_session', 'Leaving session {sid}.', sid=self.session.id)}{RESET}")
@@ -570,7 +570,7 @@ class OpenClawCLI:
             self._context = None
             self._iteration = 0
             self._session_line = None
-            print(f"  {BOLD}{_('switched_to', 'Switched to {sid}: {title}.', sid=s.id, title=s.get_display_title())}{RESET}")
+            print(f"  {BOLD}{_('switched_to_session_label', 'Switched.')}{RESET} {DIM}{s.id[:8]}: {s.get_display_title()}{RESET}")
         else:
             if self.session:
                 print(f"  {DIM}{_('leaving_session', 'Leaving session {sid}.', sid=self.session.id)}{RESET}")
@@ -579,7 +579,7 @@ class OpenClawCLI:
             self._iteration = 0
             self._session_line = None
             self.session = self.session_mgr.create_session()
-            print(f"  {BOLD}{_('new_session', 'New session {sid}.', sid=self.session.id)}{RESET}")
+            print(f"  {BOLD}{_('new_session_label', 'New session.')}{RESET} {DIM}{self.session.id[:8]}{RESET}")
 
     def _delete_current_session(self):
         """Delete current session and switch to the most recent one."""
@@ -593,7 +593,7 @@ class OpenClawCLI:
         from logic.turing.select import select_horizontal
         s = self.session_mgr.get_session(target_id)
         if not s:
-            print(f"  {BOLD}{_('session_not_found', 'Session not found: {sid}', sid=target_id)}{RESET}")
+            print(f"  {BOLD}{_('session_not_found_label', 'Session not found.')}{RESET} {DIM}{target_id}{RESET}")
             return
         msgs = len(s.messages)
         title = s.get_display_title()
@@ -614,7 +614,7 @@ class OpenClawCLI:
                 remaining = self.session_mgr.list_sessions()
                 if remaining:
                     self.session = remaining[0]
-                    print(f"  {BOLD}{_('deleted_switched', 'Deleted. Switched to {sid}.', sid=self.session.id)}{RESET}")
+                    print(f"  {BOLD}{_('deleted', 'Deleted.')}{RESET} {_('switched_to_session_label', 'Switched.')} {DIM}{self.session.id[:8]}{RESET}")
                 else:
                     print(f"  {BOLD}{_('deleted', 'Deleted.')}{RESET}")
             else:
@@ -631,10 +631,10 @@ class OpenClawCLI:
         sid, new_title = parts[0], parts[1]
         s = self.session_mgr.get_session(sid)
         if not s:
-            print(f"  {BOLD}{_('session_not_found', 'Session not found: {sid}', sid=sid)}{RESET}")
+            print(f"  {BOLD}{_('session_not_found_label', 'Session not found.')}{RESET} {DIM}{sid}{RESET}")
             return
         self.session_mgr.update_title(sid, new_title)
-        print(f"  {BOLD}{_('renamed', 'Renamed {sid}: {title}.', sid=sid, title=new_title)}{RESET}")
+        print(f"  {BOLD}{_('renamed_label', 'Renamed.')}{RESET} {DIM}{sid[:8]}: {new_title}{RESET}")
 
     def _show_models(self):
         """Show all models with config status, allow switching."""
@@ -682,18 +682,18 @@ class OpenClawCLI:
 
         if direct_cmd:
             if direct_policy not in ("allow", "deny", "remove"):
-                print(f"  {RED}{BOLD}{_('sandbox_invalid_policy', 'Invalid policy. Use: allow, deny, remove.')}{RESET}")
+                print(f"  {RED}{BOLD}{_('sandbox_invalid_policy_label', 'Invalid policy.')}{RESET} {_('sandbox_invalid_policy_hint', 'Use: allow, deny, remove.')}")
                 return
             if direct_policy == "remove":
                 from tool.OPENCLAW.logic.sandbox import remove_command_policy
                 removed = remove_command_policy(direct_cmd)
                 if removed:
-                    print(f"  {BOLD}{_('sandbox_removed', 'Removed policy for {cmd}.', cmd=direct_cmd)}{RESET}")
+                    print(f"  {BOLD}{_('sandbox_removed_label', 'Removed.')}{RESET} {DIM}{direct_cmd}{RESET}")
                 else:
                     print(f"  {DIM}{_('sandbox_no_policy', 'No policy set for {cmd}.', cmd=direct_cmd)}{RESET}")
             else:
                 set_command_policy(direct_cmd, direct_policy)
-                print(f"  {BOLD}{_('sandbox_set', 'Set {cmd} = {policy}.', cmd=direct_cmd, policy=direct_policy)}{RESET}")
+                print(f"  {BOLD}{_('sandbox_set_label', 'Set.')}{RESET} {DIM}{direct_cmd} = {direct_policy}{RESET}")
             return
 
         policies = list_policies()
@@ -1465,13 +1465,13 @@ class OpenClawCLI:
                         hint = format_suggestion(text.split()[0], _CMD_NAMES,
                                                  prefix="")
                         if hint:
-                            print(f"  {RED}{BOLD}{_('did_you_mean', 'Unknown command. Did you mean: {hint}', hint=hint)}{RESET}")
+                            print(f"  {RED}{BOLD}{_('unknown_command', 'Unknown command.')}{RESET} {_('did_you_mean_hint', 'Did you mean: {hint}', hint=hint)}")
                         else:
-                            print(f"  {RED}{BOLD}{_('unknown_command', 'Unknown command.')}{RESET} Type /help.")
+                            print(f"  {RED}{BOLD}{_('unknown_command', 'Unknown command.')}{RESET} {_('type_help_hint', 'Type /help.')}")
                 else:
                     if not self._provider or not self._provider.is_available():
                         self._mark_failed(display_text)
-                        print(f"  {BOLD}{_('provider_not_configured', 'Provider not configured. Run /setup to configure.')}{RESET}")
+                        print(f"  {BOLD}{_('provider_not_configured_label', 'Provider not configured.')}{RESET} {_('provider_not_configured_hint', 'Run /setup to configure.')}")
                         continue
                     self._mark_running(display_text)
                     self._write_state("running", text)
