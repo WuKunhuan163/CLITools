@@ -1,9 +1,12 @@
 {
   "name": "WHIMSICAL",
   "version": "1.0.0",
-  "description": "Template tool WHIMSICAL",
-  "purpose": "Showcase tool development guidelines",
+  "description": "Whimsical whiteboard & flowchart via CDMCP",
+  "purpose": "Access Whimsical boards, flowcharts, mind maps, and docs via the authenticated whimsical.com session.",
   "dependencies": [
     "PYTHON"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

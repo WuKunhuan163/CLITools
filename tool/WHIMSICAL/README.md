@@ -1,62 +1,30 @@
 # WHIMSICAL
 
-WHIMSICAL tool template.
+Whimsical whiteboard & flowchart automation via CDMCP (Chrome DevTools MCP).
 
-## Quick Start
+## Purpose
 
-```bash
-WHIMSICAL --demo         # Run demo
-WHIMSICAL --setup        # Install dependencies
-WHIMSICAL --help         # Show help
-```
+Access Whimsical boards, flowcharts, mind maps, and docs via the authenticated whimsical.com session using Chrome DevTools Protocol.
 
 ## MCP Commands
 
-If this tool implements CDMCP browser automation, all MCP commands use the `--mcp-` prefix:
-
 ```bash
-WHIMSICAL --mcp-boot          # Boot session
-WHIMSICAL --mcp-status        # Check status
-WHIMSICAL --mcp-<command>     # Any MCP operation
+WHIMSICAL --mcp-boot          # Boot CDMCP session with Whimsical tab
+WHIMSICAL --mcp-status        # Check auth state and page info
+WHIMSICAL --mcp-state         # Get full MCP state as JSON
+WHIMSICAL --mcp-session       # Show session details
+WHIMSICAL --mcp-boards        # List boards on current page
+WHIMSICAL --mcp-explore       # Run DOM exploration (Phase 1)
 ```
 
-## Built-in Commands
+## Setup
 
-| Command | Description |
-|---------|-------------|
-| `--setup` | Run tool setup |
-| `--test` | Run unit tests |
-| `--dev <cmd>` | Developer commands |
-| `--rule` | Show AI rules |
+1. Ensure Chrome is running with remote debugging on port 9222.
+2. Log into whimsical.com in Chrome.
+3. Run `WHIMSICAL --mcp-boot` to create a CDMCP session.
 
-## Hooks
+## Dependencies
 
-Event-driven callback system.
-
-```bash
-WHIMSICAL hooks list                  # List events and instances
-WHIMSICAL hooks enable demo_logger    # Enable the demo logger hook
-WHIMSICAL hooks disable demo_logger   # Disable it
-```
-
-### Hook Events
-
-| Event | Description |
-|-------|-------------|
-| `on_tool_start` | Fired when the tool begins execution (base) |
-| `on_tool_exit` | Fired when the tool finishes execution (base) |
-| `on_demo_action` | Fired during --demo countdown |
-
-## Interface
-
-```python
-from interface import get_interface
-iface = get_interface("WHIMSICAL")
-info = iface.get_info()  # {"name": "WHIMSICAL", "version": "1.0.0"}
-```
-
-## Testing
-
-```bash
-TOOL --test WHIMSICAL
-```
+- PYTHON (runtime)
+- websocket-client (CDP communication)
+- GOOGLE.CDMCP (session management, overlays, interactions)

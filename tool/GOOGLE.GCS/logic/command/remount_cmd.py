@@ -150,46 +150,61 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
         """)
         time.sleep(0.5)
 
-        first_code = session.evaluate(
+        cell_count = session.evaluate(
             "(function(){"
             " var c = colab.global.notebook.cells;"
-            " if(!Array.isArray(c)) return -1;"
-            " for(var i=0; i<c.length; i++)"
-            "   if(typeof c[i].isPending==='function') return i;"
-            " return -1;"
+            " return Array.isArray(c) ? c.length : 0;"
             "})()"
         )
-        first_code_idx = int(first_code or -1)
-        _debug_log(f"stage_inject: first code cell index = {first_code_idx}")
+        cell_count = int(cell_count or 0)
+        _debug_log(f"stage_inject: existing cells = {cell_count}")
 
-        if first_code_idx < 0:
-            _debug_log("stage_inject: no code cell found, clicking + Code button")
-            session.evaluate("""
+        if cell_count > 0:
+            removed = session.evaluate("""
                 (function(){
-                    var btn = document.querySelector('#toolbar-add-code');
-                    if(btn){ btn.click(); return 'clicked'; }
-                    var adds = document.querySelectorAll('.add-cell .add-code');
-                    if(adds.length){ adds[0].click(); return 'clicked_alt'; }
-                    return 'not_found';
+                    var nb = colab.global.notebook;
+                    var cells = nb.cells;
+                    if (!Array.isArray(cells) || cells.length === 0) return 0;
+                    var toRemove = cells.slice();
+                    try { nb.removeCells(toRemove); } catch(e) { return -1; }
+                    return toRemove.length;
                 })()
             """)
-            time.sleep(1.5)
-            first_code = session.evaluate(
-                "(function(){"
-                " var c = colab.global.notebook.cells;"
-                " if(!Array.isArray(c)) return -1;"
-                " for(var i=0; i<c.length; i++)"
-                "   if(typeof c[i].isPending==='function') return i;"
-                " return -1;"
-                "})()"
-            )
-            first_code_idx = int(first_code or -1)
-            if first_code_idx < 0:
-                if stage:
-                    stage.error_brief = "No code cell available"
-                return False
+            _debug_log(f"stage_inject: removed {removed} cells")
+            time.sleep(1)
 
-        injected_cell_idx[0] = first_code_idx
+        remaining = session.evaluate(
+            "(function(){"
+            " var c = colab.global.notebook.cells;"
+            " return Array.isArray(c) ? c.length : 0;"
+            "})()"
+        )
+        _debug_log(f"stage_inject: cells after clear = {remaining}")
+
+        session.evaluate("""
+            (function(){
+                var btn = document.querySelector('#toolbar-add-code');
+                if(btn){ btn.click(); return 'clicked'; }
+                var adds = document.querySelectorAll('.add-cell .add-code');
+                if(adds.length){ adds[0].click(); return 'clicked_alt'; }
+                return 'not_found';
+            })()
+        """)
+        time.sleep(1.5)
+
+        new_count = session.evaluate(
+            "(function(){"
+            " var c = colab.global.notebook.cells;"
+            " return Array.isArray(c) ? c.length : 0;"
+            "})()"
+        )
+        _debug_log(f"stage_inject: cells after add = {new_count}")
+        if int(new_count or 0) < 1:
+            if stage:
+                stage.error_brief = "Failed to add code cell"
+            return False
+
+        injected_cell_idx[0] = 0
 
         ci = injected_cell_idx[0]
         code_json = json.dumps(script)
