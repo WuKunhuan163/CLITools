@@ -88,5 +88,21 @@
   "dashboard_already_running": "仪表盘已在运行: {url}",
   "log_title": "会话 {sid} 的日志",
   "log_no_logs": "暂无日志。",
-  "log_not_found": "日志未找到: {name}"
+  "log_not_found": "日志未找到: {name}",
+  "log_opening": "正在打开 {path}...",
+  "cmd_help_desc": "查看此帮助。",
+  "cmd_setup_desc": "配置 LLM 提供商和 API Key。",
+  "cmd_models_desc": "查看和切换模型。",
+  "cmd_dashboard_desc": "打开 LLM 使用仪表盘。",
+  "cmd_sessions_desc": "列出所有会话。",
+  "cmd_checkout_desc": "创建或切换至会话。",
+  "cmd_rename_desc": "重命名会话。",
+  "cmd_cleanup_desc": "清除当前会话历史。",
+  "cmd_delete_desc": "删除会话 (缺省删除当前会话)。",
+  "cmd_sandbox_desc": "管理沙盒命令策略。",
+  "cmd_status_desc": "查看提供商和会话状态。",
+  "cmd_context_desc": "查看当前上下文用量。",
+  "cmd_log_desc": "查看会话日志 (列表或打开指定步骤)。",
+  "cmd_gui_desc": "打开 HTML GUI (网页界面)。",
+  "cmd_quit_desc": "退出 CLI。"
 }

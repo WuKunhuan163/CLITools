@@ -168,21 +168,21 @@ class _Spinner:
 
 
 _CMD_REGISTRY = [
-    ("/help",       "",                  "Show this help."),
-    ("/setup",      "",                  "Configure LLM provider and API key."),
-    ("/models",     "",                  "View and switch models."),
-    ("/dashboard",  "",                  "Open LLM usage dashboard."),
-    ("/sessions",   "",                  "List all sessions."),
-    ("/checkout",   "[<id>]",            "Create or switch to a session."),
-    ("/rename",     "<id> <title>",      "Rename a session."),
-    ("/cleanup",    "",                  "Clear current session history."),
-    ("/delete",     "[<id>]",            "Delete a session (current if no id)."),
-    ("/sandbox",    "[<cmd> <policy>]",  "Manage sandbox command policies."),
-    ("/status",     "",                  "Show provider and session status."),
-    ("/context",    "",                  "Show current context token usage."),
-    ("/log",        "[<step>]",          "View session logs (list or open step)."),
-    ("/gui",        "",                  "Open HTML GUI (web interface)."),
-    ("/quit",       "",                  "Exit the CLI."),
+    ("/help",       "",                  "cmd_help_desc",       "Show this help."),
+    ("/setup",      "",                  "cmd_setup_desc",      "Configure LLM provider and API key."),
+    ("/models",     "",                  "cmd_models_desc",     "View and switch models."),
+    ("/dashboard",  "",                  "cmd_dashboard_desc",  "Open LLM usage dashboard."),
+    ("/sessions",   "",                  "cmd_sessions_desc",   "List all sessions."),
+    ("/checkout",   "[<id>]",            "cmd_checkout_desc",   "Create or switch to a session."),
+    ("/rename",     "<id> <title>",      "cmd_rename_desc",     "Rename a session."),
+    ("/cleanup",    "",                  "cmd_cleanup_desc",    "Clear current session history."),
+    ("/delete",     "[<id>]",            "cmd_delete_desc",     "Delete a session (current if no id)."),
+    ("/sandbox",    "[<cmd> <policy>]",  "cmd_sandbox_desc",    "Manage sandbox command policies."),
+    ("/status",     "",                  "cmd_status_desc",     "Show provider and session status."),
+    ("/context",    "",                  "cmd_context_desc",    "Show current context token usage."),
+    ("/log",        "[<step>]",          "cmd_log_desc",        "View session logs (list or open step)."),
+    ("/gui",        "",                  "cmd_gui_desc",        "Open HTML GUI (web interface)."),
+    ("/quit",       "",                  "cmd_quit_desc",       "Exit the CLI."),
 ]
 
 _CMD_NAMES = [c[0] for c in _CMD_REGISTRY]
@@ -309,13 +309,14 @@ class OpenClawCLI:
     def _print_help(self):
         max_sig = 0
         entries = []
-        for name, args, desc in _CMD_REGISTRY:
+        for name, args, tkey, default_desc in _CMD_REGISTRY:
             sig = f"{name} {args}".rstrip() if args else name
             max_sig = max(max_sig, len(sig))
+            desc = _(tkey, default_desc)
             entries.append((sig, desc))
         pad = max_sig + 3
         for sig, desc in entries:
-            print(f"  {CYAN}{sig}{RESET}{' ' * (pad - len(sig))}{desc}")
+            print(f"  {DIM}{sig}{' ' * (pad - len(sig))}{desc}{RESET}")
         print(f"  {DIM}{_('anything_else_hint', 'Anything else is sent as a task to the agent.')}{RESET}")
 
     def _setup_llm(self):
@@ -840,11 +841,13 @@ class OpenClawCLI:
             print(f"    {role_color}{role:>10}{RESET}  {length:>6} chars  {DIM}{preview}...{RESET}")
 
     def _show_log(self, step_arg: str = ""):
-        """List or display session operation logs.
+        """List or open session operation logs.
 
         No arg → list all logs for the current session.
-        Integer arg → display the contents of that step's log.
+        Integer arg → open that step's log file with the system viewer.
         """
+        import subprocess
+
         if not self.session:
             print(f"  {DIM}{_('no_active_session', 'No active session.')}{RESET}")
             return
@@ -861,7 +864,7 @@ class OpenClawCLI:
             for lf in logs:
                 size = lf.stat().st_size
                 ts = time.strftime("%H:%M:%S", time.localtime(lf.stat().st_mtime))
-                print(f"    {CYAN}{lf.stem}{RESET}  {DIM}{size} bytes  {ts}{RESET}")
+                print(f"    {DIM}{lf.stem}  {size} bytes  {ts}{RESET}")
             if not logs:
                 print(f"    {DIM}{_('log_no_logs', 'No logs yet.')}{RESET}")
             return
@@ -872,11 +875,15 @@ class OpenClawCLI:
             print(f"  {RED}{_('log_not_found', 'Log not found: {name}', name=target_name)}{RESET}")
             return
 
-        content = target.read_text(encoding="utf-8", errors="replace")
-        print(f"  {BOLD}{CYAN}{target.stem}{RESET} {DIM}({target.stat().st_size} bytes){RESET}")
-        print()
-        for line in content.split("\n"):
-            print(f"  {line}")
+        print(f"  {DIM}{_('log_opening', 'Opening {path}...', path=str(target))}{RESET}")
+        try:
+            subprocess.Popen(["open", str(target)],
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+        except FileNotFoundError:
+            subprocess.Popen(["xdg-open", str(target)],
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
 
     def _ensure_session(self):
         if not self.session:
