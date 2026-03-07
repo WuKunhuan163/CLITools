@@ -1,0 +1,7 @@
+{
+  "name": "TODO",
+  "version": "1.0.0",
+  "description": "Template tool TODO",
+  "purpose": "Showcase tool development guidelines",
+  "dependencies": ["PYTHON"]
+}
