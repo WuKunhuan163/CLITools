@@ -823,3 +823,191 @@ def pin_tab_by_target_id(cdp_target_id: str, pinned: bool = True,
             ws.close()
         except Exception:
             pass
+
+
+# --- Tab creation/move via chrome.tabs API ---
+
+def create_tab_in_window(url: str, window_id: int,
+                          port: int = CDP_PORT) -> Optional[Dict[str, Any]]:
+    """Create a new tab in a specific window using chrome.tabs.create API.
+
+    More reliable than Target.createTarget with windowId parameter.
+
+    Returns: {"chrome_tab_id": int, "cdp_target_id": str} or None.
+    """
+    global _CACHED_EXT_TARGET
+    import websocket as _ws
+
+    if _CACHED_EXT_TARGET is None:
+        _CACHED_EXT_TARGET = _find_extension_with_tabs(port)
+    ext = _CACHED_EXT_TARGET
+    if not ext:
+        return None
+
+    browser_ws = _get_browser_ws(port)
+    if not browser_ws:
+        return None
+
+    ws = _ws.create_connection(browser_ws, timeout=10)
+    msg_id = [1]
+
+    def send(method, params=None, sid=None):
+        msg = {"id": msg_id[0], "method": method}
+        if params:
+            msg["params"] = params
+        if sid:
+            msg["sessionId"] = sid
+        ws.send(json.dumps(msg))
+        msg_id[0] += 1
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            resp = json.loads(ws.recv())
+            if resp.get("id") == msg_id[0] - 1:
+                return resp
+        return None
+
+    try:
+        attach = send("Target.attachToTarget",
+                       {"targetId": ext["targetId"], "flatten": True})
+        sid = (attach or {}).get("result", {}).get("sessionId")
+        if not sid:
+            _CACHED_EXT_TARGET = None
+            return None
+
+        expr = (
+            f"(async()=>{{try{{"
+            f"const t=await chrome.tabs.create("
+            f"{{url:{json.dumps(url)},windowId:{window_id},active:false}});"
+            f"return JSON.stringify({{ok:true,id:t.id,url:t.pendingUrl||t.url||''}});"
+            f"}}catch(e){{return JSON.stringify({{ok:false,error:e.message}});}}}})() "
+        )
+        result = send("Runtime.evaluate", {
+            "expression": expr,
+            "returnByValue": True,
+            "awaitPromise": True,
+        }, sid=sid)
+
+        send("Target.detachFromTarget", {"sessionId": sid})
+
+        val = (result or {}).get("result", {}).get("result", {}).get("value", "{}")
+        parsed = json.loads(val)
+        if not parsed.get("ok"):
+            return None
+
+        chrome_tab_id = parsed.get("id")
+
+        time.sleep(1)
+        for t in list_tabs(port=port):
+            t_url = t.get("url", "")
+            if url in t_url or t_url in url:
+                win = _get_window_for_tab(t, port)
+                if win == window_id:
+                    return {
+                        "chrome_tab_id": chrome_tab_id,
+                        "cdp_target_id": t.get("id"),
+                        "url": t_url,
+                    }
+
+        for t in list_tabs(port=port):
+            t_url = t.get("url", "")
+            if url in t_url or t_url in url:
+                return {
+                    "chrome_tab_id": chrome_tab_id,
+                    "cdp_target_id": t.get("id"),
+                    "url": t_url,
+                }
+
+        return None
+    except Exception:
+        return None
+    finally:
+        try:
+            ws.close()
+        except Exception:
+            pass
+
+
+def move_tab_to_window(cdp_target_id: str, window_id: int,
+                        port: int = CDP_PORT) -> bool:
+    """Move an existing tab to a specific window using chrome.tabs.move."""
+    global _CACHED_EXT_TARGET
+    import websocket as _ws
+
+    if _CACHED_EXT_TARGET is None:
+        _CACHED_EXT_TARGET = _find_extension_with_tabs(port)
+    ext = _CACHED_EXT_TARGET
+    if not ext:
+        return False
+
+    chrome_id = get_chrome_tab_id(cdp_target_id, port)
+    if chrome_id is None:
+        return False
+
+    browser_ws = _get_browser_ws(port)
+    if not browser_ws:
+        return False
+
+    ws = _ws.create_connection(browser_ws, timeout=10)
+    msg_id = [1]
+
+    def send(method, params=None, sid=None):
+        msg = {"id": msg_id[0], "method": method}
+        if params:
+            msg["params"] = params
+        if sid:
+            msg["sessionId"] = sid
+        ws.send(json.dumps(msg))
+        msg_id[0] += 1
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            resp = json.loads(ws.recv())
+            if resp.get("id") == msg_id[0] - 1:
+                return resp
+        return None
+
+    try:
+        attach = send("Target.attachToTarget",
+                       {"targetId": ext["targetId"], "flatten": True})
+        sid = (attach or {}).get("result", {}).get("sessionId")
+        if not sid:
+            _CACHED_EXT_TARGET = None
+            return False
+
+        expr = (
+            f"(async()=>{{try{{"
+            f"await chrome.tabs.move({chrome_id},{{windowId:{window_id},index:-1}});"
+            f"return JSON.stringify({{ok:true}});"
+            f"}}catch(e){{return JSON.stringify({{ok:false,error:e.message}});}}}})() "
+        )
+        result = send("Runtime.evaluate", {
+            "expression": expr,
+            "returnByValue": True,
+            "awaitPromise": True,
+        }, sid=sid)
+
+        send("Target.detachFromTarget", {"sessionId": sid})
+
+        val = (result or {}).get("result", {}).get("result", {}).get("value", "{}")
+        parsed = json.loads(val)
+        return parsed.get("ok", False)
+    except Exception:
+        return False
+    finally:
+        try:
+            ws.close()
+        except Exception:
+            pass
+
+
+def _get_window_for_tab(tab: Dict[str, Any], port: int = CDP_PORT) -> Optional[int]:
+    """Get the Chrome window ID for a specific tab."""
+    ws_url = tab.get("webSocketDebuggerUrl")
+    if not ws_url:
+        return None
+    try:
+        s = CDPSession(ws_url, timeout=5)
+        result = s.send_and_recv("Browser.getWindowForTarget", {})
+        s.close()
+        return (result or {}).get("result", {}).get("windowId")
+    except Exception:
+        return None

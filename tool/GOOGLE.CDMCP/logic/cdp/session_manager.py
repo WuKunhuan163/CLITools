@@ -67,6 +67,7 @@ class CDMCPSession:
         self.tab_was_recovered = False
         self.window_id: Optional[int] = None
         self._tabs: Dict[str, Dict[str, Any]] = {}  # tab_label -> {id, url, ws, state}
+        self._demo_pid: Optional[int] = None
 
     def boot(self, url: str, new_window: bool = True) -> Dict[str, Any]:
         """Boot the session by opening a new tab as the lifetime anchor.
@@ -177,11 +178,30 @@ class CDMCPSession:
     def open_tab_in_session(self, url: str) -> Optional[str]:
         """Open a new tab inside this session's window (not a new window).
 
+        Uses chrome.tabs.create API via extension for reliable window targeting.
+        Falls back to CDP Target.createTarget + verification + move.
+
         Returns the CDP target ID of the new tab, or None on failure.
         """
         if not self.window_id:
             return self._open_in_existing_window(url)
 
+        # Primary: use chrome.tabs.create with explicit windowId
+        try:
+            overlay_path = _TOOL_DIR / "logic" / "cdp" / "overlay.py"
+            spec = importlib.util.spec_from_file_location("cdmcp_ov_tab", str(overlay_path))
+            ov = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(ov)
+
+            result = ov.create_tab_in_window(url, self.window_id, self.port)
+            if result and result.get("cdp_target_id"):
+                _log_session("open_tab:chrome_api", self.name,
+                             f"url={url} tabId={result['cdp_target_id']}")
+                return result["cdp_target_id"]
+        except Exception:
+            pass
+
+        # Fallback: CDP Target.createTarget + verify window + move if needed
         import urllib.request
         try:
             ver_url = f"http://localhost:{self.port}/json/version"
@@ -200,7 +220,32 @@ class CDMCPSession:
             if not result:
                 return None
             inner = result.get("result", result)
-            return inner.get("targetId")
+            tab_id = inner.get("targetId")
+            if not tab_id:
+                return None
+
+            # Verify the tab is in the correct window; move if not
+            time.sleep(0.5)
+            for t in list_tabs(self.port):
+                if t.get("id") == tab_id:
+                    ws_url = t.get("webSocketDebuggerUrl")
+                    if ws_url:
+                        try:
+                            s = CDPSession(ws_url, timeout=5)
+                            win_res = s.send_and_recv("Browser.getWindowForTarget", {})
+                            s.close()
+                            actual_win = (win_res or {}).get("result", {}).get("windowId")
+                            if actual_win and actual_win != self.window_id:
+                                _log_session("open_tab:wrong_window", self.name,
+                                             f"expected={self.window_id} actual={actual_win}, moving...")
+                                try:
+                                    ov.move_tab_to_window(tab_id, self.window_id, self.port)
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                    break
+            return tab_id
         except Exception:
             return self._open_in_existing_window(url)
 
@@ -390,12 +435,13 @@ class CDMCPSession:
                     "spec.loader.exec_module(mod); "
                     f"mod.run_demo_on_tab({demo_ws!r}, port={self.port})"
                 )
-                subprocess.Popen(
+                proc = subprocess.Popen(
                     [sys.executable, "-c", inline_code],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     start_new_session=True,
                 )
+                self._demo_pid = proc.pid
         except Exception:
             pass
 
@@ -418,7 +464,7 @@ class CDMCPSession:
         return (time.time() - self.last_activity) > self.timeout_sec
 
     def close(self):
-        """Close the session and its lifetime tab."""
+        """Close the session, all registered tabs, and kill demo process."""
         _log_session("close", self.name)
         if self._cdp:
             try:
@@ -426,9 +472,34 @@ class CDMCPSession:
             except Exception:
                 pass
             self._cdp = None
+
+        # Close all registered tabs (demo, tool-specific, etc.)
+        for label, info in list(self._tabs.items()):
+            tab_id = info.get("id")
+            if tab_id and tab_id != self.lifetime_tab_id:
+                try:
+                    close_tab(tab_id, self.port)
+                    _log_session("close:tab", self.name, f"label={label} id={tab_id}")
+                except Exception:
+                    pass
+        self._tabs.clear()
+
+        # Close lifetime tab last
         if self.lifetime_tab_id:
             close_tab(self.lifetime_tab_id, self.port)
             self.lifetime_tab_id = None
+
+        # Kill demo subprocess if tracked
+        demo_pid = getattr(self, "_demo_pid", None)
+        if demo_pid:
+            try:
+                import signal, os
+                os.kill(demo_pid, signal.SIGTERM)
+                _log_session("close:demo_killed", self.name, f"pid={demo_pid}")
+            except (ProcessLookupError, OSError):
+                pass
+            self._demo_pid = None
+
         self._booted = False
 
     # --- Multi-tab tracking ---
@@ -856,12 +927,13 @@ def boot_tool_session(
                         python_bin = _TOOL_DIR.parent.parent / "tool" / "PYTHON" / "data" / "install"
                         py_candidates = list(python_bin.glob("*/install/bin/python3"))
                         py_path = str(py_candidates[0]) if py_candidates else "python3"
-                        subprocess.Popen(
+                        proc = subprocess.Popen(
                             [py_path, "-c", inline_code],
                             stdout=subprocess.DEVNULL,
                             stderr=subprocess.DEVNULL,
                             start_new_session=True,
                         )
+                        session._demo_pid = proc.pid
                     break
     except Exception:
         pass
