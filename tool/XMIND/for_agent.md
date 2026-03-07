@@ -1,51 +1,42 @@
 # XMIND -- Agent Reference
 
-## Quick Start
-```
-XMIND boot                    # Boot session (welcome page, then app.xmind.com)
-XMIND session                 # State machine status
-XMIND status                  # Auth check
-XMIND maps                    # List maps
-XMIND create "My Map"         # Create map
-XMIND open "My Map"           # Open map
-```
+## Quick Commands
 
-## API
+| Command | Description |
+|---|---|
+| `XMIND boot` | Boot session in dedicated window |
+| `XMIND session` | Show session/state status |
+| `XMIND status` | Auth state |
+| `XMIND page` | Current page info |
+| `XMIND maps` | List mind maps |
+| `XMIND nodes` | List all visible nodes |
+| `XMIND home` | Navigate to home |
+| `XMIND create "title"` | Create new map |
+| `XMIND open "title"` | Open existing map |
+| `XMIND add-node "text" [--parent "X"] [--sibling]` | Add node |
+| `XMIND edit-node "old" "new"` | Edit node text |
+| `XMIND delete-node "text"` | Delete node |
+| `XMIND screenshot [--output path]` | Capture page |
+
+## Python API
+
 ```python
 from tool.XMIND.logic.chrome.api import (
     boot_session, get_auth_state, get_page_info, get_maps,
-    get_sidebar, create_map, open_map, get_session_status,
+    get_sidebar, create_map, open_map, add_node, edit_node,
+    delete_node, take_screenshot, navigate_home, get_map_nodes,
+    get_session_status,
 )
-
-# Boot opens dedicated Chrome window with XMind overlays
-r = boot_session()
-
-# State machine tracks: IDLE -> VIEWING_HOME -> VIEWING_MAP -> EDITING
-s = get_session_status()  # {'state': 'idle', 'last_url': '...', ...}
-
-# Create or open maps via MCP interaction interfaces
-create_map("My Map")    # Highlights + clicks 'New Map' button
-open_map("My Map")      # Highlights + clicks the map card
 ```
 
 ## State Machine
-```python
-from tool.XMIND.logic.chrome.state_machine import get_machine, XMState
 
-machine = get_machine("xmind")
-print(machine.state)          # XMState.IDLE
-print(machine.to_dict())      # Full state with URL, map title, errors
-```
+States: UNINITIALIZED -> BOOTING -> IDLE -> NAVIGATING -> VIEWING_HOME / VIEWING_MAP -> EDITING
 
-State file: `data/state/xmind_default.json`
+Recovery: max 3 attempts, reboots session and restores last URL.
 
-## Recovery
-- Tab closure detected automatically
-- Reboots session in new window
-- Navigates to last known URL
-- Max 3 recovery attempts before reset
+## Key Selectors
 
-## Notes
-- No lock overlay (user needs free interaction with XMind)
-- Badge color: #f44336 (red), letter "X"
-- Requires authenticated app.xmind.com session in Chrome
+- Topic nodes: `[class*="topic"], [class*="Topic"], [data-type="topic"]`
+- Map cards: `[class*="file-card"], [class*="card-item"]`
+- New map button: `button[class*="new"], [class*="new-map"]`

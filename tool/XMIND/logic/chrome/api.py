@@ -419,6 +419,279 @@ def open_map(map_title: str, port: int = CDP_PORT) -> Dict[str, Any]:
         return {"ok": False, "error": str(e), **machine.to_dict()}
 
 
+def add_node(parent_text: Optional[str] = None, text: str = "New Topic",
+             as_child: bool = True, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Add a node to the mind map. If parent_text is given, select that node first."""
+    machine = get_machine(_session_name)
+    cdp = _ensure_session(port)
+    if not cdp:
+        return {"ok": False, "error": "No session"}
+
+    interact = _load_interact()
+
+    try:
+        machine.transition(XMState.EDITING, {"action": "add_node", "text": text})
+
+        if parent_text:
+            safe = parent_text.replace("'", "\\'")
+            found = cdp.evaluate(f"""
+                (function() {{
+                    var topics = document.querySelectorAll(
+                        '[class*="topic"], [class*="Topic"], text, [data-type="topic"]'
+                    );
+                    for (var i = 0; i < topics.length; i++) {{
+                        if (topics[i].textContent.trim().includes('{safe}')) {{
+                            topics[i].click();
+                            return 'found';
+                        }}
+                    }}
+                    return 'not_found';
+                }})()
+            """)
+            if found != "found":
+                machine.transition(XMState.VIEWING_MAP)
+                return {"ok": False, "error": f"Parent node '{parent_text}' not found"}
+            time.sleep(0.5)
+
+        key = "Tab" if as_child else "Enter"
+        cdp.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyDown", "key": key, "code": key,
+            "windowsVirtualKeyCode": 9 if key == "Tab" else 13,
+        })
+        cdp.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyUp", "key": key, "code": key,
+        })
+        time.sleep(0.5)
+
+        for ch in text:
+            cdp.send_and_recv("Input.dispatchKeyEvent", {
+                "type": "keyDown", "key": ch, "text": ch,
+            })
+            cdp.send_and_recv("Input.dispatchKeyEvent", {
+                "type": "keyUp", "key": ch,
+            })
+            time.sleep(0.02)
+
+        cdp.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyDown", "key": "Enter", "code": "Enter",
+            "windowsVirtualKeyCode": 13,
+        })
+        cdp.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyUp", "key": "Enter", "code": "Enter",
+        })
+        time.sleep(0.3)
+
+        machine.transition(XMState.VIEWING_MAP)
+        return {"ok": True, "action": "node_added", "text": text}
+
+    except Exception as e:
+        machine.transition(XMState.ERROR, {"error": str(e)})
+        return {"ok": False, "error": str(e)}
+
+
+def edit_node(node_text: str, new_text: str, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Edit an existing node's text by double-clicking it."""
+    machine = get_machine(_session_name)
+    cdp = _ensure_session(port)
+    if not cdp:
+        return {"ok": False, "error": "No session"}
+
+    try:
+        machine.transition(XMState.EDITING, {"action": "edit_node", "text": node_text})
+
+        safe = node_text.replace("'", "\\'")
+        found = cdp.evaluate(f"""
+            (function() {{
+                var topics = document.querySelectorAll(
+                    '[class*="topic"], [class*="Topic"], text, [data-type="topic"]'
+                );
+                for (var i = 0; i < topics.length; i++) {{
+                    if (topics[i].textContent.trim().includes('{safe}')) {{
+                        var e = topics[i];
+                        e.dispatchEvent(new MouseEvent('dblclick', {{bubbles: true}}));
+                        return 'found';
+                    }}
+                }}
+                return 'not_found';
+            }})()
+        """)
+
+        if found != "found":
+            machine.transition(XMState.VIEWING_MAP)
+            return {"ok": False, "error": f"Node '{node_text}' not found"}
+
+        time.sleep(0.5)
+
+        cdp.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyDown", "key": "a", "code": "KeyA",
+            "modifiers": 2,
+        })
+        cdp.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyUp", "key": "a", "code": "KeyA",
+        })
+        time.sleep(0.1)
+
+        for ch in new_text:
+            cdp.send_and_recv("Input.dispatchKeyEvent", {
+                "type": "keyDown", "key": ch, "text": ch,
+            })
+            cdp.send_and_recv("Input.dispatchKeyEvent", {
+                "type": "keyUp", "key": ch,
+            })
+            time.sleep(0.02)
+
+        cdp.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyDown", "key": "Enter", "code": "Enter",
+            "windowsVirtualKeyCode": 13,
+        })
+        cdp.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyUp", "key": "Enter", "code": "Enter",
+        })
+        time.sleep(0.3)
+
+        machine.transition(XMState.VIEWING_MAP)
+        return {"ok": True, "action": "node_edited", "old": node_text, "new": new_text}
+
+    except Exception as e:
+        machine.transition(XMState.ERROR, {"error": str(e)})
+        return {"ok": False, "error": str(e)}
+
+
+def delete_node(node_text: str, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Delete a node by selecting it and pressing Delete."""
+    machine = get_machine(_session_name)
+    cdp = _ensure_session(port)
+    if not cdp:
+        return {"ok": False, "error": "No session"}
+
+    try:
+        machine.transition(XMState.EDITING, {"action": "delete_node", "text": node_text})
+
+        safe = node_text.replace("'", "\\'")
+        found = cdp.evaluate(f"""
+            (function() {{
+                var topics = document.querySelectorAll(
+                    '[class*="topic"], [class*="Topic"], text, [data-type="topic"]'
+                );
+                for (var i = 0; i < topics.length; i++) {{
+                    if (topics[i].textContent.trim().includes('{safe}')) {{
+                        topics[i].click();
+                        return 'found';
+                    }}
+                }}
+                return 'not_found';
+            }})()
+        """)
+
+        if found != "found":
+            machine.transition(XMState.VIEWING_MAP)
+            return {"ok": False, "error": f"Node '{node_text}' not found"}
+
+        time.sleep(0.3)
+
+        cdp.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyDown", "key": "Delete", "code": "Delete",
+            "windowsVirtualKeyCode": 46,
+        })
+        cdp.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyUp", "key": "Delete", "code": "Delete",
+        })
+        time.sleep(0.5)
+
+        machine.transition(XMState.VIEWING_MAP)
+        return {"ok": True, "action": "node_deleted", "text": node_text}
+
+    except Exception as e:
+        machine.transition(XMState.ERROR, {"error": str(e)})
+        return {"ok": False, "error": str(e)}
+
+
+def take_screenshot(output_path: Optional[str] = None, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Take a screenshot of the XMind page."""
+    from logic.chrome.session import capture_screenshot
+    cdp = _ensure_session(port)
+    if not cdp:
+        return {"ok": False, "error": "No session"}
+
+    try:
+        img = capture_screenshot(cdp)
+        if not img:
+            return {"ok": False, "error": "Screenshot capture failed"}
+
+        if not output_path:
+            report_dir = _TOOL_DIR / "data" / "report"
+            report_dir.mkdir(parents=True, exist_ok=True)
+            output_path = str(report_dir / "screenshot.png")
+
+        with open(output_path, "wb") as f:
+            f.write(img)
+        return {"ok": True, "path": output_path, "size": len(img)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+_TOOL_DIR = Path(__file__).resolve().parent.parent.parent
+
+
+def navigate_home(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Navigate to the XMind home/recents page."""
+    machine = get_machine(_session_name)
+    cdp = _ensure_session(port)
+    if not cdp:
+        return {"ok": False, "error": "No session"}
+
+    try:
+        machine.transition(XMState.NAVIGATING, {"action": "go_home"})
+        cdp.evaluate(f"window.location.href = {json.dumps(XMIND_HOME)}")
+        time.sleep(3)
+        url = cdp.evaluate("window.location.href") or ""
+        machine.set_url(str(url))
+        machine.transition(XMState.VIEWING_HOME, {"url": str(url)})
+        return {"ok": True, "url": str(url)}
+    except Exception as e:
+        machine.transition(XMState.ERROR, {"error": str(e)})
+        return {"ok": False, "error": str(e)}
+
+
+def get_map_nodes(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Get all visible topic nodes in the current mind map."""
+    cdp = _ensure_session(port)
+    if not cdp:
+        return {"ok": False, "error": "No session"}
+
+    try:
+        r = cdp.evaluate("""
+            (function() {
+                try {
+                    var topics = document.querySelectorAll(
+                        '[class*="topic"], [class*="Topic"], [data-type="topic"]'
+                    );
+                    var nodes = [];
+                    for (var i = 0; i < topics.length; i++) {
+                        var t = topics[i];
+                        var text = t.textContent ? t.textContent.trim() : '';
+                        if (text.length > 0 && t.offsetParent !== null) {
+                            var rect = t.getBoundingClientRect();
+                            nodes.push({
+                                text: text.substring(0, 200),
+                                x: Math.round(rect.x),
+                                y: Math.round(rect.y),
+                                w: Math.round(rect.width),
+                                h: Math.round(rect.height)
+                            });
+                        }
+                    }
+                    return JSON.stringify({ok: true, count: nodes.length, nodes: nodes});
+                } catch(e) {
+                    return JSON.stringify({ok: false, error: e.toString()});
+                }
+            })()
+        """)
+        return json.loads(r) if r else {"ok": False, "error": "No response"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 def get_session_status(port: int = CDP_PORT) -> Dict[str, Any]:
     """Get current session and state machine status."""
     machine = get_machine(_session_name)

@@ -38,6 +38,24 @@ def main():
     p_open = sub.add_parser("open", help="Open an existing mind map")
     p_open.add_argument("title", help="Title of the map to open")
 
+    p_add = sub.add_parser("add-node", help="Add a node to the mind map")
+    p_add.add_argument("text", help="Text for the new node")
+    p_add.add_argument("--parent", default=None, help="Parent node text to attach to")
+    p_add.add_argument("--sibling", action="store_true", help="Add as sibling instead of child")
+
+    p_edit = sub.add_parser("edit-node", help="Edit a node's text")
+    p_edit.add_argument("node_text", help="Current text of the node to edit")
+    p_edit.add_argument("new_text", help="New text for the node")
+
+    p_del = sub.add_parser("delete-node", help="Delete a node")
+    p_del.add_argument("node_text", help="Text of the node to delete")
+
+    sub.add_parser("nodes", help="List all visible nodes in the mind map")
+    sub.add_parser("home", help="Navigate to XMind home page")
+
+    p_shot = sub.add_parser("screenshot", help="Take a screenshot")
+    p_shot.add_argument("--output", default=None, help="Output file path")
+
     if tool.handle_command_line(parser):
         return
 
@@ -52,6 +70,8 @@ def main():
     from tool.XMIND.logic.chrome.api import (
         get_auth_state, get_page_info, get_maps, get_sidebar,
         boot_session, get_session_status, create_map, open_map,
+        add_node, edit_node, delete_node, take_screenshot,
+        navigate_home, get_map_nodes,
         _recover,
     )
 
@@ -132,6 +152,51 @@ def main():
         if r.get("ok"):
             print(f"  {BOLD}{GREEN}Opened{RESET} '{args.title}'.")
             print(f"  URL: {r.get('url', '?')}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "add-node":
+        r = add_node(parent_text=args.parent, text=args.text, as_child=not args.sibling)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Added{RESET} node: {args.text}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "edit-node":
+        r = edit_node(args.node_text, args.new_text)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Edited{RESET} '{args.node_text}' -> '{args.new_text}'")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "delete-node":
+        r = delete_node(args.node_text)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Deleted{RESET} node: {args.node_text}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "nodes":
+        r = get_map_nodes()
+        if r.get("ok"):
+            nodes = r.get("nodes", [])
+            print(f"  Found {r.get('count', 0)} nodes:")
+            for i, n in enumerate(nodes):
+                print(f"    [{i+1}] {n.get('text', '?')}")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "home":
+        r = navigate_home()
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Navigated{RESET} to home.")
+        else:
+            print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
+
+    elif args.command == "screenshot":
+        r = take_screenshot(output_path=args.output)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Screenshot saved:{RESET} {r['path']} ({r['size']} bytes)")
         else:
             print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")
 

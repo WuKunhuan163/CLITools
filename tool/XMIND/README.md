@@ -17,19 +17,39 @@ MCP interaction interfaces, and Turing machine state tracking.
 - **State machine**: Tracks IDLE -> NAVIGATING -> VIEWING_HOME -> VIEWING_MAP -> EDITING
 - **State persistence**: `data/state/xmind_default.json`
 - **Recovery**: Detects tab closure and reboots automatically
+- **Node manipulation**: Add, edit, delete nodes via keyboard dispatch
+- **Screenshot**: Capture current mind map state
 
 ## CLI Usage
 
 ```bash
-XMIND boot                    # Boot XMind session in dedicated window
-XMIND session                 # Show session + state machine status
-XMIND status                  # Authentication state
-XMIND page                    # Current page info
-XMIND maps                    # List mind maps
-XMIND sidebar                 # Sidebar sections
-XMIND create "My Map"         # Create a new mind map
-XMIND open "My Map"           # Open existing mind map
-XMIND recover                 # Manual recovery
+# Session
+XMIND boot                         # Boot XMind session in dedicated window
+XMIND session                      # Show session + state machine status
+XMIND recover                      # Manual recovery
+
+# Info
+XMIND status                       # Authentication state
+XMIND page                         # Current page info
+XMIND maps                         # List mind maps
+XMIND sidebar                      # Sidebar sections
+XMIND nodes                        # List all visible nodes in current map
+
+# Navigation
+XMIND home                         # Go to home/recents page
+XMIND create "My Map"              # Create a new mind map
+XMIND open "My Map"                # Open existing mind map
+
+# Editing
+XMIND add-node "Topic A"                    # Add child to selected node
+XMIND add-node "Topic B" --parent "Root"    # Add child to "Root" node
+XMIND add-node "Topic C" --sibling          # Add sibling instead of child
+XMIND edit-node "Old Text" "New Text"       # Edit a node's text
+XMIND delete-node "Topic A"                 # Delete a node
+
+# Utility
+XMIND screenshot                   # Save screenshot
+XMIND screenshot --output /tmp/x.png
 ```
 
 ## State Machine States
