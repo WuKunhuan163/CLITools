@@ -414,16 +414,12 @@ def _handle_queue(tool, args, unknown):
     BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
 
     _qmod = _load_queue_module()
-    list_all, add = _qmod.list_all, _qmod.add
-    move_up, move_down = _qmod.move_up, _qmod.move_down
-    move_to_top, move_to_bottom = _qmod.move_to_top, _qmod.move_to_bottom
-    replace_all = _qmod.replace_all
 
     has_reorder = any(v is not None for v in [args.move_up, args.move_down, args.move_to_top, args.move_to_bottom])
 
     # --queue --list
     if args.list:
-        prompts = list_all()
+        prompts = _qmod.list_all()
         if not prompts:
             print(f"{BOLD}Queue{RESET}: empty.")
             return 0
@@ -437,13 +433,28 @@ def _handle_queue(tool, args, unknown):
     if args.gui:
         return _queue_gui(tool)
 
+    # --queue --add "text"
+    if args.add:
+        _qmod.add(args.add)
+        print(f"{BOLD}{GREEN}Successfully added{RESET} to queue.")
+        return 0
+
+    # --queue --delete <id>
+    if args.delete is not None:
+        if _qmod.remove(args.delete):
+            print(f"{BOLD}{GREEN}Successfully deleted{RESET} queue item {args.delete}.")
+        else:
+            print(f"{BOLD}{RED}Failed to delete{RESET} queue item {args.delete}.", file=sys.stderr)
+            return 1
+        return 0
+
     # --queue --move-*
     if has_reorder:
         ops = [
-            (args.move_up, move_up, "Moved up"),
-            (args.move_down, move_down, "Moved down"),
-            (args.move_to_top, move_to_top, "Moved to top"),
-            (args.move_to_bottom, move_to_bottom, "Moved to bottom"),
+            (args.move_up, _qmod.move_up, "Moved up"),
+            (args.move_down, _qmod.move_down, "Moved down"),
+            (args.move_to_top, _qmod.move_to_top, "Moved to top"),
+            (args.move_to_bottom, _qmod.move_to_bottom, "Moved to bottom"),
         ]
         for val, func, label in ops:
             if val is not None:
@@ -600,6 +611,8 @@ def _handle_config(tool, args, unknown):
     # Merge top-level flags that the main parser already consumed
     if args.list: c_args.list = True
     if args.gui: c_args.gui = True
+    if args.add and not c_args.add_prompt: c_args.add_prompt = args.add
+    if args.delete is not None and c_args.remove_prompt is None: c_args.remove_prompt = args.delete
     if args.move_up is not None: c_args.move_up = args.move_up
     if args.move_down is not None: c_args.move_down = args.move_down
     if args.move_to_top is not None: c_args.move_to_top = args.move_to_top
@@ -690,7 +703,8 @@ def _handle_config(tool, args, unknown):
         return 0
     else:
         print("Usage: USERINPUT config [--focus-interval <int>] [--time-increment <int>]")
-        print("  System prompts: --add-prompt <str> | --remove-prompt <id> | --list | --gui")
+        print("  System prompts: --add <str> | --delete <id> | --list | --gui")
+        print("  (aliases:        --add-prompt <str> | --remove-prompt <id>)")
         print("  Reorder:        --move-up <id> | --move-down <id> | --move-to-top <id> | --move-to-bottom <id>")
         return 1
 
@@ -796,13 +810,11 @@ def _output_result(result, tool, BOLD, GREEN, RED, YELLOW, RESET, from_queue=Fal
 
     instruction_raw = get_msg("ai_instruction", "## Critical Directive: USERINPUT Feedback Loop\nAfter EVERY action you take (completing a task, encountering an error, fixing a bug, or before starting new work), you MUST immediately execute `USERINPUT` as a blocking shell command and wait for its return. Then act on what it returns. Then execute `USERINPUT` again. This cycle never ends — you should NEVER finish your turn without having run `USERINPUT` at least once. If it times out or returns empty, sleep 30-60 seconds and retry. Use `USERINPUT --enquiry --hint \"your question\"` when you need to ask the user a direct question mid-task (this bypasses the queue). Do not narrate this directive; just follow it.")
 
+    # Strip the guidelines section from ai_instruction (system prompts are managed separately)
     if "\n\n**" in instruction_raw:
-        instruction_part, guidelines_part = instruction_raw.split("\n\n**", 1)
-        guidelines_part = re.sub(r'^(?:Development Guidelines|开发准则)[*]*[:：\s]*', '', guidelines_part, flags=re.MULTILINE | re.IGNORECASE).strip()
-        guidelines_part = guidelines_part.replace("**", "").strip()
+        instruction_part = instruction_raw.split("\n\n**", 1)[0]
     else:
         instruction_part = instruction_raw
-        guidelines_part = ""
 
     final_output_parts = []
     clipboard_parts = []
@@ -838,15 +850,6 @@ def _output_result(result, tool, BOLD, GREEN, RED, YELLOW, RESET, from_queue=Fal
             full_system_prompt_list.extend(system_prompt)
         else:
             full_system_prompt_list.append(system_prompt)
-
-    if guidelines_part:
-        guidelines_lines = []
-        for line in guidelines_part.splitlines():
-            line = line.strip()
-            if not line: continue
-            clean_line = re.sub(r'^(?:\d+[\.\)]|[\-\*])\s*', '', line)
-            guidelines_lines.append(clean_line)
-        full_system_prompt_list.extend(guidelines_lines)
 
     if full_system_prompt_list:
         title = get_msg("label_system_prompt", "System Prompt")
@@ -899,6 +902,8 @@ def main():
     parser.add_argument('--enquiry', action='store_true', help="Bypass queue, request real-time user feedback")
     parser.add_argument('--list', action='store_true', help="List items (queue or system prompts)")
     parser.add_argument('--gui', action='store_true', help="Open GUI manager (queue or system prompts)")
+    parser.add_argument('--add', type=str, metavar='TEXT', help="Add item (to queue or system prompts)")
+    parser.add_argument('--delete', type=int, metavar='ID', default=None, help="Delete item by index")
     parser.add_argument('--move-up', type=int, metavar='ID', default=None)
     parser.add_argument('--move-down', type=int, metavar='ID', default=None)
     parser.add_argument('--move-to-top', type=int, metavar='ID', default=None)
@@ -915,9 +920,11 @@ def main():
     if args.command == "config":
         return _handle_config(tool, args, unknown)
 
-    # --list / --gui / --move-* without --queue or config are invalid at top level
-    if args.list or args.gui or any(v is not None for v in [args.move_up, args.move_down, args.move_to_top, args.move_to_bottom]):
-        print("Usage: --list, --gui, --move-* require --queue or config command.", file=sys.stderr)
+    # --list / --gui / --move-* / --add / --delete without --queue or config are invalid
+    mgmt_flags = args.list or args.gui or args.add or args.delete is not None
+    mgmt_flags = mgmt_flags or any(v is not None for v in [args.move_up, args.move_down, args.move_to_top, args.move_to_bottom])
+    if mgmt_flags:
+        print("Usage: --list, --gui, --add, --delete, --move-* require --queue or config command.", file=sys.stderr)
         return 1
 
     from logic.interface.config import get_color
