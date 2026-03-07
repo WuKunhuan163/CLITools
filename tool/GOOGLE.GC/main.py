@@ -1188,6 +1188,45 @@ _CELL_MORE_MENU_ITEMS = {
     "form": {"text": "Add a form", "label": "Add form"},
 }
 
+_TOP_MENU_BUTTONS = {
+    "file": {"id": "file-menu-button", "label": "File menu"},
+    "edit": {"id": "edit-menu-button", "label": "Edit menu"},
+    "view": {"id": "view-menu-button", "label": "View menu"},
+    "insert": {"id": "insert-menu-button", "label": "Insert menu"},
+    "runtime": {"id": "runtime-menu-button", "label": "Runtime menu"},
+    "tools": {"id": "tools-menu-button", "label": "Tools menu"},
+    "help": {"id": "help-menu-button", "label": "Help menu"},
+}
+
+_TOOLBAR_BUTTONS = {
+    "commands": {"selector": "#toolbar-show-command-palette", "label": "Command palette"},
+    "add-code": {"selector": "#toolbar-add-code", "label": "Add Code cell"},
+    "add-text": {"selector": "#toolbar-add-text", "label": "Add Text cell"},
+    "run-all": {
+        "selector": "colab-notebook-toolbar-run-button",
+        "shadow_id": "toolbar-run-button",
+        "label": "Run all cells",
+    },
+    "run-dropdown": {
+        "selector": "colab-notebook-toolbar-run-button",
+        "shadow_id": "toolbar-run-button-more-actions",
+        "label": "Run options dropdown",
+    },
+    "connect": {
+        "selector": "colab-connect-button",
+        "shadow_id": "connect-icon",
+        "label": "Connect/Reconnect",
+    },
+    "settings": {"selector": "#settings-cog", "label": "Settings"},
+    "comments": {"selector": "#comments", "label": "Comments"},
+    "toggle-header": {"selector": "#toggle-header-button", "label": "Toggle header"},
+}
+
+_BOTTOM_BAR_BUTTONS = {
+    "variables": {"text": "Variables", "label": "Variables panel"},
+    "terminal": {"text": "Terminal", "label": "Terminal panel"},
+}
+
 _SIDEBAR_BUTTONS = {
     "toc": {"aria": "Table of contents", "label": "Table of contents"},
     "find": {"aria": "Find and replace", "label": "Find and replace"},
@@ -1470,6 +1509,251 @@ def _run_cell_focus(tool, args):
     pm.run(ephemeral=True)
 
 
+def _run_toolbar_action(tool, args):
+    """Handle 'GOOGLE.GC toolbar <button>'."""
+    import time
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+
+    button_name = getattr(args, "button", "")
+    btn_info = _TOOLBAR_BUTTONS.get(button_name, {})
+    ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
+
+    def stage_click_toolbar(stage=None):
+        cdp = ctx["cdp"]
+        interact = ctx["interact"]
+        ov = ctx["overlay"]
+
+        shadow_id = btn_info.get("shadow_id")
+        sel = btn_info.get("selector", "")
+
+        if shadow_id:
+            coords_js = (
+                f"(function(){{ var host = document.querySelector('{sel}');"
+                f" if(!host || !host.shadowRoot) return '';"
+                f" var btn = host.shadowRoot.querySelector('#{shadow_id}');"
+                f" if(!btn) return '';"
+                f" var r = btn.getBoundingClientRect();"
+                f" return JSON.stringify({{x: r.x + r.width/2, y: r.y + r.height/2}}); }})()"
+            )
+            coords_raw = cdp.evaluate(coords_js)
+            if not coords_raw:
+                if stage:
+                    stage.error_brief = f"Button '{button_name}' not found in shadow DOM."
+                return False
+            import json as _json
+            from logic.chrome.session import real_click
+            coords = _json.loads(coords_raw)
+            if ov:
+                ov.inject_highlight(cdp, sel, label=btn_info["label"], color="#1a73e8")
+                time.sleep(0.8)
+            real_click(cdp, int(coords["x"]), int(coords["y"]))
+        else:
+            if interact:
+                interact.mcp_click(
+                    cdp, sel, label=btn_info["label"],
+                    dwell=1.0, color="#1a73e8", tool_name="GC",
+                )
+            else:
+                cdp.evaluate(f"document.querySelector('{sel}').click()")
+
+        if ov:
+            ov.remove_highlight(cdp)
+            ov.increment_mcp_count(cdp, 1)
+        time.sleep(0.5)
+        return True
+
+    pm = tool.create_progress_machine()
+    pm.add_stage(TuringStage("connect", stage_connect,
+        active_status="Connecting to", active_name="Chrome CDP...",
+        success_status="Connected to", success_name="Chrome CDP.",
+        fail_status="Failed to connect to", fail_name="Chrome CDP.",
+    ))
+    pm.add_stage(TuringStage("find_tab", stage_find_tab,
+        active_status="Finding", active_name="Colab notebook...",
+        success_status="Found", success_name="Colab notebook.",
+        fail_status="Not found:", fail_name="Colab notebook.",
+    ))
+    pm.add_stage(TuringStage("click", stage_click_toolbar,
+        active_status="Clicking", active_name=f"{btn_info.get('label', button_name)}...",
+        success_status="Clicked", success_name=f"{btn_info.get('label', button_name)}.",
+        fail_status="Failed to click", fail_name=f"{btn_info.get('label', button_name)}.",
+    ))
+    pm.add_stage(TuringStage("cleanup", stage_cleanup,
+        active_status="Cleaning up", active_name="overlays...",
+        success_status="Cleaned up", success_name="overlays.",
+    ))
+    pm.run(ephemeral=True)
+
+
+def _run_menu_action(tool, args):
+    """Handle 'GOOGLE.GC menu <menu_name> [--item TEXT]'."""
+    import time
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+
+    menu_name = getattr(args, "menu_name", "")
+    item_text = getattr(args, "item", "")
+    menu_info = _TOP_MENU_BUTTONS.get(menu_name, {})
+    ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
+
+    def stage_open_menu(stage=None):
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
+
+        menu_id = menu_info["id"]
+        if ov:
+            ov.inject_highlight(cdp, f"#{menu_id}", label=menu_info["label"], color="#1a73e8")
+            time.sleep(0.5)
+        open_js = (
+            f"(function(){{ var el = document.getElementById('{menu_id}');"
+            f" if(!el) return 'not_found';"
+            f" var r = el.getBoundingClientRect();"
+            f" el.dispatchEvent(new MouseEvent('mousedown', "
+            f"   {{bubbles:true, cancelable:true, clientX: r.x+r.width/2, clientY: r.y+r.height/2}}));"
+            f" el.dispatchEvent(new MouseEvent('mouseup', "
+            f"   {{bubbles:true, cancelable:true, clientX: r.x+r.width/2, clientY: r.y+r.height/2}}));"
+            f" return 'opened'; }})()"
+        )
+        result = cdp.evaluate(open_js)
+        if ov:
+            ov.remove_highlight(cdp)
+            ov.increment_mcp_count(cdp, 1)
+        if result == "not_found":
+            if stage:
+                stage.error_brief = f"Menu button '{menu_name}' not found."
+            return False
+        time.sleep(1.0)
+        return True
+
+    def stage_click_item(stage=None):
+        if not item_text:
+            return True
+
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
+
+        click_js = (
+            f"(function(){{ var items = document.querySelectorAll('[role=menuitem]');"
+            f" for(var i=0; i<items.length; i++){{"
+            f"   var r = items[i].getBoundingClientRect();"
+            f"   var t = items[i].textContent.trim();"
+            f"   if(r.width > 0 && (t === '{item_text}' || t.startsWith('{item_text}'))){{"
+            f"     items[i].dispatchEvent(new MouseEvent('mousedown', "
+            f"       {{bubbles:true, cancelable:true, clientX: r.x+r.width/2, clientY: r.y+r.height/2}}));"
+            f"     items[i].dispatchEvent(new MouseEvent('mouseup', "
+            f"       {{bubbles:true, cancelable:true, clientX: r.x+r.width/2, clientY: r.y+r.height/2}}));"
+            f"     items[i].dispatchEvent(new MouseEvent('click', "
+            f"       {{bubbles:true, cancelable:true, clientX: r.x+r.width/2, clientY: r.y+r.height/2}}));"
+            f"     return 'clicked';"
+            f"   }}"
+            f" }} return 'not_found'; }})()"
+        )
+        result = cdp.evaluate(click_js)
+        if result == "not_found":
+            cdp.send_and_recv("Input.dispatchKeyEvent", {
+                "type": "keyDown", "key": "Escape", "code": "Escape"
+            }, timeout=5)
+            if stage:
+                stage.error_brief = f"Menu item '{item_text}' not found."
+            return False
+
+        if ov:
+            ov.increment_mcp_count(cdp, 1)
+        time.sleep(0.5)
+        return True
+
+    pm = tool.create_progress_machine()
+    pm.add_stage(TuringStage("connect", stage_connect,
+        active_status="Connecting to", active_name="Chrome CDP...",
+        success_status="Connected to", success_name="Chrome CDP.",
+        fail_status="Failed to connect to", fail_name="Chrome CDP.",
+    ))
+    pm.add_stage(TuringStage("find_tab", stage_find_tab,
+        active_status="Finding", active_name="Colab notebook...",
+        success_status="Found", success_name="Colab notebook.",
+        fail_status="Not found:", fail_name="Colab notebook.",
+    ))
+    pm.add_stage(TuringStage("open_menu", stage_open_menu,
+        active_status="Opening", active_name=f"{menu_info.get('label', menu_name)}...",
+        success_status="Opened", success_name=f"{menu_info.get('label', menu_name)}.",
+        fail_status="Failed to open", fail_name=f"{menu_info.get('label', menu_name)}.",
+    ))
+    if item_text:
+        pm.add_stage(TuringStage("click_item", stage_click_item,
+            active_status="Clicking", active_name=f"\"{item_text}\"...",
+            success_status="Clicked", success_name=f"\"{item_text}\".",
+            fail_status="Failed to click", fail_name=f"\"{item_text}\".",
+        ))
+    pm.add_stage(TuringStage("cleanup", stage_cleanup,
+        active_status="Cleaning up", active_name="overlays...",
+        success_status="Cleaned up", success_name="overlays.",
+    ))
+    pm.run(ephemeral=True)
+
+
+def _run_bottom_action(tool, args):
+    """Handle 'GOOGLE.GC bottom <panel>'."""
+    import time
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+
+    panel = getattr(args, "panel", "")
+    panel_info = _BOTTOM_BAR_BUTTONS.get(panel, {})
+    ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
+
+    def stage_click_panel(stage=None):
+        import json as _json
+        from logic.chrome.session import real_click
+
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
+
+        ptext = panel_info["text"]
+        coords_js = (
+            f"(function(){{ var btns = document.querySelectorAll('[slot=bottom-pane-buttons]');"
+            f" for(var i=0; i<btns.length; i++){{"
+            f"   if(btns[i].textContent.indexOf('{ptext}') >= 0){{"
+            f"     var r = btns[i].getBoundingClientRect();"
+            f"     return JSON.stringify({{x: r.x + r.width/2, y: r.y + r.height/2}});"
+            f"   }}"
+            f" }} return ''; }})()"
+        )
+        coords_raw = cdp.evaluate(coords_js)
+        if not coords_raw:
+            if stage:
+                stage.error_brief = f"Bottom bar '{panel}' not found."
+            return False
+        coords = _json.loads(coords_raw)
+        real_click(cdp, int(coords["x"]), int(coords["y"]))
+        if ov:
+            ov.increment_mcp_count(cdp, 1)
+        time.sleep(0.5)
+        return True
+
+    pm = tool.create_progress_machine()
+    pm.add_stage(TuringStage("connect", stage_connect,
+        active_status="Connecting to", active_name="Chrome CDP...",
+        success_status="Connected to", success_name="Chrome CDP.",
+        fail_status="Failed to connect to", fail_name="Chrome CDP.",
+    ))
+    pm.add_stage(TuringStage("find_tab", stage_find_tab,
+        active_status="Finding", active_name="Colab notebook...",
+        success_status="Found", success_name="Colab notebook.",
+        fail_status="Not found:", fail_name="Colab notebook.",
+    ))
+    pm.add_stage(TuringStage("click", stage_click_panel,
+        active_status="Toggling", active_name=f"{panel_info.get('label', panel)}...",
+        success_status="Toggled", success_name=f"{panel_info.get('label', panel)}.",
+        fail_status="Failed to toggle", fail_name=f"{panel_info.get('label', panel)}.",
+    ))
+    pm.add_stage(TuringStage("cleanup", stage_cleanup,
+        active_status="Cleaning up", active_name="overlays...",
+        success_status="Cleaned up", success_name="overlays.",
+    ))
+    pm.run(ephemeral=True)
+
+
 def _run_sidebar_action(tool, args):
     """Handle 'GOOGLE.GC sidebar <panel>'."""
     import time
@@ -1608,6 +1892,23 @@ def main():
     sb_p.add_argument("panel", choices=list(_SIDEBAR_BUTTONS.keys()),
                       help="Sidebar panel to toggle")
 
+    # GOOGLE.GC toolbar <button>
+    tb_p = subparsers.add_parser("toolbar", help="Click a Colab toolbar button via MCP")
+    tb_p.add_argument("button", choices=list(_TOOLBAR_BUTTONS.keys()),
+                      help="Toolbar button to click")
+
+    # GOOGLE.GC menu <menu> [--item TEXT]
+    menu_p = subparsers.add_parser("menu", help="Open a top-bar menu and optionally click an item")
+    menu_p.add_argument("menu_name", choices=list(_TOP_MENU_BUTTONS.keys()),
+                        help="Menu to open")
+    menu_p.add_argument("--item", default="",
+                        help="Menu item text to click (if empty, just opens menu)")
+
+    # GOOGLE.GC bottom <panel>
+    bot_p = subparsers.add_parser("bottom", help="Toggle bottom bar panels")
+    bot_p.add_argument("panel", choices=list(_BOTTOM_BAR_BUTTONS.keys()),
+                       help="Bottom bar panel to toggle")
+
     # GOOGLE.GC runtime <action>
     rt_p = subparsers.add_parser("runtime", help="Control Colab runtime via MCP")
     rt_sub = rt_p.add_subparsers(dest="rt_action", help="Runtime action")
@@ -1701,6 +2002,15 @@ def main():
 
     elif args.command == "sidebar":
         _run_sidebar_action(tool, args)
+
+    elif args.command == "toolbar":
+        _run_toolbar_action(tool, args)
+
+    elif args.command == "menu":
+        _run_menu_action(tool, args)
+
+    elif args.command == "bottom":
+        _run_bottom_action(tool, args)
 
     elif args.command == "runtime":
         _run_runtime_action(tool, args)

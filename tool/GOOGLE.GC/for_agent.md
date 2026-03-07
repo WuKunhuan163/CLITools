@@ -12,15 +12,26 @@ GOOGLE.GC cell move --index N --direction up|down
 GOOGLE.GC cell focus --index N [--toolbar-click move-up|move-down|delete|edit|more] [--menu-click select|copy-link|cut|copy|comment|editor-settings|mirror|scratch|form]
 ```
 
+### Toolbar Buttons
+```bash
+GOOGLE.GC toolbar commands|add-code|add-text|run-all|run-dropdown|connect|settings|comments|toggle-header
+```
+
+### Top Bar Menus
+```bash
+GOOGLE.GC menu file|edit|view|insert|runtime|tools|help [--item "Menu item text"]
+```
+
 ### Runtime & Notebook
 ```bash
 GOOGLE.GC runtime run-all|interrupt|restart
 GOOGLE.GC notebook save|clear-outputs
 ```
 
-### Sidebar & State
+### Sidebar, Bottom Bar & State
 ```bash
 GOOGLE.GC sidebar toc|find|snippets|inspector|secrets|files|data-explorer
+GOOGLE.GC bottom variables|terminal
 GOOGLE.GC state [--session ID] [--tab TAB] [--json]
 ```
 
@@ -42,6 +53,14 @@ Colab creates the cell toolbar (shadow DOM) **only for the focused cell**. The f
 
 Available toolbar buttons: `move-up`, `move-down`, `delete`, `edit` (text cells), `more`
 Available "More actions" menu: `select`, `copy-link`, `cut`, `copy`, `comment`, `editor-settings`, `mirror`, `scratch`, `form`
+
+## Closure Library Menus
+
+Colab uses Google Closure Library for top-bar menus and cell context menus.
+- `.click()` and CDP `real_click` don't work through the lock overlay
+- Use JS `dispatchEvent(new MouseEvent('mousedown', ...))` instead
+- Menu item text may include keyboard shortcuts (use `startsWith` matching)
+- Menu item IDs are dynamic (`:75`, `:76`) so match by text content
 
 ## Cell Edit Details
 
