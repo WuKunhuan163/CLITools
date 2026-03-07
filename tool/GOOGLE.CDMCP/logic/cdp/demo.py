@@ -242,15 +242,15 @@ def run_demo(port=CDP_PORT, delay=1.2, continuous=True):
     results = {"steps": [], "ok": True}
 
     machine.transition(ds.DemoState.BOOTING)
-    _log("Starting local chat server...")
-    base_url, _ = server_mod.start_server()
+    _log("Preparing chat page...")
+    chat_html = _TOOL_DIR / "data" / "chat_app.html"
     time.sleep(0.3)
 
     _log("Creating session and booting tab...")
     session = session_mgr.create_session("demo", timeout_sec=86400)
     ts = time.strftime("%m%d%H%M")
     sid = ts + hashlib.md5(session.session_id.encode()).hexdigest()[:4]
-    url = f"{base_url}?session_id={sid}"
+    url = f"file://{chat_html}?session_id={sid}"
     boot_result = session.boot(url)
     if not boot_result.get("ok"):
         machine.transition(ds.DemoState.ERROR, {"error": boot_result.get("error")})
@@ -415,7 +415,7 @@ def _run_continuous_loop(overlay, interact, cdp, session, machine, ds, delay, re
             delivered = message in str(last or "")
             _log(f"{'Delivered' if delivered else 'Not verified'}.")
 
-            cdp.evaluate("window.incrementMcpCount(3)")
+            overlay.increment_mcp_count(cdp, 3)
 
             msg_idx += 1
             contact_idx += 1
@@ -481,7 +481,7 @@ def _do_draft_cycle(overlay, interact, cdp, contact, contact_idx, delay):
     )
     time.sleep(0.3)
     cdp.evaluate("document.getElementById('messageInput').value = ''")
-    cdp.evaluate("window.incrementMcpCount(3)")
+    overlay.increment_mcp_count(cdp, 3)
     time.sleep(0.1)
 
 

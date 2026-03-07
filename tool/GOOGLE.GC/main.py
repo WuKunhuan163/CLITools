@@ -51,6 +51,7 @@ def _run_cell_action(tool, args):
 
     action = getattr(args, "cell_action", None) or "add"
     cell_text = getattr(args, "text", "") or ""
+    cell_type = getattr(args, "cell_type", "code") or "code"
 
     _cdp = [None]
     _overlay = [None]
@@ -114,16 +115,21 @@ def _run_cell_action(tool, args):
         ov = _overlay[0]
         interact = _interact[0]
 
+        is_text = cell_type == "text"
+        btn_id = "#toolbar-add-text" if is_text else "#toolbar-add-code"
+        btn_label = "+ Text (create cell)" if is_text else "+ Code (create cell)"
+        cell_selector = ".cell.text:last-child" if is_text else ".cell.code:last-child"
+
         if interact:
             interact.mcp_click(
-                cdp, "#toolbar-add-code",
-                label="+ Code (create cell)", dwell=1.0,
+                cdp, btn_id,
+                label=btn_label, dwell=1.0,
                 color="#e8710a", tool_name="GC",
             )
         else:
             cdp.evaluate(
-                "(function(){ var b = document.getElementById('toolbar-add-code');"
-                " if(b) b.click(); })()"
+                f"(function(){{ var b = document.querySelector('{btn_id}');"
+                f" if(b) b.click(); }})()"
             )
         time.sleep(1.5)
 
@@ -138,7 +144,7 @@ def _run_cell_action(tool, args):
                 f" c[c.length-1].setText({_json.dumps(cell_text)}); }})()"
             )
             if ov:
-                ov.inject_highlight(cdp, ".cell.code:last-child",
+                ov.inject_highlight(cdp, cell_selector,
                                      label=f"Set: {cell_text[:30]}", color="#1a73e8")
                 time.sleep(0.8)
                 ov.remove_highlight(cdp)
@@ -165,11 +171,12 @@ def _run_cell_action(tool, args):
         success_status="Found", success_name="Colab notebook.",
         fail_status="Not found:", fail_name="Colab notebook.",
     ))
+    _ct_label = f"{cell_type} cell"
     pm.add_stage(TuringStage(
         "add_cell", stage_add_cell,
-        active_status="Creating", active_name="code cell...",
-        success_status="Created", success_name="code cell.",
-        fail_status="Failed to create", fail_name="code cell.",
+        active_status="Creating", active_name=f"{_ct_label}...",
+        success_status="Created", success_name=f"{_ct_label}.",
+        fail_status="Failed to create", fail_name=f"{_ct_label}.",
     ))
     pm.add_stage(TuringStage(
         "cleanup", stage_cleanup,
@@ -676,8 +683,10 @@ def main():
     # GOOGLE.GC cell add [--text CODE]
     cell_p = subparsers.add_parser("cell", help="Manage Colab cells via MCP")
     cell_sub = cell_p.add_subparsers(dest="cell_action", help="Cell action")
-    cell_add = cell_sub.add_parser("add", help="Add a code cell with MCP visual effects")
+    cell_add = cell_sub.add_parser("add", help="Add a cell with MCP visual effects")
     cell_add.add_argument("--text", default="", help="Initial cell content")
+    cell_add.add_argument("--cell-type", choices=["code", "text"], default="code",
+                          help="Cell type: 'code' or 'text' (default: code)")
 
     cell_edit = cell_sub.add_parser("edit", help="Edit cell content with MCP visual effects")
     cell_edit.add_argument("--index", type=int, default=0, help="Cell index (0-based)")

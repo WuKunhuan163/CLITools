@@ -348,8 +348,9 @@ class CDMCPSession:
             srv = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(srv)
 
-            server_url, _ = srv.start_server()
-            chat_url = f"{server_url}/chat?session_id={self.session_id}"
+            srv.start_server()
+            chat_html = _TOOL_DIR / "data" / "chat_app.html"
+            chat_url = f"file://{chat_html}?session_id={self.session_id}"
             demo_tab_id = self.open_tab_in_session(chat_url)
             demo_ws = None
 

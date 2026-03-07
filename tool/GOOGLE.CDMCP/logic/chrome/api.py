@@ -367,7 +367,8 @@ def boot_session(name: str = "default", url: str = None,
 
     # Open the demo chat in a second tab within the same window (not pinned)
     time.sleep(0.5)
-    chat_url = f"{server_url}/chat?session_id={sid_short}"
+    chat_html_path = _TOOL_DIR / "data" / "chat_app.html"
+    chat_url = f"file://{chat_html_path}?session_id={sid_short}"
     demo_tab_id = session.open_tab_in_session(chat_url)
     demo_ws = None
     if demo_tab_id:
