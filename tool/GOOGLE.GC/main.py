@@ -1755,6 +1755,232 @@ def _run_bottom_action(tool, args):
     pm.run(ephemeral=True)
 
 
+_SETTINGS_PREFS = {
+    "pref_siteTheme": {"type": "select", "tab": "Site", "label": "Theme"},
+    "pref_desktopNotifications": {"type": "checkbox", "tab": "Site", "label": "Desktop notifications"},
+    "pref_privateOutputsEnabledByDefault": {"type": "checkbox", "tab": "Site", "label": "Private outputs"},
+    "pref_tabbedUiLocation": {"type": "select", "tab": "Site", "label": "Page layout"},
+    "pref_emptyWelcomeNotebook": {"type": "checkbox", "tab": "Site", "label": "Scratch notebook landing"},
+    "pref_editorColorizationLight": {"type": "select", "tab": "Editor", "label": "Editor colorization"},
+    "pref_editorKeyMap": {"type": "select", "tab": "Editor", "label": "Key bindings"},
+    "pref_editorFontSize": {"type": "select", "tab": "Editor", "label": "Font size"},
+    "pref_indentNumSpaces": {"type": "select", "tab": "Editor", "label": "Indent width"},
+    "pref_editorAutoTriggerCompletions": {"type": "checkbox", "tab": "Editor", "label": "Code completions"},
+    "pref_showLineNumbers": {"type": "checkbox", "tab": "Editor", "label": "Show line numbers"},
+    "pref_showGuides": {"type": "checkbox", "tab": "Editor", "label": "Indentation guides"},
+    "pref_editorFolding": {"type": "checkbox", "tab": "Editor", "label": "Code folding"},
+    "pref_editorWrapping": {"type": "checkbox", "tab": "Editor", "label": "Code wrapping"},
+    "pref_autoCloseBrackets": {"type": "checkbox", "tab": "Editor", "label": "Auto-close brackets"},
+    "pref_editorAcceptSuggestionOnEnter": {"type": "checkbox", "tab": "Editor", "label": "Enter accepts suggestions"},
+    "pref_fontLigatures": {"type": "checkbox", "tab": "Editor", "label": "Font ligatures"},
+    "pref_lspDiagnostics": {"type": "select", "tab": "Editor", "label": "LSP diagnostics"},
+    "pref_inlineVariables": {"type": "select", "tab": "Editor", "label": "Inline variables"},
+    "pref_powerLevel": {"type": "select", "tab": "Miscellaneous", "label": "Power level"},
+    "pref_corgiMode": {"type": "checkbox", "tab": "Miscellaneous", "label": "Corgi mode"},
+    "pref_kittyMode": {"type": "checkbox", "tab": "Miscellaneous", "label": "Kitty mode"},
+    "pref_crabMode": {"type": "checkbox", "tab": "Miscellaneous", "label": "Crab mode"},
+}
+
+
+def _run_settings_action(tool, args):
+    """Handle 'GOOGLE.GC settings <action>'."""
+    import time
+    from logic.turing.models.progress import ProgressTuringMachine
+    from logic.turing.logic import TuringStage
+
+    action = getattr(args, "settings_action", "show")
+    tab_name = getattr(args, "tab", "")
+    pref_id = getattr(args, "pref", "")
+    value = getattr(args, "value", "")
+    ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
+
+    def stage_open_dialog(stage=None):
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
+        cdp.evaluate("colab.global.notebook.showPreferencesDialog()")
+        time.sleep(1.5)
+        if ov:
+            ov.increment_mcp_count(cdp, 1)
+        return True
+
+    def stage_navigate_tab(stage=None):
+        if not tab_name:
+            return True
+        cdp = ctx["cdp"]
+        nav_js = f'''
+        (function(){{
+            var viewer = document.querySelector('colab-side-tab-dialog-page-viewer');
+            if(!viewer) return 'no_viewer';
+            var items = viewer.querySelectorAll('md-list-item[slot=headings]');
+            for(var i=0; i<items.length; i++){{
+                var span = items[i].querySelector('span');
+                if(span && span.textContent.trim() === '{tab_name}'){{
+                    items[i].click();
+                    return 'clicked';
+                }}
+            }}
+            return 'not_found';
+        }})()
+        '''
+        result = cdp.evaluate(nav_js)
+        if result in ("no_viewer", "not_found"):
+            if stage:
+                stage.error_brief = f"Settings tab '{tab_name}' not found."
+            return False
+        time.sleep(0.8)
+        return True
+
+    def stage_action(stage=None):
+        cdp = ctx["cdp"]
+        ov = ctx["overlay"]
+
+        if action == "show":
+            prefs_js = '''
+            (function(){
+                var dialog = document.querySelector('.dialog-content');
+                if(!dialog) return '{}';
+                var checkboxes = dialog.querySelectorAll('md-checkbox');
+                var selects = dialog.querySelectorAll('md-filled-select');
+                var result = {};
+                for(var i=0; i<checkboxes.length; i++){
+                    var cb = checkboxes[i];
+                    if(cb.id) result[cb.id] = {checked: cb.checked || cb.getAttribute('aria-checked')==='true'};
+                }
+                for(var i=0; i<selects.length; i++){
+                    var sel = selects[i];
+                    if(sel.id) result[sel.id] = {value: sel.value || ''};
+                }
+                return JSON.stringify(result);
+            })()
+            '''
+            raw = cdp.evaluate(prefs_js)
+            import json as _json
+            prefs = _json.loads(raw) if raw else {}
+            print(f"\n  Settings ({tab_name or 'current tab'}):")
+            for pid, info in sorted(prefs.items()):
+                meta = _SETTINGS_PREFS.get(pid, {})
+                label = meta.get("label", pid)
+                if "checked" in info:
+                    print(f"    {label}: {'ON' if info['checked'] else 'OFF'}")
+                elif "value" in info:
+                    print(f"    {label}: {info['value']}")
+            return True
+
+        elif action == "set":
+            if not pref_id:
+                if stage:
+                    stage.error_brief = "No --pref specified."
+                return False
+            meta = _SETTINGS_PREFS.get(pref_id, {})
+            if not meta:
+                if stage:
+                    avail = ", ".join(_SETTINGS_PREFS.keys())
+                    stage.error_brief = f"Unknown pref '{pref_id}'. Available: {avail}"
+                return False
+
+            if meta["type"] == "checkbox":
+                toggle_js = f'''
+                (function(){{
+                    var el = document.getElementById('{pref_id}');
+                    if(!el) return 'not_found';
+                    el.click();
+                    return el.checked || el.getAttribute('aria-checked')==='true' ? 'on' : 'off';
+                }})()
+                '''
+                result = cdp.evaluate(toggle_js)
+                if result == "not_found":
+                    if stage:
+                        stage.error_brief = f"Preference '{pref_id}' not found in dialog."
+                    return False
+                print(f"\n  Toggled {meta['label']}: {result}")
+
+            elif meta["type"] == "select" and value:
+                select_js = f'''
+                (function(){{
+                    var el = document.getElementById('{pref_id}');
+                    if(!el) return 'not_found';
+                    el.value = '{value}';
+                    el.dispatchEvent(new Event('change', {{bubbles:true}}));
+                    return el.value;
+                }})()
+                '''
+                result = cdp.evaluate(select_js)
+                if result == "not_found":
+                    if stage:
+                        stage.error_brief = f"Preference '{pref_id}' not found."
+                    return False
+                print(f"\n  Set {meta['label']}: {result}")
+
+            if ov:
+                ov.increment_mcp_count(cdp, 1)
+            return True
+
+        elif action == "save":
+            save_js = '''
+            (function(){
+                var btns = document.querySelectorAll('button, mwc-button, md-text-button');
+                for(var i=0; i<btns.length; i++){
+                    if(btns[i].textContent.trim() === 'Save'){
+                        btns[i].click();
+                        return 'saved';
+                    }
+                }
+                return 'no_save_button';
+            })()
+            '''
+            result = cdp.evaluate(save_js)
+            if result != "saved":
+                if stage:
+                    stage.error_brief = "Save button not found."
+                return False
+            if ov:
+                ov.increment_mcp_count(cdp, 1)
+            time.sleep(0.5)
+            return True
+
+        elif action == "cancel":
+            from logic.chrome.session import dispatch_key
+            dispatch_key(cdp, "Escape")
+            return True
+
+        return True
+
+    pm = tool.create_progress_machine()
+    pm.add_stage(TuringStage("connect", stage_connect,
+        active_status="Connecting to", active_name="Chrome CDP...",
+        success_status="Connected to", success_name="Chrome CDP.",
+        fail_status="Failed to connect to", fail_name="Chrome CDP.",
+    ))
+    pm.add_stage(TuringStage("find_tab", stage_find_tab,
+        active_status="Finding", active_name="Colab notebook...",
+        success_status="Found", success_name="Colab notebook.",
+        fail_status="Not found:", fail_name="Colab notebook.",
+    ))
+    pm.add_stage(TuringStage("open_dialog", stage_open_dialog,
+        active_status="Opening", active_name="Settings dialog...",
+        success_status="Opened", success_name="Settings dialog.",
+        fail_status="Failed to open", fail_name="Settings dialog.",
+    ))
+    if tab_name:
+        pm.add_stage(TuringStage("navigate_tab", stage_navigate_tab,
+            active_status="Navigating to", active_name=f"'{tab_name}' tab...",
+            success_status="Navigated to", success_name=f"'{tab_name}' tab.",
+            fail_status="Failed to navigate to", fail_name=f"'{tab_name}' tab.",
+        ))
+    action_label = {"show": "Reading preferences", "set": "Changing preference",
+                    "save": "Saving settings", "cancel": "Cancelling"}.get(action, action)
+    pm.add_stage(TuringStage("action", stage_action,
+        active_status="Executing:", active_name=f"{action_label}...",
+        success_status="Completed:", success_name=f"{action_label}.",
+        fail_status="Failed:", fail_name=f"{action_label}.",
+    ))
+    pm.add_stage(TuringStage("cleanup", stage_cleanup,
+        active_status="Cleaning up", active_name="overlays...",
+        success_status="Cleaned up", success_name="overlays.",
+    ))
+    pm.run(ephemeral=True)
+
+
 def _run_sidebar_action(tool, args):
     """Handle 'GOOGLE.GC sidebar <panel>'."""
     import time
@@ -1910,6 +2136,24 @@ def main():
     bot_p.add_argument("panel", choices=list(_BOTTOM_BAR_BUTTONS.keys()),
                        help="Bottom bar panel to toggle")
 
+    # GOOGLE.GC settings <action>
+    set_p = subparsers.add_parser("settings", help="Manage Colab Settings dialog via MCP")
+    set_sub = set_p.add_subparsers(dest="settings_action", help="Settings action")
+    set_show = set_sub.add_parser("show", help="Show current settings values")
+    set_show.add_argument("--tab", default="", choices=["", "Site", "Editor", "Miscellaneous"],
+                          help="Navigate to a specific settings tab")
+    set_set = set_sub.add_parser("set", help="Change a preference")
+    set_set.add_argument("--tab", default="", choices=["", "Site", "Editor", "Miscellaneous"],
+                         help="Navigate to a specific settings tab first")
+    set_set.add_argument("--pref", required=True, choices=list(_SETTINGS_PREFS.keys()),
+                         help="Preference ID to change")
+    set_set.add_argument("--value", default="",
+                         help="Value to set (for select options)")
+    set_save = set_sub.add_parser("save", help="Save settings and close dialog")
+    set_save.add_argument("--tab", default="")
+    set_cancel = set_sub.add_parser("cancel", help="Cancel and close dialog")
+    set_cancel.add_argument("--tab", default="")
+
     # GOOGLE.GC runtime <action>
     rt_p = subparsers.add_parser("runtime", help="Control Colab runtime via MCP")
     rt_sub = rt_p.add_subparsers(dest="rt_action", help="Runtime action")
@@ -2012,6 +2256,9 @@ def main():
 
     elif args.command == "bottom":
         _run_bottom_action(tool, args)
+
+    elif args.command == "settings":
+        _run_settings_action(tool, args)
 
     elif args.command == "runtime":
         _run_runtime_action(tool, args)

@@ -86,6 +86,16 @@ GOOGLE.GC bottom variables       # Toggle Variables panel
 GOOGLE.GC bottom terminal        # Toggle Terminal panel
 ```
 
+### Settings Dialog
+```bash
+GOOGLE.GC settings show                                    # Show current tab settings
+GOOGLE.GC settings show --tab Editor                       # Show editor settings
+GOOGLE.GC settings set --tab Editor --pref pref_showLineNumbers  # Toggle checkbox
+GOOGLE.GC settings set --tab Site --pref pref_siteTheme --value dark  # Set select
+GOOGLE.GC settings save                                    # Save and close
+GOOGLE.GC settings cancel                                  # Close without saving
+```
+
 ### State & Other
 ```bash
 GOOGLE.GC state                   # Show MCP state report
