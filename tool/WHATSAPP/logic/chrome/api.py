@@ -1,11 +1,12 @@
 """WhatsApp Web operations via CDMCP (Chrome DevTools MCP).
 
-Uses the ``web.whatsapp.com`` session via CDP (port 9222).  When
-linked (QR scanned), the tool can read chats, search contacts, send
-messages, and read profile info from the DOM.
+Uses the ``web.whatsapp.com`` session for auth state detection only.
+DOM scraping and message sending functions are disabled due to WhatsApp
+ToS violations.
 
-Sending messages uses WhatsApp Web's URL scheme to open a chat and
-then types + sends via the message input area.
+WhatsApp explicitly prohibits "unofficial clients, auto-messaging,
+auto-dialing, or automation." Data operations should use the WhatsApp
+Business Cloud API (developers.facebook.com/docs/whatsapp/).
 """
 import json
 import time as _time
@@ -88,401 +89,32 @@ def get_page_info(port: int = CDP_PORT) -> Dict[str, Any]:
         session.close()
 
 
+# TODO: Migrate to WhatsApp Business Cloud API (developers.facebook.com/docs/whatsapp/).
+# DOM scraping and UI automation violate WhatsApp ToS. See for_agent.md ## ToS Compliance.
+
+_TOS_ERR = "Disabled: WhatsApp ToS prohibits automated access. Use WhatsApp Business Cloud API instead."
+
+
 def get_chats(port: int = CDP_PORT) -> Dict[str, Any]:
-    """Read visible chat list from the DOM (requires linked session)."""
-    session = _get_session(port)
-    if not session:
-        return {"ok": False, "error": "WhatsApp tab not found"}
-    try:
-        r = session.evaluate("""
-            (function() {
-                try {
-                    var cells = document.querySelectorAll(
-                        "[data-testid='cell-frame-container']"
-                    );
-                    if (!cells.length) {
-                        var pane = document.querySelector("#pane-side");
-                        if (pane) cells = pane.querySelectorAll("[role='listitem'], [role='row']");
-                    }
-                    var chats = Array.from(cells).slice(0, 30).map(function(el) {
-                        var name = el.querySelector("[data-testid='cell-frame-title'] span, span[dir='auto']");
-                        var msg = el.querySelector("[data-testid='last-msg-status'] span, span[title]");
-                        var time = el.querySelector("[data-testid='cell-frame-primary-detail']");
-                        var badge = el.querySelector("[data-testid='icon-unread-count'], [aria-label*='unread']");
-                        return {
-                            name: name ? name.textContent.trim().substring(0, 50) : "?",
-                            lastMessage: msg ? msg.textContent.trim().substring(0, 80) : "",
-                            time: time ? time.textContent.trim() : "",
-                            unread: badge ? badge.textContent.trim() : null
-                        };
-                    });
-                    return JSON.stringify({ok: true, count: chats.length, chats: chats});
-                } catch(e) {
-                    return JSON.stringify({ok: false, error: e.toString()});
-                }
-            })()
-        """)
-        return json.loads(r) if r else {"ok": False, "error": "No response"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-    finally:
-        session.close()
+    """Read visible chat list. DISABLED: violates WhatsApp ToS (DOM scraping)."""
+    return {"ok": False, "error": _TOS_ERR}
 
 
 def get_profile(port: int = CDP_PORT) -> Dict[str, Any]:
-    """Read profile info from WhatsApp Web (requires linked session)."""
-    session = _get_session(port)
-    if not session:
-        return {"ok": False, "error": "WhatsApp tab not found"}
-    try:
-        r = session.evaluate("""
-            (function() {
-                try {
-                    var headerImg = document.querySelector(
-                        "[data-testid='menu-bar-user-avatar'] img, header img"
-                    );
-                    var pushName = null;
-                    try {
-                        var ls = Object.keys(localStorage);
-                        for (var i = 0; i < ls.length; i++) {
-                            if (ls[i].includes("push") || ls[i].includes("name")) {
-                                var v = localStorage.getItem(ls[i]);
-                                if (v && v.length < 50 && v.length > 1) {
-                                    pushName = v;
-                                    break;
-                                }
-                            }
-                        }
-                    } catch(e) {}
-                    return JSON.stringify({
-                        ok: true,
-                        data: {
-                            avatarUrl: headerImg ? headerImg.src : null,
-                            pushName: pushName
-                        }
-                    });
-                } catch(e) {
-                    return JSON.stringify({ok: false, error: e.toString()});
-                }
-            })()
-        """)
-        return json.loads(r) if r else {"ok": False, "error": "No response"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-    finally:
-        session.close()
+    """Read profile info. DISABLED: violates WhatsApp ToS."""
+    return {"ok": False, "error": _TOS_ERR}
 
 
 def search_contact(query: str, port: int = CDP_PORT) -> Dict[str, Any]:
-    """Search for a contact or chat by typing into the search box.
-
-    Returns a list of matching results from the filtered chat/contact list.
-    """
-    session = _get_session(port)
-    if not session:
-        return {"ok": False, "error": "WhatsApp tab not found"}
-    try:
-        session.evaluate("""
-            (function() {
-                var search = document.querySelector(
-                    "[data-testid='chat-list-search'], " +
-                    "input[aria-label*='Search'], input[aria-label*='search'], " +
-                    "input[placeholder*='Search'], input[placeholder*='search'], " +
-                    "input[placeholder*='\\u641c'], " +
-                    "[contenteditable='true'][data-tab='3'], " +
-                    "div[title='Search input textbox']"
-                );
-                if (search) { search.focus(); search.click(); search.value = ''; }
-            })()
-        """)
-        _time.sleep(0.5)
-
-        safe_q = query.replace("\\", "\\\\").replace("'", "\\'")
-        session.send_and_recv("Input.insertText", {"text": safe_q})
-        _time.sleep(3)
-
-        r = session.evaluate("""
-            (function() {
-                try {
-                    var results = document.querySelectorAll(
-                        "[data-testid='cell-frame-container']"
-                    );
-                    if (!results.length) {
-                        var pane = document.querySelector("#pane-side");
-                        if (pane) results = pane.querySelectorAll("[role='listitem'], [role='row']");
-                    }
-                    if (!results.length) {
-                        results = document.querySelectorAll(
-                            "[data-testid='search-result'], [class*='search-result']"
-                        );
-                    }
-                    var contacts = Array.from(results).slice(0, 20).map(function(el) {
-                        var name = el.querySelector(
-                            "[data-testid='cell-frame-title'] span, " +
-                            "span[dir='auto'][title], span[dir='auto']"
-                        );
-                        return {
-                            name: name ? name.textContent.trim().substring(0, 50) :
-                                  el.textContent.trim().substring(0, 50)
-                        };
-                    });
-                    return JSON.stringify({ok: true, count: contacts.length, contacts: contacts});
-                } catch(e) {
-                    return JSON.stringify({ok: false, error: e.toString()});
-                }
-            })()
-        """)
-
-        session.send_and_recv("Input.dispatchKeyEvent", {
-            "type": "keyDown", "key": "Escape", "code": "Escape",
-            "windowsVirtualKeyCode": 27, "nativeVirtualKeyCode": 27,
-        })
-        _time.sleep(0.3)
-        session.send_and_recv("Input.dispatchKeyEvent", {
-            "type": "keyDown", "key": "Escape", "code": "Escape",
-            "windowsVirtualKeyCode": 27, "nativeVirtualKeyCode": 27,
-        })
-
-        return json.loads(r) if r else {"ok": False, "error": "No response"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-    finally:
-        session.close()
+    """Search contacts. DISABLED: violates WhatsApp ToS (UI automation)."""
+    return {"ok": False, "error": _TOS_ERR}
 
 
 def send_to_contact(name: str, message: str, port: int = CDP_PORT) -> Dict[str, Any]:
-    """Send a message by contact name — searches for the contact, opens the
-    chat, types the message, and clicks Send.
-
-    Unlike send_message (which requires a phone number), this accepts
-    a display name and uses the search UI to navigate to the chat.
-    """
-    session = _get_session(port)
-    if not session:
-        return {"ok": False, "error": "WhatsApp tab not found"}
-    try:
-        # Focus and click the search box
-        session.evaluate("""
-            (function() {
-                var search = document.querySelector(
-                    "[data-testid='chat-list-search'], " +
-                    "div[contenteditable='true'][data-tab='3'], " +
-                    "div[title='Search input textbox']"
-                );
-                if (search) { search.focus(); search.click(); }
-            })()
-        """)
-        _time.sleep(0.5)
-
-        safe_name = name.replace("\\", "\\\\").replace("'", "\\'")
-        session.send_and_recv("Input.insertText", {"text": safe_name})
-        _time.sleep(3)
-
-        # Click the first matching result
-        clicked = session.evaluate("""
-            (function() {
-                var cells = document.querySelectorAll(
-                    "[data-testid='cell-frame-container']"
-                );
-                if (!cells.length) {
-                    var pane = document.querySelector("#pane-side");
-                    if (pane) cells = pane.querySelectorAll("[role='listitem'], [role='row']");
-                }
-                for (var i = 0; i < cells.length; i++) {
-                    var nameEl = cells[i].querySelector(
-                        "[data-testid='cell-frame-title'] span, span[dir='auto']"
-                    );
-                    if (nameEl) {
-                        var t = nameEl.textContent.trim().toLowerCase();
-                        var q = '%s'.toLowerCase();
-                        if (t.includes(q) || q.includes(t)) {
-                            cells[i].click();
-                            return 'clicked:' + nameEl.textContent.trim();
-                        }
-                    }
-                }
-                if (cells.length > 0) {
-                    cells[0].click();
-                    return 'clicked_first';
-                }
-                return 'none';
-            })()
-        """ % safe_name)
-        _time.sleep(2)
-
-        if clicked == "none":
-            session.send_and_recv("Input.dispatchKeyEvent", {
-                "type": "keyDown", "key": "Escape", "code": "Escape",
-                "windowsVirtualKeyCode": 27, "nativeVirtualKeyCode": 27,
-            })
-            return {"ok": False, "error": f"Contact '{name}' not found"}
-
-        # Wait for compose box
-        for _ in range(8):
-            has_input = session.evaluate("""
-                (function() {
-                    var inp = document.querySelector(
-                        "[data-testid='conversation-compose-box-input'], " +
-                        "div[contenteditable='true'][data-tab='10'], " +
-                        "div[contenteditable='true'][role='textbox']"
-                    );
-                    return inp ? 'yes' : 'no';
-                })()
-            """)
-            if has_input == "yes":
-                break
-            _time.sleep(1)
-
-        if has_input != "yes":
-            return {"ok": False, "error": "Compose box not found after selecting contact"}
-
-        session.evaluate("""
-            (function() {
-                var inp = document.querySelector(
-                    "[data-testid='conversation-compose-box-input'], " +
-                    "div[contenteditable='true'][data-tab='10'], " +
-                    "div[contenteditable='true'][role='textbox']"
-                );
-                if (inp) { inp.focus(); inp.click(); }
-            })()
-        """)
-        _time.sleep(0.3)
-
-        safe_msg = message.replace("\\", "\\\\").replace("'", "\\'")
-        session.send_and_recv("Input.insertText", {"text": safe_msg})
-        _time.sleep(0.5)
-
-        session.evaluate("""
-            (function() {
-                var btn = document.querySelector(
-                    "[data-testid='send'], [data-icon='send'], [data-icon*='send']"
-                );
-                if (!btn) {
-                    var all = document.querySelectorAll("button, [role='button']");
-                    for (var i = 0; i < all.length; i++) {
-                        var icon = all[i].querySelector("[data-icon]");
-                        if (icon && icon.getAttribute("data-icon").toLowerCase().includes("send")) {
-                            btn = all[i]; break;
-                        }
-                    }
-                }
-                if (btn) btn.click();
-            })()
-        """)
-        _time.sleep(2)
-
-        return {"ok": True, "sent": True, "contact": name, "matched": clicked}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-    finally:
-        session.close()
+    """Send message by contact name. DISABLED: violates WhatsApp ToS."""
+    return {"ok": False, "error": _TOS_ERR}
 
 
 def send_message(phone: str, message: str, port: int = CDP_PORT) -> Dict[str, Any]:
-    """Send a message to a phone number via WhatsApp Web.
-
-    Uses the ``wa.me/<phone>`` deep link to open the chat, waits for
-    the conversation to load, types the message, and clicks Send.
-
-    ``phone`` should be digits only (e.g. ``85290549853``).
-    """
-    digits = "".join(c for c in phone if c.isdigit())
-    if not digits:
-        return {"ok": False, "error": "Invalid phone number"}
-
-    session = _get_session(port)
-    if not session:
-        return {"ok": False, "error": "WhatsApp tab not found"}
-    try:
-        # Navigate to the chat via wa.me URL scheme
-        session.evaluate(
-            'window.location.href = "https://web.whatsapp.com/send?phone=%s"' % digits
-        )
-        _time.sleep(5)
-
-        for _ in range(8):
-            has_input = session.evaluate("""
-                (function() {
-                    var inp = document.querySelector(
-                        "[data-testid='conversation-compose-box-input'], " +
-                        "div[contenteditable='true'][data-tab='10'], " +
-                        "div[contenteditable='true'][role='textbox']"
-                    );
-                    return inp ? 'yes' : 'no';
-                })()
-            """)
-            if has_input == "yes":
-                break
-            _time.sleep(2)
-
-        if has_input != "yes":
-            # Check if there's an "invalid phone" message
-            body = session.evaluate(
-                "document.body ? document.body.innerText.substring(0,300) : ''"
-            ) or ""
-            return {"ok": False, "error": "Message input not found", "page": body[:150]}
-
-        session.evaluate("""
-            (function() {
-                var inp = document.querySelector(
-                    "[data-testid='conversation-compose-box-input'], " +
-                    "div[contenteditable='true'][data-tab='10'], " +
-                    "div[contenteditable='true'][role='textbox']"
-                );
-                if (inp) { inp.focus(); inp.click(); }
-            })()
-        """)
-        _time.sleep(0.3)
-
-        safe_msg = message.replace("\\", "\\\\").replace("'", "\\'")
-        session.send_and_recv("Input.insertText", {"text": safe_msg})
-        _time.sleep(0.5)
-
-        session.evaluate("""
-            (function() {
-                var btn = document.querySelector(
-                    "[data-testid='send'], " +
-                    "[data-icon='send'], [data-icon*='send'], " +
-                    "button[aria-label='Send'], button[aria-label='send']"
-                );
-                if (!btn) {
-                    var all = document.querySelectorAll("button, [role='button']");
-                    for (var i = 0; i < all.length; i++) {
-                        var icon = all[i].querySelector("[data-icon]");
-                        if (icon && icon.getAttribute("data-icon").toLowerCase().includes("send")) {
-                            btn = all[i]; break;
-                        }
-                    }
-                }
-                if (btn) btn.click();
-            })()
-        """)
-        _time.sleep(2)
-
-        _time.sleep(1)
-        r = session.evaluate("""
-            (function() {
-                var compose = document.querySelector(
-                    "[data-testid='conversation-compose-box-input'], " +
-                    "div[contenteditable='true'][data-tab='10'], " +
-                    "div[contenteditable='true'][role='textbox']"
-                );
-                var composeEmpty = compose ? compose.textContent.trim().length === 0 : false;
-                var msgs = document.querySelectorAll(
-                    "[data-testid='msg-container'] [class*='message-out'], " +
-                    "[class*='message-out'], .message-out"
-                );
-                var last = msgs.length > 0 ? msgs[msgs.length - 1] : null;
-                var lastText = last ? last.textContent.trim().substring(0, 100) : null;
-                return JSON.stringify({
-                    ok: true,
-                    sent: composeEmpty || !!last,
-                    lastOutgoing: lastText
-                });
-            })()
-        """)
-        return json.loads(r) if r else {"ok": True, "sent": True, "note": "Could not verify"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-    finally:
-        session.close()
+    """Send message by phone number. DISABLED: violates WhatsApp ToS."""
+    return {"ok": False, "error": _TOS_ERR}

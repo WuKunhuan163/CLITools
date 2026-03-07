@@ -84,24 +84,34 @@ def multiline_input(
     if fd is None or termios is None:
         return _fallback_input(prompt, inject_check)
 
+    # Separate leading newlines from the display prompt so redraws don't
+    # re-emit them and create blank lines on every keystroke.
+    leading = ""
+    display_prompt = prompt
+    while display_prompt.startswith("\n"):
+        leading += "\n"
+        display_prompt = display_prompt[1:]
+
+    if leading:
+        _raw_write(leading)
+
     lines = [""]
     cursor_line = 0
     cursor_col = 0
     showing_placeholder = True
 
-    _show_prompt(prompt, placeholder, showing_placeholder)
+    _show_prompt(display_prompt, placeholder, showing_placeholder)
 
     old_settings = termios.tcgetattr(fd)
     try:
         tty.setraw(fd)
         while True:
-            # Check for injected commands
             if inject_check:
                 injected = inject_check()
                 if injected is not None:
-                    _clear_input_area(prompt, lines, cursor_line, showing_placeholder)
+                    _clear_input_area(display_prompt, lines, cursor_line, showing_placeholder)
                     text = injected.strip()
-                    _show_submitted(prompt, text, submit_color)
+                    _show_submitted(display_prompt, text, submit_color)
                     return text
 
             ready, _, _ = _select.select([fd], [], [], poll_interval)
@@ -110,27 +120,24 @@ def multiline_input(
 
             ch = os.read(fd, 1)
             if not ch:
-                _clear_input_area(prompt, lines, cursor_line, showing_placeholder)
+                _clear_input_area(display_prompt, lines, cursor_line, showing_placeholder)
                 return "/quit"
 
-            # Ctrl+C
             if ch == b'\x03':
-                _clear_input_area(prompt, lines, cursor_line, showing_placeholder)
+                _clear_input_area(display_prompt, lines, cursor_line, showing_placeholder)
                 _raw_write("\r\n")
                 return "/quit"
 
-            # Ctrl+Enter (Ctrl+J = \x0a in raw mode)
             if ch == b'\x0a':
                 text = "\n".join(lines)
-                _clear_input_area(prompt, lines, cursor_line, showing_placeholder)
-                _show_submitted(prompt, text, submit_color)
+                _clear_input_area(display_prompt, lines, cursor_line, showing_placeholder)
+                _show_submitted(display_prompt, text, submit_color)
                 return text
 
-            # Enter = new line
             if ch == b'\r':
                 if showing_placeholder:
                     showing_placeholder = False
-                    _clear_input_area(prompt, lines, cursor_line, True)
+                    _clear_input_area(display_prompt, lines, cursor_line, True)
                     lines = [""]
                     cursor_line = 0
                     cursor_col = 0
@@ -140,10 +147,9 @@ def multiline_input(
                 cursor_line += 1
                 lines.insert(cursor_line, tail)
                 cursor_col = 0
-                _redraw(prompt, lines, cursor_line, cursor_col)
+                _redraw(display_prompt, lines, cursor_line, cursor_col)
                 continue
 
-            # Backspace
             if ch in (b'\x7f', b'\x08'):
                 if showing_placeholder:
                     continue
@@ -160,41 +166,39 @@ def multiline_input(
 
                 if lines == [""]:
                     showing_placeholder = True
-                    _clear_input_area(prompt, lines, cursor_line, False)
-                    _show_prompt(prompt, placeholder, True)
+                    _clear_input_area(display_prompt, lines, cursor_line, False)
+                    _show_prompt(display_prompt, placeholder, True)
                     cursor_line = 0
                     cursor_col = 0
                 else:
-                    _redraw(prompt, lines, cursor_line, cursor_col)
+                    _redraw(display_prompt, lines, cursor_line, cursor_col)
                 continue
 
-            # Escape sequences (arrows, etc.)
             if ch == b'\x1b':
                 seq = b''
                 ready2, _, _ = _select.select([fd], [], [], 0.05)
                 if ready2:
                     seq = os.read(fd, 2)
-                if seq == b'[A':  # Up
+                if seq == b'[A':
                     if cursor_line > 0:
                         cursor_line -= 1
                         cursor_col = min(cursor_col, len(lines[cursor_line]))
-                        _redraw(prompt, lines, cursor_line, cursor_col)
-                elif seq == b'[B':  # Down
+                        _redraw(display_prompt, lines, cursor_line, cursor_col)
+                elif seq == b'[B':
                     if cursor_line < len(lines) - 1:
                         cursor_line += 1
                         cursor_col = min(cursor_col, len(lines[cursor_line]))
-                        _redraw(prompt, lines, cursor_line, cursor_col)
-                elif seq == b'[C':  # Right
+                        _redraw(display_prompt, lines, cursor_line, cursor_col)
+                elif seq == b'[C':
                     if cursor_col < len(lines[cursor_line]):
                         cursor_col += 1
-                        _redraw(prompt, lines, cursor_line, cursor_col)
-                elif seq == b'[D':  # Left
+                        _redraw(display_prompt, lines, cursor_line, cursor_col)
+                elif seq == b'[D':
                     if cursor_col > 0:
                         cursor_col -= 1
-                        _redraw(prompt, lines, cursor_line, cursor_col)
+                        _redraw(display_prompt, lines, cursor_line, cursor_col)
                 continue
 
-            # Regular character
             try:
                 char = ch.decode('utf-8', errors='ignore')
             except Exception:
@@ -204,7 +208,7 @@ def multiline_input(
 
             if showing_placeholder:
                 showing_placeholder = False
-                _clear_input_area(prompt, lines, cursor_line, True)
+                _clear_input_area(display_prompt, lines, cursor_line, True)
                 lines = [""]
                 cursor_line = 0
                 cursor_col = 0
@@ -212,7 +216,7 @@ def multiline_input(
             line = lines[cursor_line]
             lines[cursor_line] = line[:cursor_col] + char + line[cursor_col:]
             cursor_col += 1
-            _redraw(prompt, lines, cursor_line, cursor_col)
+            _redraw(display_prompt, lines, cursor_line, cursor_col)
 
     except (EOFError, OSError):
         return "/quit"

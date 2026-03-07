@@ -1,8 +1,11 @@
 """Kling AI operations via CDMCP (Chrome DevTools MCP).
 
 Uses the authenticated ``klingai.com`` session via CDP (port 9222).
-User data is read from ``localStorage`` (key ``klingai_user``) and DOM
-elements since the Kling API gateway blocks cross-origin fetch.
+Auth state and basic page info are read from localStorage/URL.
+DOM scraping functions (get_points, get_generation_history) are disabled
+due to ToS concerns. Use the official Kling AI API instead.
+
+# TODO: Migrate to Kling AI official API (https://docs.qingque.cn/d/home/eZQCUXCd2RS3MFEzfR6Vc8ADRnx)
 """
 import json
 from typing import Dict, Any, Optional
@@ -14,6 +17,9 @@ from logic.chrome.session import (
 )
 
 KLING_URL_PATTERN = "klingai.com"
+
+# TODO: Migrate to Kling AI official API for credits and generation history.
+_TOS_ERR = "Disabled: DOM scraping may violate Kling ToS. Use Kling AI official API instead."
 
 
 def find_kling_tab(port: int = CDP_PORT) -> Optional[Dict[str, Any]]:
@@ -67,42 +73,8 @@ def get_user_info(port: int = CDP_PORT) -> Dict[str, Any]:
 
 
 def get_points(port: int = CDP_PORT) -> Dict[str, Any]:
-    """Get Kling AI credit points from DOM or page context."""
-    session = _get_session(port)
-    if not session:
-        return {"ok": False, "error": "Kling AI tab not found"}
-    try:
-        r = session.evaluate("""
-            (function() {
-                try {
-                    var url = window.location.href;
-                    var isStudio = url.includes("/ai/") || url.includes("/creation") ||
-                                   url.includes("/assets") || url.includes("/video");
-                    var pointBox = document.querySelector(
-                        "[class*='point-box'], [class*='pointBox'], [class*='credit'], " +
-                        "[class*='coin'], [class*='balance']"
-                    );
-                    var points = pointBox ? pointBox.textContent.trim() : null;
-                    var subEl = document.querySelector(
-                        "[class*='subscribe'], [class*='membership'], [class*='plan'], " +
-                        "[class*='vip'], [class*='VIP']"
-                    );
-                    var plan = subEl ? subEl.textContent.trim().substring(0, 50) : null;
-                    return JSON.stringify({
-                        ok: true,
-                        data: {points: points, plan: plan, isStudio: isStudio},
-                        note: !isStudio ? "Navigate to Creative Studio for credit info" : null
-                    });
-                } catch(e) {
-                    return JSON.stringify({ok: false, error: e.toString()});
-                }
-            })()
-        """)
-        return json.loads(r) if r else {"ok": False, "error": "No response"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-    finally:
-        session.close()
+    """Get credit points. DISABLED: violates Kling ToS (DOM scraping)."""
+    return {"ok": False, "error": _TOS_ERR}
 
 
 def get_page_info(port: int = CDP_PORT) -> Dict[str, Any]:
@@ -129,30 +101,5 @@ def get_page_info(port: int = CDP_PORT) -> Dict[str, Any]:
 
 
 def get_generation_history(port: int = CDP_PORT) -> Dict[str, Any]:
-    """Read generation history from the Assets page DOM.
-
-    Navigates to the assets page if not already there, then reads
-    visible generation items.
-    """
-    session = _get_session(port)
-    if not session:
-        return {"ok": False, "error": "Kling AI tab not found"}
-    try:
-        r = session.evaluate("""
-            (function() {
-                var items = document.querySelectorAll(
-                    "[class*=asset-card], [class*=work-card], [class*=creation-item], [class*=task-item]"
-                );
-                var results = Array.from(items).slice(0, 20).map(el => ({
-                    text: el.textContent.trim().substring(0, 100),
-                    hasVideo: !!el.querySelector("video"),
-                    hasImage: !!el.querySelector("img")
-                }));
-                return JSON.stringify({ok: true, count: results.length, items: results});
-            })()
-        """)
-        return json.loads(r) if r else {"ok": False, "error": "No response"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-    finally:
-        session.close()
+    """Get generation history. DISABLED: violates Kling ToS (DOM scraping)."""
+    return {"ok": False, "error": _TOS_ERR}

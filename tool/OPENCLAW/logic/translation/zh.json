@@ -1,5 +1,5 @@
 {
-  "banner_title": "OPENCLAW v2.0 [Agent CLI] PID {pid}",
+  "banner_title": "v2.0 [Agent CLI] PID {pid}",
   "banner_setup": "/setup 配置",
   "banner_help": "/help 查看指令",
   "banner_quit": "/quit 退出",
