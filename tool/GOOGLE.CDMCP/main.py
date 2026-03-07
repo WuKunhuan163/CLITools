@@ -106,6 +106,23 @@ class CDMCPTool(ToolBase):
         p_demo.add_argument("--single", action="store_true",
                             help="Run single interaction only (default is continuous)")
 
+        p_scan = sub.add_parser("scan", help="Scan a page for all interactive elements")
+        p_scan.add_argument("pattern", help="URL pattern to match the tab")
+        p_scan.add_argument("--shadow", action="store_true",
+                            help="Also scan Shadow DOM hosts")
+        p_scan.add_argument("--scroll", action="store_true",
+                            help="Scan scrollable regions")
+        p_scan.add_argument("--menus", action="store_true",
+                            help="Click menus and scan items")
+        p_scan.add_argument("--apis", action="store_true",
+                            help="Discover JavaScript APIs")
+        p_scan.add_argument("--full", action="store_true",
+                            help="Enable all scan modes (shadow, scroll, menus, apis)")
+        p_scan.add_argument("--output", default="",
+                            help="Save JSON output to file path")
+        p_scan.add_argument("--screenshot", default="",
+                            help="Save a screenshot to file path")
+
         if self.handle_command_line(parser):
             return
 
@@ -258,6 +275,13 @@ class CDMCPTool(ToolBase):
             else:
                 print(f"  {BOLD}{RED}Failed{RESET} to boot: {r.get('error', '?')}")
 
+        elif args.command == "scan":
+            r = _run_scan(api, args, BOLD, GREEN, RED, BLUE, RESET)
+            if r:
+                print(f"  {BOLD}{GREEN}Scan complete.{RESET}")
+            else:
+                print(f"  {BOLD}{RED}Scan failed.{RESET}")
+
         elif args.command == "demo":
             r = api.run_demo(delay=args.delay, continuous=not args.single)
             if r.get("ok"):
@@ -267,6 +291,271 @@ class CDMCPTool(ToolBase):
 
         else:
             parser.print_help()
+
+
+def _run_scan(api, args, BOLD, GREEN, RED, BLUE, RESET):
+    """Scan a tab for all interactive elements."""
+    import time
+    from logic.chrome.session import (
+        CDPSession, list_tabs, capture_screenshot, find_tab, dispatch_key,
+    )
+
+    pattern = args.pattern
+    do_shadow = args.shadow or args.full
+    do_scroll = args.scroll or args.full
+    do_menus = args.menus or args.full
+    do_apis = args.apis or args.full
+    output_path = args.output
+    screenshot_path = args.screenshot
+
+    tab = find_tab(pattern)
+    if not tab:
+        print(f"  {BOLD}{RED}No tab matching '{pattern}'.{RESET}")
+        return False
+
+    cdp = CDPSession(tab["webSocketDebuggerUrl"])
+    result = {"url": tab.get("url", ""), "title": tab.get("title", ""),
+              "scanned_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+
+    # Core element scan
+    print(f"  {BOLD}{BLUE}Scanning{RESET} interactive elements...")
+    scan_js = '''
+    (function(){
+        var selectors = 'button:not([hidden]), [role=button]:not([hidden]), '
+            + '[role=tab]:not([hidden]), [role=menuitem], '
+            + 'input:not([hidden]), textarea:not([hidden]), select:not([hidden]), '
+            + 'a[href]:not([hidden]), [contenteditable]:not([hidden]), '
+            + '[role=checkbox], [role=radio], [role=switch], '
+            + '[role=slider], [role=combobox], [role=listbox], '
+            + '[role=link], [role=option], [tabindex]:not([tabindex="-1"])';
+        var all = document.querySelectorAll(selectors);
+        var out = [];
+        for(var i=0; i<all.length; i++){
+            var el = all[i];
+            var rect = el.getBoundingClientRect();
+            if(rect.width <= 0 || rect.height <= 0) continue;
+            if(rect.y < -50 || rect.x < -50) continue;
+            out.push({
+                tag: el.tagName, id: el.id||'',
+                text: (el.textContent||'').trim().substring(0, 80),
+                title: el.getAttribute('title')||'',
+                aria: el.getAttribute('aria-label')||'',
+                role: el.getAttribute('role')||'',
+                type: el.getAttribute('type')||'',
+                x: Math.round(rect.x), y: Math.round(rect.y),
+                w: Math.round(rect.width), h: Math.round(rect.height),
+                cls: (el.className||'').toString().substring(0, 80),
+                href: (el.getAttribute('href')||'').substring(0, 120)
+            });
+        }
+        out.sort(function(a,b){ return a.y === b.y ? a.x - b.x : a.y - b.y; });
+        return JSON.stringify(out);
+    })()
+    '''
+    raw = cdp.evaluate(scan_js)
+    elements = json.loads(raw) if raw else []
+    result["elements"] = elements
+    result["element_count"] = len(elements)
+    print(f"    Found {BOLD}{len(elements)}{RESET} interactive elements.")
+
+    # Shadow DOM scan
+    if do_shadow:
+        print(f"  {BOLD}{BLUE}Scanning{RESET} Shadow DOM...")
+        shadow_js = '''
+        (function(){
+            var all = document.querySelectorAll('*');
+            var out = [];
+            for(var i=0; i<all.length; i++){
+                var el = all[i];
+                if(!el.shadowRoot) continue;
+                var rect = el.getBoundingClientRect();
+                if(rect.width <= 0 || rect.height <= 0) continue;
+                var children = el.shadowRoot.querySelectorAll(
+                    'button, [role=button], input, a, [role=tab], select, textarea'
+                );
+                var childData = [];
+                for(var j=0; j<children.length && j<20; j++){
+                    var c = children[j];
+                    var cr = c.getBoundingClientRect();
+                    if(cr.width <= 0) continue;
+                    childData.push({
+                        tag: c.tagName, id: c.id||'',
+                        text: (c.textContent||'').trim().substring(0, 50),
+                        aria: c.getAttribute('aria-label')||'',
+                        x: Math.round(cr.x), y: Math.round(cr.y),
+                        w: Math.round(cr.width), h: Math.round(cr.height)
+                    });
+                }
+                if(childData.length > 0)
+                    out.push({
+                        host: el.tagName, hostId: el.id||'',
+                        hostCls: (el.className||'').toString().substring(0, 60),
+                        x: Math.round(rect.x), y: Math.round(rect.y),
+                        children: childData
+                    });
+            }
+            return JSON.stringify(out);
+        })()
+        '''
+        raw = cdp.evaluate(shadow_js)
+        shadow = json.loads(raw) if raw else []
+        result["shadow_dom"] = shadow
+        total_shadow_children = sum(len(s.get("children", [])) for s in shadow)
+        print(f"    Found {BOLD}{len(shadow)}{RESET} shadow hosts with {total_shadow_children} children.")
+
+    # Scrollable regions
+    if do_scroll:
+        print(f"  {BOLD}{BLUE}Scanning{RESET} scrollable regions...")
+        scroll_js = '''
+        (function(){
+            var all = document.querySelectorAll('*');
+            var out = [];
+            for(var i=0; i<all.length; i++){
+                var el = all[i];
+                if((el.scrollHeight > el.clientHeight + 20) || (el.scrollWidth > el.clientWidth + 20)){
+                    var r = el.getBoundingClientRect();
+                    if(r.width < 50 || r.height < 50) continue;
+                    out.push({
+                        tag: el.tagName, id: el.id||'',
+                        cls: (el.className||'').toString().substring(0, 60),
+                        scrollH: el.scrollHeight, clientH: el.clientHeight,
+                        scrollW: el.scrollWidth, clientW: el.clientWidth,
+                        x: Math.round(r.x), y: Math.round(r.y),
+                        w: Math.round(r.width), h: Math.round(r.height)
+                    });
+                }
+            }
+            return JSON.stringify(out);
+        })()
+        '''
+        raw = cdp.evaluate(scroll_js)
+        scrollable = json.loads(raw) if raw else []
+        result["scrollable"] = scrollable
+        print(f"    Found {BOLD}{len(scrollable)}{RESET} scrollable containers.")
+
+    # Menu scanning
+    if do_menus:
+        print(f"  {BOLD}{BLUE}Scanning{RESET} menus...")
+        menu_scan_js = '''
+        (function(){
+            var triggers = document.querySelectorAll(
+                '[role=menubar] > *, [aria-haspopup=true], [aria-expanded]'
+            );
+            var out = [];
+            for(var i=0; i<triggers.length; i++){
+                var t = triggers[i];
+                var r = t.getBoundingClientRect();
+                if(r.width <= 0) continue;
+                out.push({
+                    tag: t.tagName, id: t.id||'',
+                    text: (t.textContent||'').trim().substring(0, 40),
+                    aria: t.getAttribute('aria-label')||'',
+                    x: Math.round(r.x), y: Math.round(r.y),
+                    w: Math.round(r.width), h: Math.round(r.height)
+                });
+            }
+            return JSON.stringify(out);
+        })()
+        '''
+        raw = cdp.evaluate(menu_scan_js)
+        menu_triggers = json.loads(raw) if raw else []
+        result["menu_triggers"] = menu_triggers
+        print(f"    Found {BOLD}{len(menu_triggers)}{RESET} menu triggers.")
+
+    # JavaScript API discovery
+    if do_apis:
+        print(f"  {BOLD}{BLUE}Scanning{RESET} JavaScript APIs...")
+        api_js = '''
+        (function(){
+            var candidates = [
+                'colab.global.notebook', 'colab.global',
+                'ytInitialData', 'ytInitialPlayerResponse',
+                'yt.config_', 'gapi.client', 'google.colab',
+                'window.__INITIAL_STATE__', 'window.__NEXT_DATA__',
+                'window.__NUXT__', 'window._sharedData'
+            ];
+            var result = {};
+            for(var i=0; i<candidates.length; i++){
+                try {
+                    var obj = eval(candidates[i]);
+                    if(obj){
+                        var t = typeof obj;
+                        if(t === 'object'){
+                            var keys = Object.keys(obj).slice(0, 50);
+                            var methods = keys.filter(function(k){ return typeof obj[k] === 'function'; });
+                            result[candidates[i]] = {
+                                type: Array.isArray(obj) ? 'array' : 'object',
+                                key_count: Object.keys(obj).length,
+                                method_count: methods.length,
+                                sample_keys: keys.slice(0, 20),
+                                sample_methods: methods.slice(0, 20)
+                            };
+                        } else {
+                            result[candidates[i]] = {type: t, value: String(obj).substring(0, 100)};
+                        }
+                    }
+                } catch(e) {}
+            }
+            return JSON.stringify(result);
+        })()
+        '''
+        raw = cdp.evaluate(api_js)
+        apis = json.loads(raw) if raw else {}
+        result["js_apis"] = apis
+        print(f"    Found {BOLD}{len(apis)}{RESET} JavaScript APIs.")
+        for name, info in apis.items():
+            if isinstance(info, dict) and "method_count" in info:
+                print(f"      {name}: {info['key_count']} keys, {info['method_count']} methods")
+
+    # Viewport info
+    vp_js = 'JSON.stringify({w: window.innerWidth, h: window.innerHeight})'
+    vp_raw = cdp.evaluate(vp_js)
+    result["viewport"] = json.loads(vp_raw) if vp_raw else {}
+
+    # Screenshot
+    if screenshot_path:
+        img = capture_screenshot(cdp)
+        if img:
+            with open(screenshot_path, "wb") as f:
+                f.write(img)
+            print(f"  {BOLD}{GREEN}Screenshot saved:{RESET} {screenshot_path}")
+
+    # Print summary
+    print(f"\n  {BOLD}Summary:{RESET}")
+    print(f"    Elements: {result['element_count']}")
+    if do_shadow:
+        print(f"    Shadow DOM hosts: {len(result.get('shadow_dom', []))}")
+    if do_scroll:
+        print(f"    Scrollable: {len(result.get('scrollable', []))}")
+    if do_menus:
+        print(f"    Menu triggers: {len(result.get('menu_triggers', []))}")
+    if do_apis:
+        print(f"    JS APIs: {len(result.get('js_apis', {}))}")
+
+    # Print top elements by region
+    if elements:
+        print(f"\n  {BOLD}Top elements (sorted by position):{RESET}")
+        for e in elements[:30]:
+            eid = e.get("id") or e.get("aria") or e.get("text", "")[:25]
+            tag = e.get("tag", "?")
+            role = e.get("role", "")
+            x, y = e.get("x", 0), e.get("y", 0)
+            print(f"    [{x:4d},{y:4d}] {tag:15s} role={role:10s} {eid}")
+
+    # Save output
+    if output_path:
+        with open(output_path, "w") as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+        print(f"\n  {BOLD}{GREEN}JSON saved:{RESET} {output_path}")
+    else:
+        default_path = str(Path(__file__).resolve().parent / "data" / "report" / "last_scan.json")
+        Path(default_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(default_path, "w") as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+        print(f"\n  {BOLD}JSON saved:{RESET} {default_path}")
+
+    cdp.close()
+    return True
 
 
 def main():

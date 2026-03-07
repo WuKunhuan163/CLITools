@@ -110,6 +110,24 @@ CDMCP config --set allow_oauth_windows true     # Set config value
 CDMCP tutorial                                  # Interactive setup guide
 ```
 
+### Page Scanning
+```bash
+CDMCP scan youtube.com                          # Basic element scan
+CDMCP scan youtube.com --full                   # Full scan (shadow + scroll + menus + APIs)
+CDMCP scan youtube.com --shadow --apis          # Specific scan modes
+CDMCP scan bilibili.com --full --screenshot /tmp/shot.png --output /tmp/elements.json
+```
+
+The `scan` command discovers all interactive elements on any page:
+- **Elements**: Buttons, links, inputs, checkboxes, sliders, etc.
+- **Shadow DOM** (`--shadow`): Web Components with shadow roots
+- **Scrollable** (`--scroll`): Containers with overflow content
+- **Menus** (`--menus`): Menu triggers and popups
+- **APIs** (`--apis`): JavaScript API objects (YouTube, Colab, etc.)
+- **`--full`**: All of the above
+
+Output is saved as JSON for analysis and MCP development planning.
+
 ## Privacy Configuration
 
 | Key | Default | Description |
