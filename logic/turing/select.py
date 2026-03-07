@@ -90,7 +90,7 @@ def select_menu(
             label = opt.get("label", str(opt.get("value", "")))
             detail = opt.get("detail", "")
             if i == cursor:
-                line = f"{indent}  {CYAN}*{RESET} {BLUE}{BOLD}{label}{RESET}"
+                line = f"{indent}  {CYAN}*{RESET} {CYAN}{BOLD}{label}{RESET}"
             else:
                 line = f"{indent}    {label}"
             if detail:
@@ -123,7 +123,7 @@ def select_menu(
                 clear()
                 selected = options[cursor]
                 label = selected.get("label", str(selected.get("value", "")))
-                sys.stdout.write(f"{indent}{title} {GREEN}{BOLD}{label}{RESET}\n")
+                sys.stdout.write(f"{indent}{title} {CYAN}{BOLD}{label}{RESET}\n")
                 sys.stdout.flush()
                 return selected
             elif key == 'esc':
@@ -179,7 +179,7 @@ def select_horizontal(
         parts = []
         for i, opt in enumerate(options):
             if i == cursor:
-                parts.append(f"{BOLD}[{opt}]{RESET}")
+                parts.append(f"{CYAN}{BOLD}[{opt}]{RESET}")
             else:
                 parts.append(f"{DIM}{opt}{RESET}")
         line = f"{indent}{prompt}  {'  '.join(parts)}"
@@ -201,7 +201,7 @@ def select_horizontal(
 
         while True:
             if deadline and __import__("time").time() >= deadline:
-                sys.stdout.write(f"\r\033[K{indent}{prompt}  {GREEN}{BOLD}{options[cursor]}{RESET}\n")
+                sys.stdout.write(f"\r\033[K{indent}{prompt}  {CYAN}{BOLD}{options[cursor]}{RESET}\n")
                 sys.stdout.flush()
                 return cursor
 
@@ -219,7 +219,7 @@ def select_horizontal(
                 cursor = (cursor + 1) % len(options)
             elif key == 'enter':
                 sys.stdout.write(
-                    f"\r\033[K{indent}{prompt}  {GREEN}{BOLD}{options[cursor]}{RESET}\n")
+                    f"\r\033[K{indent}{prompt}  {CYAN}{BOLD}{options[cursor]}{RESET}\n")
                 sys.stdout.flush()
                 return cursor
             elif key in ('esc', 'ctrl-c'):

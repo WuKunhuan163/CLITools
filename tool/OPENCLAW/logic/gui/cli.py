@@ -1238,14 +1238,17 @@ class OpenClawCLI:
             while True:
                 if self._pending_cmds:
                     text = self._pending_cmds.pop(0)
+                    display_text = text
                     sys.stdout.write(f"\n{self._IDLE} {CYAN}{text}{RESET}\n")
                     sys.stdout.flush()
                 else:
                     ctrl = self._read_ctrl()
                     if ctrl:
                         text = ctrl.strip()
+                        display_text = text
                     else:
                         user_input = self._prompt()
+                        display_text = user_input
                         text = user_input.strip()
 
                 if not text:
@@ -1258,13 +1261,13 @@ class OpenClawCLI:
                 text = cmd_parts[0]
 
                 if text in ("/quit", "/exit"):
-                    self._mark_done(text)
+                    self._mark_done(display_text)
                     print(f"{DIM}{_('goodbye', 'Goodbye.')}{RESET}\n")
                     break
 
                 if text.startswith("/"):
                     if text == "/setup":
-                        self._mark_running(text)
+                        self._mark_running(display_text)
                         sys.stdout.flush()
                         tracker = _OutputTracker(sys.stdout)
                         sys.stdout = tracker
@@ -1274,40 +1277,40 @@ class OpenClawCLI:
                             _dev_log("setup_error", {"error": str(_setup_err)})
                         sys.stdout = tracker._wrapped
                         if self._provider and self._provider.is_available():
-                            self._recolor_indicator(text, tracker.lines, GREEN)
+                            self._recolor_indicator(display_text, tracker.lines, GREEN)
                             print(_("setup_completed", "Setup completed."))
                     elif text == "/help":
-                        self._mark_done(text)
+                        self._mark_done(display_text)
                         self._print_help()
                     elif text == "/new":
-                        self._mark_done(text)
+                        self._mark_done(display_text)
                         self._checkout_session()
                     elif text == "/sessions":
-                        self._mark_done(text)
+                        self._mark_done(display_text)
                         self._show_sessions()
                     elif text == "/resume" or text.startswith("/resume "):
                         parts = text.split(None, 1)
                         if len(parts) < 2:
-                            self._mark_done(text)
-                            print(f"  {DIM}Usage: /resume <session-id>{RESET}")  # command syntax, not localized
+                            self._mark_done(display_text)
+                            print(f"  {DIM}Usage: /resume <session-id>{RESET}")
                         else:
-                            self._mark_done(text)
+                            self._mark_done(display_text)
                             self._checkout_session(parts[1].strip())
                     elif text == "/cleanup":
-                        self._mark_running(text)
+                        self._mark_running(display_text)
                         tracker = _OutputTracker(sys.stdout)
                         sys.stdout = tracker
                         self._cleanup_session()
                         sys.stdout = tracker._wrapped
-                        self._recolor_indicator(text, tracker.lines, GREEN)
+                        self._recolor_indicator(display_text, tracker.lines, GREEN)
                     elif text == "/checkout" or text.startswith("/checkout "):
                         parts = text.split(None, 1)
                         sid = parts[1].strip() if len(parts) > 1 else ""
-                        self._mark_done(text)
+                        self._mark_done(display_text)
                         self._checkout_session(sid)
                     elif text == "/delete" or text.startswith("/delete "):
                         parts = text.split(None, 1)
-                        self._mark_running(text)
+                        self._mark_running(display_text)
                         tracker = _OutputTracker(sys.stdout)
                         sys.stdout = tracker
                         if len(parts) < 2:
@@ -1315,56 +1318,56 @@ class OpenClawCLI:
                         else:
                             self._delete_session(parts[1].strip())
                         sys.stdout = tracker._wrapped
-                        self._recolor_indicator(text, tracker.lines, GREEN)
+                        self._recolor_indicator(display_text, tracker.lines, GREEN)
                     elif text == "/rename" or text.startswith("/rename "):
                         parts = text.split(None, 1)
                         if len(parts) < 2:
-                            self._mark_done(text)
+                            self._mark_done(display_text)
                             print(f"  {DIM}{_('rename_usage', 'Usage: /rename <session-id> <new title>')}{RESET}")
                         else:
-                            self._mark_done(text)
+                            self._mark_done(display_text)
                             self._rename_session(parts[1])
                     elif text == "/sandbox" or text.startswith("/sandbox "):
                         parts = text.split(None, 2)
                         if len(parts) >= 3:
-                            self._mark_done(text)
+                            self._mark_done(display_text)
                             self._manage_sandbox(parts[1], parts[2])
                         else:
-                            self._mark_running(text)
+                            self._mark_running(display_text)
                             tracker = _OutputTracker(sys.stdout)
                             sys.stdout = tracker
                             self._manage_sandbox()
                             sys.stdout = tracker._wrapped
-                            self._recolor_indicator(text, tracker.lines, GREEN)
+                            self._recolor_indicator(display_text, tracker.lines, GREEN)
                     elif text == "/models":
-                        self._mark_running(text)
+                        self._mark_running(display_text)
                         tracker = _OutputTracker(sys.stdout)
                         sys.stdout = tracker
                         self._show_models()
                         sys.stdout = tracker._wrapped
-                        self._recolor_indicator(text, tracker.lines, GREEN)
+                        self._recolor_indicator(display_text, tracker.lines, GREEN)
                     elif text == "/dashboard":
-                        self._mark_running(text)
+                        self._mark_running(display_text)
                         tracker = _OutputTracker(sys.stdout)
                         sys.stdout = tracker
                         self._launch_dashboard()
                         sys.stdout = tracker._wrapped
-                        self._recolor_indicator(text, tracker.lines, GREEN)
+                        self._recolor_indicator(display_text, tracker.lines, GREEN)
                     elif text == "/gui":
-                        self._mark_running(text)
+                        self._mark_running(display_text)
                         tracker = _OutputTracker(sys.stdout)
                         sys.stdout = tracker
                         self._launch_html_gui()
                         sys.stdout = tracker._wrapped
-                        self._recolor_indicator(text, tracker.lines, GREEN)
+                        self._recolor_indicator(display_text, tracker.lines, GREEN)
                     elif text == "/status":
-                        self._mark_done(text)
+                        self._mark_done(display_text)
                         self._show_status()
                     elif text == "/context":
-                        self._mark_done(text)
+                        self._mark_done(display_text)
                         self._show_context_usage()
                     else:
-                        self._mark_failed(text)
+                        self._mark_failed(display_text)
                         from logic.utils.fuzzy import format_suggestion
                         hint = format_suggestion(text.split()[0], _CMD_NAMES,
                                                  prefix="")
@@ -1374,10 +1377,10 @@ class OpenClawCLI:
                             print(f"  {RED}{BOLD}{_('unknown_command', 'Unknown command.')}{RESET} Type /help.")
                 else:
                     if not self._provider or not self._provider.is_available():
-                        self._mark_failed(text)
+                        self._mark_failed(display_text)
                         print(f"  {BOLD}{_('provider_not_configured', 'Provider not configured. Run /setup to configure.')}{RESET}")
                         continue
-                    self._mark_running(text)
+                    self._mark_running(display_text)
                     self._write_state("running", text)
                     tracker = _OutputTracker(sys.stdout)
                     sys.stdout = tracker
@@ -1391,7 +1394,7 @@ class OpenClawCLI:
                     finally:
                         sys.stdout = tracker._wrapped
                     color = GREEN if success else RED
-                    self._recolor_indicator(text, tracker.lines, color)
+                    self._recolor_indicator(display_text, tracker.lines, color)
                     if not success:
                         print(f"{RED}{self._ACTIVE}{RESET} {_('failed', 'Failed.')}")
                     self._write_state("idle")
