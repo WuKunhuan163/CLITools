@@ -119,7 +119,8 @@ def main():
             _icloud_iface = _get_icloud()
             local_library = _icloud_iface["get_local_photos_library"](library_path)
             if not local_library.is_valid():
-                print(f"{BOLD}{YELLOW}Warning{RESET}: '{library_path}' does not appear to be a valid Photos Library (missing 'originals' folder).")
+                from logic.turing.status import fmt_warning
+                print(fmt_warning(f"'{library_path}' does not appear to be a valid Photos Library (missing 'originals' folder)."))
                 local_library = None
             else:
                 pass # Local library confirmed
@@ -202,7 +203,8 @@ def main():
                 if stage: stage.active_name = f"authenticating {apple_id}"
                 api = PyiCloudService(apple_id, password)
                 if api.requires_2fa:
-                    print(f"\n{BOLD}{YELLOW}Two-factor authentication required.{RESET}")
+                    from logic.turing.status import fmt_warning
+                    print(f"\n{fmt_warning('Two-factor authentication required.', indent=0)}")
                     try: code = input("Enter 6-digit 2FA code: ").strip()
                     except EOFError: return False
                     if not api.validate_2fa_code(code): return False
@@ -389,9 +391,8 @@ def main():
     pm.run()
     
     if used_cache:
-        DIM = get_color("DIM", "\033[2m")
-        sys.stdout.write(f"\r\033[K  {YELLOW}{DIM}Warning:{RESET} {DIM}Using cached scan results. Run with --force-rescan to refresh metadata.{RESET}\n")
-        sys.stdout.flush()
+        from logic.turing.status import fmt_warning
+        print(fmt_warning("Using cached scan results. Run with --force-rescan to refresh metadata."))
 
     if args.only_scan:
         print(f"{BOLD}{GREEN}Scan completed{RESET}. Metadata saved to {cache_file}")
@@ -458,16 +459,16 @@ def main():
             continue
         final_scheduled_info[aid] = info
     
+    from logic.turing.status import fmt_status, fmt_info, fmt_detail
     if already_downloaded_count > 0:
-        print(f"{BOLD}Skipped{RESET} {already_downloaded_count} photos/videos already downloaded.")
+        print(fmt_status("Skipped", complement=f"{already_downloaded_count} photos/videos already downloaded.", indent=0))
     
     scheduled_id_info = final_scheduled_info
-    print(f"{BOLD}Scheduled{RESET} {len(scheduled_id_info)} photos/videos for download.")
+    print(fmt_status("Scheduled", complement=f"{len(scheduled_id_info)} photos/videos for download.", indent=0))
     if not scheduled_id_info: return
 
-    # Display local library usage just before gathering
     if local_library:
-        print(f"{BOLD}Using local library{RESET}: {local_library.library_path}")
+        print(fmt_info(f"Using local library: {local_library.library_path}", indent=0))
 
     # 4. Parallel Downloading
     from interface.turing import ParallelWorkerPool
@@ -523,7 +524,8 @@ def main():
             # Erase current line
             sys.stdout.write("\r\033[K")
             sys.stdout.flush()
-            print(f"{BOLD}{YELLOW}Warning{RESET}: {missing_count} photos not found in local library. Gathering metadata from iCloud...")
+            from logic.turing.status import fmt_warning
+            print(fmt_warning(f"{missing_count} photos not found in local library. Gathering from iCloud..."))
             if stage: stage.refresh() # Restore active line below warning
 
         if not needs_lookup_ids:
@@ -684,20 +686,23 @@ def main():
     
     if not tasks and not failed_tasks:
         if already_downloaded_count > 0:
-            print(f"{BOLD}{GREEN}All scheduled photos/videos are already downloaded.{RESET}")
+            print(fmt_status("All downloaded.", complement="No new photos/videos to fetch.", style="success", indent=0))
         return
 
     if all_success and not failed_tasks:
         first, last = to_download_objects[0], to_download_objects[-1]
         f_d, l_d = getattr(first, "_cached_date", None), getattr(last, "_cached_date", None)
-        f_s, l_s = f"{f_d.strftime('%Y-%m-%d') if f_d else 'unknown'}/{first.filename}", f"{l_d.strftime('%Y-%m-%d') if l_d else 'unknown'}/{last.filename}"
-        print(f"{BOLD}{GREEN}Successfully downloaded{RESET} {len(tasks)} photos/videos from {BOLD}{f_s}{RESET} to {BOLD}{l_s}{RESET}.")
+        f_s = f"{f_d.strftime('%Y-%m-%d') if f_d else 'unknown'}/{first.filename}"
+        l_s = f"{l_d.strftime('%Y-%m-%d') if l_d else 'unknown'}/{last.filename}"
+        print(fmt_status("Successfully downloaded", complement=f"{len(tasks)} photos/videos.", style="success", indent=0))
+        print(fmt_info(f"From {f_s} to {l_s}", indent=0))
     elif failed_tasks:
-        print(f"{BOLD}{RED}Failed to download{RESET} {len(failed_tasks)} photos/videos.")
+        print(fmt_status("Failed to download", complement=f"{len(failed_tasks)} photos/videos.", style="error", indent=0))
         for ft in failed_tasks:
             tool.log(f"DOWNLOAD_FAIL id={ft['id']}", extra=f"error={ft['error']} detail={ft['log']}", include_stack=False)
         log_path = tool.get_session_logger().path
-        print(f"{BOLD}Reason:{RESET} {failed_tasks[0]['error']}... {BOLD}Full log saved to:{RESET} {log_path}")
+        print(fmt_detail(f"Reason: {failed_tasks[0]['error']}...", indent=2))
+        print(fmt_detail(f"Full log: {log_path}", indent=2))
 
 if __name__ == "__main__":
     from interface.turing import get_global_suppressor

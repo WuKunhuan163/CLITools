@@ -75,7 +75,7 @@ Reusable functions that enforce the **minimal-emphasis** styling rule:
 bold/color only on the core phrase; complements and details in default or dim style.
 
 ```python
-from logic.turing.status import fmt_status, fmt_detail, fmt_stage
+from logic.turing.status import fmt_status, fmt_detail, fmt_stage, fmt_warning, fmt_info
 
 # One-line status: bold label + optional complement + optional dim detail
 print(fmt_status("Saved."))                                  #   **Saved.**
@@ -89,6 +89,10 @@ print(fmt_detail(f"{YELLOW}Warning{RESET}", styled=True))    #     Warning (call
 # Stage indicator: > {label} {desc}   — colored by status
 print(fmt_stage("Starting session...", status="active"))     #   > **Starting session...**
 print(fmt_stage("Session started.", desc="be58ac60", status="done"))  #   >(green) **Session started.** be58ac60
+
+# Warning/info: dimmed notices for non-critical messages
+print(fmt_warning("Using cached results."))                  #   Warning: Using cached results. (dim)
+print(fmt_info("Session ID: be58ac60"))                      #   Session ID: be58ac60 (dim)
 ```
 
 All functions return formatted strings (no trailing newline) — the caller decides when to print.

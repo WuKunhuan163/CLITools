@@ -216,7 +216,8 @@ def main():
             # Run all test_xx_*.py files in the root test/ directory
             test_files = sorted(list(test_dir.glob("test_*.py")))
             if not test_files:
-                print(f"{BOLD}{YELLOW}{_('label_warning', 'Warning')}{RESET}: No test files found.")
+                from logic.turing.status import fmt_warning
+                print(fmt_warning("No test files found.", indent=0))
                 sys.exit(0)
                 
             for tf in test_files:

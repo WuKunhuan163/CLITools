@@ -212,7 +212,8 @@ def main():
     scanner = PythonScanner(silent=args.tool_quiet)
     filtered = get_all_assets_from_cache(tag_filter=args.tag, version_filter=args.version, platform_filter=args.platform)
     if not filtered:
-        print(f"{BOLD}{YELLOW}{_('label_warning', 'Warning')}{RESET}: No matching assets found.")
+        from logic.turing.status import fmt_warning
+        print(fmt_warning("No matching assets found.", indent=0))
         return
 
     # Deduplicate: latest tag and latest patch for each platform/minor

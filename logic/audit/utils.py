@@ -41,32 +41,24 @@ class AuditManager:
         """Prints a standardized warning when cache is used."""
         if silent:
             return
-            
-        from logic.config import get_color
-        BOLD = get_color("BOLD", "\033[1m")
-        YELLOW = get_color("YELLOW", "\033[33m")
-        RESET = get_color("RESET", "\033[0m")
-        
-        warning_label = f"{BOLD}{YELLOW}Warning{RESET}"
+
         type_str = f" {data_type}" if data_type else ""
-        
-        # Build the cleanup command
+
         cmd = custom_command or self.audit_command
         refresh_msg = ""
-        
+
         if clear_hint:
             refresh_msg = f" To force refresh, {clear_hint}."
         elif cmd:
-            # Check if cmd already starts with PYTHON or TOOL, if not assume it's a relative script
             refresh_msg = f" To force refresh, run: rm -rf {self.audit_dir} && {cmd}"
         else:
             refresh_msg = f" To force refresh, clear the cache directory: {self.audit_dir}"
-            
+
         import sys
-        # Clear current erasable line if any
         sys.stdout.write("\r\033[K")
         sys.stdout.flush()
-        print(f"{warning_label}: Using cached{type_str} data.{refresh_msg}")
+        from logic.turing.status import fmt_warning
+        print(fmt_warning(f"Using cached{type_str} data.{refresh_msg}", indent=0))
 
 class AuditBase:
     """

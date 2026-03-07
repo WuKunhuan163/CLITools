@@ -25,6 +25,7 @@ BOLD = get_color("BOLD", "\033[1m")
 DIM = get_color("DIM", "\033[2m")
 GREEN = get_color("GREEN_NORMAL", "\033[32m")
 RED = get_color("RED_NORMAL", "\033[31m")
+YELLOW = get_color("YELLOW_NORMAL", "\033[33m")
 RESET = get_color("RESET", "\033[0m")
 
 _L1 = ">"
@@ -138,3 +139,29 @@ def fmt_stage(label: str, desc: str = "", status: str = "active",
     else:
         raw = f"{indent}{indicator} {BOLD}{label}{RESET}{suffix}"
     return _truncate(raw, _term_width())
+
+
+def fmt_warning(text: str, indent: int = 2) -> str:
+    """Format a warning line: ``Warning:`` label (yellow+dim) + dimmed text.
+
+    Use for non-critical notices that don't interrupt the pipeline.
+
+    Returns:
+        A fully ANSI-formatted string (no trailing newline).
+    """
+    prefix = " " * indent
+    return _truncate(
+        f"{prefix}{YELLOW}{DIM}Warning:{RESET} {DIM}{text}{RESET}",
+        _term_width())
+
+
+def fmt_info(text: str, indent: int = 2) -> str:
+    """Format an informational notice (fully dimmed, no label).
+
+    Use for supplementary context that the user may or may not need.
+
+    Returns:
+        A fully ANSI-formatted string (no trailing newline).
+    """
+    prefix = " " * indent
+    return _truncate(f"{prefix}{DIM}{text}{RESET}", _term_width())

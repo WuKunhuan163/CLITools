@@ -37,7 +37,23 @@ class ProgressTuringMachine:
 
     def add_stage(self, stage: TuringStage):
         self.stages.append(stage)
-        
+
+    def warning(self, text: str) -> None:
+        """Emit a dimmed warning line via the display manager."""
+        from logic.turing.status import fmt_warning
+        self.manager.update(
+            f"_warn_{id(text)}",
+            fmt_warning(text, indent=0),
+            is_final=True, truncate=False)
+
+    def info(self, text: str) -> None:
+        """Emit a dimmed informational line via the display manager."""
+        from logic.turing.status import fmt_info
+        self.manager.update(
+            f"_info_{id(text)}",
+            fmt_info(text, indent=0),
+            is_final=True, truncate=False)
+
     def _log_error(self, stage: TuringStage, exception: Optional[Exception] = None):
         """Saves full error information to the session log or a standalone file."""
         from logic.turing.utils import log_turing_error

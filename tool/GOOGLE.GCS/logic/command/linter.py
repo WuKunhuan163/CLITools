@@ -87,9 +87,9 @@ def execute(tool, args, state_mgr, load_logic, unknown=None, **kwargs):
 
     warnings = result.get("warnings", [])
     if warnings:
-        print(f"\n{BOLD}{YELLOW}Warnings:{RESET}")
+        from logic.turing.status import fmt_warning
         for w in warnings:
-            print(f"  {w}")
+            print(fmt_warning(w, indent=0))
 
     return 1 if errors else 0
 

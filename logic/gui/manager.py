@@ -77,10 +77,12 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
             print(f"{BOLD}{RED}{label}{RESET}: {msg}")
         else:
             # Simple success message for other commands
-            print(f"{BOLD}{YELLOW}Info{RESET}: Sent '{command}' to {found} {tool_name} instances.")
+            from logic.turing.status import fmt_info
+            print(fmt_info(f"Sent '{command}' to {found} {tool_name} instances.", indent=0))
     else:
         if target_pid:
-            print(f"{BOLD}{YELLOW}Warning{RESET}: PID {target_pid} not found in active {tool_name} instances.")
+            from logic.turing.status import fmt_warning
+            print(fmt_warning(f"PID {target_pid} not found in active {tool_name} instances.", indent=0))
         else:
             msg = translation_helper('no_instances_found', f'No active {tool_name} GUI instances found.')
             print(msg)
