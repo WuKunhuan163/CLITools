@@ -912,6 +912,29 @@ class OpenClawCLI:
                 _("preparing_request", "Preparing request (step {step})", step=self._iteration)
                 + f" {DIM}[{op_log.ref}]{RESET}", "active"))
 
+            # DEV BREAKPOINT: log bootstrap before first send
+            import json as _bp_json
+            bp_path = _LOG_DIR / "bootstrap_dump.json"
+            _LOG_DIR.mkdir(parents=True, exist_ok=True)
+            with open(bp_path, "w") as _bp_f:
+                _bp_json.dump({
+                    "step": self._iteration,
+                    "message_count": len(messages),
+                    "messages": [
+                        {"role": m.get("role", "?"),
+                         "content_len": len(m.get("content", "")),
+                         "content_head": m.get("content", "")[:2000]}
+                        for m in messages
+                    ],
+                    "backend": self.backend,
+                    "temperature": self.temperature,
+                    "max_tokens": self.max_tokens,
+                }, _bp_f, ensure_ascii=False, indent=2)
+            print(self._detail(
+                f"{DIM}{_('breakpoint_msg', '[BREAKPOINT] Bootstrap state written to log.')}"
+                f" {bp_path}{RESET}"))
+            return True
+
             # Guardrail: step + duration limits
             step_err = guardrails.check_step_limit()
             if step_err:
@@ -997,12 +1020,6 @@ class OpenClawCLI:
                 "step_complete": step_complete,
                 "step_summary": step_summary,
             })
-
-            # DEV BREAKPOINT: exit after agent's first response
-            print(self._detail(
-                f"{DIM}[BREAKPOINT] Agent response logged ({len(segments)} segments, "
-                f"step={step_summary or '?'}). Check {op_log.ref}{RESET}"))
-            return True
 
             # Also get flat command list for guardrail counting
             all_commands = [s["content"] for s in segments if s["type"] == "command"]
