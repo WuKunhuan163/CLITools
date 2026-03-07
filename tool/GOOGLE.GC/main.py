@@ -2196,6 +2196,7 @@ def main():
         email = getattr(args, "email", None)
         try:
             from logic.cdmcp_loader import load_cdmcp_overlay, load_cdmcp_sessions, load_cdmcp_interact
+            import time as _time
             sm = load_cdmcp_sessions()
             session = sm.get_any_active_session()
             if session:
@@ -2213,6 +2214,10 @@ def main():
                 print(f"{BOLD}{RED}Failed{RESET}: Could not boot CDMCP session")
                 return
 
+            ov = load_cdmcp_overlay()
+            interact = load_cdmcp_interact()
+
+            # Step 1: Check if already signed in on Colab
             colab_url = "https://colab.research.google.com/"
             tab_info = session.require_tab(
                 label="colab", url_pattern="colab.research.google.com",
@@ -2222,88 +2227,156 @@ def main():
                 print(f"{BOLD}{RED}Failed{RESET}: Could not open Colab tab")
                 return
 
-            ov = load_cdmcp_overlay()
-            interact = load_cdmcp_interact()
             cdp = CDPSession(tab_info["ws"], timeout=15)
-
-            import time as _time
-
-            _login_log("Checking sign-in state...")
             _time.sleep(2)
-            cdp.send_and_recv('Input.dispatchKeyEvent', {
-                'type': 'keyDown', 'key': 'Escape', 'code': 'Escape',
-                'windowsVirtualKeyCode': 27, 'nativeVirtualKeyCode': 27,
-            })
-            cdp.send_and_recv('Input.dispatchKeyEvent', {
-                'type': 'keyUp', 'key': 'Escape', 'code': 'Escape',
-                'windowsVirtualKeyCode': 27, 'nativeVirtualKeyCode': 27,
-            })
+            for _k in ("keyDown", "keyUp"):
+                cdp.send_and_recv("Input.dispatchKeyEvent", {
+                    "type": _k, "key": "Escape", "code": "Escape",
+                    "windowsVirtualKeyCode": 27, "nativeVirtualKeyCode": 27,
+                })
             _time.sleep(1)
 
             has_signout = cdp.evaluate(
                 "!!document.querySelector('a[href*=\"SignOutOptions\"]')"
             )
             if has_signout:
-                _login_log("Already signed in!")
+                _login_log("Already signed in.")
                 if ov:
                     ov.inject_badge(cdp, text="GC [signed in]", color="#34a853")
                 print(f"{BOLD}{GREEN}Already signed in{RESET}")
                 cdp.close()
                 return
+            cdp.close()
 
-            sign_in_info = cdp.evaluate('''
+            # Step 2: Navigate to Google sign-in (AddSession to force flow)
+            if not email:
+                _login_log("No --email provided. Opening sign-in page for manual entry.")
+            signin_url = (
+                "https://accounts.google.com/v3/signin/identifier?"
+                "continue=https%3A%2F%2Fcolab.research.google.com%2F&"
+                "followup=https%3A%2F%2Fcolab.research.google.com%2F&"
+                "passive=1209600&flowName=GlifWebSignIn&flowEntry=AddSession"
+            )
+            login_tab = session.require_tab(
+                label="login", url_pattern="accounts.google.com",
+                open_url=signin_url, auto_open=True, wait_sec=15.0,
+            )
+            if not login_tab or not login_tab.get("ws"):
+                print(f"{BOLD}{RED}Failed{RESET}: Could not open sign-in page")
+                return
+
+            cdp = CDPSession(login_tab["ws"], timeout=15)
+            if ov:
+                ov.inject_badge(cdp, text="GC [login]", color="#e8710a")
+                ov.inject_lock(cdp, tool_name="GC")
+            _time.sleep(2)
+
+            # Step 3: Check for account chooser vs email entry
+            url = cdp.evaluate("window.location.href") or ""
+            has_email_input = cdp.evaluate('!!document.querySelector(\'input[type="email"]\')')
+            accounts = cdp.evaluate('''
                 (function() {
-                    var btn = document.querySelector('a[href*="ServiceLogin"], [aria-label*="Sign in"], a.sign-in');
-                    if (btn) {
-                        var r = btn.getBoundingClientRect();
-                        return {found: true, x: r.x + r.width/2, y: r.y + r.height/2, text: btn.textContent.trim()};
-                    }
-                    return {found: false};
+                    var items = document.querySelectorAll('[data-identifier]');
+                    var accts = [];
+                    for (var i = 0; i < items.length; i++) accts.push(items[i].getAttribute("data-identifier"));
+                    return JSON.stringify(accts);
                 })()
             ''')
-            if not sign_in_info or not sign_in_info.get("found"):
-                _login_log("No Sign-in button found. User may already be signed in or page needs refresh.")
-                print(f"{BOLD}{RED}No Sign-in button found{RESET}")
+            acct_list = json.loads(accounts) if accounts else []
+
+            if acct_list:
+                _login_log(f"Account chooser: {len(acct_list)} accounts found.")
+                if email and email in acct_list:
+                    _login_log(f"Selecting account: {email}")
+                    cdp.evaluate(f'''
+                        (function() {{
+                            var items = document.querySelectorAll('[data-identifier]');
+                            for (var i = 0; i < items.length; i++) {{
+                                if (items[i].getAttribute('data-identifier') === '{email}') {{ items[i].click(); return true; }}
+                            }}
+                            return false;
+                        }})()
+                    ''')
+                    _time.sleep(3)
+                else:
+                    _login_log("Target email not in account list. Please select manually or re-run with --email.")
+                    print(f"  Available accounts: {', '.join(acct_list)}")
+                    cdp.close()
+                    return
+
+            elif has_email_input and email:
+                _login_log(f"Entering email: {email}")
+                if interact:
+                    interact.mcp_type(cdp, 'input[type="email"]', email,
+                                      label="Email", char_delay=0.03)
+                    _time.sleep(0.3)
+                    interact.mcp_click(cdp, '#identifierNext, button', label="Next", dwell=0.5)
+                _time.sleep(3)
+            elif has_email_input:
+                _login_log("Email input ready. No --email provided.")
+                print(f"  {BOLD}ACTION REQUIRED{RESET}: Enter email in browser, then USERINPUT.")
                 cdp.close()
                 return
 
-            _login_log(f"Found Sign-in button: \"{sign_in_info.get('text', '')}\"")
-            if interact:
-                interact.mcp_click(cdp,
-                    'a[href*="ServiceLogin"], [aria-label*="Sign in"]',
-                    label="Sign in", dwell=1.0)
-            _time.sleep(3)
+            # Step 4: Handle challenge selection (passkey/password)
+            url = cdp.evaluate("window.location.href") or ""
+            if "challenge" in str(url):
+                page_text = cdp.evaluate("document.body.innerText.substring(0, 300)") or ""
+                if "passkey" in page_text.lower() or "Choose how" in page_text:
+                    _login_log("Challenge selection page. Choosing password...")
+                    has_pwd_option = cdp.evaluate('''
+                        (function() {
+                            var el = document.querySelector('[data-challengetype="1"]');
+                            if (el) { el.click(); return true; }
+                            return false;
+                        })()
+                    ''')
+                    if has_pwd_option:
+                        _time.sleep(3)
+                    else:
+                        _login_log("No password option found. Trying 'Try another way'...")
+                        cdp.evaluate('''
+                            (function() {
+                                var btns = document.querySelectorAll('button');
+                                for (var i = 0; i < btns.length; i++) {
+                                    if (btns[i].textContent.includes('Try another way')) { btns[i].click(); return true; }
+                                }
+                                return false;
+                            })()
+                        ''')
+                        _time.sleep(2)
+                        cdp.evaluate('''
+                            (function() {
+                                var el = document.querySelector('[data-challengetype="1"]');
+                                if (el) { el.click(); return true; }
+                                return false;
+                            })()
+                        ''')
+                        _time.sleep(3)
 
-            current_url = cdp.evaluate("window.location.href")
-            _login_log(f"Navigated to: {str(current_url)[:60]}")
-
-            if "accounts.google.com" in str(current_url):
-                if email:
-                    _login_log(f"Entering email: {email}")
-                    if interact:
-                        interact.mcp_type(cdp, 'input[type="email"]', email,
-                                          label="Email", char_delay=0.03)
-                    _time.sleep(0.5)
-                    if interact:
-                        interact.mcp_click(cdp, '#identifierNext', label="Next", dwell=0.5)
-                    _time.sleep(3)
-
-                    _login_log("Waiting for password page...")
-                    _login_log("Please enter your password in the browser, then press Enter here.")
-                    print(f"\n  {BOLD}ACTION REQUIRED{RESET}: Enter your password in the Chrome browser window.")
-                    print(f"  {BOLD}Then run{RESET}: USERINPUT to confirm.\n")
-                else:
-                    _login_log("No email provided. Please sign in manually in the browser.")
-                    print(f"\n  {BOLD}ACTION REQUIRED{RESET}: Sign in manually in the Chrome browser.")
-                    print(f"  {BOLD}Tip{RESET}: Use --email to auto-fill the email address.")
-                    print(f"  {BOLD}Then run{RESET}: USERINPUT to confirm.\n")
+            # Step 5: Password page — user enters manually
+            has_pwd = cdp.evaluate('!!document.querySelector(\'input[name="Passwd"], input[type="password"]\')')
+            if has_pwd:
+                _login_log("Password page reached. Please enter your password in the browser.")
+                if ov:
+                    ov.remove_lock(cdp)
+                print(f"\n  {BOLD}ACTION REQUIRED{RESET}: Enter your password in the Chrome browser.")
+                print(f"  After signing in, run: USERINPUT to confirm.\n")
             else:
-                _login_log("Unexpected redirect. Please complete sign-in manually.")
+                current_url = cdp.evaluate("window.location.href") or ""
+                if "colab.research.google.com" in str(current_url):
+                    _login_log("Redirected back to Colab. Sign-in may be complete!")
+                    print(f"{BOLD}{GREEN}Sign-in complete{RESET}")
+                else:
+                    _login_log(f"Unexpected state: {str(current_url)[:60]}")
+                    print(f"  {BOLD}ACTION REQUIRED{RESET}: Complete sign-in in browser, then USERINPUT.")
 
             cdp.close()
 
         except Exception as e:
             _login_log(f"Error: {e}")
+            import traceback
+            traceback.print_exc()
             print(f"{BOLD}{RED}Login failed{RESET}: {e}")
 
     elif args.command == "oauth":
