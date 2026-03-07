@@ -503,11 +503,12 @@ def wait_for_gdrive_file(project_root: Path, filename: str, timeout: int = 60, s
     start_time = time.time()
     last_tm_update = 0
     tmp_folder_id = None
-    remote_root_id = None
+    env_parent_id = None
     last_error = ""
     
     config = get_gcs_config(project_root)
-    remote_root_id = config.get("root_folder_id")
+    env_parent_id = config.get("env_folder_id")
+    root_parent_id = config.get("root_folder_id")
     
     while time.time() - start_time < timeout:
         token = get_gdrive_access_token(creds)
@@ -519,22 +520,29 @@ def wait_for_gdrive_file(project_root: Path, filename: str, timeout: int = 60, s
         headers = {"Authorization": f"Bearer {token}"}
         
         if not tmp_folder_id:
-            if not remote_root_id:
-                remote_root_id = get_folder_id(headers, "REMOTE_ROOT")
-            if remote_root_id:
-                tmp_folder_id = get_folder_id(headers, "tmp", parent_id=remote_root_id)
+            if env_parent_id:
+                tmp_folder_id = get_folder_id(headers, "tmp", parent_id=env_parent_id)
                 if tmp_folder_id:
-                    _write_debug_log(project_root, f"RESOLVED: tmp_folder_id={tmp_folder_id}")
-                else:
-                    _write_debug_log(project_root, f"WARN: could not find 'tmp' under root={remote_root_id}")
-            else:
-                _write_debug_log(project_root, "WARN: could not resolve REMOTE_ROOT folder ID")
+                    _write_debug_log(project_root, f"RESOLVED: tmp under REMOTE_ENV, id={tmp_folder_id}")
+            if not tmp_folder_id and root_parent_id:
+                tmp_folder_id = get_folder_id(headers, "tmp", parent_id=root_parent_id)
+                if tmp_folder_id:
+                    _write_debug_log(project_root, f"RESOLVED: tmp under REMOTE_ROOT (fallback), id={tmp_folder_id}")
+            if not tmp_folder_id:
+                if not env_parent_id:
+                    env_parent_id = get_folder_id(headers, "REMOTE_ENV")
+                if env_parent_id:
+                    tmp_folder_id = get_folder_id(headers, "tmp", parent_id=env_parent_id)
+                if not tmp_folder_id and not root_parent_id:
+                    root_parent_id = get_folder_id(headers, "REMOTE_ROOT")
+                if not tmp_folder_id and root_parent_id:
+                    tmp_folder_id = get_folder_id(headers, "tmp", parent_id=root_parent_id)
+            if not tmp_folder_id:
+                _write_debug_log(project_root, "WARN: 'tmp' folder not found under REMOTE_ENV or REMOTE_ROOT, using name-based search")
                 
         import uuid
         if tmp_folder_id:
             q = f"'{tmp_folder_id}' in parents and trashed = false"
-        elif remote_root_id:
-            q = f"'{remote_root_id}' in parents and trashed = false"
         else:
             q = f"name = '{filename}' and trashed = false"
             

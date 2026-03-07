@@ -4,7 +4,8 @@
   "description": "Gmail email client via CDMCP (Chrome DevTools MCP)",
   "purpose": "Read inbox, search emails, send emails, and list labels via CDMCP using the authenticated Gmail session.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
   ],
   "pip_dependencies": [
     "websocket-client"

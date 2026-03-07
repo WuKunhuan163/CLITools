@@ -4,6 +4,7 @@
   "description": "Template tool LUCIDCHART",
   "purpose": "Showcase tool development guidelines",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
   ]
 }

@@ -63,7 +63,7 @@ cd "{remote_cwd}"
 
 OUTPUT_FILE="/tmp/gcs_stdout_{script_id}"
 ERROR_FILE="/tmp/gcs_stderr_{script_id}"
-RESULT_BASE="/content/drive/MyDrive/REMOTE_ROOT/tmp"
+RESULT_BASE="/content/drive/MyDrive/REMOTE_ENV/tmp"
 mkdir -p "$RESULT_BASE"
 RESULT_FILE="$RESULT_BASE/{result_filename}"
 

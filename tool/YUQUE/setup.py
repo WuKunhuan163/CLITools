@@ -12,9 +12,13 @@ from logic.resolve import setup_paths
 setup_paths(__file__)
 
 from logic.tool.setup.engine import ToolEngine
+from logic.utils import print_success_status
 
 def setup():
-    engine = ToolEngine("CHARTCUBE", _r)
+    tool_name = "YUQUE"
+    engine = ToolEngine(tool_name, project_root)
+    
+    # 1. Standard installation (dependencies + shortcut)
     return engine.install()
 
 if __name__ == "__main__":

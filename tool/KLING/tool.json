@@ -4,7 +4,8 @@
   "description": "Kling AI video generation via CDMCP (Chrome DevTools MCP)",
   "purpose": "Access Kling AI user info, credit points, and generation history via CDMCP using the authenticated klingai.com session.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
   ],
   "pip_dependencies": [
     "websocket-client"

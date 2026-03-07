@@ -266,7 +266,7 @@ def _run_userinput_feedback(tool):
 
 
 def _verify_mount_precheck(tool, utils):
-    """Quick Drive API check: verify mount fingerprint file exists in REMOTE_ROOT/tmp/."""
+    """Quick Drive API check: verify mount fingerprint file exists in REMOTE_ENV/tmp/."""
     import json as _json
     config_path = tool.project_root / "data" / "config.json"
     if not config_path.exists():
@@ -278,12 +278,12 @@ def _verify_mount_precheck(tool, utils):
         return False
 
     mount_hash = cfg.get("mount_hash", "")
-    root_id = cfg.get("root_folder_id", "")
-    if not mount_hash or not root_id:
+    env_id = cfg.get("env_folder_id", "")
+    if not mount_hash or not env_id:
         return False
 
     try:
-        ok, items = utils.list_folder_via_api(tool.project_root, root_id, timeout=15)
+        ok, items = utils.list_folder_via_api(tool.project_root, env_id, timeout=15)
         if not ok:
             return False
         tmp_folder = next((i for i in items if i.get("name") == "tmp" and i.get("type") == "folder"), None)

@@ -4,7 +4,8 @@
   "description": "Cloudflare account management via Chrome DevTools Protocol",
   "purpose": "Manage Cloudflare zones, Workers, Pages, and R2 via CDP using the authenticated dashboard session.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
   ],
   "pip_dependencies": [
     "websocket-client"

@@ -9,7 +9,7 @@ import hashlib
 import random
 from pathlib import Path
 
-REMOTE_TMP = "/content/drive/MyDrive/REMOTE_ROOT/tmp"
+REMOTE_TMP = "/content/drive/MyDrive/REMOTE_ENV/tmp"
 
 BG_STATUS_TEMPLATE = "cmd_bg_{pid}.status"
 BG_SCRIPT_TEMPLATE = "cmd_bg_{pid}.sh"

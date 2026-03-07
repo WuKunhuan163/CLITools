@@ -1,10 +1,9 @@
 {
-  "name": "BILIBILI",
+  "name": "YUQUE",
   "version": "1.0.0",
-  "description": "Template tool BILIBILI",
+  "description": "Template tool YUQUE",
   "purpose": "Showcase tool development guidelines",
   "dependencies": [
-    "PYTHON",
-    "GOOGLE.CDMCP"
+    "PYTHON"
   ]
 }

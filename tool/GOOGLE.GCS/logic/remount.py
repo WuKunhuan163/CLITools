@@ -56,8 +56,8 @@ remote_root_path = "/content/drive/MyDrive/%(remote_root_name)s"
 remote_env_path = "/content/drive/MyDrive/%(remote_env_name)s"
 
 os.makedirs(remote_root_path, exist_ok=True)
-os.makedirs(os.path.join(remote_root_path, "tmp"), exist_ok=True)
 os.makedirs(remote_env_path, exist_ok=True)
+os.makedirs(os.path.join(remote_env_path, "tmp"), exist_ok=True)
 
 remote_root_id = None
 remote_env_id = None
@@ -85,11 +85,11 @@ fingerprint_data = {
     "type": "mount_fingerprint"
 }
 
-fingerprint_file = os.path.join(remote_root_path, "tmp", ".gds_mount_fingerprint_%(session_hash)s")
+fingerprint_file = os.path.join(remote_env_path, "tmp", ".gds_mount_fingerprint_%(session_hash)s")
 with open(fingerprint_file, 'w') as f:
     json.dump(fingerprint_data, f, indent=2)
 
-result_file = os.path.join(remote_root_path, "tmp", "remount_result_%(ts)s_%(session_hash)s.json")
+result_file = os.path.join(remote_env_path, "tmp", "remount_result_%(ts)s_%(session_hash)s.json")
 result_data = {
     "success": True,
     "mount_point": "/content/drive",
@@ -136,10 +136,10 @@ def verify_fingerprint_file_access(tmp_folder_id, fingerprint_filename, creds_di
     return False
 
 tmp_folder_id = None
-if remote_root_id:
+if remote_env_id:
     try:
         from kora.xattr import get_id
-        tmp_folder_id = get_id(os.path.join(remote_root_path, "tmp"))
+        tmp_folder_id = get_id(os.path.join(remote_env_path, "tmp"))
     except:
         pass
 

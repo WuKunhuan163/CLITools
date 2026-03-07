@@ -1,9 +1,13 @@
 {
   "name": "CHARTCUBE",
   "version": "1.0.0",
-  "description": "Template tool CHARTCUBE",
-  "purpose": "Showcase tool development guidelines",
+  "description": "ChartCube chart generation via CDMCP (Chrome DevTools MCP)",
+  "purpose": "Access AntV ChartCube online charting tool via CDMCP using the chartcube.alipay.com session.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

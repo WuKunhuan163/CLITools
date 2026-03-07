@@ -4,7 +4,8 @@
   "description": "Whimsical whiteboard & flowchart via CDMCP",
   "purpose": "Access Whimsical boards, flowcharts, mind maps, and docs via the authenticated whimsical.com session.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
   ],
   "pip_dependencies": [
     "websocket-client"

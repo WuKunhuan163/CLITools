@@ -209,10 +209,14 @@ Google Drive Remote Controller for Colab:
 - **Architecture**: Modular `logic/command/` structure. Non-interactive API via isolated tmp scripts. GUI serialization via `GUIQueue` (fcntl locking).
 - **Exit Codes**: Bash-compatible non-zero on failure.
 
-### Chrome CDP-Based Service Tools
-The following tools use the shared `logic.chrome.session` module to interact with web services through Chrome's DevTools Protocol. Each tool finds its service's tab, establishes a CDP session, and calls the service's REST API using the tab's authenticated session cookies.
+### Chrome CDP-Based Service Tools (CDMCP)
+The following tools use `GOOGLE.CDMCP` to manage sessions and interact with web services through Chrome's DevTools Protocol. Each tool extends `MCPToolBase`, uses `boot_tool_session()` for session management, and `session.require_tab()` to find or open its service tab.
 
-**Prerequisite**: Chrome must be running with `--remote-debugging-port=9222 --remote-allow-origins=*` and the relevant service tab must be open and logged in.
+**Architecture**: All CDMCP tools follow the pattern: `MCPToolBase` → `cdmcp_loader` → `GOOGLE.CDMCP` session manager → `CDPSession` → web app DOM/API. Read `SKILLS show mcp-development` for the full development guide.
+
+**Dependency**: Every CDMCP tool MUST declare `"GOOGLE.CDMCP"` in its `tool.json` `"dependencies"` array alongside `"PYTHON"`.
+
+**Prerequisite**: Chrome must be running with `--remote-debugging-port=9222 --remote-allow-origins=*`. Run `CDMCP boot` to ensure a session is available.
 
 #### CLOUDFLARE
 Cloudflare account management via `dash.cloudflare.com/api/v4/`:
@@ -325,6 +329,7 @@ The following tools wrap external MCP (Model Context Protocol) servers, providin
 
 **Productivity/Collaboration**:
 - `XMIND`: Mind mapping and brainstorming.
+- `CHARTCUBE`: AntV ChartCube chart generation (30+ chart types, 4-step wizard, no auth required).
 
 **Messaging/Communication**:
 - `DINGTALK`: DingTalk messaging and workspace integration.
@@ -377,6 +382,41 @@ Skills are structured best-practice guides that AI agents can reference during d
 - `TerminalTools-turing-machine-development`: Progress display system.
 - `TerminalTools-tool-interface`: Cross-tool `interface/` communication pattern.
 - `TerminalTools-setup-tutorial-creation`: Interactive setup wizards.
+- `TerminalTools-development-lesson-summary`: Post-development documentation and lesson capture.
+- `TerminalTools-development-report`: Writing detailed reports in `data/report/`.
+
+## 14. CDMCP Tool Development Best Practices
+
+For full guidance, read `SKILLS show mcp-development` and `SKILLS show cdmcp-web-exploration`.
+
+### Setup Checklist
+1. Create tool: `TOOL --dev create <NAME>`
+2. **tool.json**: Add `"PYTHON"` and `"GOOGLE.CDMCP"` to `"dependencies"`. Add `"websocket-client"` to `"pip_dependencies"`.
+3. **Root tool.json**: Add the tool name to the `"tools"` array.
+4. **main.py**: Use `MCPToolBase("NAME", session_name="name")` from `logic.tool.blueprint.mcp`.
+5. **logic/chrome/api.py**: All CDP operations. Use `boot_tool_session()` + `session.require_tab()` + `CDPSession(ws)`.
+6. **setup.py**: Verify `_r` (not `project_root`) in the path resolver.
+7. Install: Run `<NAME> setup`.
+
+### Session Boot Pattern
+```python
+from logic.cdmcp_loader import load_cdmcp_sessions
+from logic.chrome.session import CDPSession
+sm = load_cdmcp_sessions()
+boot_result = sm.boot_tool_session(session_name, timeout_sec=86400, port=9222)
+session = boot_result["session"]
+tab_info = session.require_tab(label, url_pattern=pattern, open_url=url,
+                                auto_open=True, wait_sec=10)
+cdp = CDPSession(tab_info["ws"])
+```
+
+### Known Pitfalls
+- **WebSocket exclusivity**: Chrome allows ONE page-level WebSocket per target. Cache `CDPSession` per-process and `.close()` old connections before creating new ones.
+- **SPA routing**: React/Vue SPAs return 404 on direct URL navigation. Navigate to the app root first, then use programmatic clicks to reach inner pages.
+- **Session reuse**: Use `boot_tool_session()` (not manual `create_session` + `boot`). The function handles session reuse across tools sharing the same Chrome window.
+- **setup.py template**: `TOOL --dev create` template may reference `project_root` (undefined). Use `_r` instead.
+- **Chrome CDP unavailable**: Add retry logic for `boot_tool_session` failures. Include an actionable hint in error messages (e.g., "run CDMCP boot first").
+- **Disabled buttons**: Check `button.disabled` via CDP before assuming a click failed. Ant Design forms disable buttons until required fields are filled.
 
 By following these architecture rules, you ensure that the project remains robust, maintainable, and "agent-friendly."
 

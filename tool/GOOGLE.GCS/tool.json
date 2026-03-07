@@ -18,7 +18,8 @@
     "FILEDIALOG",
     "GOOGLE",
     "GOOGLE.GD",
-    "GOOGLE.GC"
+    "GOOGLE.GC",
+    "GOOGLE.CDMCP"
   ],
   "pip_dependencies": [
     "google-api-python-client",

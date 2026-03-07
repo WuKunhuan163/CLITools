@@ -4,7 +4,8 @@
   "description": "Square business platform via Chrome DevTools Protocol",
   "purpose": "Access Square dashboard info, merchant data, and payment overview via CDP using the authenticated session.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
   ],
   "pip_dependencies": [
     "websocket-client"

@@ -4,7 +4,8 @@
   "description": "Coggle mind mapping via CDMCP",
   "purpose": "Access Coggle mind maps, diagrams, and collaborative features via the authenticated coggle.it session.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
   ],
   "pip_dependencies": [
     "websocket-client"

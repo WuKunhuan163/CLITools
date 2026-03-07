@@ -6,7 +6,7 @@ This subtool is critical for remote execution flows between the local machine an
 
 ### 1. Synchronization Layer
 Synchronization relies on a `REMOTE_ROOT` and `REMOTE_ENV` structure in Google Drive. 
-- `REMOTE_ROOT/tmp/`: Used for "handshake" files (like `remount_result_*.json` and `.gds_mount_fingerprint_*`).
+- `REMOTE_ENV/tmp/`: Used for "handshake" files (like `remount_result_*.json` and `.gds_mount_fingerprint_*`). Keeping temp files in `REMOTE_ENV` keeps `REMOTE_ROOT` clean for user data.
 - **New Session Logic**: Always check for the `.gds_mount_fingerprint_{hash}` file. If it's missing, the Colab session is likely stale or unmounted.
 
 ### 2. The Verification Loop
@@ -25,7 +25,7 @@ Logical shells are identified by a `{timestamp}_{6-digit-hash}` ID.
 ### 4. Raw Mode
 `GCS --raw <command>` uses the same result capture pipeline as normal commands:
 - The remote script uses `tee` to both display output in real-time AND write it to capture files.
-- A result JSON file is written to `REMOTE_ROOT/tmp/` just like normal mode.
+- A result JSON file is written to `REMOTE_ENV/tmp/` just like normal mode.
 - The verify stage uses `wait_for_gdrive_file` to download results, identical to normal commands.
 - The only difference is that the user's command is injected directly (no special command translation). Remote path expansion (`~`, `@`) and venv prefixes are still applied.
 
@@ -115,6 +115,21 @@ If `wait_for_gdrive_file` times out:
 2. Check `tmp/remount_debug.log` for CDP remount stage debug output.
 3. Ensure the remote script was actually executed and finished (printed the "Finished" message).
 4. Verify that Google Drive is mounted on Colab (`/content/drive/MyDrive` exists).
+
+## Development Lessons (2026-03-05)
+
+### GUI subprocess lifecycle in MCP mode
+When launching a fallback GUI as a background subprocess during automated operations:
+- Use `start_new_session=True` to prevent SIGINT propagation from parent.
+- Use file-based signaling (`{pid}.submit` flag files) for inter-process auto-close.
+- Always clean up temporary script files, but leave the GUI alive on failure for user fallback.
+- Pass mode flags (e.g., `--mcp`) to control button visibility and instruction text.
+
+### Documentation drift
+After modifying code, always cross-check `README.md` and `for_agent.md` for:
+- File path references (e.g., `REMOTE_ENV/tmp/` vs. `REMOTE_ROOT/tmp/`).
+- Button/UI behavior descriptions matching actual code.
+- Markdown heading hierarchy (sections can silently break when new content is inserted).
 
 ### Debugging CDP Failures
 When a CDP-mode command fails, the Turing machine now shows specific error reasons:

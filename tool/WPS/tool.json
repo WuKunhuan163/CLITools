@@ -4,7 +4,8 @@
   "description": "WPS Office / KDocs via CDMCP (Chrome DevTools MCP)",
   "purpose": "Access WPS user info and recent documents via CDMCP using the authenticated docs.wps.com / kdocs.cn session.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
   ],
   "pip_dependencies": [
     "websocket-client"

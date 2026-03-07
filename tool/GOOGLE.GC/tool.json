@@ -6,6 +6,7 @@
   "dependencies": [
     "PYTHON",
     "GOOGLE",
-    "GOOGLE.GD"
+    "GOOGLE.GD",
+    "GOOGLE.CDMCP"
   ]
 }

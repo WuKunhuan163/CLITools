@@ -4,7 +4,8 @@
   "description": "WhatsApp Web messaging via CDMCP (Chrome DevTools MCP)",
   "purpose": "Access WhatsApp chats, search contacts, send messages, and read profile via CDMCP using the linked WhatsApp Web session.",
   "dependencies": [
-    "PYTHON"
+    "PYTHON",
+    "GOOGLE.CDMCP"
   ],
   "pip_dependencies": [
     "websocket-client"
