@@ -212,9 +212,9 @@ def main():
                 sys.stdout.write("\033[F\033[K")
                 sys.stdout.flush()
                 if stage: 
-                    stage.success_status = "iCloud"
+                    stage.success_status = "iCloud authenticated"
                     stage.success_color = "GREEN"
-                    stage.success_name = f"authenticated as {final_apple_id}"
+                    stage.success_name = f"as {final_apple_id}"
                 return True
             except Exception as e:
                 if stage: stage.report_error("Login Failed", str(e))
@@ -270,9 +270,9 @@ def main():
             save_session(apple_id, api)
             final_apple_id = apple_id
             if stage: 
-                stage.success_status = "iCloud"
+                stage.success_status = "iCloud authenticated"
                 stage.success_color = "GREEN"
-                stage.success_name = f"authenticated as {final_apple_id}"
+                stage.success_name = f"as {final_apple_id}"
             return True
         except Exception as e:
             if stage: stage.report_error("Session Error", str(e))
@@ -390,7 +390,7 @@ def main():
     
     if used_cache:
         DIM = get_color("DIM", "\033[2m")
-        sys.stdout.write(f"\r\033[K  {DIM}Using cached scan results. Run with --force-rescan to refresh metadata.{RESET}\n")
+        sys.stdout.write(f"\r\033[K  {YELLOW}{DIM}Warning:{RESET} {DIM}Using cached scan results. Run with --force-rescan to refresh metadata.{RESET}\n")
         sys.stdout.flush()
 
     if args.only_scan:
@@ -622,7 +622,7 @@ def main():
         if isinstance(photo, LocalAssetStub):
             local_done_count += 1
             
-    pool.status_bar.set_counts(len(to_download_objects), completed=local_done_count, is_remote=(local_done_count > 0))
+    pool.status_bar.set_counts(len(to_download_objects), completed=local_done_count, baseline=local_done_count)
     tasks, failed_tasks = [], []
     used_paths = set()
     
