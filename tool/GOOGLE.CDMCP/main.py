@@ -96,6 +96,10 @@ class CDMCPTool(ToolBase):
         p_boot.add_argument("--url", default=None,
                             help="URL to open (default: welcome page)")
 
+        p_tabs = sub.add_parser("session-tabs", help="List tabs in a session")
+        p_tabs.add_argument("name", nargs="?", default="default",
+                            help="Session name")
+
         p_demo = sub.add_parser("demo", help="Run interactive demo on Chat app")
         p_demo.add_argument("--delay", type=float, default=1.2,
                             help="Delay between steps (seconds)")
@@ -248,10 +252,9 @@ class CDMCPTool(ToolBase):
         elif args.command == "boot":
             r = api.boot_session(args.name, url=args.url)
             if r.get("ok"):
-                print(f"  {BOLD}{GREEN}Booted{RESET} session '{args.name}'.")
+                sid = r.get("session_id_short", r.get("session_id", "?")[:8])
+                print(f"  {BOLD}{GREEN}Booted{RESET} session '{args.name}' [{sid}].")
                 print(f"  Window: {r.get('windowId', '?')}")
-                if r.get("url"):
-                    print(f"  URL: {r['url']}")
             else:
                 print(f"  {BOLD}{RED}Failed{RESET} to boot: {r.get('error', '?')}")
 

@@ -338,13 +338,16 @@ def boot_session(name: str = "default", url: str = None,
 
     time.sleep(0.8)
     cdp = session.get_cdp()
+    sid_short = session.session_id[:8]
+
     if cdp:
         tab_id = session.lifetime_tab_id
         if tab_id:
             overlay.pin_tab_by_target_id(tab_id, pinned=True, port=port)
             overlay.activate_tab(tab_id, port)
+            session.register_tab("welcome", tab_id, url=welcome_url, state="active")
         overlay.inject_favicon(cdp, svg_color="#1a73e8", letter="C")
-        overlay.inject_badge(cdp, text=f"CDMCP [{name}]", color="#1a73e8")
+        overlay.inject_badge(cdp, text=f"CDMCP [{sid_short}]", color="#1a73e8")
         overlay.inject_focus(cdp, color="#1a73e8")
 
     if url:
@@ -355,6 +358,50 @@ def boot_session(name: str = "default", url: str = None,
             time.sleep(2)
         session.lifetime_tab_url = url
 
+    # Open the demo chat in a second tab within the same window (not pinned)
+    time.sleep(0.5)
+    chat_url = f"{server_url}/chat?session_id={sid_short}"
+    demo_tab_id = session.open_tab_in_session(chat_url)
+    demo_ws = None
+    if demo_tab_id:
+        time.sleep(1.5)
+        from logic.chrome.session import list_tabs as _list_tabs
+        for t in _list_tabs(port):
+            if t.get("id") == demo_tab_id:
+                ws = t.get("webSocketDebuggerUrl")
+                if ws:
+                    demo_ws = ws
+                    session.register_tab("demo", demo_tab_id,
+                                         url=chat_url, ws=ws, state="active")
+                    demo_cdp = CDPSession(ws, timeout=10)
+                    overlay.inject_favicon(demo_cdp, svg_color="#1a73e8", letter="C")
+                    overlay.inject_badge(demo_cdp, text=f"Demo [{sid_short}]",
+                                         color="#34a853")
+                    demo_cdp.close()
+                break
+
+    # Start the continuous demo in a background subprocess
+    if demo_ws:
+        import subprocess, sys
+        project_root = str(_TOOL_DIR.parent.parent)
+        demo_py = str(_TOOL_DIR / "logic" / "cdp" / "demo.py")
+        inline_code = (
+            f"import sys, os; os.chdir({project_root!r}); "
+            f"sys.path.insert(0, {project_root!r}); "
+            "import importlib.util; "
+            f"spec = importlib.util.spec_from_file_location('demo', {demo_py!r}); "
+            "mod = importlib.util.module_from_spec(spec); "
+            "spec.loader.exec_module(mod); "
+            f"mod.run_demo_on_tab({demo_ws!r}, port={port})"
+        )
+        subprocess.Popen(
+            [sys.executable, "-c", inline_code],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+
+    boot_result["session_id_short"] = sid_short
     return boot_result
 
 

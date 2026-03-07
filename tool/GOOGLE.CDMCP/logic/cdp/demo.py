@@ -274,6 +274,53 @@ def run_demo(port=CDP_PORT, delay=1.2, continuous=True):
     if not continuous:
         return _single_run(overlay, interact, cdp, session, machine, ds, delay, results)
 
+    _run_continuous_loop(overlay, interact, cdp, session, machine, ds, delay, results, port)
+    return results
+
+
+def run_demo_on_tab(cdp_ws_url: str, port=CDP_PORT, delay=1.2):
+    """Run the continuous demo on an already-open chat tab identified by WS URL.
+
+    Designed to be called from a background thread.
+    """
+    overlay = _load_overlay()
+    interact = _load_interact()
+    ds = _load_demo_state()
+    session_mgr = _load_session_mgr()
+    machine = ds.get_demo_machine()
+    machine.reset()
+    machine.transition(ds.DemoState.BOOTING)
+
+    cdp = CDPSession(cdp_ws_url, timeout=10)
+    time.sleep(0.5)
+
+    overlay.inject_lock(cdp, base_opacity=0.08, flash_opacity=0.25)
+    cdp.evaluate("window.startDemoTimer()")
+
+    machine.transition(ds.DemoState.IDLE)
+
+    class _FakeSession:
+        def __init__(self, c, ws):
+            self._cdp = c
+            self._ws = ws
+            self.lifetime_tab_id = None
+        def get_cdp(self):
+            if self._cdp:
+                return self._cdp
+            try:
+                self._cdp = CDPSession(self._ws, timeout=10)
+                return self._cdp
+            except Exception:
+                return None
+
+    session = _FakeSession(cdp, cdp_ws_url)
+    results = {"steps": [], "ok": True}
+    _run_continuous_loop(overlay, interact, cdp, session, machine, ds, delay, results, port)
+    return results
+
+
+def _run_continuous_loop(overlay, interact, cdp, session, machine, ds, delay, results, port):
+    """Core continuous demo loop, shared between run_demo and run_demo_on_tab."""
     msg_idx = 0
     contact_idx = 0
     _log("Starting continuous demo...")
@@ -284,7 +331,6 @@ def run_demo(port=CDP_PORT, delay=1.2, continuous=True):
             pool = CONTACT_MSGS.get(contact, ALICE_MSGS)
             message = pool[msg_idx % len(pool)]
 
-            # Check CDP health
             cdp = session.get_cdp()
             if not cdp:
                 _log("Lost CDP. Recovering...")
@@ -296,7 +342,6 @@ def run_demo(port=CDP_PORT, delay=1.2, continuous=True):
                     time.sleep(5)
                     continue
 
-            # Check unlock and wait for relock
             cdp = _check_and_relock(overlay, cdp, session, machine, ds, port)
             if not cdp:
                 continue
@@ -307,15 +352,12 @@ def run_demo(port=CDP_PORT, delay=1.2, continuous=True):
 
             overlay.set_lock_passthrough(cdp, True)
 
-            # Simulate incoming message from someone else (random)
             _simulate_incoming(cdp, overlay, contact_idx, msg_idx)
 
-            # Draft cycle: every 4th message
             is_draft = (msg_idx % 4 == 3) and msg_idx > 0
             if is_draft:
                 _do_draft_cycle(overlay, interact, cdp, contact, contact_idx, delay)
 
-            # Select contact
             interact.mcp_click(
                 cdp, f'.contact-item[data-contact="{contact}"]',
                 label=f"Select: {contact}", dwell=delay * 0.5 + random.uniform(0, 0.3),
@@ -323,7 +365,6 @@ def run_demo(port=CDP_PORT, delay=1.2, continuous=True):
             )
             time.sleep(delay * 0.2 + random.uniform(0, 0.3))
 
-            # Type message
             machine.transition(ds.DemoState.TYPING_MESSAGE)
             interact.mcp_type(
                 cdp, '#messageInput', message,
@@ -333,7 +374,6 @@ def run_demo(port=CDP_PORT, delay=1.2, continuous=True):
             )
             time.sleep(delay * 0.15 + random.uniform(0, 0.2))
 
-            # Send
             machine.transition(ds.DemoState.SENDING)
             interact.mcp_click(
                 cdp, '#sendBtn', label="Send", dwell=delay * 0.3,
@@ -343,7 +383,6 @@ def run_demo(port=CDP_PORT, delay=1.2, continuous=True):
             overlay.set_lock_passthrough(cdp, False)
             time.sleep(delay * 0.15)
 
-            # Verify
             machine.transition(ds.DemoState.VERIFYING)
             last = cdp.evaluate(
                 "(function(){var m=document.querySelectorAll('.message.sent');"
@@ -352,13 +391,11 @@ def run_demo(port=CDP_PORT, delay=1.2, continuous=True):
             delivered = message in str(last or "")
             _log(f"{'Delivered' if delivered else 'Not verified'}.")
 
-            # Update MCP interaction counter (3 per cycle: click, type, send)
             cdp.evaluate("window.incrementMcpCount(3)")
 
             msg_idx += 1
             contact_idx += 1
 
-            # Countdown with random duration
             machine.transition(ds.DemoState.COUNTDOWN)
             wait = random.randint(COUNTDOWN_MIN, COUNTDOWN_MAX)
             for sec in range(wait, 0, -1):
@@ -369,7 +406,6 @@ def run_demo(port=CDP_PORT, delay=1.2, continuous=True):
                 if not cdp:
                     break
                 if not overlay.is_locked(cdp):
-                    # User unlocked during countdown
                     cdp = _check_and_relock(overlay, cdp, session, machine, ds, port)
                     break
             if cdp:
@@ -382,7 +418,6 @@ def run_demo(port=CDP_PORT, delay=1.2, continuous=True):
 
     results["steps"].append({"step": "continuous", "ok": True, "messages_sent": msg_idx})
     results["ok"] = True
-    return results
 
 
 def _do_draft_cycle(overlay, interact, cdp, contact, contact_idx, delay):

@@ -62,6 +62,7 @@ class CDMCPSession:
         self._booted = False
         self.tab_was_recovered = False
         self.window_id: Optional[int] = None
+        self._tabs: Dict[str, Dict[str, Any]] = {}  # tab_label -> {id, url, ws, state}
 
     def boot(self, url: str, new_window: bool = True) -> Dict[str, Any]:
         """Boot the session by opening a new tab as the lifetime anchor.
@@ -286,6 +287,67 @@ class CDMCPSession:
             self.lifetime_tab_id = None
         self._booted = False
 
+    # --- Multi-tab tracking ---
+
+    def register_tab(self, label: str, tab_id: str, url: str = "",
+                     ws: str = "", state: str = "active") -> None:
+        """Register a tab in this session by label (e.g., 'welcome', 'demo', 'youtube')."""
+        self._tabs[label] = {
+            "id": tab_id, "url": url, "ws": ws, "state": state,
+        }
+        self.touch()
+        _log_session("register_tab", self.name, f"label={label} id={tab_id}")
+
+    def get_tab(self, label: str) -> Optional[Dict[str, Any]]:
+        """Get tab info by label, or None if not found."""
+        return self._tabs.get(label)
+
+    def get_tab_cdp(self, label: str) -> Optional[CDPSession]:
+        """Get a live CDP session for a specific tab by label."""
+        info = self._tabs.get(label)
+        if not info:
+            return None
+        ws = info.get("ws")
+        if not ws:
+            for t in list_tabs(self.port):
+                if t.get("id") == info["id"]:
+                    ws = t.get("webSocketDebuggerUrl", "")
+                    info["ws"] = ws
+                    break
+        if not ws:
+            return None
+        try:
+            return CDPSession(ws, timeout=10)
+        except Exception:
+            return None
+
+    def list_tabs_in_session(self) -> List[Dict[str, Any]]:
+        """List all tracked tabs in this session."""
+        result = []
+        for label, info in self._tabs.items():
+            alive = False
+            for t in list_tabs(self.port):
+                if t.get("id") == info["id"]:
+                    alive = True
+                    break
+            result.append({
+                "label": label,
+                "id": info["id"],
+                "url": info.get("url", ""),
+                "state": info.get("state", "unknown"),
+                "alive": alive,
+            })
+        return result
+
+    def set_tab_state(self, label: str, state: str) -> bool:
+        """Update the state of a tracked tab."""
+        if label in self._tabs:
+            self._tabs[label]["state"] = state
+            return True
+        return False
+
+    # --- Serialization ---
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
@@ -298,6 +360,7 @@ class CDMCPSession:
             "last_activity": self.last_activity,
             "expired": self.is_expired(),
             "age_sec": int(time.time() - self.created_at),
+            "tabs": self.list_tabs_in_session(),
         }
 
 
