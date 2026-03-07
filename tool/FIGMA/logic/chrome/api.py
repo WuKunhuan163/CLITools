@@ -123,17 +123,20 @@ def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
     if cdp:
         _reapply_overlays(cdp, session, port)
 
+    # Open Figma in a new tab within the session (keep welcome as session tab)
     time.sleep(2)
-    cdp = session.get_cdp()
-    if cdp:
-        cdp.evaluate(f"window.location.href = {json.dumps(FIGMA_HOME)}")
-        for _ in range(10):
-            time.sleep(1)
-            cur = cdp.evaluate("window.location.href") or ""
-            if "figma" in str(cur).lower():
-                break
+    tab_info = session.require_tab(
+        "figma", url_pattern="figma.com",
+        open_url=FIGMA_HOME, auto_open=True, wait_sec=10,
+    )
+    if tab_info:
+        overlay = _load_overlay()
+        fg_cdp = CDPSession(tab_info["ws"]) if tab_info.get("ws") else None
+        if fg_cdp:
+            overlay.inject_favicon(fg_cdp, svg_color="#a259ff", letter="F")
+            overlay.inject_badge(fg_cdp, text="Figma MCP", color="#a259ff")
+            overlay.inject_focus(fg_cdp, color="#a259ff")
 
-    session.lifetime_tab_url = FIGMA_HOME
     machine.transition(FigmaState.IDLE)
     machine.set_url(FIGMA_HOME)
 
@@ -141,27 +144,41 @@ def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
 
 
 def _ensure_session(port: int = CDP_PORT) -> Optional[CDPSession]:
+    """Get an active CDP session for the Figma tab, booting if needed."""
     global _fg_session
     machine = get_machine(_session_name)
 
     session = _get_or_create_session(port)
-    if session:
-        cdp = session.get_cdp()
-        if cdp:
-            if session.tab_was_recovered:
-                _reapply_overlays(cdp, session, port)
-                session.tab_was_recovered = False
-            return cdp
-
-    if machine.state == FigmaState.UNINITIALIZED:
-        r = boot_session(port)
-        if r.get("ok"):
+    if not session:
+        if machine.state == FigmaState.UNINITIALIZED:
+            r = boot_session(port)
+            if not r.get("ok"):
+                return None
             session = _get_or_create_session(port)
-            if session:
-                return session.get_cdp()
+        elif machine.state == FigmaState.ERROR:
+            return _recover(port)
+        else:
+            r = boot_session(port)
+            if not r.get("ok"):
+                return None
+            session = _get_or_create_session(port)
 
-    if machine.state == FigmaState.ERROR:
-        return _recover(port)
+    if not session:
+        return None
+
+    tab_info = session.require_tab(
+        "figma", url_pattern="figma.com",
+        open_url=FIGMA_HOME, auto_open=True, wait_sec=10,
+    )
+    if tab_info and tab_info.get("ws"):
+        cdp = CDPSession(tab_info["ws"])
+        try:
+            has_badge = cdp.evaluate(f"!!document.getElementById('{_load_overlay().CDMCP_BADGE_ID}')")
+            if not has_badge:
+                _reapply_overlays(cdp, session, port)
+        except Exception:
+            pass
+        return cdp
 
     return None
 
@@ -398,6 +415,7 @@ def get_layers(port: int = CDP_PORT) -> Dict[str, Any]:
 def get_session_status(port: int = CDP_PORT) -> Dict[str, Any]:
     machine = get_machine(_session_name)
     status = machine.to_dict()
+    status["ok"] = True
     session = _get_or_create_session(port)
     if session:
         status["session_active"] = True

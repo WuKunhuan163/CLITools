@@ -148,19 +148,19 @@ def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
         overlay.inject_focus(cdp, color="#ff0000")
         # No lock for YouTube — user needs to interact freely
 
-    # Show welcome for 2 seconds, then navigate to YouTube
+    # Open YouTube in a new tab within the session window (keep welcome tab as session tab)
     time.sleep(2)
-    cdp = session.get_cdp()
-    if cdp:
-        cdp.evaluate(f"window.location.href = {json.dumps(YOUTUBE_HOME)}")
-        for _ in range(6):
-            time.sleep(1)
-            cur = cdp.evaluate("window.location.href") or ""
-            if "youtube.com" in str(cur):
-                break
+    tab_info = session.require_tab(
+        "youtube", url_pattern="youtube.com",
+        open_url=YOUTUBE_HOME, auto_open=True, wait_sec=10,
+    )
 
-    # Update lifetime URL so recovery goes to YouTube
-    session.lifetime_tab_url = YOUTUBE_HOME
+    if tab_info:
+        yt_cdp = CDPSession(tab_info["ws"]) if tab_info.get("ws") else None
+        if yt_cdp:
+            overlay.inject_favicon(yt_cdp, svg_color="#ff0000", letter="Y")
+            overlay.inject_badge(yt_cdp, text="YouTube MCP", color="#ff0000")
+            overlay.inject_focus(yt_cdp, color="#ff0000")
 
     machine.transition(YTState.IDLE)
     machine.set_url(YOUTUBE_HOME)
@@ -169,39 +169,40 @@ def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
 
 
 def _ensure_session(port: int = CDP_PORT) -> Optional[CDPSession]:
-    """Ensure we have a live YouTube session. Boot if needed, recover if broken."""
+    """Ensure we have a live YouTube tab. Boot session if needed, recover if broken."""
     global _yt_session
     machine = get_machine(_session_name)
 
     session = _get_or_create_session(port)
-    if session:
-        cdp = session.get_cdp()
-        if cdp:
-            _reapply_overlays_if_needed(cdp, session, port)
-            return cdp
-
-    if machine.state in (YTState.UNINITIALIZED,):
-        result = boot_session(port)
-        if result.get("ok"):
+    if not session:
+        if machine.state in (YTState.UNINITIALIZED,):
+            result = boot_session(port)
+            if not result.get("ok"):
+                return None
             session = _get_or_create_session(port)
-            if session:
-                return session.get_cdp()
+        elif machine.state == YTState.ERROR:
+            result = _recover(port)
+            if not result.get("ok"):
+                return None
+            session = _get_or_create_session(port)
+        else:
+            result = boot_session(port)
+            if not result.get("ok"):
+                return None
+            session = _get_or_create_session(port)
+
+    if not session:
         return None
 
-    if machine.state == YTState.ERROR or not session:
-        result = _recover(port)
-        if result.get("ok"):
-            session = _get_or_create_session(port)
-            if session:
-                return session.get_cdp()
-        return None
+    tab_info = session.require_tab(
+        "youtube", url_pattern="youtube.com",
+        open_url=YOUTUBE_HOME, auto_open=True, wait_sec=10,
+    )
+    if tab_info and tab_info.get("ws"):
+        cdp = CDPSession(tab_info["ws"])
+        _reapply_overlays_if_needed(cdp, session, port)
+        return cdp
 
-    # Fallback: state machine thinks we're active but session is gone — reboot
-    result = boot_session(port)
-    if result.get("ok"):
-        session = _get_or_create_session(port)
-        if session:
-            return session.get_cdp()
     return None
 
 

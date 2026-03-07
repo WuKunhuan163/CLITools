@@ -124,18 +124,20 @@ def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
     if cdp:
         _reapply_overlays(cdp, session, port)
 
-    # Navigate to XMind after showing welcome
+    # Open XMind in a new tab within the session (keep welcome as session tab)
     time.sleep(2)
-    cdp = session.get_cdp()
-    if cdp:
-        cdp.evaluate(f"window.location.href = {json.dumps(XMIND_HOME)}")
-        for _ in range(10):
-            time.sleep(1)
-            cur = cdp.evaluate("window.location.href") or ""
-            if "xmind" in str(cur).lower():
-                break
+    tab_info = session.require_tab(
+        "xmind", url_pattern="xmind.com",
+        open_url=XMIND_HOME, auto_open=True, wait_sec=10,
+    )
+    if tab_info:
+        overlay = _load_overlay()
+        xm_cdp = CDPSession(tab_info["ws"]) if tab_info.get("ws") else None
+        if xm_cdp:
+            overlay.inject_favicon(xm_cdp, svg_color="#f44336", letter="X")
+            overlay.inject_badge(xm_cdp, text="XMind MCP", color="#f44336")
+            overlay.inject_focus(xm_cdp, color="#f44336")
 
-    session.lifetime_tab_url = XMIND_HOME
     machine.transition(XMState.IDLE)
     machine.set_url(XMIND_HOME)
 
@@ -143,28 +145,41 @@ def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
 
 
 def _ensure_session(port: int = CDP_PORT) -> Optional[CDPSession]:
-    """Get an active CDP session, booting if needed."""
+    """Get an active CDP session for the XMind tab, booting if needed."""
     global _xm_session
     machine = get_machine(_session_name)
 
     session = _get_or_create_session(port)
-    if session:
-        cdp = session.get_cdp()
-        if cdp:
-            if session.tab_was_recovered:
-                _reapply_overlays(cdp, session, port)
-                session.tab_was_recovered = False
-            return cdp
-
-    if machine.state == XMState.UNINITIALIZED:
-        r = boot_session(port)
-        if r.get("ok"):
+    if not session:
+        if machine.state == XMState.UNINITIALIZED:
+            r = boot_session(port)
+            if not r.get("ok"):
+                return None
             session = _get_or_create_session(port)
-            if session:
-                return session.get_cdp()
+        elif machine.state == XMState.ERROR:
+            return _recover(port)
+        else:
+            r = boot_session(port)
+            if not r.get("ok"):
+                return None
+            session = _get_or_create_session(port)
 
-    if machine.state == XMState.ERROR:
-        return _recover(port)
+    if not session:
+        return None
+
+    tab_info = session.require_tab(
+        "xmind", url_pattern="xmind.com",
+        open_url=XMIND_HOME, auto_open=True, wait_sec=10,
+    )
+    if tab_info and tab_info.get("ws"):
+        cdp = CDPSession(tab_info["ws"])
+        try:
+            has_badge = cdp.evaluate(f"!!document.getElementById('{_load_overlay().CDMCP_BADGE_ID}')")
+            if not has_badge:
+                _reapply_overlays(cdp, session, port)
+        except Exception:
+            pass
+        return cdp
 
     return None
 
@@ -696,6 +711,7 @@ def get_session_status(port: int = CDP_PORT) -> Dict[str, Any]:
     """Get current session and state machine status."""
     machine = get_machine(_session_name)
     status = machine.to_dict()
+    status["ok"] = True
     session = _get_or_create_session(port)
     if session:
         status["session_active"] = True
