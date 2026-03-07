@@ -13,8 +13,12 @@
 | `USERINPUT --queue --delete <id>` | Delete a queued prompt by index. |
 | `USERINPUT --queue --list` | List all queued prompts. |
 | `USERINPUT --queue --gui` | Open queue manager GUI. |
-| `USERINPUT config --list` | List system prompts. |
-| `USERINPUT config --gui` | Manage system prompts via GUI. |
+| `USERINPUT --system-prompt --list` | List system prompts. |
+| `USERINPUT --system-prompt --gui` | Manage system prompts via GUI. |
+| `USERINPUT --system-prompt --add "rule"` | Add a system prompt. |
+| `USERINPUT --system-prompt --delete <id>` | Remove a system prompt by index. |
+| `USERINPUT --config` | Show current configuration values. |
+| `USERINPUT --config --focus-interval 90` | Set refocus interval. |
 
 ## Queue Behavior
 
@@ -37,14 +41,24 @@ Typical scenarios:
 
 ## System Prompt Management
 
-System prompts are appended to every USERINPUT response. Manage them via CLI:
+System prompts are appended to every USERINPUT response. Manage them via `--system-prompt`:
 
 ```bash
-USERINPUT config --add "New rule"
-USERINPUT config --delete 0
-USERINPUT config --move-up 3
-USERINPUT config --list
-USERINPUT config --gui
+USERINPUT --system-prompt --add "New rule"
+USERINPUT --system-prompt --delete 0
+USERINPUT --system-prompt --move-up 3
+USERINPUT --system-prompt --list
+USERINPUT --system-prompt --gui
+```
+
+## Configuration Management
+
+Configuration values (non-prompt settings) are managed via `--config`:
+
+```bash
+USERINPUT --config                          # Show current config
+USERINPUT --config --focus-interval 90      # Set refocus interval
+USERINPUT --config --time-increment 60      # Set add-time increment
 ```
 
 ## Important Rules
@@ -53,3 +67,7 @@ USERINPUT config --gui
 2. Execute USERINPUT at every workflow boundary.
 3. Use `--hint` to explain why you are requesting feedback.
 4. Use `--enquiry` when you need the user's real-time response, not a queued task.
+
+## MCP Development
+
+When developing MCP tools that automate web applications (CDMCP tools), refer to the `TerminalTools-cdmcp-web-exploration` skill for systematic exploration and self-testing methodology.

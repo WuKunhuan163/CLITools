@@ -4,37 +4,39 @@ Sentry error monitoring tool via Chrome DevTools Protocol.
 
 ## Overview
 
-Access Sentry organizations, projects, and issues through the
-authenticated browser session using Chrome CDP. Sentry's same-origin
-REST API at `/api/0/` works with session cookies, enabling direct
-API calls via CDP `fetch()`.
+Access Sentry organizations, projects, and issues through the authenticated browser session using same-origin REST API.
 
 ## Prerequisites
 
 - Chrome running with `--remote-debugging-port=9222`
 - An authenticated Sentry session at `sentry.io`
 
-## Commands
+## MCP Commands
 
-| Command               | Description                          |
-|-----------------------|--------------------------------------|
-| `status`              | Check authentication state           |
-| `page`                | Show current page info               |
-| `orgs`                | List organizations (requires auth)   |
-| `projects <org>`      | List projects (requires auth)        |
-| `issues <org>`        | List issues (requires auth)          |
+All MCP commands use the `--mcp-` prefix.
 
-## Usage
+| Command | Description |
+|---------|-------------|
+| `--mcp-status` | Check authentication state |
+| `--mcp-page` | Show current page info |
+| `--mcp-orgs` | List organizations (requires auth) |
+| `--mcp-projects <org>` | List projects (requires auth) |
+| `--mcp-issues <org>` | List issues (requires auth) |
+
+### Usage
 
 ```bash
-SENTRY status
-SENTRY orgs
-SENTRY projects my-org
-SENTRY issues my-org --project my-project
+SENTRY --mcp-status
+SENTRY --mcp-orgs
+SENTRY --mcp-projects my-org
+SENTRY --mcp-issues my-org --project my-project
 ```
 
-## Architecture
+## Built-in Commands
 
-- `logic/chrome/api.py` — CDP-based Sentry functions (same-origin API)
-- `interface/main.py` — Cross-tool interface exports
-- `logic/translation/zh.json` — Chinese translations
+| Command | Description |
+|---------|-------------|
+| `--setup` | Run tool setup |
+| `--test` | Run unit tests |
+| `--dev <cmd>` | Developer commands |
+| `--rule` | Show AI rules |

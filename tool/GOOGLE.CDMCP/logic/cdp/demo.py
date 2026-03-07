@@ -229,7 +229,6 @@ def _recover_cdp(session, overlay, port):
     if cdp:
         tab_id = session.lifetime_tab_id
         if tab_id:
-            overlay.activate_tab(tab_id, port)
             overlay.pin_tab_by_target_id(tab_id, pinned=True, port=port)
         overlay.inject_favicon(cdp, svg_color="#1a73e8", letter="C")
         overlay.inject_badge(cdp, text="CDMCP Demo", color="#1a73e8")
@@ -430,6 +429,7 @@ def _run_continuous_loop(overlay, interact, cdp, session, machine, ds, delay, re
                 cdp, '#messageInput', message,
                 label="Message input",
                 char_delay=random.uniform(0.025, 0.05),
+                clear_first=True,
                 manage_passthrough=False,
             )
             time.sleep(delay * 0.15 + random.uniform(0, 0.2))
@@ -457,8 +457,6 @@ def _run_continuous_loop(overlay, interact, cdp, session, machine, ds, delay, re
             )
             delivered = message in str(last or "")
             _log(f"{'Delivered' if delivered else 'Not verified'}.")
-
-            overlay.increment_mcp_count(cdp, 3)
 
             msg_idx += 1
             contact_idx += 1
@@ -514,6 +512,7 @@ def _do_draft_cycle(overlay, interact, cdp, contact, contact_idx, delay):
         cdp, '#messageInput', draft,
         label=f"Draft: {draft[:25]}...",
         char_delay=random.uniform(0.03, 0.05),
+        clear_first=True,
         manage_passthrough=False,
     )
     time.sleep(0.6 + random.uniform(0, 0.4))
@@ -535,7 +534,6 @@ def _do_draft_cycle(overlay, interact, cdp, contact, contact_idx, delay):
     )
     time.sleep(0.3)
     cdp.evaluate("document.getElementById('messageInput').value = ''")
-    overlay.increment_mcp_count(cdp, 3)
     time.sleep(0.1)
 
 
@@ -549,7 +547,7 @@ def _single_run(overlay, interact, cdp, session, machine, ds, delay, results):
     machine.transition(ds.DemoState.TYPING_MESSAGE)
     msg = ALICE_MSGS[0]
     interact.mcp_type(cdp, '#messageInput', msg, label="Message input",
-                      char_delay=0.03, manage_passthrough=False)
+                      char_delay=0.03, clear_first=True, manage_passthrough=False)
     time.sleep(delay * 0.3)
     machine.transition(ds.DemoState.SENDING)
     interact.mcp_click(cdp, '#sendBtn', label="Send", dwell=delay * 0.5, unlock_for_click=False)

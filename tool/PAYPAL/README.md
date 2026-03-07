@@ -4,34 +4,37 @@ PayPal payment integration tool via Chrome DevTools Protocol.
 
 ## Overview
 
-Access PayPal account info, balance, and recent activity through the
-authenticated browser session using Chrome CDP.
+Access PayPal account info, balance, and recent activity through the authenticated browser session.
 
 ## Prerequisites
 
 - Chrome running with `--remote-debugging-port=9222`
 - An authenticated PayPal session at `paypal.com`
 
-## Commands
+## MCP Commands
 
-| Command    | Description                          |
-|------------|--------------------------------------|
-| `status`   | Check authentication state           |
-| `page`     | Show current page info               |
-| `account`  | Show account info (requires auth)    |
-| `activity` | Show recent transactions (auth)      |
+All MCP commands use the `--mcp-` prefix.
 
-## Usage
+| Command | Description |
+|---------|-------------|
+| `--mcp-status` | Check authentication state |
+| `--mcp-page` | Show current page info |
+| `--mcp-account` | Show account info (requires auth) |
+| `--mcp-activity` | Show recent transactions (auth) |
+
+### Usage
 
 ```bash
-PAYPAL status
-PAYPAL page
-PAYPAL account
-PAYPAL activity
+PAYPAL --mcp-status
+PAYPAL --mcp-account
+PAYPAL --mcp-activity
 ```
 
-## Architecture
+## Built-in Commands
 
-- `logic/chrome/api.py` — CDP-based PayPal functions
-- `interface/main.py` — Cross-tool interface exports
-- `logic/translation/zh.json` — Chinese translations
+| Command | Description |
+|---------|-------------|
+| `--setup` | Run tool setup |
+| `--test` | Run unit tests |
+| `--dev <cmd>` | Developer commands |
+| `--rule` | Show AI rules |

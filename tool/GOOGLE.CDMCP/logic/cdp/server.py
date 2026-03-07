@@ -1,22 +1,27 @@
-"""CDMCP Local HTTP Server — Serves the chat app HTML for demo sessions.
+"""CDMCP Local HTTP Server — Persistent background server with auth API.
 
-Runs a lightweight HTTP server on a random available port to serve the
-self-contained chat app HTML file.
+Starts a standalone HTTP server process that survives the parent process.
+Serves the welcome page, chat app, and Google auth API. State is persisted
+to a file so any process can discover the running server.
 """
 
-import http.server
-import threading
+import json
+import os
 import socket
+import subprocess
+import sys
+import time
+import urllib.request
 from pathlib import Path
 from typing import Optional, Tuple
 
 _TOOL_DIR = Path(__file__).resolve().parent.parent.parent
-_CHAT_HTML = _TOOL_DIR / "data" / "chat_app.html"
-_WELCOME_HTML = _TOOL_DIR / "data" / "welcome.html"
+_PROJECT_ROOT = _TOOL_DIR.parent.parent
+_STANDALONE_SCRIPT = _TOOL_DIR / "logic" / "cdp" / "server_standalone.py"
+_STATE_FILE = _TOOL_DIR / "data" / "sessions" / "server_state.json"
+_IDENTITY_FILE = _TOOL_DIR / "data" / "sessions" / "google_identity.json"
 
-_server_instance: Optional[http.server.HTTPServer] = None
 _server_port: Optional[int] = None
-_server_thread: Optional[threading.Thread] = None
 
 
 def _find_free_port() -> int:
@@ -25,69 +30,164 @@ def _find_free_port() -> int:
         return s.getsockname()[1]
 
 
-class _ChatHandler(http.server.BaseHTTPRequestHandler):
-    def do_GET(self):
-        path = self.path.split("?")[0]
-        if path in ("/", "/index.html", "/chat"):
-            content = _CHAT_HTML.read_bytes()
-        elif path == "/welcome":
-            content = _WELCOME_HTML.read_bytes()
-        else:
-            self.send_response(404)
-            self.end_headers()
-            return
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", str(len(content)))
-        self.end_headers()
-        self.wfile.write(content)
+def _find_python() -> str:
+    """Find the project's Python with dependencies installed."""
+    tool_json = _PROJECT_ROOT / "tool" / "PYTHON" / "tool.json"
+    if tool_json.exists():
+        try:
+            with open(tool_json) as f:
+                cfg = json.load(f)
+            ver = cfg.get("default_version", "")
+            if ver:
+                candidate = (_PROJECT_ROOT / "tool" / "PYTHON" / "data" /
+                             "install" / ver / "install" / "bin" / "python3")
+                if candidate.exists():
+                    return str(candidate)
+        except Exception:
+            pass
+    return sys.executable
 
-    def log_message(self, format, *args):
+
+def _read_state() -> Optional[dict]:
+    """Read the server state file (pid + port)."""
+    try:
+        if _STATE_FILE.exists():
+            with open(_STATE_FILE) as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return None
+
+
+def _is_server_alive(port: int) -> bool:
+    """Health check the server via its /health endpoint."""
+    try:
+        url = f"http://127.0.0.1:{port}/health"
+        with urllib.request.urlopen(url, timeout=2) as resp:
+            data = json.loads(resp.read().decode())
+            return data.get("ok", False)
+    except Exception:
+        return False
+
+
+def _is_pid_alive(pid: int) -> bool:
+    """Check if a process with given PID is still running."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except (ProcessLookupError, PermissionError):
+        return False
+
+
+def set_identity_cache(email: str, display_name: str = None):
+    """Persist identity to a shared file."""
+    _IDENTITY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(_IDENTITY_FILE, "w") as f:
+            json.dump({"email": email, "display_name": display_name}, f)
+    except OSError:
         pass
 
 
 def start_server(preferred_port: Optional[int] = None) -> Tuple[str, int]:
-    """Start the local HTTP server and return (url, port).
+    """Start or connect to the persistent HTTP server. Returns (url, port).
 
-    If preferred_port is given, try to bind to it first (useful for resuming
-    a server on the same port after a process restart).
+    1. If a server is already running (state file + health check), reuse it.
+    2. If preferred_port is given, try to use it.
+    3. Otherwise, find a free port and start a new standalone process.
     """
-    global _server_instance, _server_port, _server_thread
+    global _server_port
 
-    if _server_instance and _server_port:
+    # Check if already connected in this process
+    if _server_port and _is_server_alive(_server_port):
         return f"http://127.0.0.1:{_server_port}", _server_port
 
+    # Check if a persistent server is already running
+    state = _read_state()
+    if state:
+        port = state.get("port")
+        pid = state.get("pid")
+        if port and _is_server_alive(port):
+            _server_port = port
+            return f"http://127.0.0.1:{port}", port
+        # Stale state; kill the old process if it's still around
+        if pid and _is_pid_alive(pid):
+            try:
+                os.kill(pid, 15)
+            except Exception:
+                pass
+
+    # Check if preferred_port is already serving
+    if preferred_port and _is_server_alive(preferred_port):
+        _server_port = preferred_port
+        return f"http://127.0.0.1:{preferred_port}", preferred_port
+
+    # Start a new standalone server process
     port = preferred_port or _find_free_port()
-    try:
-        server = http.server.HTTPServer(("127.0.0.1", port), _ChatHandler)
-    except OSError:
-        port = _find_free_port()
-        server = http.server.HTTPServer(("127.0.0.1", port), _ChatHandler)
+    _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    py = _find_python()
+    log_dir = _TOOL_DIR / "data" / "report"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / "server.log"
 
-    _server_instance = server
-    _server_port = port
-    _server_thread = thread
+    with open(log_file, "a") as lf:
+        proc = subprocess.Popen(
+            [py, str(_STANDALONE_SCRIPT), str(port),
+             "--state-file", str(_STATE_FILE)],
+            stdout=lf,
+            stderr=lf,
+            start_new_session=True,
+        )
 
-    return f"http://127.0.0.1:{port}", port
+    # Wait for the server to be ready
+    for _ in range(20):
+        time.sleep(0.25)
+        if _is_server_alive(port):
+            _server_port = port
+            return f"http://127.0.0.1:{port}", port
+
+    # Fallback: check state file
+    state = _read_state()
+    if state and state.get("port"):
+        port = state["port"]
+        _server_port = port
+        return f"http://127.0.0.1:{port}", port
+
+    raise RuntimeError(f"Failed to start CDMCP server on port {port}")
 
 
 def stop_server():
-    global _server_instance, _server_port, _server_thread
-    if _server_instance:
-        _server_instance.shutdown()
-        _server_instance = None
-        _server_port = None
-        _server_thread = None
+    """Stop the persistent server process."""
+    global _server_port
+    state = _read_state()
+    if state:
+        pid = state.get("pid")
+        if pid and _is_pid_alive(pid):
+            try:
+                os.kill(pid, 15)
+            except Exception:
+                pass
+    try:
+        if _STATE_FILE.exists():
+            _STATE_FILE.unlink()
+    except OSError:
+        pass
+    _server_port = None
 
 
 def get_server_url() -> Optional[str]:
-    if _server_port:
+    """Return the server URL if running."""
+    global _server_port
+    if _server_port and _is_server_alive(_server_port):
+        return f"http://127.0.0.1:{_server_port}"
+    state = _read_state()
+    if state and _is_server_alive(state.get("port", 0)):
+        _server_port = state["port"]
         return f"http://127.0.0.1:{_server_port}"
     return None
 
 
 def is_running() -> bool:
-    return _server_instance is not None
+    """Check if the server is alive."""
+    return get_server_url() is not None

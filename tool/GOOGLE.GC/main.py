@@ -18,29 +18,74 @@ from logic.tool.blueprint.mcp import MCPToolBase
 from interface.config import get_color
 
 
-def _get_colab_open_url() -> str:
-    """Read the Colab notebook URL from GCS config, or default to Colab home.
+def _check_colab_page_health(cdp) -> str:
+    """Check for common Colab page error states.
 
-    Tries config sources for a specific notebook URL/ID, then falls back
-    to the Colab homepage which starts a new notebook.
+    Returns an error message string if a problem is detected, or empty string if OK.
     """
-    import json as _json
-    for cfg_path in [
-        Path(__file__).resolve().parents[2] / "data" / "config.json",
-        Path(__file__).resolve().parents[1] / "GOOGLE.GCS" / "data" / "config.json",
-    ]:
-        if cfg_path.exists():
-            try:
-                with open(cfg_path) as f:
-                    cfg = _json.load(f)
-                url = cfg.get("root_notebook_url", "")
-                if url:
-                    return url
-                nid = cfg.get("root_notebook_id", "")
-                if nid:
-                    return f"https://colab.research.google.com/drive/{nid}"
-            except Exception:
-                continue
+    try:
+        state = cdp.evaluate("""
+            (function(){
+                var url = window.location.href || '';
+                var body = document.body ? document.body.innerText.substring(0, 1000) : '';
+                var lower = body.toLowerCase();
+
+                // Not signed in: page redirected to accounts.google.com
+                if(url.includes('accounts.google.com/signin') || url.includes('accounts.google.com/ServiceLogin'))
+                    return JSON.stringify({error: 'not_signed_in'});
+
+                // Trashed notebook dialog
+                var dialog = document.querySelector('mwc-dialog');
+                if(dialog){
+                    var dt = (dialog.textContent || '').toLowerCase();
+                    if(dt.includes('trash'))
+                        return JSON.stringify({error: 'notebook_trashed'});
+                }
+
+                // Trash banner in page body
+                if(lower.includes('moved to the trash') || lower.includes('moved to trash'))
+                    return JSON.stringify({error: 'notebook_trashed'});
+
+                // Permission denied
+                if(lower.includes('you need access') || lower.includes('request access') || lower.includes('permission'))
+                    if(lower.includes('denied') || lower.includes('request'))
+                        return JSON.stringify({error: 'no_permission'});
+
+                // File not found (404)
+                if(lower.includes('file not found') || lower.includes('sorry, the file you have requested does not exist'))
+                    return JSON.stringify({error: 'not_found'});
+
+                // Connection error
+                if(lower.includes('unable to connect') || lower.includes('err_connection'))
+                    return JSON.stringify({error: 'connection_error'});
+
+                return JSON.stringify({error: ''});
+            })()
+        """)
+
+        if not state:
+            return ""
+
+        import json as _j
+        parsed = _j.loads(state)
+        error = parsed.get("error", "")
+
+        error_messages = {
+            "not_signed_in": "Not signed in. Run: GOOGLE login --email <email> --password <pwd>",
+            "notebook_trashed": "Notebook is in trash. Run: GC reopen (to restore or create new).",
+            "no_permission": "No permission to access this notebook. Check sharing settings.",
+            "not_found": "Notebook not found. Run: GC reopen (to create a new notebook).",
+            "connection_error": "Connection error. Check network and try again.",
+        }
+
+        return error_messages.get(error, "")
+
+    except Exception:
+        return ""
+
+
+def _get_colab_open_url() -> str:
+    """Return the Colab homepage URL for opening a new notebook."""
     return "https://colab.research.google.com/"
 
 
@@ -62,6 +107,7 @@ class GCTool(MCPToolBase):
             "cell_count": 0,
             "runtime": {"connected": False, "status": "unknown"},
             "notebook": {"title": "", "url": ""},
+            "sessions": [],
         }
 
         if not is_chrome_cdp_available():
@@ -148,6 +194,35 @@ class GCTool(MCPToolBase):
                 state["cell_count"] = len(state["cells"])
                 state["runtime"] = parsed.get("runtime", state["runtime"])
                 state["notebook"] = parsed.get("notebook", state["notebook"])
+
+            sessions_raw = cdp.send_and_recv("Runtime.evaluate", {
+                "expression": """
+                    (async function(){
+                        try {
+                            var k = colab.global.notebook.kernel;
+                            var ss = await k.listNotebookSessions();
+                            if (!Array.isArray(ss)) return '[]';
+                            return JSON.stringify(ss.map(function(s){
+                                return {
+                                    sessionId: s.sessionId||'',
+                                    title: s.title||'',
+                                    fileId: s.fileId||'',
+                                    lastActivity: s.lastActivity||'',
+                                    accelerator: (s.accelerator||{}).display_name||'None',
+                                    visibleInUi: !!s.visibleInUi
+                                };
+                            }));
+                        } catch(e) { return '[]'; }
+                    })()
+                """,
+                "awaitPromise": True,
+                "returnByValue": True,
+            })
+            sess_val = sessions_raw.get("result", {}).get("value", "[]")
+            try:
+                state["sessions"] = _json.loads(sess_val)
+            except Exception:
+                pass
 
             cdp.close()
         except Exception as exc:
@@ -682,6 +757,15 @@ def _colab_connect_stages():
             return False
 
         ctx["cdp"] = CDPSession(tab_info["ws"], timeout=15)
+
+        page_error = _check_colab_page_health(ctx["cdp"])
+        if page_error:
+            if stage:
+                stage.error_brief = page_error
+            ctx["cdp"].close()
+            ctx["cdp"] = None
+            return False
+
         if ov:
             ov.inject_badge(ctx["cdp"], text="GC [colab]", color="#e8710a")
             ov.inject_focus(ctx["cdp"], color="#e8710a")
@@ -1910,9 +1994,11 @@ def main():
     tool = GCTool()
 
     parser = argparse.ArgumentParser(
-        description="Google Colab automation via CDP", add_help=False
+        description="Google Colab automation via CDP",
+        epilog="MCP commands use --mcp- prefix: e.g., GOOGLE.GC --mcp-boot, GOOGLE.GC --mcp-cell add",
+        add_help=False,
     )
-    subparsers = parser.add_subparsers(dest="command", help="Subcommand to run")
+    subparsers = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
     # GOOGLE.GC status
     subparsers.add_parser("status", help="Check Colab tab and CDP availability")
@@ -2080,6 +2166,22 @@ def main():
         if cdp_ok and tab:
             print(f"{BOLD}{GREEN}CDP{RESET}: Available")
             print(f"{BOLD}{GREEN}Colab{RESET}: {tab.get('title', tab.get('url', '?'))}")
+            try:
+                cdp_s = CDPSession(tab["webSocketDebuggerUrl"], timeout=10)
+                page_err = _check_colab_page_health(cdp_s)
+                if page_err:
+                    print(f"{BOLD}{RED}Page{RESET}: {page_err}")
+                else:
+                    from tool.GOOGLE.logic.chrome.login import check_login_state
+                    login = check_login_state()
+                    if login["signed_in"]:
+                        email = login.get("email") or "unknown"
+                        print(f"{BOLD}{GREEN}Account{RESET}: {email}")
+                    else:
+                        print(f"{BOLD}{YELLOW}Account{RESET}: Not signed in. Run: GOOGLE login")
+                cdp_s.close()
+            except Exception:
+                pass
         elif cdp_ok:
             print(f"{BOLD}{GREEN}CDP{RESET}: Available")
             print(f"{BOLD}{RED}Colab{RESET}: No tab found")
@@ -2179,10 +2281,27 @@ def main():
                 if tab_info:
                     _log(f"Colab tab ready: {tab_info.get('url', '?')[:60]}")
                     ov = load_cdmcp_overlay()
-                    if ov and tab_info.get("ws"):
+                    if tab_info.get("ws"):
                         cdp_s = CDPSession(tab_info["ws"], timeout=15)
-                        ov.inject_badge(cdp_s, text="GC [colab]", color="#e8710a")
-                        ov.inject_focus(cdp_s, color="#e8710a")
+                        trash_check = cdp_s.evaluate(
+                            "(function(){ var d = document.querySelector('mwc-dialog');"
+                            " if(!d) return ''; return d.textContent || ''; })()"
+                        )
+                        if trash_check and "trash" in str(trash_check).lower():
+                            _log("Notebook is in trash. Attempting restore...")
+                            cdp_s.evaluate(
+                                "(function(){ var btns = document.querySelectorAll('mwc-dialog md-text-button');"
+                                " for(var i=0;i<btns.length;i++){"
+                                "   if(btns[i].textContent.toLowerCase().includes('take out')){ btns[i].click(); return 'restored'; }}"
+                                " return 'no-btn'; })()"
+                            )
+                            import time as _t
+                            _t.sleep(3)
+                            cdp_s.send_and_recv("Page.reload", {"ignoreCache": True})
+                            _t.sleep(10)
+                        if ov:
+                            ov.inject_badge(cdp_s, text="GC [colab]", color="#e8710a")
+                            ov.inject_focus(cdp_s, color="#e8710a")
                         cdp_s.close()
                     print(f"{BOLD}{GREEN}Reopened{RESET}: Google Colab (session: {session.name})")
                 else:

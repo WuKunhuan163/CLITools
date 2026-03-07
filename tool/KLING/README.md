@@ -4,36 +4,37 @@ Kling AI video generation tool via Chrome DevTools Protocol.
 
 ## Overview
 
-Access Kling AI user info, credit points, and generation history through
-the authenticated browser session using Chrome CDP. Data is read from
-`localStorage` and DOM elements since the Kling API gateway blocks
-cross-origin fetch.
+Access Kling AI user info, credit points, and generation history through the authenticated browser session.
 
 ## Prerequisites
 
 - Chrome running with `--remote-debugging-port=9222`
 - An authenticated Kling AI session at `app.klingai.com`
 
-## Commands
+## MCP Commands
 
-| Command   | Description                         |
-|-----------|-------------------------------------|
-| `me`      | Show user info (ID, name, email)    |
-| `points`  | Show credit points balance          |
-| `page`    | Show current page state             |
-| `history` | Show recent generation history      |
+All MCP commands use the `--mcp-` prefix.
 
-## Usage
+| Command | Description |
+|---------|-------------|
+| `--mcp-me` | Show user info (ID, name, email) |
+| `--mcp-points` | Show credit points balance |
+| `--mcp-page` | Show current page state |
+| `--mcp-history` | Show recent generation history |
+
+### Usage
 
 ```bash
-KLING me
-KLING points
-KLING page
-KLING history
+KLING --mcp-me
+KLING --mcp-points
+KLING --mcp-history
 ```
 
-## Architecture
+## Built-in Commands
 
-- `logic/chrome/api.py` — CDP-based Kling AI functions (localStorage + DOM)
-- `interface/main.py` — Cross-tool interface exports
-- `logic/translation/zh.json` — Chinese translations
+| Command | Description |
+|---------|-------------|
+| `--setup` | Run tool setup |
+| `--test` | Run unit tests |
+| `--dev <cmd>` | Developer commands |
+| `--rule` | Show AI rules |

@@ -20,9 +20,11 @@ def main():
     tool = ToolBase("KLING")
 
     parser = argparse.ArgumentParser(
-        description="Kling AI video generation via CDMCP", add_help=False
+        description="Kling AI video generation via CDMCP",
+        epilog="MCP commands use --mcp- prefix: e.g., KLING --mcp-status, KLING --mcp-page",
+        add_help=False,
     )
-    sub = parser.add_subparsers(dest="command", help="Subcommand")
+    sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
     sub.add_parser("me", help="Show user info")
     sub.add_parser("points", help="Show credit points balance")

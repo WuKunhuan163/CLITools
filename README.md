@@ -79,22 +79,22 @@ All Chrome-based tools use CDMCP session management with visual effects, auto-lo
 | **iCloudPD** | Parallel iCloud photo/video downloader with date filtering and local library support. |
 
 ### SKILLS Tool
-Manages reusable AI agent skills for Cursor IDE:
+Manages reusable AI agent skills stored in `skills/` (symlinked to `~/.cursor/skills/`):
 - `SKILLS list`: Browse available skills.
 - `SKILLS show <name>`: View a skill's content.
 - `SKILLS sync`: Link skills to `~/.cursor/skills/`.
 
-Available skills: `TerminalTools-tool-development-workflow`, `TerminalTools-turing-machine-development`, `TerminalTools-setup-tutorial-creation`, `TerminalTools-code-quality-review`, `TerminalTools-session-debug-log`, `TerminalTools-tmp-test-script`, `TerminalTools-cdmcp-web-exploration`, `TerminalTools-unit-test-conventions`. Run `SKILLS show <name>` for detailed guidance.
+Available skills: `tool-development-workflow`, `turing-machine-development`, `setup-tutorial-creation`, `code-quality-review`, `session-debug-log`, `tmp-test-script`, `cdmcp-web-exploration`, `mcp-development`, `unit-test-conventions`, `localization`, `record-cache`, `tool-interface`, `skills-index`. Run `SKILLS show <name>` for detailed guidance.
 
 ### Internationalization (i18n)
 - `TOOL lang set <LANG>`: Set display language.
 - `TOOL lang audit <LANG> [--turing]`: Audit translation coverage.
 
 ### Developer Workflow
-- `TOOL dev sync`: Align all branches (dev → tool → main → test) with persistence management.
-- `TOOL dev create <NAME>`: Scaffold a new tool from template.
-- `TOOL dev audit-test <NAME> [--fix]`: Audit test naming conventions.
-- `TOOL dev audit-bin [--fix]` / `TOOL dev audit-archived`: Audit shortcuts and archived tool duplicates.
+- `TOOL --dev sync`: Align all branches (dev -> tool -> main -> test) with persistence management.
+- `TOOL --dev create <NAME>`: Scaffold a new tool from template.
+- `TOOL --dev audit-test <NAME> [--fix]`: Audit test naming conventions.
+- `TOOL --dev audit-bin [--fix]` / `TOOL --dev audit-archived`: Audit shortcuts and archived tool duplicates.
 - `TOOL audit imports [--tool NAME] [--json]`: Static analysis for cross-tool import quality (IMP001-IMP004).
 - `TOOL audit quality [--tool NAME] [--json]`: Hooks, interface, and skills validation (HOOK001-HOOK006, IFACE001-IFACE005, SKILL001-SKILL003).
 

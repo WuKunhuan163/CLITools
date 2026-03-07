@@ -180,6 +180,11 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     added_time_dir = tool_instance.project_root / "data" / "run" / "added_time"
     added_time_dir.mkdir(parents=True, exist_ok=True)
     
+    # Suppress keyboard echo during the waiting loop
+    from logic.turing.terminal.keyboard import get_global_suppressor
+    suppressor = get_global_suppressor()
+    suppressor.start()
+
     is_interrupted = False
     try:
         while proc.poll() is None:
@@ -205,6 +210,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
             # 3. Watchdog check
             if time.time() - start_wait > parent_timeout:
                 proc.kill()
+                suppressor.stop()
                 if manager:
                     manager.update(gui_slot_id, "", is_final=True)
                 else:
@@ -216,6 +222,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
             time.sleep(5)
         
         proc.wait() # Wait for process to exit
+        suppressor.stop()
         if manager and not is_quiet:
             manager.update(gui_slot_id, "", is_final=True)
         
@@ -224,6 +231,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
         stdout = "".join(stdout_content)
         stderr = "".join(stderr_content)
     except (Exception, KeyboardInterrupt) as e:
+        suppressor.stop(force=True)
         if isinstance(e, KeyboardInterrupt):
             is_interrupted = True
         
@@ -405,7 +413,11 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     if fi > 0 and fi < 90: fi = 90
     
     last_focus = time.time() # Start from now to avoid immediate bell
-    
+
+    from logic.turing.terminal.keyboard import get_global_suppressor
+    fb_suppressor = get_global_suppressor()
+    fb_suppressor.start()
+
     try:
         while time.time() < until_ts:
             now = time.time()
@@ -420,18 +432,19 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
                     with open(input_file, 'r', encoding='utf-8') as f:
                         content = f.read().strip()
                     if content: # Any non-empty content is accepted
+                        fb_suppressor.stop()
                         success_label = _("label_successfully_received", "Successfully received")
                         from_file_label = _("label_from_file", "from file")
                         print(f"{BOLD}{GREEN}{success_label}{RESET} {from_file_label}: {content}", flush=True)
                         return content
             time.sleep(1)
     except KeyboardInterrupt:
-        # User explicitly interrupted
+        fb_suppressor.stop(force=True)
         interrupted_label = _("msg_interrupted", "Interrupted")
         print(f"\r\033[K{BOLD}{RED}{interrupted_label}{RESET}")
         return "__FALLBACK_INTERRUPTED__"
         
-    # Timeout case
+    fb_suppressor.stop()
     timeout_label = _("fallback_timed_out", "Fallback timed out")
     run_again_hint = _("fallback_run_again", "Please run {tool_name} again.")
     print(f"\r\033[K{BOLD}{RED}{timeout_label}{RESET}. {run_again_hint.format(tool_name=tool_instance.tool_name)}")

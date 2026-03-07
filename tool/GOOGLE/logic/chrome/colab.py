@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any, Callable
 
 from tool.GOOGLE.logic.chrome.session import (
     CDPSession, CDP_PORT, CDP_TIMEOUT,
-    is_chrome_cdp_available, open_tab,
+    is_chrome_cdp_available, open_tab, list_tabs,
 )
 
 
@@ -72,62 +72,23 @@ def find_colab_tab(port: int = CDP_PORT) -> Optional[Dict]:
 
 
 def reopen_colab_tab(port: int = CDP_PORT, log_fn: Callable = None) -> Optional[Dict]:
-    """Attempt to reopen the configured Colab notebook tab.
+    """Open a Colab tab via CDP.
 
-    Reads the notebook URL from GCS config and opens it via CDP.
-    If the notebook was deleted, recreates it first.
+    Opens the Colab homepage if no specific URL is available.
     """
     _log = log_fn or (lambda m: None)
 
-    config_path = _find_gcs_config()
-    if not config_path or not config_path.exists():
-        return None
-    try:
-        with open(config_path, "r") as f:
-            cfg = json.load(f)
-    except Exception:
-        return None
+    colab_url = "https://colab.research.google.com/"
 
-    notebook_id = cfg.get("root_notebook_id", "")
-    env_folder_id = cfg.get("env_folder_id", "")
-    notebook_url = cfg.get("root_notebook_url", "")
-    if not notebook_url and notebook_id:
-        notebook_url = f"https://colab.research.google.com/drive/{notebook_id}"
-    if not notebook_url:
-        return None
-
-    _open_in_session_window(notebook_url, port)
-    _log("Reopened Colab tab. Waiting for page to load...")
+    _open_in_session_window(colab_url, port)
+    _log("Opened Colab tab. Waiting for page to load...")
 
     for i in range(20):
         time.sleep(1)
         tab = find_colab_tab(port)
         if tab:
-            _log(f"Colab tab detected after {i + 1}s. Checking notebook...")
-            time.sleep(5)
-            session = CDPSession(tab["webSocketDebuggerUrl"])
-            try:
-                repaired = _repair_notebook_if_needed(
-                    session, notebook_id, env_folder_id, cfg, config_path, port, _log
-                )
-                if repaired == "recreated":
-                    new_url = cfg.get("root_notebook_url", "")
-                    session.close()
-                    open_tab(new_url, port)
-                    for j in range(15):
-                        time.sleep(1)
-                        tab = find_colab_tab(port)
-                        if tab:
-                            time.sleep(5)
-                            return tab
-                    return None
-            except Exception:
-                pass
-            finally:
-                try:
-                    session.close()
-                except Exception:
-                    pass
+            _log(f"Colab tab detected after {i + 1}s.")
+            time.sleep(3)
             return tab
     return None
 
@@ -180,43 +141,91 @@ def inject_and_execute(code: str, port: int = CDP_PORT, timeout: int = 300,
         )
         if not cell_count or int(cell_count) == 0:
             _log("No cells found. Adding a code cell...")
-            session.evaluate("colab.global.notebook.addCell('code', {cellIndex: 0})")
+            add_result = session.evaluate(
+                "(function(){ try { colab.global.notebook.addCell('code', {cellIndex: 0});"
+                " return 'ok'; } catch(e) { return 'error:' + e.message; } })()"
+            )
+            if add_result and str(add_result).startswith("error:"):
+                _log(f"API addCell failed ({add_result}). Using toolbar...")
             time.sleep(2)
             verify = session.evaluate(
-                "(function(){ var c = colab.global.notebook.cells;"
-                " return (Array.isArray(c) && c.length > 0 && typeof c[0].setText === 'function') ? c.length : 0; })()"
+                "(function(){ return document.querySelectorAll('.cell.code').length; })()"
             )
             if not verify or int(verify) == 0:
-                _log("API addCell did not render. Clicking toolbar button...")
+                _log("Clicking toolbar button to add cell...")
                 session.evaluate(
-                    "(function(){ var b = document.getElementById('toolbar-add-code');"
-                    " if(b) b.click(); })()"
+                    "(function(){ var b = document.querySelector('#toolbar-add-code');"
+                    " if(b) { b.click(); return 'clicked'; }"
+                    " var hover = document.querySelector('.add-cell');"
+                    " if(hover) { hover.dispatchEvent(new MouseEvent('mouseenter', {bubbles:true}));"
+                    "   setTimeout(function(){ var c = document.querySelector('.add-code');"
+                    "     if(c) c.click(); }, 500); return 'hover-clicked'; }"
+                    " return 'none'; })()"
                 )
-                time.sleep(2)
+                time.sleep(3)
 
         code_json = json.dumps(code)
-        session.evaluate(f"colab.global.notebook.cells[0].setText({code_json})")
-        time.sleep(0.3)
+        set_result = session.evaluate(
+            f"(function(){{ var cell = document.querySelector('.cell.code');"
+            f" if(!cell) return 'no-cell';"
+            f" var me = cell.querySelector('.monaco-editor');"
+            f" if(me && typeof monaco !== 'undefined') {{"
+            f"   var editors = monaco.editor.getEditors();"
+            f"   for(var i=0;i<editors.length;i++) {{"
+            f"     var dom = editors[i].getDomNode();"
+            f"     if(cell.contains(dom)) {{"
+            f"       editors[i].setValue({code_json});"
+            f"       return 'monaco:' + editors[i].getValue().length;"
+            f"     }}"
+            f"   }}"
+            f" }}"
+            f" try {{ colab.global.notebook.cells[0].setText({code_json}); return 'api:ok'; }}"
+            f" catch(e) {{ return 'error:' + e.message; }}"
+            f" }})()"
+        )
+        time.sleep(0.5)
 
-        actual = session.evaluate("colab.global.notebook.cells[0].getText()")
-        _log(f"Code injected ({len(actual or '')} chars)")
+        actual_len = 0
+        if set_result and "monaco:" in str(set_result):
+            actual_len = int(str(set_result).split(":")[1])
+        else:
+            actual = session.evaluate("colab.global.notebook.cells[0].getText()")
+            actual_len = len(actual or "")
+        _log(f"Code injected ({actual_len} chars)")
 
-        session.evaluate("document.querySelector('colab-run-button').click()")
+        pre_run_output = session.evaluate(
+            "(function(){ var cell = document.querySelector('.cell.code');"
+            " var out = cell ? cell.querySelector('.output-content') : null;"
+            " return out ? out.textContent.trim().substring(0,200) : ''; })()"
+        )
+
+        session.evaluate(
+            "(function(){ var cell = document.querySelector('.cell.code');"
+            " var rb = cell ? cell.querySelector('colab-run-button') : document.querySelector('colab-run-button');"
+            " if(rb) rb.click(); })()"
+        )
         _log("Execution started")
 
-        for _ in range(10):
+        saw_running = False
+        for _ in range(20):
             time.sleep(0.5)
             pre_state = session.evaluate("""
                 (function() {
-                    var rb = document.querySelector('colab-run-button');
+                    var cell = document.querySelector('.cell.code');
+                    var rb = cell ? cell.querySelector('colab-run-button') : document.querySelector('colab-run-button');
                     var sd = rb && rb.shadowRoot ? rb.shadowRoot.querySelector('.cell-execution') : null;
                     return sd ? sd.className : '';
                 })()
             """)
             if pre_state and ("running" in pre_state or "pending" in pre_state):
+                saw_running = True
                 break
 
+        if not saw_running:
+            time.sleep(3)
+
         poll_js = _build_poll_js(done_marker)
+        settled_count = 0
         for i in range(timeout // 2):
             time.sleep(2)
             state = session.evaluate(poll_js)
@@ -239,17 +248,34 @@ def inject_and_execute(code: str, port: int = CDP_PORT, timeout: int = 300,
                 }
 
             if not info["running"] and not info["pending"]:
-                duration = time.time() - start_time
-                _log(f"Execution completed (CSS state) in {duration:.1f}s")
-                return {
-                    "success": not info["error"],
-                    "output": info.get("output", ""),
-                    "errors": info.get("errors", ""),
-                    "error_flag": info["error"],
-                    "duration": duration,
-                    "state": "completed",
-                    "detected_by": "css_state",
-                }
+                current_output = info.get("output", "").strip()
+                current_errors = info.get("errors", "").strip()
+                is_new = saw_running or (current_output and current_output != (pre_run_output or "").strip())
+                if is_new or settled_count >= 2:
+                    if not current_output and not current_errors:
+                        iframe_data = _read_output_iframe(port)
+                        if iframe_data["output"]:
+                            current_output = iframe_data["output"]
+                        if iframe_data["errors"]:
+                            current_errors = iframe_data["errors"]
+                    duration = time.time() - start_time
+                    _log(f"Execution completed (CSS state) in {duration:.1f}s")
+                    error_msg = None
+                    if info["error"]:
+                        error_msg = current_errors or current_output or "Cell execution error"
+                    return {
+                        "success": not info["error"],
+                        "output": current_output,
+                        "error": error_msg,
+                        "errors": current_errors,
+                        "error_flag": info["error"],
+                        "duration": duration,
+                        "state": "completed",
+                        "detected_by": "css_state",
+                    }
+                settled_count += 1
+            else:
+                settled_count = 0
 
             if (i + 1) * 2 % 20 == 0:
                 _log(f"Still running ({(i + 1) * 2}s)...")
@@ -267,20 +293,40 @@ def inject_and_execute(code: str, port: int = CDP_PORT, timeout: int = 300,
         session.close()
 
 
+def _read_output_iframe(port: int = CDP_PORT) -> Dict[str, str]:
+    """Read output from Colab output iframes (cross-origin sandboxed)."""
+    output, errors = "", ""
+    try:
+        tabs = list_tabs(port)
+        for tab in tabs:
+            url = tab.get("url", "")
+            if "outputframe" not in url or tab.get("type") != "iframe":
+                continue
+            ws = tab.get("webSocketDebuggerUrl")
+            if not ws:
+                continue
+            try:
+                s = CDPSession(ws, timeout=5)
+                body = s.evaluate(
+                    "(function(){ return document.body ? document.body.innerText.substring(0, 4000) : ''; })()"
+                )
+                s.close()
+                if body and body.strip():
+                    text = str(body).strip()
+                    if "Error" in text or "Traceback" in text:
+                        errors = text
+                    else:
+                        output = text
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return {"output": output, "errors": errors}
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
-
-def _find_gcs_config() -> Optional[Path]:
-    """Locate the GCS data/config.json relative to the GOOGLE tool."""
-    p = Path(__file__).resolve().parent.parent.parent.parent  # → tool/
-    config = p / "GOOGLE.GCS" / "data" / "config.json"
-    if config.exists():
-        return config
-    p2 = p.parent  # project root
-    config2 = p2 / "data" / "config.json"
-    return config2 if config2.exists() else None
-
 
 def _build_poll_js(done_marker: str = "") -> str:
     marker_check = ""
@@ -292,15 +338,16 @@ def _build_poll_js(done_marker: str = "") -> str:
 
     return f"""
         (function() {{
-            var runBtn = document.querySelector('colab-run-button');
+            var cell = document.querySelector('.cell.code');
+            var runBtn = cell ? cell.querySelector('colab-run-button') : document.querySelector('colab-run-button');
             var sd = runBtn && runBtn.shadowRoot ?
                 runBtn.shadowRoot.querySelector('.cell-execution') : null;
             var classes = sd ? sd.className : '';
-            var cell = document.querySelector('.cell.code');
             var outEls = cell ? cell.querySelectorAll('.output_text, .output_stream') : [];
+            if (outEls.length === 0) {{ outEls = cell ? cell.querySelectorAll('.output-content:not([hidden])') : []; }}
             var fullText = '';
             outEls.forEach(function(e) {{ fullText += e.textContent + '\\n'; }});
-            var errEls = cell ? cell.querySelectorAll('.output_error, .ansi-red-fg') : [];
+            var errEls = cell ? cell.querySelectorAll('.output_error, .ansi-red-fg, .error-in-cell') : [];
             var errText = '';
             errEls.forEach(function(e) {{ errText += e.textContent.trim() + '\\n'; }});
             {marker_check}
@@ -316,72 +363,3 @@ def _build_poll_js(done_marker: str = "") -> str:
     """
 
 
-def _repair_notebook_if_needed(session, notebook_id, env_folder_id,
-                               cfg, config_path, port, log_fn):
-    """Check if the notebook is accessible; recreate if trashed/deleted."""
-    if not notebook_id:
-        return None
-
-    notebook_name = cfg.get("root_notebook_name", ".root.ipynb")
-    needs_recreate = False
-    reason = ""
-
-    drive_check = session.evaluate(f"""
-    (async function() {{
-        try {{
-            var resp = await gapi.client.request({{
-                path: '/drive/v3/files/{notebook_id}',
-                method: 'GET',
-                params: {{fields: 'id,name,trashed'}}
-            }});
-            return JSON.stringify(resp.result);
-        }} catch(e) {{
-            return JSON.stringify({{error: String(e)}});
-        }}
-    }})()
-    """)
-
-    if not drive_check:
-        return None
-    try:
-        data = json.loads(drive_check)
-    except Exception:
-        return None
-
-    if data.get("trashed"):
-        needs_recreate, reason = True, "trashed"
-    elif data.get("error"):
-        needs_recreate, reason = True, "not accessible"
-    else:
-        trash_on_page = session.evaluate("""
-        (function() {
-            var body = document.body ? document.body.innerText : '';
-            return body.includes('moved to the trash') || body.includes('Moved to the trash');
-        })()
-        """)
-        if trash_on_page is True or trash_on_page == "true":
-            needs_recreate, reason = True, "trash banner on page"
-
-    if not needs_recreate:
-        return None
-
-    log_fn(f"Notebook {reason}. Recreating {notebook_name}...")
-    if not env_folder_id:
-        log_fn("No env_folder_id. Cannot recreate.")
-        return None
-
-    from tool.GOOGLE.logic.chrome.drive import create_notebook
-    result = create_notebook(notebook_name, env_folder_id, port)
-    if result.get("success"):
-        cfg["root_notebook_id"] = result["file_id"]
-        cfg["root_notebook_url"] = result["colab_url"]
-        try:
-            with open(config_path, "w") as f:
-                json.dump(cfg, f, indent=2)
-        except Exception:
-            pass
-        log_fn(f"Recreated {notebook_name} ({result['file_id']}).")
-        return "recreated"
-    elif log_fn:
-        log_fn(f"Failed to recreate: {result.get('error')}")
-    return None

@@ -19,9 +19,11 @@ def main():
     tool = ToolBase("XMIND")
 
     parser = argparse.ArgumentParser(
-        description="XMind mind mapping via CDMCP", add_help=False
+        description="XMind mind mapping via CDMCP",
+        epilog="MCP commands use --mcp- prefix: e.g., XMIND --mcp-boot, XMIND --mcp-nodes",
+        add_help=False,
     )
-    sub = parser.add_subparsers(dest="command", help="Subcommand")
+    sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
     sub.add_parser("status", help="Check authentication state")
     sub.add_parser("page", help="Show current page info")

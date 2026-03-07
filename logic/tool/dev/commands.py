@@ -384,22 +384,29 @@ class DemoLogger(HookInstance):
     with open(tool_dir / "hooks" / "instance" / "demo_logger.py", 'w') as f: f.write(hook_inst_content)
 
     # --- Hooks config ---
-    hooks_config = {{"enabled": [], "disabled": []}}
+    hooks_config = {"enabled": [], "disabled": []}
     with open(tool_dir / "hooks" / "config.json", 'w') as f: json.dump(hooks_config, f, indent=2)
 
     # --- for_agent.md ---
     for_agent_content = f"""# {tool_name} — Agent Quick Reference
 
-## CLI Commands
+## Built-in Commands
 
 | Command | Description |
 |---------|-------------|
 | `{short_name} --demo` | Run demo countdown |
-| `{short_name} setup` | Run tool setup |
+| `{short_name} --setup` | Run tool setup |
+| `{short_name} --test` | Run unit tests |
+| `{short_name} --dev <cmd>` | Developer commands |
+| `{short_name} --rule` | Show AI rules |
 | `{short_name} hooks list` | List available hooks |
-| `{short_name} hooks enable <name>` | Enable a hook instance |
-| `{short_name} hooks disable <name>` | Disable a hook instance |
 | `{short_name} skills list` | List tool skills |
+
+## MCP Commands Convention
+
+If this tool implements CDMCP browser automation, all MCP commands must use the `--mcp-` prefix.
+For example: `{short_name} --mcp-boot`, `{short_name} --mcp-status`, `{short_name} --mcp-navigate <target>`.
+The base class transparently rewrites `--mcp-<cmd>` to bare subcommands for argparse compatibility.
 
 ## Hooks
 
@@ -425,19 +432,37 @@ info = iface.get_info()
 
 ```bash
 {short_name} --demo         # Run demo
-{short_name} setup          # Install dependencies
+{short_name} --setup        # Install dependencies
 {short_name} --help         # Show help
 ```
 
+## MCP Commands
+
+If this tool implements CDMCP browser automation, all MCP commands use the `--mcp-` prefix:
+
+```bash
+{short_name} --mcp-boot          # Boot session
+{short_name} --mcp-status        # Check status
+{short_name} --mcp-<command>     # Any MCP operation
+```
+
+## Built-in Commands
+
+| Command | Description |
+|---------|-------------|
+| `--setup` | Run tool setup |
+| `--test` | Run unit tests |
+| `--dev <cmd>` | Developer commands |
+| `--rule` | Show AI rules |
+
 ## Hooks
 
-Event-driven callback system. See [Hooks Documentation](#hooks-system).
+Event-driven callback system.
 
 ```bash
 {short_name} hooks list                  # List events and instances
 {short_name} hooks enable demo_logger    # Enable the demo logger hook
 {short_name} hooks disable demo_logger   # Disable it
-{short_name} hooks show demo_logger      # Inspect a hook instance
 ```
 
 ### Hook Events
@@ -448,12 +473,6 @@ Event-driven callback system. See [Hooks Documentation](#hooks-system).
 | `on_tool_exit` | Fired when the tool finishes execution (base) |
 | `on_demo_action` | Fired during --demo countdown |
 
-### Hook Instances
-
-| Instance | Event | Default |
-|----------|-------|---------|
-| `demo_logger` | `on_demo_action` | disabled |
-
 ## Interface
 
 ```python
@@ -462,18 +481,10 @@ iface = get_interface("{tool_name}")
 info = iface.get_info()  # {{"name": "{tool_name}", "version": "1.0.0"}}
 ```
 
-## Skills
-
-```bash
-{short_name} skills list
-{short_name} skills show <name>
-{short_name} skills search <query>
-```
-
 ## Testing
 
 ```bash
-TOOL test {tool_name}
+TOOL --test {tool_name}
 ```
 """
     with open(tool_dir / "README.md", 'w') as f: f.write(readme_content)

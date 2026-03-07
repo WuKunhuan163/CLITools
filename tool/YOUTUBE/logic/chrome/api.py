@@ -27,7 +27,6 @@ from typing import Dict, Any, Optional, List
 from logic.chrome.session import (
     CDPSession, CDP_PORT,
     is_chrome_cdp_available,
-    find_tab, open_tab, list_tabs,
     capture_screenshot,
     real_click, insert_text,
 )
@@ -173,6 +172,28 @@ def _ensure_session(port: int = CDP_PORT) -> Optional[CDPSession]:
     )
     if tab_info and tab_info.get("ws"):
         cdp = CDPSession(tab_info["ws"])
+        session.touch()
+
+        # Health check: detect stale tabs where content stops rendering
+        try:
+            url = cdp.evaluate("window.location.href") or ""
+            if "youtube.com" in str(url) and url != YOUTUBE_HOME + "/":
+                html_len = cdp.evaluate("document.documentElement.innerHTML.length")
+                text_len = cdp.evaluate(
+                    "(document.querySelector('ytd-app')||{}).innerText?.length||0")
+                if html_len and int(html_len) > 50000 and (not text_len or int(text_len) == 0):
+                    # Tab has HTML but no rendered text — stale tab
+                    cdp.evaluate("window.location.reload(true)")
+                    time.sleep(3)
+                    for _ in range(10):
+                        text_len = cdp.evaluate(
+                            "(document.querySelector('ytd-app')||{}).innerText?.length||0")
+                        if text_len and int(text_len) > 0:
+                            break
+                        time.sleep(1)
+        except Exception:
+            pass
+
         _reapply_overlays_if_needed(cdp, session, port)
         return cdp
 
@@ -185,9 +206,6 @@ def _reapply_overlays_if_needed(cdp: CDPSession, session, port: int = CDP_PORT):
         has_badge = cdp.evaluate(f"!!document.getElementById('{_load_overlay().CDMCP_BADGE_ID}')")
         if not has_badge:
             overlay = _load_overlay()
-            tab_id = session.lifetime_tab_id
-            if tab_id:
-                overlay.activate_tab(tab_id, port)
             overlay.inject_favicon(cdp, svg_color="#ff0000", letter="Y")
             overlay.inject_badge(cdp, text="YouTube MCP", color="#ff0000")
             overlay.inject_focus(cdp, color="#ff0000")
@@ -324,43 +342,35 @@ def search_videos(query: str, limit: int = 10, port: int = CDP_PORT) -> Dict[str
     try:
         machine.transition(YTState.NAVIGATING, {"action": "search", "query": query})
         interact = _load_interact()
-        overlay = _load_overlay()
 
-        # Navigate to YouTube home first if not there
-        cur_url = session.evaluate("window.location.href") or ""
-        if "youtube.com" not in str(cur_url):
-            session.evaluate(f"window.location.href = {json.dumps(YOUTUBE_HOME)}")
-            time.sleep(2)
+        import urllib.parse
+        encoded_q = urllib.parse.quote_plus(query)
+        search_url = f"https://www.youtube.com/results?search_query={encoded_q}"
 
-        safe_q = query.replace("\\", "\\\\").replace("'", "\\'").replace('"', '\\"')
+        interact.mcp_navigate(session, search_url, tool_name="YouTube")
 
-        # Type in search box with visual effect
-        search_typed = interact.mcp_type(
-            session, 'input#search, input[name="search_query"]', query,
-            label=f"Search: {query}", char_delay=0.04, clear_first=True,
-        )
+        # Poll for search results to render (YouTube SPA can be slow)
+        for _wait in range(20):
+            time.sleep(1)
+            n = session.evaluate(
+                "document.querySelectorAll('ytd-video-renderer').length")
+            if n and int(n) > 0:
+                break
 
-        if search_typed.get("ok"):
-            time.sleep(0.3)
-            interact.mcp_click(
-                session, '#search-icon-legacy, button[aria-label="Search"]',
-                label="Search", dwell=0.5,
-            )
-            time.sleep(3)
-        else:
-            session.evaluate(f"window.location.href = 'https://www.youtube.com/results?search_query={safe_q}'")
-            time.sleep(4)
-
-        machine.set_url(f"https://www.youtube.com/results?search_query={safe_q}")
+        machine.set_url(search_url)
         machine.transition(YTState.SEARCHING)
 
-        r = session.evaluate("""
-            (function() {
-                try {
+        js_limit = int(limit)
+        js_query = json.dumps(query)
+        r = session.evaluate(f"""
+            (function() {{
+                try {{
+                    var qStr = {js_query};
+                    var maxResults = {js_limit};
                     var items = document.querySelectorAll('ytd-video-renderer');
                     if (items.length === 0) items = document.querySelectorAll('ytd-rich-item-renderer');
                     var results = [];
-                    for (var i = 0; i < Math.min(items.length, %d); i++) {
+                    for (var i = 0; i < Math.min(items.length, maxResults); i++) {{
                         var item = items[i];
                         var titleEl = item.querySelector('#video-title, a#video-title-link');
                         var channelEl = item.querySelector('#channel-name a, .ytd-channel-name a, #text.ytd-channel-name');
@@ -370,21 +380,29 @@ def search_videos(query: str, limit: int = 10, port: int = CDP_PORT) -> Dict[str
                         var videoId = '';
                         var m = href.match(/[?&]v=([^&]+)/);
                         if (m) videoId = m[1];
-                        results.push({
+                        if (!videoId) {{
+                            var s = href.match(/\\/shorts\\/([^?&]+)/);
+                            if (s) videoId = s[1];
+                        }}
+                        var fullUrl = videoId
+                            ? (href.includes('/shorts/') ? 'https://www.youtube.com/shorts/' + videoId
+                               : 'https://www.youtube.com/watch?v=' + videoId)
+                            : (href.startsWith('/') ? 'https://www.youtube.com' + href : href);
+                        results.push({{
                             title: titleEl ? titleEl.textContent.trim().substring(0, 120) : '',
                             channel: channelEl ? channelEl.textContent.trim() : '',
                             views: viewsEl ? viewsEl.textContent.trim() : '',
                             duration: timeEl ? timeEl.textContent.trim() : '',
-                            url: videoId ? 'https://www.youtube.com/watch?v=' + videoId : href,
+                            url: fullUrl,
                             videoId: videoId
-                        });
-                    }
-                    return JSON.stringify({ok: true, query: '%s', count: results.length, results: results});
-                } catch(e) {
-                    return JSON.stringify({ok: false, error: e.toString()});
-                }
-            })()
-        """ % (limit, safe_q))
+                        }});
+                    }}
+                    return JSON.stringify({{ok: true, query: qStr, count: results.length, results: results}});
+                }} catch(e) {{
+                    return JSON.stringify({{ok: false, error: e.toString()}});
+                }}
+            }})()
+        """)
         return json.loads(r) if r else {"ok": False, "error": "No response"}
     except Exception as e:
         machine.transition(YTState.ERROR, {"error": str(e)})
@@ -403,18 +421,15 @@ def get_video_info(video_url: Optional[str] = None, port: int = CDP_PORT) -> Dic
         return {"ok": False, "error": "No YouTube session"}
     try:
         interact = _load_interact()
-        overlay = _load_overlay()
 
         if video_url:
             machine.transition(YTState.NAVIGATING, {"action": "video", "url": video_url})
 
-            # If we're on search results, try to click the matching thumbnail
             cur_url = session.evaluate("window.location.href") or ""
             video_id = ""
-            import re
-            m = re.search(r'[?&]v=([^&]+)', video_url)
-            if m:
-                video_id = m.group(1)
+            vid_match = re.search(r'[?&]v=([^&]+)', video_url)
+            if vid_match:
+                video_id = vid_match.group(1)
 
             clicked_thumb = False
             if "/results" in str(cur_url) and video_id:
@@ -430,20 +445,32 @@ def get_video_info(video_url: Optional[str] = None, port: int = CDP_PORT) -> Dic
             if not clicked_thumb:
                 interact.mcp_navigate(session, video_url)
 
-            for _ in range(8):
+            for _ in range(12):
                 time.sleep(1)
                 ready = session.evaluate("""
                     (function() {
                         var url = window.location.href;
                         if (!url.includes('/watch')) return 'not_video';
-                        var title = document.querySelector('h1.ytd-watch-metadata yt-formatted-string, #title h1 yt-formatted-string, h1.title');
-                        return title && title.textContent.trim() ? 'ready' : 'loading';
+                        var ch = document.querySelector('#channel-name a, ytd-channel-name a');
+                        return ch && ch.textContent.trim() ? 'ready' : 'loading';
                     })()
                 """)
                 if ready == "ready":
                     break
             machine.set_url(video_url)
             machine.transition(YTState.WATCHING)
+        else:
+            # When no URL given, wait briefly for metadata to be available
+            for _ in range(5):
+                has_meta = session.evaluate("""
+                    (function() {
+                        var ch = document.querySelector('#channel-name a, ytd-channel-name a');
+                        return ch && ch.textContent.trim() ? 'yes' : 'no';
+                    })()
+                """)
+                if has_meta == "yes":
+                    break
+                time.sleep(1)
 
         r = session.evaluate("""
             (function() {
@@ -547,6 +574,15 @@ def get_transcript(video_url: Optional[str] = None, port: int = CDP_PORT) -> Dic
         machine.transition(YTState.TRANSCRIPT)
         machine.set_transcript_state(TranscriptState.OPENING)
 
+        # Wait for description expand button to be available
+        for _ in range(10):
+            has_expand = session.evaluate(
+                "!!document.querySelector('#expand, tp-yt-paper-button#expand, "
+                "#description-inline-expander #expand')")
+            if has_expand:
+                break
+            time.sleep(1)
+
         session.evaluate("""
             (function() {
                 var btn = document.querySelector('#expand, tp-yt-paper-button#expand, #description-inline-expander #expand');
@@ -555,6 +591,22 @@ def get_transcript(video_url: Optional[str] = None, port: int = CDP_PORT) -> Dic
         """)
         time.sleep(1)
         machine.set_transcript_state(TranscriptState.EXPANDED)
+
+        # Wait for "Show transcript" button to appear
+        for _ in range(8):
+            found = session.evaluate("""
+                (function() {
+                    var all = document.querySelectorAll('button, ytd-button-renderer');
+                    for (var i = 0; i < all.length; i++) {
+                        if (all[i].textContent.trim().toLowerCase().includes('show transcript'))
+                            return 'yes';
+                    }
+                    return 'no';
+                })()
+            """)
+            if found == "yes":
+                break
+            time.sleep(1)
 
         session.evaluate("""
             (function() {
@@ -571,6 +623,7 @@ def get_transcript(video_url: Optional[str] = None, port: int = CDP_PORT) -> Dic
         """)
         time.sleep(1)
 
+        # Force-expand the transcript panel if click didn't open it
         session.evaluate("""
             (function() {
                 var panel = document.querySelector('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]');
@@ -583,7 +636,7 @@ def get_transcript(video_url: Optional[str] = None, port: int = CDP_PORT) -> Dic
 
         machine.set_transcript_state(TranscriptState.READING)
 
-        for _ in range(8):
+        for _ in range(10):
             time.sleep(1)
             count = session.evaluate("document.querySelectorAll('ytd-transcript-segment-renderer').length")
             if count and int(count) > 0:
@@ -716,7 +769,9 @@ _NAV_TARGETS = {
     "watch_later": "https://www.youtube.com/playlist?list=WL",
     "liked": "https://www.youtube.com/playlist?list=LL",
     "trending": "https://www.youtube.com/feed/trending",
+    "explore": "https://www.youtube.com/feed/explore",
     "library": "https://www.youtube.com/feed/library",
+    "studio": "https://studio.youtube.com",
 }
 
 
@@ -1113,6 +1168,13 @@ def subscribe(port: int = CDP_PORT) -> Dict[str, Any]:
     if not session:
         return {"ok": False, "error": "No YouTube session"}
     try:
+        for _ in range(3):
+            btn = session.evaluate(
+                "document.querySelector('ytd-subscribe-button-renderer button')?.textContent?.trim()")
+            if btn:
+                break
+            time.sleep(1)
+
         interact = _load_interact()
         r = interact.mcp_click(
             session, "ytd-subscribe-button-renderer button",
@@ -1137,30 +1199,32 @@ def share(port: int = CDP_PORT) -> Dict[str, Any]:
         r = interact.mcp_click(session, 'button[aria-label="Share"]',
                                label="Share", dwell=0.8, tool_name="YouTube")
         if not r.get("ok"):
-            r = interact.mcp_click(
-                session,
-                'ytd-button-renderer:has(yt-icon) button',
-                label="Share", dwell=0.8, tool_name="YouTube")
+            # Fallback: direct JS click
+            session.evaluate("""
+                var btn = document.querySelector('button[aria-label="Share"]');
+                if(btn) btn.click();
+            """)
 
-        time.sleep(1.5)
+        # Poll for share URL input to appear
+        url = ""
+        for _ in range(8):
+            time.sleep(0.5)
+            url = session.evaluate("""
+                var input = document.querySelector('#share-url');
+                input ? (input.value || input.getAttribute('value') || '') : ''
+            """) or ""
+            if url:
+                break
 
-        url = session.evaluate("""
-            (function(){
-                var input = document.querySelector('#share-url, ytd-unified-share-panel-renderer input');
-                if(input) return input.value || input.getAttribute('value') || '';
-                var link = document.querySelector('a.yt-simple-endpoint[href*="youtu.be"]');
-                if(link) return link.href;
-                return '';
-            })()
-        """)
-
+        # Close dialog
         session.evaluate("""
-            var close = document.querySelector('ytd-unified-share-panel-renderer yt-icon-button, '
-                + '#share-dialog yt-icon-button[aria-label="Close"]');
+            var close = document.querySelector('[aria-label="Close"], '
+                + 'ytd-unified-share-panel-renderer yt-icon-button, '
+                + '#share-dialog yt-icon-button');
             if(close) close.click();
         """)
 
-        return {"ok": True, "share_url": str(url) if url else "",
+        return {"ok": True, "share_url": str(url),
                 "action": "share_dialog_opened"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
@@ -1275,16 +1339,33 @@ def next_video(port: int = CDP_PORT) -> Dict[str, Any]:
         machine = get_machine(_session_name)
         machine.transition(YTState.NAVIGATING, {"action": "next_video"})
 
-        r = interact.mcp_click(
-            session,
-            "ytd-compact-video-renderer:first-of-type a#thumbnail",
-            label="Next video", dwell=1.0, color="#ff0000",
-            tool_name="YouTube")
-        if not r.get("ok"):
+        # Scroll to load recommendations first
+        session.evaluate("window.scrollTo(0, 600)")
+        time.sleep(1)
+
+        # Try new-style lockup link first via JS click
+        clicked = session.evaluate("""
+            (function(){
+                var lockups = document.querySelectorAll(
+                    'ytd-watch-next-secondary-results-renderer yt-lockup-view-model');
+                if (lockups.length > 0) {
+                    var a = lockups[0].querySelector('a[href*="watch"]');
+                    if (a) { a.click(); return 'ok'; }
+                }
+                return 'none';
+            })()
+        """)
+        if clicked != "ok":
             r = interact.mcp_click(
                 session,
-                ".ytp-next-button",
-                label="Next", dwell=0.5, tool_name="YouTube")
+                "ytd-compact-video-renderer:first-of-type a#thumbnail",
+                label="Next video", dwell=1.0, color="#ff0000",
+                tool_name="YouTube")
+            if not r.get("ok"):
+                r = interact.mcp_click(
+                    session,
+                    ".ytp-next-button",
+                    label="Next", dwell=0.5, tool_name="YouTube")
 
         time.sleep(3)
         url = session.evaluate("window.location.href") or ""
@@ -1298,16 +1379,49 @@ def next_video(port: int = CDP_PORT) -> Dict[str, Any]:
 
 
 def get_recommendations(limit: int = 10, port: int = CDP_PORT) -> Dict[str, Any]:
-    """List recommended videos from the sidebar."""
+    """List recommended videos from the sidebar or below the player."""
     session = _ensure_session(port)
     if not session:
         return {"ok": False, "error": "No YouTube session"}
     try:
+        # Scroll to trigger lazy-loading of recommendations
+        session.evaluate("window.scrollTo(0, 600)")
+        time.sleep(1)
+
         r = session.evaluate(f"""
             (function(){{
+                // Try new yt-lockup-view-model first (2024+ YouTube layout)
+                var lockups = document.querySelectorAll(
+                    'ytd-watch-next-secondary-results-renderer yt-lockup-view-model');
+                if (lockups.length > 0) {{
+                    var out = [];
+                    for (var i = 0; i < Math.min(lockups.length, {limit}); i++) {{
+                        var item = lockups[i];
+                        var linkEl = item.querySelector('a[href*="watch"], a[href*="/shorts/"]');
+                        var href = linkEl ? linkEl.getAttribute('href') || '' : '';
+                        var vid = href.match(/[?&]v=([^&]+)/);
+                        var spans = item.querySelectorAll('span');
+                        var st = [];
+                        for (var j = 0; j < spans.length; j++) {{
+                            var t = spans[j].textContent.trim();
+                            if (t && t !== '\\u00b7' && t !== '\\u2022') st.push(t);
+                        }}
+                        var badge = item.querySelector('.yt-badge-shape__text, badge-shape div');
+                        out.push({{
+                            title: st.length > 0 ? st[0].substring(0, 120) : '',
+                            channel: st.length > 1 ? st[1] : '',
+                            views: st.length > 2 ? st[2] : '',
+                            duration: badge ? badge.textContent.trim() : '',
+                            videoId: vid ? vid[1] : '',
+                            url: vid ? 'https://www.youtube.com/watch?v=' + vid[1] : ''
+                        }});
+                    }}
+                    return JSON.stringify({{ok: true, count: out.length, results: out}});
+                }}
+                // Fallback: legacy ytd-compact-video-renderer
                 var items = document.querySelectorAll('ytd-compact-video-renderer');
                 var out = [];
-                for(var i=0; i<Math.min(items.length, {limit}); i++){{
+                for (var i = 0; i < Math.min(items.length, {limit}); i++) {{
                     var el = items[i];
                     var a = el.querySelector('a#thumbnail');
                     var title = el.querySelector('#video-title');
@@ -1328,7 +1442,37 @@ def get_recommendations(limit: int = 10, port: int = CDP_PORT) -> Dict[str, Any]
                 return JSON.stringify({{ok: true, count: out.length, results: out}});
             }})()
         """)
-        return json.loads(r) if r else {"ok": False, "error": "No response"}
+        result = json.loads(r) if r else {"ok": False}
+        if result.get("ok") and result.get("count", 0) > 0:
+            return result
+
+        # Second fallback: find watch links from the related/sidebar area
+        r2 = session.evaluate(f"""
+        (function() {{
+            var container = document.querySelector('#secondary') || document;
+            var links = container.querySelectorAll('a[href*="/watch"]');
+            var seen = {{}};
+            var out = [];
+            var currentVid = window.location.search.match(/[?&]v=([^&]+)/);
+            var currentId = currentVid ? currentVid[1] : '';
+            for (var i = 0; i < links.length && out.length < {limit}; i++) {{
+                var href = links[i].getAttribute('href') || '';
+                var vid = href.match(/[?&]v=([^&]+)/);
+                if (!vid || vid[1] === currentId || seen[vid[1]]) continue;
+                seen[vid[1]] = true;
+                var text = links[i].textContent.trim();
+                if (text.length < 5) continue;
+                out.push({{
+                    title: text.substring(0, 100),
+                    videoId: vid[1],
+                    url: 'https://www.youtube.com/watch?v=' + vid[1],
+                    channel: '', views: '', duration: ''
+                }});
+            }}
+            return JSON.stringify({{ok: true, count: out.length, results: out}});
+        }})()
+        """)
+        return json.loads(r2) if r2 else {"ok": False, "error": "No recommendations found"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
@@ -1340,8 +1484,27 @@ def get_comments(limit: int = 10, port: int = CDP_PORT) -> Dict[str, Any]:
         return {"ok": False, "error": "No YouTube session"}
     try:
         interact = _load_interact()
-        interact.mcp_scroll(session, "down", 500)
-        time.sleep(2)
+
+        # Try force-expanding the comments engagement panel first
+        session.evaluate("""
+            var panel = document.querySelector(
+                'ytd-engagement-panel-section-list-renderer'
+                + '[target-id="engagement-panel-comments-section"]');
+            if (panel) {
+                panel.setAttribute('visibility',
+                    'ENGAGEMENT_PANEL_VISIBILITY_EXPANDED');
+                panel.style.display = '';
+            }
+        """)
+
+        # Scroll to trigger comment section lazy-loading
+        for _scroll in range(6):
+            interact.mcp_scroll(session, "down", 500)
+            time.sleep(1.5)
+            n = session.evaluate(
+                "document.querySelectorAll('ytd-comment-thread-renderer').length")
+            if n and int(n) > 0:
+                break
 
         r = session.evaluate(f"""
             (function(){{
@@ -1478,3 +1641,473 @@ def get_mcp_state(port: int = CDP_PORT) -> Dict[str, Any]:
         return state
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+def go_back(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Navigate back to the previous page."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        session.evaluate("window.history.back()")
+        time.sleep(2)
+        url = session.evaluate("window.location.href") or ""
+        machine = get_machine(_session_name)
+        machine.set_url(str(url))
+        if "/watch" in str(url):
+            machine.transition(YTState.WATCHING)
+        elif "/results" in str(url):
+            machine.transition(YTState.SEARCHING)
+        else:
+            machine.transition(YTState.IDLE)
+        return {"ok": True, "url": str(url)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def get_home_layout(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Identify the core layout areas of the YouTube home page."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        layout = session.evaluate("""
+        (function() {
+            var out = {};
+            out.url = window.location.href;
+            out.title = document.title;
+
+            var topbar = document.querySelector('ytd-masthead');
+            out.topbar = !!topbar;
+            var searchBox = document.querySelector('input#search');
+            out.search_box = !!searchBox;
+            var avatar = document.querySelector('#avatar-btn');
+            out.user_avatar = !!avatar;
+
+            var guide = document.querySelector('tp-yt-app-drawer, ytd-mini-guide-renderer');
+            out.sidebar = !!guide;
+
+            var chips = document.querySelectorAll('yt-chip-cloud-chip-renderer, ytd-feed-filter-chip-bar-renderer yt-chip-cloud-chip-renderer');
+            out.category_chips = [];
+            for (var i = 0; i < Math.min(chips.length, 10); i++) {
+                out.category_chips.push(chips[i].textContent.trim());
+            }
+
+            var videos = document.querySelectorAll('ytd-rich-item-renderer');
+            out.video_count = videos.length;
+
+            var sections = [];
+            if (out.topbar) sections.push('Top navigation bar (search, logo, user avatar)');
+            if (out.sidebar) sections.push('Left sidebar (Home, Shorts, Subscriptions, Library)');
+            if (out.category_chips.length > 0) sections.push('Category chip bar (' + out.category_chips.slice(0,5).join(', ') + ')');
+            if (out.video_count > 0) sections.push('Video feed (' + out.video_count + ' videos visible)');
+            out.areas = sections;
+
+            return JSON.stringify(out);
+        })()
+        """)
+        result = json.loads(layout) if layout else {}
+        result["ok"] = True
+        return result
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def navigate_to_channel(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Click on the channel name of the current video to open channel page."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        chan_info = session.evaluate("""
+        (function() {
+            var link = document.querySelector('#channel-name a, ytd-channel-name a');
+            if (link) {
+                var name = link.textContent.trim();
+                link.click();
+                return JSON.stringify({name: name, ok: true});
+            }
+            var chanLink = document.querySelector('ytd-video-owner-renderer a');
+            if (chanLink) {
+                var name = chanLink.textContent.trim();
+                chanLink.click();
+                return JSON.stringify({name: name, ok: true});
+            }
+            return JSON.stringify({ok: false});
+        })()
+        """)
+        result = json.loads(chan_info) if chan_info else {"ok": False}
+        if result.get("ok"):
+            time.sleep(3)
+            url = session.evaluate("window.location.href") or ""
+            machine = get_machine(_session_name)
+            machine.set_url(str(url))
+            machine.transition(YTState.IDLE)
+            return {"ok": True, "channel": result.get("name", ""), "url": str(url)}
+        return {"ok": False, "error": "Channel link not found on current page"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def get_watch_history(limit: int = 10, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Get items from watch history page."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        url = session.evaluate("window.location.href") or ""
+        if "/feed/history" not in str(url):
+            navigate("history", port)
+            time.sleep(3)
+
+        for _ in range(3):
+            session.evaluate("window.scrollBy(0, 300)")
+            time.sleep(0.5)
+
+        history = session.evaluate(f"""
+        (function() {{
+            var items = document.querySelectorAll('yt-lockup-view-model');
+            if (items.length === 0) items = document.querySelectorAll('ytd-video-renderer');
+            var result = [];
+            for (var i = 0; i < Math.min(items.length, {limit}); i++) {{
+                var titleEl = items[i].querySelector('h3, #video-title, a#video-title-link');
+                var channelEl = items[i].querySelector('#channel-name a, .ytd-channel-name a, [class*="channel"]');
+                var linkEl = items[i].querySelector('a[href*="/watch"]');
+                result.push({{
+                    title: titleEl ? titleEl.textContent.trim() : items[i].textContent.trim().substring(0, 80),
+                    url: linkEl ? linkEl.getAttribute('href') || '' : '',
+                    channel: channelEl ? channelEl.textContent.trim() : '',
+                    index: i
+                }});
+            }}
+            return JSON.stringify(result);
+        }})()
+        """)
+        items = json.loads(history) if history else []
+        return {"ok": True, "items": items, "count": len(items)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def delete_history_item(index: int = 0, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Delete a watch history item by index (0-based)."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        result = session.evaluate(f"""
+        (function() {{
+            var items = document.querySelectorAll('yt-lockup-view-model');
+            if (items.length === 0) items = document.querySelectorAll('ytd-video-renderer');
+            if ({index} >= items.length) return JSON.stringify({{ok: false, error: 'Index out of range (' + items.length + ' items)'}});
+            var item = items[{index}];
+            var titleEl = item.querySelector('h3, #video-title');
+            var titleText = titleEl ? titleEl.textContent.trim() : item.textContent.trim().substring(0, 60);
+
+            var menuBtn = item.querySelector('button[aria-label*="Action"], button[aria-label*="action"], #menu button, yt-icon-button#button, button.yt-spec-button-shape-next');
+            if (!menuBtn) {{
+                var btns = item.querySelectorAll('button');
+                for (var i = 0; i < btns.length; i++) {{
+                    if (btns[i].querySelector('yt-icon, svg') && btns[i].getBoundingClientRect().width < 50) {{
+                        menuBtn = btns[i]; break;
+                    }}
+                }}
+            }}
+            if (menuBtn) {{
+                menuBtn.click();
+                return JSON.stringify({{ok: true, title: titleText, phase: 'menu_opened'}});
+            }}
+            return JSON.stringify({{ok: false, error: 'Menu button not found'}});
+        }})()
+        """)
+        r = json.loads(result) if result else {"ok": False}
+        if not r.get("ok"):
+            return r
+
+        time.sleep(1)
+
+        remove = session.evaluate("""
+        (function() {
+            var items = document.querySelectorAll('tp-yt-paper-listbox ytd-menu-service-item-renderer, ytd-menu-popup-renderer tp-yt-paper-item, [role="menuitem"], ytd-menu-service-item-renderer');
+            for (var i = 0; i < items.length; i++) {
+                var text = items[i].textContent.trim().toLowerCase();
+                if (text.includes('remove') || text.includes('delete')) {
+                    items[i].click();
+                    return 'removed';
+                }
+            }
+            return 'not_found';
+        })()
+        """)
+        if remove == "removed":
+            return {"ok": True, "action": "deleted", "title": r.get("title", ""), "index": index}
+        return {"ok": False, "error": "Remove option not found in menu"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Advanced functions for 20 advanced YouTube tasks
+# ---------------------------------------------------------------------------
+
+def get_chapters(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Extract chapter markers from the current video."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        chapters = session.evaluate("""
+        (function() {
+            var items = document.querySelectorAll('ytd-macro-markers-list-item-renderer');
+            var result = [];
+            for (var i = 0; i < items.length; i++) {
+                var title = items[i].querySelector('h4, #details h4');
+                var time = items[i].querySelector('#time, .macro-markers');
+                result.push({
+                    index: i,
+                    title: title ? title.textContent.trim() : '',
+                    time: time ? time.textContent.trim() : ''
+                });
+            }
+            if (result.length === 0) {
+                var descChapters = document.querySelectorAll('ytd-structured-description-content-renderer a[href*="&t="]');
+                for (var i = 0; i < descChapters.length; i++) {
+                    var text = descChapters[i].textContent.trim();
+                    var href = descChapters[i].getAttribute('href') || '';
+                    var match = href.match(/[&?]t=(\\d+)/);
+                    result.push({index: i, title: text, time: match ? match[1] + 's' : ''});
+                }
+            }
+            return JSON.stringify(result);
+        })()
+        """)
+        items = json.loads(chapters) if chapters else []
+        return {"ok": True, "chapters": items, "count": len(items)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def seek_to_chapter(index: int = 0, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Jump to a specific chapter by index."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        result = session.evaluate(f"""
+        (function() {{
+            var items = document.querySelectorAll('ytd-macro-markers-list-item-renderer');
+            if ({index} < items.length) {{
+                items[{index}].click();
+                var title = items[{index}].querySelector('h4');
+                return JSON.stringify({{ok: true, title: title ? title.textContent.trim() : '', index: {index}}});
+            }}
+            return JSON.stringify({{ok: false, error: 'Chapter index out of range'}});
+        }})()
+        """)
+        return json.loads(result) if result else {"ok": False, "error": "No response"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def apply_default_settings(quality_level: str = "720p", speed_rate: float = 1.0,
+                           captions_on: bool = False, port: int = CDP_PORT) -> Dict[str, Any]:
+    """Apply a combination of playback settings (quality, speed, captions)."""
+    results = {}
+    if quality_level:
+        results["quality"] = quality(quality_level, port)
+    if speed_rate != 1.0:
+        results["speed"] = speed(speed_rate, port)
+    results["captions"] = captions(captions_on, port)
+    return {"ok": True, "action": "apply_default_settings", "results": results}
+
+
+def find_live_streams(category: str = "", limit: int = 5,
+                      port: int = CDP_PORT) -> Dict[str, Any]:
+    """Navigate to live streams and list available ones."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        url = f"https://www.youtube.com/results?search_query={category}+live&sp=EgJAAQ%253D%253D" if category else "https://www.youtube.com/results?search_query=live&sp=EgJAAQ%253D%253D"
+        interact = _load_interact()
+        interact.mcp_navigate(session, url, tool_name="YouTube")
+        time.sleep(3)
+
+        for _ in range(3):
+            session.evaluate("window.scrollBy(0, 300)")
+            time.sleep(0.5)
+
+        streams = session.evaluate(f"""
+        (function() {{
+            var items = document.querySelectorAll('ytd-video-renderer');
+            var result = [];
+            for (var i = 0; i < Math.min(items.length, {limit}); i++) {{
+                var title = items[i].querySelector('#video-title');
+                var channel = items[i].querySelector('#channel-name a');
+                var viewers = items[i].querySelector('#metadata-line span');
+                var thumb = items[i].querySelector('a#thumbnail');
+                result.push({{
+                    title: title ? title.textContent.trim() : '',
+                    channel: channel ? channel.textContent.trim() : '',
+                    viewers: viewers ? viewers.textContent.trim() : '',
+                    url: thumb ? thumb.getAttribute('href') || '' : ''
+                }});
+            }}
+            return JSON.stringify(result);
+        }})()
+        """)
+        items = json.loads(streams) if streams else []
+        machine = get_machine(_session_name)
+        machine.transition(YTState.SEARCHING)
+        return {"ok": True, "streams": items, "count": len(items)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def get_live_stats(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Get live stream statistics (viewer count, likes, etc.)."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        stats = session.evaluate("""
+        (function() {
+            var out = {};
+            var viewCount = document.querySelector('.view-count, #info-strings yt-formatted-string');
+            out.viewers = viewCount ? viewCount.textContent.trim() : '';
+            var likeBtn = document.querySelector('like-button-view-model button');
+            out.likes = likeBtn ? likeBtn.getAttribute('aria-label') || '' : '';
+            var chatFrame = document.querySelector('iframe#chatframe');
+            out.has_chat = !!chatFrame;
+            var title = document.querySelector('h1 yt-formatted-string');
+            out.title = title ? title.textContent.trim() : '';
+            var channel = document.querySelector('#channel-name a');
+            out.channel = channel ? channel.textContent.trim() : '';
+            return JSON.stringify(out);
+        })()
+        """)
+        result = json.loads(stats) if stats else {}
+        result["ok"] = True
+        return result
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def navigate_studio(section: str = "content", port: int = CDP_PORT) -> Dict[str, Any]:
+    """Navigate to a YouTube Studio section."""
+    _STUDIO_SECTIONS = {
+        "dashboard": "https://studio.youtube.com",
+        "content": "https://studio.youtube.com/channel/UC/videos",
+        "analytics": "https://studio.youtube.com/channel/UC/analytics",
+        "comments": "https://studio.youtube.com/channel/UC/comments",
+        "playlists": "https://studio.youtube.com/channel/UC/playlists",
+        "subtitles": "https://studio.youtube.com/channel/UC/translations",
+        "monetization": "https://studio.youtube.com/channel/UC/monetization",
+        "customization": "https://studio.youtube.com/channel/UC/editing",
+    }
+    url = _STUDIO_SECTIONS.get(section.lower(), f"https://studio.youtube.com")
+    return navigate(url, port)
+
+
+def create_playlist(name: str, description: str = "",
+                    port: int = CDP_PORT) -> Dict[str, Any]:
+    """Create a new playlist via the YouTube playlists page."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        navigate("playlists", port)
+        time.sleep(2)
+
+        result = session.evaluate("""
+        (function() {
+            var btns = document.querySelectorAll('button, ytd-button-renderer');
+            for (var i = 0; i < btns.length; i++) {
+                var text = btns[i].textContent.trim().toLowerCase();
+                if (text.includes('new playlist') || text.includes('create')) {
+                    btns[i].click();
+                    return 'clicked';
+                }
+            }
+            return 'not_found';
+        })()
+        """)
+        if result == "clicked":
+            time.sleep(1)
+            return {"ok": True, "action": "create_playlist_dialog_opened", "name": name}
+        return {"ok": False, "error": "Create playlist button not found"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def navigate_settings(section: str = "account", port: int = CDP_PORT) -> Dict[str, Any]:
+    """Navigate to YouTube settings page."""
+    _SETTINGS = {
+        "account": "https://www.youtube.com/account",
+        "notifications": "https://www.youtube.com/account_notifications",
+        "privacy": "https://www.youtube.com/account_privacy",
+        "playback": "https://www.youtube.com/account_playback",
+        "advanced": "https://www.youtube.com/account_advanced",
+    }
+    url = _SETTINGS.get(section.lower(), f"https://www.youtube.com/account")
+    return navigate(url, port)
+
+
+def navigate_premium(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Navigate to YouTube Premium page to view benefits (no purchase)."""
+    return navigate("https://www.youtube.com/premium", port)
+
+
+def get_premium_benefits(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Read YouTube Premium benefit descriptions from the page."""
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+    try:
+        url = session.evaluate("window.location.href") or ""
+        if "premium" not in str(url).lower():
+            navigate_premium(port)
+            time.sleep(3)
+
+        benefits = session.evaluate("""
+        (function() {
+            var items = document.querySelectorAll('h3, h2, [class*="benefit"], [class*="feature"]');
+            var result = [];
+            for (var i = 0; i < items.length; i++) {
+                var text = items[i].textContent.trim();
+                if (text.length > 5 && text.length < 100) result.push(text);
+            }
+            return JSON.stringify([...new Set(result)].slice(0, 10));
+        })()
+        """)
+        items = json.loads(benefits) if benefits else []
+        return {"ok": True, "benefits": items, "count": len(items)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def search_with_filters(query: str, duration: str = "", sort_by: str = "",
+                        filter_type: str = "video", limit: int = 10,
+                        port: int = CDP_PORT) -> Dict[str, Any]:
+    """Search with advanced filters (duration, sort, type)."""
+    sp_parts = []
+    if filter_type == "video":
+        sp_parts.append("EgIQAQ%3D%3D")
+    elif filter_type == "live":
+        sp_parts.append("EgJAAQ%3D%3D")
+    elif filter_type == "playlist":
+        sp_parts.append("EgIQAw%3D%3D")
+
+    url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
+    if sp_parts:
+        url += f"&sp={sp_parts[0]}"
+
+    session = _ensure_session(port)
+    if not session:
+        return {"ok": False, "error": "No YouTube session"}
+
+    interact = _load_interact()
+    interact.mcp_navigate(session, url, tool_name="YouTube")
+    time.sleep(3)
+
+    return search_videos(query, limit, port)

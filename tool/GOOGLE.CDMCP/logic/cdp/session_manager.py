@@ -69,6 +69,115 @@ def _log_session(action: str, session_name: str, detail: str = ""):
         pass
 
 
+_CHROME_DOWNLOAD_URL = "https://www.google.com/chrome/"
+_CHROME_PROFILE_DIR = Path.home() / "ChromeDebugProfile"
+
+
+def _find_chrome_binary() -> Optional[str]:
+    """Find the Chrome executable path, or None if not installed."""
+    import sys as _sys
+    if _sys.platform == "darwin":
+        app = "/Applications/Google Chrome.app"
+        if Path(app).exists():
+            return app
+    elif _sys.platform.startswith("linux"):
+        import shutil
+        for binary in ["google-chrome", "google-chrome-stable",
+                       "chromium-browser", "chromium"]:
+            path = shutil.which(binary)
+            if path:
+                return path
+    elif _sys.platform == "win32":
+        import os
+        for template in [
+            r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
+            r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe",
+            r"%LocalAppData%\Google\Chrome\Application\chrome.exe",
+        ]:
+            expanded = os.path.expandvars(template)
+            if Path(expanded).exists():
+                return expanded
+    return None
+
+
+def _launch_chrome(port: int = CDP_PORT, timeout: int = 20) -> bool:
+    """Launch Chrome with CDP debugging enabled.
+
+    Returns True if Chrome CDP becomes available within timeout seconds.
+    """
+    import subprocess, sys as _sys
+
+    chrome_bin = _find_chrome_binary()
+    if not chrome_bin:
+        return False
+
+    profile_dir = str(_CHROME_PROFILE_DIR)
+    _log_session("chrome_launch", "system", f"port={port} profile={profile_dir}")
+
+    if _sys.platform == "darwin":
+        subprocess.Popen([
+            "open", "-na", "Google Chrome", "--args",
+            f"--remote-debugging-port={port}",
+            f"--user-data-dir={profile_dir}",
+            "--remote-allow-origins=*",
+        ])
+    elif _sys.platform.startswith("linux"):
+        subprocess.Popen([
+            chrome_bin,
+            f"--remote-debugging-port={port}",
+            f"--user-data-dir={profile_dir}",
+            "--remote-allow-origins=*",
+        ])
+    elif _sys.platform == "win32":
+        subprocess.Popen([
+            chrome_bin,
+            f"--remote-debugging-port={port}",
+            f"--user-data-dir={profile_dir}",
+            "--remote-allow-origins=*",
+        ])
+    else:
+        return False
+
+    for _ in range(timeout):
+        time.sleep(1)
+        if is_chrome_cdp_available(port):
+            _log_session("chrome_ready", "system", f"port={port}")
+            return True
+    return False
+
+
+def _prompt_chrome_install():
+    """Open Chrome download page in the system's default browser."""
+    import webbrowser
+    _log_session("chrome_missing", "system",
+                 f"Opening download page: {_CHROME_DOWNLOAD_URL}")
+    webbrowser.open(_CHROME_DOWNLOAD_URL)
+
+
+def ensure_chrome(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Ensure Chrome is running with CDP. Launch if closed, prompt install if missing.
+
+    Returns:
+        {"ok": bool, "action": str, "error": str (if failed)}
+    """
+    if is_chrome_cdp_available(port):
+        return {"ok": True, "action": "already_running"}
+
+    chrome_bin = _find_chrome_binary()
+    if not chrome_bin:
+        _prompt_chrome_install()
+        return {"ok": False, "action": "chrome_not_installed",
+                "error": "Google Chrome is not installed. "
+                         "Opened download page in default browser."}
+
+    _log_session("chrome_reboot", "system", "Chrome CDP unavailable, relaunching...")
+    launched = _launch_chrome(port)
+    if launched:
+        return {"ok": True, "action": "relaunched"}
+    return {"ok": False, "action": "launch_failed",
+            "error": "Chrome launched but CDP did not become available within timeout"}
+
+
 class CDMCPSession:
     """A named CDMCP session with a lifetime tab."""
 
@@ -91,6 +200,7 @@ class CDMCPSession:
         self._tabs: Dict[str, Dict[str, Any]] = {}  # tab_label -> {id, url, ws, state}
         self._demo_pid: Optional[int] = None
         self._http_port: Optional[int] = None
+        self.mcp_count: int = 0
 
     def boot(self, url: str, new_window: bool = True) -> Dict[str, Any]:
         """Boot the session by opening a new tab as the lifetime anchor.
@@ -198,6 +308,22 @@ class CDMCPSession:
         except Exception:
             pass
 
+    def _is_tab_in_window(self, tab: Dict[str, Any]) -> bool:
+        """Check if a Chrome tab belongs to this session's window."""
+        if not self.window_id:
+            return True
+        ws = tab.get("webSocketDebuggerUrl")
+        if not ws:
+            return False
+        try:
+            s = CDPSession(ws, timeout=5)
+            result = s.send_and_recv("Browser.getWindowForTarget", {})
+            s.close()
+            wid = (result or {}).get("result", {}).get("windowId")
+            return wid == self.window_id
+        except Exception:
+            return False
+
     def open_tab_in_session(self, url: str) -> Optional[str]:
         """Open a new tab inside this session's window (not a new window).
 
@@ -206,6 +332,7 @@ class CDMCPSession:
 
         Returns the CDP target ID of the new tab, or None on failure.
         """
+        self.touch()
         if not self.window_id:
             return self._open_in_existing_window(url)
 
@@ -343,12 +470,17 @@ class CDMCPSession:
             return True
         return False
 
-    def full_reboot(self) -> bool:
+    def full_reboot(self, skip_demo: bool = False) -> bool:
         """Perform a full session reboot: new window, pin, overlays, demo.
 
         Called when recovery detects the session window is gone. Mirrors
         the boot flow from api.boot_session() so the user gets the same
         experience as a fresh session.
+
+        Args:
+            skip_demo: If True, skip opening the demo tab and starting the
+                       demo subprocess.  Used by require_tab() recovery so
+                       only the session tab is reopened.
 
         Returns True if the reboot succeeded.
         """
@@ -444,65 +576,66 @@ class CDMCPSession:
         except Exception:
             pass
 
-        # 4. Open demo tab in the same window
-        try:
-            server_path = _TOOL_DIR / "logic" / "cdp" / "server.py"
-            spec = importlib.util.spec_from_file_location("cdmcp_srv", str(server_path))
-            srv = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(srv)
+        # 4. Open demo tab in the same window (skipped on require_tab recovery)
+        if not skip_demo:
+            try:
+                server_path = _TOOL_DIR / "logic" / "cdp" / "server.py"
+                spec = importlib.util.spec_from_file_location("cdmcp_srv", str(server_path))
+                srv = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(srv)
 
-            server_url, _srv_port = srv.start_server(
-                preferred_port=getattr(self, "_http_port", None))
-            self._http_port = _srv_port
-            chat_url = f"{server_url}/chat?session_id={self.session_id}"
-            demo_tab_id = self.open_tab_in_session(chat_url)
-            demo_ws = None
+                server_url, _srv_port = srv.start_server(
+                    preferred_port=getattr(self, "_http_port", None))
+                self._http_port = _srv_port
+                chat_url = f"{server_url}/chat?session_id={self.session_id}"
+                demo_tab_id = self.open_tab_in_session(chat_url)
+                demo_ws = None
 
-            if demo_tab_id:
-                time.sleep(1.5)
-                for t in list_tabs(self.port):
-                    if t.get("id") == demo_tab_id:
-                        ws = t.get("webSocketDebuggerUrl", "")
-                        if ws:
-                            demo_ws = ws
-                            self.register_tab("demo", demo_tab_id,
-                                              url=chat_url, ws=ws, state="active")
-                            try:
-                                demo_cdp = CDPSession(ws, timeout=10)
-                                ov.inject_favicon(demo_cdp, svg_color="#1a73e8", letter="C")
-                                ov.inject_badge(demo_cdp, text=f"Demo [{self.session_id}]",
-                                                color="#34a853")
-                                demo_cdp.close()
-                            except Exception:
-                                pass
-                        break
+                if demo_tab_id:
+                    time.sleep(1.5)
+                    for t in list_tabs(self.port):
+                        if t.get("id") == demo_tab_id:
+                            ws = t.get("webSocketDebuggerUrl", "")
+                            if ws:
+                                demo_ws = ws
+                                self.register_tab("demo", demo_tab_id,
+                                                  url=chat_url, ws=ws, state="active")
+                                try:
+                                    demo_cdp = CDPSession(ws, timeout=10)
+                                    ov.inject_favicon(demo_cdp, svg_color="#1a73e8", letter="C")
+                                    ov.inject_badge(demo_cdp, text=f"Demo [{self.session_id}]",
+                                                    color="#34a853")
+                                    demo_cdp.close()
+                                except Exception:
+                                    pass
+                            break
 
-            # 5. Start continuous demo in background
-            if demo_ws:
-                project_root = str(_TOOL_DIR.parent.parent)
-                demo_py = str(_TOOL_DIR / "logic" / "cdp" / "demo.py")
-                inline_code = (
-                    f"import sys, os; os.chdir({project_root!r}); "
-                    f"sys.path.insert(0, {project_root!r}); "
-                    "import importlib.util; "
-                    f"spec = importlib.util.spec_from_file_location('demo', {demo_py!r}); "
-                    "mod = importlib.util.module_from_spec(spec); "
-                    "spec.loader.exec_module(mod); "
-                    f"mod.run_demo_on_tab({demo_ws!r}, port={self.port})"
-                )
-                py_path = _find_project_python()
-                demo_log = _REPORT_DIR / "demo_subprocess.log"
-                _REPORT_DIR.mkdir(parents=True, exist_ok=True)
-                log_f = open(demo_log, "a")
-                proc = subprocess.Popen(
-                    [py_path, "-c", inline_code],
-                    stdout=log_f,
-                    stderr=log_f,
-                    start_new_session=True,
-                )
-                self._demo_pid = proc.pid
-        except Exception:
-            pass
+                # 5. Start continuous demo in background
+                if demo_ws:
+                    project_root = str(_TOOL_DIR.parent.parent)
+                    demo_py = str(_TOOL_DIR / "logic" / "cdp" / "demo.py")
+                    inline_code = (
+                        f"import sys, os; os.chdir({project_root!r}); "
+                        f"sys.path.insert(0, {project_root!r}); "
+                        "import importlib.util; "
+                        f"spec = importlib.util.spec_from_file_location('demo', {demo_py!r}); "
+                        "mod = importlib.util.module_from_spec(spec); "
+                        "spec.loader.exec_module(mod); "
+                        f"mod.run_demo_on_tab({demo_ws!r}, port={self.port})"
+                    )
+                    py_path = _find_project_python()
+                    demo_log = _REPORT_DIR / "demo_subprocess.log"
+                    _REPORT_DIR.mkdir(parents=True, exist_ok=True)
+                    log_f = open(demo_log, "a")
+                    proc = subprocess.Popen(
+                        [py_path, "-c", inline_code],
+                        stdout=log_f,
+                        stderr=log_f,
+                        start_new_session=True,
+                    )
+                    self._demo_pid = proc.pid
+            except Exception:
+                pass
 
         _log_session("full_reboot:done", self.name,
                      f"windowId={self.window_id} tabId={self.lifetime_tab_id}")
@@ -640,28 +773,16 @@ class CDMCPSession:
             return False
 
     def _stop_http_server(self):
-        """Stop the HTTP server associated with this session's port."""
-        http_port = getattr(self, "_http_port", None)
-        if not http_port:
-            return
+        """Stop the persistent HTTP server process."""
         try:
             server_path = _TOOL_DIR / "logic" / "cdp" / "server.py"
             spec = importlib.util.spec_from_file_location(
                 "cdmcp_srv_cleanup", str(server_path))
             srv_mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(srv_mod)
-
-            # If the server module holds the same port, stop it
-            if getattr(srv_mod, "_server_port", None) == http_port:
-                srv_mod.stop_server()
-                _log_session("close:http_stopped", self.name,
-                             f"port={http_port}")
-            else:
-                # The server may be running in the demo subprocess instead.
-                # The demo subprocess kill (step 1) handles this case —
-                # when the subprocess exits, its in-process HTTP server dies.
-                _log_session("close:http_subprocess", self.name,
-                             f"port={http_port} (handled by demo kill)")
+            srv_mod.stop_server()
+            _log_session("close:http_stopped", self.name,
+                         f"port={getattr(self, '_http_port', 'unknown')}")
         except Exception:
             pass
         self._http_port = None
@@ -762,10 +883,12 @@ class CDMCPSession:
                     return {"id": existing["id"], "url": existing["url"],
                             "ws": ws, "label": label, "recovered": False}
 
-        # 2. Scan all tabs by URL pattern
+        # 2. Scan tabs by URL pattern, restricted to session window
         if url_pattern:
             for t in list_tabs(self.port):
                 if url_pattern.lower() in (t.get("url", "") or "").lower() and t.get("type") == "page":
+                    if not self._is_tab_in_window(t):
+                        continue
                     tab_id = t.get("id")
                     ws = t.get("webSocketDebuggerUrl", "")
                     self.register_tab(label, tab_id, url=t.get("url", ""), ws=ws)
@@ -792,8 +915,8 @@ class CDMCPSession:
                         break
             if not window_alive:
                 _log_session("require_tab:window_lost", self.name,
-                             "Triggering full reboot...")
-                self.full_reboot()
+                             "Triggering lightweight reboot (session tab only)...")
+                self.full_reboot(skip_demo=True)
 
         _log_session("require_tab:opening", self.name,
                      f"label={label} url={open_url} windowId={self.window_id}")
@@ -866,6 +989,7 @@ def _save_state():
                      for label, info in s._tabs.items()},
             "demo_pid": getattr(s, "_demo_pid", None),
             "http_port": getattr(s, "_http_port", None),
+            "mcp_count": s.mcp_count,
         }
     state = {
         "_config": {
@@ -923,6 +1047,7 @@ def _load_state():
             }
         s._demo_pid = info.get("demo_pid")
         s._http_port = info.get("http_port")
+        s.mcp_count = info.get("mcp_count", 0)
         if not s.is_expired():
             _sessions[name] = s
         else:
@@ -1104,6 +1229,68 @@ def require_tab(label: str, url_pattern: str = "",
                          wait_sec=wait_sec)
 
 
+def _ensure_demo_tab(session: "CDMCPSession", server_url: str, port: int = CDP_PORT):
+    """Check if demo tab exists in session; create it if missing."""
+    demo_info = session._tabs.get("demo")
+    if demo_info:
+        tab_id = demo_info.get("tab_id")
+        if tab_id:
+            for t in list_tabs(port):
+                if t.get("id") == tab_id:
+                    return
+    try:
+        chat_url = f"{server_url}/chat?session_id={session.session_id}"
+        demo_tab_id = session.open_tab_in_session(chat_url)
+        if demo_tab_id:
+            time.sleep(1.5)
+            for t in list_tabs(port):
+                if t.get("id") == demo_tab_id:
+                    ws = t.get("webSocketDebuggerUrl", "")
+                    if ws:
+                        session.register_tab("demo", demo_tab_id,
+                                             url=chat_url, ws=ws, state="active")
+                        sid_short = session.session_id[:8]
+                        try:
+                            overlay_path = _TOOL_DIR / "logic" / "cdp" / "overlay.py"
+                            spec = importlib.util.spec_from_file_location(
+                                "cdmcp_ov_demo", str(overlay_path))
+                            ov = importlib.util.module_from_spec(spec)
+                            spec.loader.exec_module(ov)
+                            demo_cdp = CDPSession(ws, timeout=10)
+                            ov.inject_favicon(demo_cdp, svg_color="#1a73e8", letter="C")
+                            ov.inject_badge(demo_cdp, text=f"Demo [{sid_short}]",
+                                            color="#34a853")
+                            demo_cdp.close()
+                        except Exception:
+                            pass
+
+                        project_root = str(_TOOL_DIR.parent.parent)
+                        demo_py = str(_TOOL_DIR / "logic" / "cdp" / "demo.py")
+                        inline_code = (
+                            f"import sys, os; os.chdir({project_root!r}); "
+                            f"sys.path.insert(0, {project_root!r}); "
+                            "import importlib.util; "
+                            f"spec = importlib.util.spec_from_file_location('demo', {demo_py!r}); "
+                            "mod = importlib.util.module_from_spec(spec); "
+                            "spec.loader.exec_module(mod); "
+                            f"mod.run_demo_on_tab({ws!r}, port={port})"
+                        )
+                        py_path = _find_project_python()
+                        demo_log = _REPORT_DIR / "demo_subprocess.log"
+                        _REPORT_DIR.mkdir(parents=True, exist_ok=True)
+                        log_f = open(demo_log, "a")
+                        proc = subprocess.Popen(
+                            [py_path, "-c", inline_code],
+                            stdout=log_f,
+                            stderr=log_f,
+                            start_new_session=True,
+                        )
+                        session._demo_pid = proc.pid
+                    break
+    except Exception:
+        pass
+
+
 def boot_tool_session(
     session_name: str,
     timeout_sec: int = 86400,
@@ -1124,10 +1311,34 @@ def boot_tool_session(
 
     Returns: {"ok": bool, "session": CDMCPSession | None, ...}
     """
+    def _ensure_http_server():
+        """Start or discover the shared persistent HTTP server."""
+        server_path = _TOOL_DIR / "logic" / "cdp" / "server.py"
+        spec = importlib.util.spec_from_file_location("cdmcp_srv_boot", str(server_path))
+        srv = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(srv)
+        return srv.start_server()
+
+    chrome_result = ensure_chrome(port)
+    if not chrome_result["ok"]:
+        return {"ok": False, "error": chrome_result.get("error", "Chrome not available"),
+                "action": chrome_result.get("action", "chrome_failed")}
+
     existing = get_session(session_name)
     if existing:
         cdp = existing.get_cdp()
         if cdp:
+            try:
+                server_url, _srv_port = _ensure_http_server()
+                if existing._http_port != _srv_port:
+                    existing._http_port = _srv_port
+                    _save_state()
+            except Exception:
+                server_url = None
+                _srv_port = existing._http_port
+
+            _ensure_demo_tab(existing, server_url or f"http://127.0.0.1:{_srv_port}", port)
+
             return {
                 "ok": True, "action": "already_booted",
                 "session": existing,
@@ -1143,14 +1354,8 @@ def boot_tool_session(
         port=port,
     )
 
-    # Build welcome URL
     try:
-        server_path = _TOOL_DIR / "logic" / "cdp" / "server.py"
-        spec = importlib.util.spec_from_file_location("cdmcp_srv_boot", str(server_path))
-        srv = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(srv)
-        server_url, _srv_port = srv.start_server(
-            preferred_port=getattr(session, "_http_port", None))
+        server_url, _srv_port = _ensure_http_server()
         session._http_port = _srv_port
     except Exception as e:
         return {"ok": False, "error": f"Server start failed: {e}"}
@@ -1186,51 +1391,18 @@ def boot_tool_session(
     except Exception:
         pass
 
-    # Open demo tab (use HTTP server URL for reliable refresh)
-    try:
-        chat_url = f"{server_url}/chat?session_id={session.session_id}"
-        demo_tab_id = session.open_tab_in_session(chat_url)
-        if demo_tab_id:
-            time.sleep(1.5)
-            for t in list_tabs(port):
-                if t.get("id") == demo_tab_id:
-                    ws = t.get("webSocketDebuggerUrl", "")
-                    if ws:
-                        session.register_tab("demo", demo_tab_id,
-                                             url=chat_url, ws=ws, state="active")
-                        try:
-                            demo_cdp = CDPSession(ws, timeout=10)
-                            ov.inject_favicon(demo_cdp, svg_color="#1a73e8", letter="C")
-                            ov.inject_badge(demo_cdp, text=f"Demo [{sid_short}]",
-                                            color="#34a853")
-                            demo_cdp.close()
-                        except Exception:
-                            pass
+    _ensure_demo_tab(session, server_url, port)
 
-                        # Start demo in background
-                        project_root = str(_TOOL_DIR.parent.parent)
-                        demo_py = str(_TOOL_DIR / "logic" / "cdp" / "demo.py")
-                        inline_code = (
-                            f"import sys, os; os.chdir({project_root!r}); "
-                            f"sys.path.insert(0, {project_root!r}); "
-                            "import importlib.util; "
-                            f"spec = importlib.util.spec_from_file_location('demo', {demo_py!r}); "
-                            "mod = importlib.util.module_from_spec(spec); "
-                            "spec.loader.exec_module(mod); "
-                            f"mod.run_demo_on_tab({ws!r}, port={port})"
-                        )
-                        py_path = _find_project_python()
-                        demo_log = _REPORT_DIR / "demo_subprocess.log"
-                        _REPORT_DIR.mkdir(parents=True, exist_ok=True)
-                        log_f = open(demo_log, "a")
-                        proc = subprocess.Popen(
-                            [py_path, "-c", inline_code],
-                            stdout=log_f,
-                            stderr=log_f,
-                            start_new_session=True,
-                        )
-                        session._demo_pid = proc.pid
-                    break
+    # Start Google auth monitor for the ACCOUNT card
+    try:
+        auth_path = _TOOL_DIR / "logic" / "cdp" / "google_auth.py"
+        auth_spec = importlib.util.spec_from_file_location("cdmcp_gauth", str(auth_path))
+        auth_mod = importlib.util.module_from_spec(auth_spec)
+        auth_spec.loader.exec_module(auth_mod)
+        auth_mod.start_auth_monitor(
+            get_session_fn=lambda: get_session(session_name),
+            interval=1.0
+        )
     except Exception:
         pass
 
@@ -1250,6 +1422,22 @@ def boot_tool_session(
 # CDP-to-session lookup — allows interact module to touch owning session
 # ---------------------------------------------------------------------------
 
+def _find_session_by_cdp(cdp_session: CDPSession) -> Optional["CDMCPSession"]:
+    """Find the CDMCPSession that owns *cdp_session*, matched by ws URL."""
+    ws = getattr(cdp_session, "ws_url", None) or ""
+    if not ws:
+        return None
+    for s in _sessions.values():
+        if s.is_expired():
+            continue
+        for tab_info in s._tabs.values():
+            if tab_info.get("ws") == ws:
+                return s
+        if s._cdp and getattr(s._cdp, "ws_url", None) == ws:
+            return s
+    return None
+
+
 def touch_by_cdp(cdp_session: CDPSession):
     """Find the CDMCPSession that owns *cdp_session* and call touch().
 
@@ -1257,19 +1445,27 @@ def touch_by_cdp(cdp_session: CDPSession):
     automatically by the interact module so that every MCP operation
     (mcp_click, mcp_type, mcp_navigate, etc.) resets the idle timer.
     """
-    ws = getattr(cdp_session, "ws_url", None) or ""
-    if not ws:
-        return
-    for s in _sessions.values():
-        if s.is_expired():
-            continue
-        for tab_info in s._tabs.values():
-            if tab_info.get("ws") == ws:
-                s.touch()
-                return
-        if s._cdp and getattr(s._cdp, "ws_url", None) == ws:
-            s.touch()
-            return
+    s = _find_session_by_cdp(cdp_session)
+    if s:
+        s.touch()
+
+
+def increment_mcp_count_by_cdp(cdp_session: CDPSession) -> int:
+    """Increment and return the persistent MPC counter for the session owning cdp_session."""
+    s = _find_session_by_cdp(cdp_session)
+    if s:
+        s.mcp_count += 1
+        _save_state()
+        return s.mcp_count
+    return 0
+
+
+def get_mcp_count_by_cdp(cdp_session: CDPSession) -> int:
+    """Return the persistent MPC counter for the session owning cdp_session."""
+    s = _find_session_by_cdp(cdp_session)
+    if s:
+        return s.mcp_count
+    return 0
 
 
 def _cleanup_expired():

@@ -14,25 +14,39 @@ with your phone to establish the link.
 - WhatsApp Web tab open at `web.whatsapp.com`
 - Phone linked via QR code scan
 
-## Commands
+## MCP Commands
 
-| Command   | Description                              |
-|-----------|------------------------------------------|
-| `status`  | Check link/authentication state          |
-| `page`    | Show current page info                   |
-| `chats`   | List visible chats (requires link)       |
-| `profile` | Show profile info (requires link)        |
+All MCP commands use the `--mcp-` prefix.
 
-## Usage
+| Command | Description |
+|---------|-------------|
+| `--mcp-status` | Check link/authentication state |
+| `--mcp-page` | Show current page info |
+| `--mcp-chats` | List visible chats (requires link) |
+| `--mcp-profile` | Show profile info (requires link) |
+| `--mcp-search <query>` | Search contacts/chats |
+| `--mcp-send <number> <message>` | Send a message to a phone number |
+
+### Usage
 
 ```bash
-WHATSAPP status
-WHATSAPP chats
-WHATSAPP profile
+WHATSAPP --mcp-status
+WHATSAPP --mcp-chats
+WHATSAPP --mcp-profile
+WHATSAPP --mcp-search "John"
+WHATSAPP --mcp-send "+1234567890" "Hello!"
 ```
+
+## Built-in Commands
+
+| Command | Description |
+|---------|-------------|
+| `--setup` | Run tool setup |
+| `--test` | Run unit tests |
+| `--dev <cmd>` | Developer commands |
+| `--rule` | Show AI rules |
 
 ## Architecture
 
-- `logic/chrome/api.py` — CDP-based WhatsApp Web functions
-- `interface/main.py` — Cross-tool interface exports
-- `logic/translation/zh.json` — Chinese translations
+- `logic/chrome/api.py` -- CDP-based WhatsApp Web functions
+- `interface/main.py` -- Cross-tool interface exports

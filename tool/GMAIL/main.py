@@ -19,9 +19,11 @@ def main():
     tool = ToolBase("GMAIL")
 
     parser = argparse.ArgumentParser(
-        description="Gmail email client via CDMCP", add_help=False
+        description="Gmail email client via CDMCP",
+        epilog="MCP commands use --mcp- prefix: e.g., GMAIL --mcp-status, GMAIL --mcp-inbox",
+        add_help=False,
     )
-    sub = parser.add_subparsers(dest="command", help="Subcommand")
+    sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
     sub.add_parser("status", help="Check authentication state and unread count")
     sub.add_parser("page", help="Show current page info")

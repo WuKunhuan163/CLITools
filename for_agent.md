@@ -12,7 +12,7 @@ This project follows a **Symmetrical Design Pattern**. Shared core logic resides
 - **Terminal Restoration**: The `KeyboardSuppressor` uses `atexit` to ensure terminal echoing is restored even if the process exits unexpectedly or via `KeyboardInterrupt`.
 
 ## 2. Standard Tool Structure
-Every tool MUST be created using `TOOL dev create <NAME>`. Run `SKILLS show TerminalTools-tool-development-workflow` for the full development guide.
+Every tool MUST be created using `TOOL --dev create <NAME>`. Run `SKILLS show TerminalTools-tool-development-workflow` for the full development guide.
 
 ### Tool Directory Layout
 ```text
@@ -311,7 +311,11 @@ AI-optimized web search:
 - Options: `--depth basic|advanced`, `--max-results N`, `--include-answer`, `--raw`.
 
 ### MCP-Based Tools
-The following tools wrap external MCP (Model Context Protocol) servers, providing unified CLI access to popular services. Each supports `<NAME> status`, `<NAME> config <key> <value>`, and `<NAME> setup`.
+The following tools wrap external MCP (Model Context Protocol) servers, providing unified CLI access to popular services. Each supports `<NAME> --mcp-status`, `<NAME> config <key> <value>`, and `<NAME> --setup`.
+
+> **MCP Command Convention**: All MCP (browser automation) commands use the `--mcp-` prefix. For example: `FIGMA --mcp-boot`, `YOUTUBE --mcp-play`, `BILIBILI --mcp-search "query"`. Built-in tool commands (`--setup`, `--test`, `--dev`, `--rule`) do NOT use the `--mcp-` prefix.
+
+> **Developing a new MCP tool?** Read the `TerminalTools-cdmcp-web-exploration` skill first (`SKILLS show cdmcp-web-exploration`). It covers the full 6-phase development cycle: DOM discovery, pixel exploration, interaction testing, implementation, verification, and self-designed task validation.
 
 **AI/Creative**:
 - `MIDJOURNEY`: AI image generation/transformation via Midjourney (AceDataCloud).

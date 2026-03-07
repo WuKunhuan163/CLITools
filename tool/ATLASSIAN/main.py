@@ -20,9 +20,11 @@ def main():
     tool = ToolBase("ATLASSIAN")
 
     parser = argparse.ArgumentParser(
-        description="Atlassian account management via Chrome CDP", add_help=False
+        description="Atlassian account management via Chrome CDP",
+        epilog="MCP commands use --mcp- prefix: e.g., ATLASSIAN --mcp-status, ATLASSIAN --mcp-page",
+        add_help=False,
     )
-    sub = parser.add_subparsers(dest="command", help="Subcommand")
+    sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
     sub.add_parser("me", help="Show authenticated user profile")
 

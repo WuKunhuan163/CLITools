@@ -29,3 +29,9 @@ GOOGLE.GC state --json                             # Get full state
 - All operations show MCP visual effects (lock, highlight, counter)
 - Turing machine state tracking for error recovery
 - Supports all Colab interactive elements: top-bar menus, toolbar, sidebar, cell toolbar, bottom bar, settings dialog
+
+### MCP State (`state --json`)
+Returns: `cdp_available`, `colab_tab`, `cells` (index, type, text, focused), `cell_count`, `runtime` (connected, button_text, running_cells, pending_cells), `notebook` (title, url), `sessions` (sessionId, title, fileId, lastActivity, accelerator, visibleInUi).
+
+### Session Management
+The `sessions` array in MCP state lists all active Colab runtime sessions via `kernel.listNotebookSessions()`. To terminate sessions, use `Runtime > Manage sessions` menu or the kernel API `terminateSession({sessionId})`.

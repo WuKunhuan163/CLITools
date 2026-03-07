@@ -177,6 +177,16 @@ def main():
         mcp_cr = _load_mcp_logic("mcp/create")
         sys.exit(mcp_cr.run_mcp_create(file_type, folder_spec, filename, as_json=as_json_flag))
 
+    if "--mcp-remount" in sys.argv:
+        os.environ["GCS_CDP_ENABLED"] = "1"
+        _remount_mod = _load_mcp_logic("remount")
+        _remount_cmd = _load_mcp_logic("command/remount_cmd")
+        _script, _meta = _remount_mod.generate_remount_script(tool.project_root)
+        if not _script:
+            print(f"{get_color('BOLD')}{get_color('RED')}Failed to generate{get_color('RESET')} remount script: {_meta}")
+            sys.exit(1)
+        sys.exit(_remount_cmd._execute_cdp(tool, _remount_mod, _script, _meta))
+
     if "--mcp-delete" in sys.argv:
         idx = sys.argv.index("--mcp-delete")
         mcp_args = sys.argv[idx + 1:]
@@ -225,7 +235,7 @@ def main():
         sys.argv.remove("--no-feedback")
     
     # Check for special --options first
-    special_options = ["--setup-tutorial", "--remount", "--reconnection", "--shell", "--mcp-create", "--mcp-delete", "--mcp-list", "--mcp-upload", "--mcp"]
+    special_options = ["--setup-tutorial", "--remount", "--reconnection", "--shell", "--mcp-create", "--mcp-delete", "--mcp-list", "--mcp-upload", "--mcp-remount", "--mcp"]
     has_special = any(opt in sys.argv for opt in special_options)
 
     if len(sys.argv) > 1 and sys.argv[1] not in recognized and not sys.argv[1].startswith("-") and not has_special:

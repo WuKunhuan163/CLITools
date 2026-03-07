@@ -55,5 +55,7 @@
   "label_remaining": "剩余",
   "label_to_queue": "到队列",
   "label_queue_item": "队列项",
-  "label_system_prompt_item": "系统提示项"
+  "label_system_prompt_item": "系统提示项",
+  "label_queue_hint": "管理: --queue --add <文本> | --delete <id> | --move-up/down/to-top/to-bottom <id> | --gui",
+  "label_sp_hint": "管理: --system-prompt --add <文本> | --delete <id> | --move-up/down/to-top/to-bottom <id> | --gui"
 }

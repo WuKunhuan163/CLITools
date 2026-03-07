@@ -44,9 +44,10 @@ class CDMCPTool(ToolBase):
     def run(self):
         parser = argparse.ArgumentParser(
             description="CDMCP: Chrome DevTools MCP with visual overlays",
+            epilog="MCP commands use --mcp- prefix: e.g., GOOGLE.CDMCP --mcp-status, GOOGLE.CDMCP --mcp-boot",
             add_help=False,
         )
-        sub = parser.add_subparsers(dest="command", help="Subcommand")
+        sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
         sub.add_parser("status", help="Check Chrome CDP availability and managed tabs")
         sub.add_parser("tutorial", help="Run interactive setup tutorial")
@@ -131,6 +132,10 @@ class CDMCPTool(ToolBase):
                             help="Save JSON output to file path")
         p_scan.add_argument("--screenshot", default="",
                             help="Save a screenshot to file path")
+
+        sub.add_parser("auth", help="Check Google account login state")
+        sub.add_parser("login", help="Initiate Google account login flow")
+        sub.add_parser("logout", help="Initiate Google account logout flow")
 
         if self.handle_command_line(parser):
             return
@@ -350,6 +355,51 @@ class CDMCPTool(ToolBase):
                 print(f"\n  {BOLD}{GREEN}Demo completed successfully{RESET}.")
             else:
                 print(f"\n  {BOLD}{RED}Demo had failures{RESET}: {r.get('error', 'check steps')}")
+
+        elif args.command == "auth":
+            r = api.google_auth_status()
+            signed_in = r.get("signed_in", False)
+            if signed_in:
+                email = r.get("email")
+                name = r.get("display_name")
+                if email and name:
+                    label = f"{name} ({email})"
+                elif email:
+                    label = email
+                else:
+                    label = "Signed in (email not available)"
+                print(f"  {BOLD}Google Account:{RESET} {GREEN}{label}{RESET}")
+            else:
+                print(f"  {BOLD}Google Account:{RESET} {YELLOW}Not signed in{RESET}")
+            checked = r.get("last_checked", 0)
+            if checked:
+                import datetime
+                ts = datetime.datetime.fromtimestamp(checked).strftime("%H:%M:%S")
+                print(f"  Last checked: {ts}")
+
+        elif args.command == "login":
+            r = api.google_auth_login()
+            status = r.get("status", "unknown")
+            if status == "already_signed_in":
+                print(f"  {BOLD}Already signed in.{RESET}")
+            elif status == "opened":
+                print(f"  {BOLD}Login tab opened.{RESET} "
+                      f"Sign in via the browser tab. It will auto-close on success.")
+            elif status == "login_in_progress":
+                print(f"  {BOLD}Login already in progress.{RESET}")
+            else:
+                print(f"  {BOLD}{RED}Failed to open login tab:{RESET} "
+                      f"{r.get('error', 'unknown')}")
+
+        elif args.command == "logout":
+            r = api.google_auth_logout()
+            status = r.get("status", "unknown")
+            if status == "opened":
+                print(f"  {BOLD}Logout tab opened.{RESET} "
+                      f"It will auto-close after sign-out completes.")
+            else:
+                print(f"  {BOLD}{RED}Failed to open logout tab:{RESET} "
+                      f"{r.get('error', 'unknown')}")
 
         else:
             parser.print_help()

@@ -21,6 +21,7 @@ GOOGLE              Chrome CDP session, input dispatch, OAuth, screenshots
 | `colab.py` | Colab tab discovery, cell injection and execution |
 | `drive.py` | Google Drive operations via gapi.client in Colab |
 | `oauth.py` | Google OAuth consent flow automation |
+| `login.py` | Google account login/logout automation via CDP |
 
 ### Interface (`interface/main.py`)
 
@@ -38,10 +39,13 @@ from tool.GOOGLE.interface.main import (
 ## Commands
 
 ```bash
-GOOGLE search <query>      # Google Search
-GOOGLE drive list           # List Drive files
-GOOGLE trends               # View trending topics
-GOOGLE --mcp-login [email]  # MCP authentication
+GOOGLE search <query>       # Google Search
+GOOGLE drive list            # List Drive files
+GOOGLE trends                # View trending topics
+GOOGLE auth-status           # Check Google account login state
+GOOGLE login --email <email> --password <pwd> [--recovery-code <code>]
+GOOGLE logout                # Sign out of Google account
+GOOGLE --mcp-login [email]   # MCP authentication workflow (for Cursor IDE browser)
 ```
 
 ## Developer Commands

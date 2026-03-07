@@ -119,12 +119,6 @@ def run_mcp_create(file_type, folder_spec="~", filename=None, as_json=False):
                 if link:
                     print(f"  Link: {link}")
 
-            if file_type == "colab" and filename and ".root" in filename:
-                cfg = _load_config()
-                cfg["root_notebook_id"] = file_id
-                cfg["root_notebook_url"] = f"https://colab.research.google.com/drive/{file_id}"
-                _save_config(cfg)
-
             return 0
         else:
             if as_json:

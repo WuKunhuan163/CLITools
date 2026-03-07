@@ -1,7 +1,7 @@
 """MCP/CDP management commands for GCS.
 
 Subcommands:
-  boot            Launch debug Chrome, open .root.ipynb Colab tab
+  boot            Launch debug Chrome, open a Colab tab
   shutdown        Close the debug Chrome instance
   status          Show CDP connectivity and configuration readiness
   setup-tutorial  Interactive tutorial for CDP-based automation setup
@@ -42,12 +42,7 @@ BLUE = get_color("BLUE")
 RESET = get_color("RESET")
 
 CDP_PORT = 9222
-_DEFAULT_NOTEBOOK_NAME = ".root.ipynb"
-
-
-def _get_notebook_name():
-    cfg = _load_config()
-    return cfg.get("root_notebook_name", _DEFAULT_NOTEBOOK_NAME)
+_COLAB_HOME = "https://colab.research.google.com/"
 
 
 # ---------------------------------------------------------------------------
@@ -222,41 +217,16 @@ def _shutdown_chrome_debug(port=CDP_PORT):
 
 
 # ---------------------------------------------------------------------------
-# Notebook helpers
+# Colab tab helpers
 # ---------------------------------------------------------------------------
 
-def _find_or_create_notebook(cfg):
-    """Locate .root.ipynb from config, or create it via CDP.
-
-    Returns (file_id, colab_url, created).
-    """
-    env_folder_id = cfg.get("env_folder_id", "")
-    root_folder_id = cfg.get("root_folder_id", "")
-    target_folder = env_folder_id or root_folder_id
-    existing_id = cfg.get("root_notebook_id", "")
-
-    if not target_folder:
-        return None, None, False
-
-    if existing_id:
-        colab_url = f"https://colab.research.google.com/drive/{existing_id}"
-        return existing_id, colab_url, False
-
+def _find_colab_tab(port=CDP_PORT):
+    """Check if a Colab tab is already open."""
     try:
-        from logic.cdp.colab import create_drive_file
-        nb_name = cfg.get("root_notebook_name", _DEFAULT_NOTEBOOK_NAME)
-        result = create_drive_file(nb_name, "colab", target_folder)
-        if result.get("success"):
-            file_id = result.get("id", result.get("file_id", ""))
-            colab_url = result.get("link", result.get("colab_url",
-                        f"https://colab.research.google.com/drive/{file_id}"))
-            cfg["root_notebook_id"] = file_id
-            cfg["root_notebook_url"] = colab_url
-            _save_config(cfg)
-            return file_id, colab_url, True
+        from logic.cdp.colab import find_colab_tab
+        return find_colab_tab(port)
     except Exception:
-        pass
-    return None, None, False
+        return None
 
 
 def _get_cdmcp_session_window(port=CDP_PORT):
@@ -273,17 +243,21 @@ def _get_cdmcp_session_window(port=CDP_PORT):
     return None
 
 
-def _open_colab_tab(colab_url, port=CDP_PORT):
-    """Open the Colab notebook URL in the CDMCP session window (or any window)."""
+def _open_colab_tab(url=None, port=CDP_PORT):
+    """Open a Colab URL in the CDMCP session window (or any window).
+
+    If *url* is None, opens the default Colab homepage.  Any existing Colab
+    tab is reused — a new tab is only created when none is found.
+    """
     try:
         import urllib.request
         from logic.cdp.colab import find_colab_tab
 
         existing = find_colab_tab(port)
         if existing and existing.get('url', ''):
-            nb_id = colab_url.split('/drive/')[-1] if '/drive/' in colab_url else ''
-            if nb_id and nb_id in existing['url']:
-                return True
+            return True
+
+        target_url = url or _COLAB_HOME
 
         version_url = f"http://localhost:{port}/json/version"
         with urllib.request.urlopen(version_url, timeout=5) as resp:
@@ -297,7 +271,7 @@ def _open_colab_tab(colab_url, port=CDP_PORT):
         import websocket
         ws = websocket.create_connection(browser_ws, timeout=15)
         try:
-            params = {"url": colab_url}
+            params = {"url": target_url}
             if window_id:
                 params["windowId"] = window_id
                 params["newWindow"] = False
@@ -322,16 +296,12 @@ def _drive_folder_url(folder_id):
     return f"https://drive.google.com/drive/folders/{folder_id}" if folder_id else ""
 
 
-def _colab_url(notebook_id):
-    return f"https://colab.research.google.com/drive/{notebook_id}" if notebook_id else ""
-
-
 # ---------------------------------------------------------------------------
 # Public commands
 # ---------------------------------------------------------------------------
 
 def run_mcp_boot():
-    """GCS --mcp boot: Launch debug Chrome and open .root.ipynb."""
+    """GCS --mcp boot: Launch debug Chrome and open a Colab tab."""
     print(f"{BOLD}MCP Boot{RESET}: Initializing CDP-based Colab environment...")
 
     if _is_cdp_available():
@@ -346,38 +316,22 @@ def run_mcp_boot():
             print(f"  Please run manually:\n    {hint}")
             return 1
 
-    cfg = _load_config()
-    file_id, colab_url, created = _find_or_create_notebook(cfg)
-
-    if not file_id:
-        has_folder = cfg.get("env_folder_id") or cfg.get("root_folder_id")
-        if not has_folder:
-            print(f"  {BOLD}{RED}Not configured{RESET}. Run {BOLD}GCS --setup-tutorial{RESET} first.")
+    existing = _find_colab_tab()
+    if existing:
+        print(f"  {BOLD}Found{RESET} existing Colab tab.")
+    else:
+        print(f"  Opening Colab...")
+        if _open_colab_tab():
+            print(f"  {BOLD}Opened{RESET} Colab tab.")
         else:
-            print(f"  {BOLD}{YELLOW}No notebook found{RESET}. Run {BOLD}GCS --mcp setup-tutorial{RESET} to create one.")
-        return 1
-
-    nb_name = _get_notebook_name()
-    if created:
-        print(f"  {BOLD}Created{RESET} {nb_name} via CDP.")
-    else:
-        print(f"  {BOLD}Found{RESET} {nb_name}.")
-
-    print(f"  Opening Colab notebook...")
-    if _open_colab_tab(colab_url):
-        print(f"  {BOLD}Opened{RESET} Colab tab.")
-    else:
-        print(f"  {BOLD}{YELLOW}Could not open{RESET} tab automatically. URL: {colab_url}")
+            print(f"  {BOLD}{YELLOW}Could not open{RESET} tab automatically. Open {_COLAB_HOME} manually.")
 
     time.sleep(2)
-    from logic.cdp.colab import find_colab_tab
-    tab = find_colab_tab()
+    tab = _find_colab_tab()
     if tab:
         print(f"\n{BOLD}{GREEN}MCP Boot complete{RESET}. CDP ready for automated execution.")
-        print(f"  {colab_url}")
     else:
         print(f"\n{BOLD}{YELLOW}MCP Boot partial{RESET}. Colab tab not yet detected (page may still be loading).")
-        print(f"  {colab_url}")
     return 0
 
 
@@ -401,30 +355,28 @@ def run_mcp_status():
     cfg = _load_config()
 
     cdp_ok = _is_cdp_available()
-    nb_id = cfg.get("root_notebook_id", "")
     env_id = cfg.get("env_folder_id", "")
     root_id = cfg.get("root_folder_id", "")
 
     print(f"{BOLD}MCP Status{RESET}:")
     print(f"  Chrome CDP:  {BOLD}{'Connected' + RESET if cdp_ok else RED + 'Not available' + RESET}")
-    print(f"  Notebook:    {BOLD}{_colab_url(nb_id) + RESET if nb_id else YELLOW + 'Not configured' + RESET}")
     print(f"  Env Folder:  {BOLD}{_drive_folder_url(env_id) + RESET if env_id else YELLOW + 'Not configured' + RESET}")
     print(f"  Root Folder: {BOLD}{_drive_folder_url(root_id) + RESET if root_id else YELLOW + 'Not configured' + RESET}")
 
+    tab = None
     if cdp_ok:
-        from logic.cdp.colab import find_colab_tab
-        tab = find_colab_tab()
+        tab = _find_colab_tab()
         title = tab.get('title', 'unknown')[:50] if tab else None
         print(f"  Colab Tab:   {BOLD}{title + RESET if title else YELLOW + 'Not found' + RESET}")
 
     setup_done = bool(env_id or root_id)
-    mcp_ready = cdp_ok and bool(nb_id)
+    mcp_ready = cdp_ok and tab is not None
     if not setup_done:
         print(f"\n  Run {BOLD}GCS --setup-tutorial{RESET} to configure Google Drive folders.")
-    elif not nb_id:
-        print(f"\n  Run {BOLD}GCS --mcp setup-tutorial{RESET} to create the notebook.")
     elif not cdp_ok:
         print(f"\n  Run {BOLD}GCS --mcp boot{RESET} to start Chrome CDP.")
+    elif not tab:
+        print(f"\n  Open any Colab notebook, or run {BOLD}GCS --mcp boot{RESET}.")
 
     return 0 if mcp_ready else 1
 

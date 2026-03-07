@@ -49,18 +49,23 @@ def execute(tool, args, state_mgr, load_logic, no_feedback=False, **kwargs):
 # MCP / CDP path — fully automated with OAuth handling
 # ---------------------------------------------------------------------------
 
-def _is_cell_done(session):
-    """Return True if the first cell is no longer running/pending."""
+def _is_cell_done(session, cell_idx=0, min_exec_count=0):
+    """Return True if the injected code cell completed AFTER our run started."""
     try:
-        state = session.evaluate("""
-            (function() {
-                var rb = document.querySelector('colab-run-button');
-                if (!rb || !rb.shadowRoot) return '';
-                var sd = rb.shadowRoot.querySelector('.cell-execution');
-                return sd ? sd.className : '';
-            })()
+        state = session.evaluate(f"""
+            (function() {{
+                var cells = colab.global.notebook.cells;
+                if (!cells || {cell_idx} >= cells.length) return 'no_cell';
+                var cell = cells[{cell_idx}];
+                if (typeof cell.isPending !== 'function') return 'not_code';
+                if (cell.isRunning()) return 'running';
+                if (cell.isPending()) return 'pending';
+                var ec = typeof cell.getExecutionCount === 'function'
+                         ? cell.getExecutionCount() : 0;
+                return ec > {min_exec_count} ? 'done' : 'not_started';
+            }})()
         """) or ""
-        return state and "running" not in state and "pending" not in state
+        return state == "done"
     except Exception:
         return False
 
@@ -81,6 +86,40 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
 
     session_holder = [None]
     cell_done_early = [False]
+    injected_cell_idx = [0]
+    start_exec_count = [0]
+    overlay_mod = [None]
+
+    def _load_overlay():
+        try:
+            from logic.cdmcp_loader import load_cdmcp_overlay
+            overlay_mod[0] = load_cdmcp_overlay()
+        except Exception:
+            pass
+
+    def _apply_overlays(session):
+        ov = overlay_mod[0]
+        if not ov or not session:
+            return
+        try:
+            ov.inject_badge(session, text="GCS [remount]", color="#0d904f")
+            ov.inject_focus(session, color="#0d904f")
+            ov.inject_favicon(session, svg_color="#0d904f", letter="G")
+            ov.inject_lock(session, base_opacity=0.08, flash_opacity=0.25,
+                           tool_name="GCS")
+        except Exception:
+            pass
+
+    def _cleanup_overlays(session):
+        ov = overlay_mod[0]
+        if not ov or not session:
+            return
+        try:
+            ov.remove_all_overlays(session)
+        except Exception:
+            pass
+
+    _load_overlay()
 
     # -- Stage 1: inject ------------------------------------------------
     def stage_inject(stage=None):
@@ -101,23 +140,148 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
 
         session = CDPSession(tab["webSocketDebuggerUrl"], timeout=30)
         session_holder[0] = session
+        _apply_overlays(session)
 
-        cell_ok = session.evaluate(
-            "(function(){ var c = colab.global.notebook.cells;"
-            " return (Array.isArray(c) && c.length > 0"
-            " && typeof c[0].setText === 'function') ? 1 : 0; })()"
+        session.evaluate("""
+            (function(){
+                var dlgs = document.querySelectorAll('mwc-dialog[open]');
+                dlgs.forEach(function(d){ d.removeAttribute('open'); });
+            })()
+        """)
+        time.sleep(0.5)
+
+        first_code = session.evaluate(
+            "(function(){"
+            " var c = colab.global.notebook.cells;"
+            " if(!Array.isArray(c)) return -1;"
+            " for(var i=0; i<c.length; i++)"
+            "   if(typeof c[i].isPending==='function') return i;"
+            " return -1;"
+            "})()"
         )
-        if not cell_ok or int(cell_ok) == 0:
-            session.evaluate(
-                "(function(){ var b = document.getElementById('toolbar-add-code');"
-                " if(b) b.click(); })()"
-            )
-            time.sleep(2)
+        first_code_idx = int(first_code or -1)
+        _debug_log(f"stage_inject: first code cell index = {first_code_idx}")
 
+        if first_code_idx < 0:
+            _debug_log("stage_inject: no code cell found, clicking + Code button")
+            session.evaluate("""
+                (function(){
+                    var btn = document.querySelector('#toolbar-add-code');
+                    if(btn){ btn.click(); return 'clicked'; }
+                    var adds = document.querySelectorAll('.add-cell .add-code');
+                    if(adds.length){ adds[0].click(); return 'clicked_alt'; }
+                    return 'not_found';
+                })()
+            """)
+            time.sleep(1.5)
+            first_code = session.evaluate(
+                "(function(){"
+                " var c = colab.global.notebook.cells;"
+                " if(!Array.isArray(c)) return -1;"
+                " for(var i=0; i<c.length; i++)"
+                "   if(typeof c[i].isPending==='function') return i;"
+                " return -1;"
+                "})()"
+            )
+            first_code_idx = int(first_code or -1)
+            if first_code_idx < 0:
+                if stage:
+                    stage.error_brief = "No code cell available"
+                return False
+
+        injected_cell_idx[0] = first_code_idx
+
+        ci = injected_cell_idx[0]
         code_json = json.dumps(script)
-        session.evaluate(f"colab.global.notebook.cells[0].setText({code_json})")
-        time.sleep(0.3)
-        session.evaluate("document.querySelector('colab-run-button').click()")
+        session.evaluate(f"colab.global.notebook.cells[{ci}].setText({code_json})")
+        time.sleep(0.5)
+
+        verify_text = session.evaluate(
+            f"(function(){{ return colab.global.notebook.cells[{ci}]"
+            f".getText().substring(0,50); }})()"
+        )
+        _debug_log(f"stage_inject: setText verify = {verify_text}")
+
+        ec_initial = session.evaluate(
+            f"(function(){{ var c=colab.global.notebook.cells[{ci}];"
+            f" return typeof c.getExecutionCount==='function'?c.getExecutionCount():0; }})()"
+        )
+        start_exec_count[0] = int(ec_initial or 0)
+
+        def _click_run(s, idx):
+            return s.evaluate(f"""
+                (function(){{
+                    var cell = colab.global.notebook.cells[{idx}];
+                    if(!cell) return 'no_cell';
+                    var el = cell.element_;
+                    if(!el) return 'no_element';
+                    el.scrollIntoView({{behavior:'instant',block:'center'}});
+                    try {{ if(cell.enterCell) cell.enterCell(); }} catch(e) {{}}
+                    var btn = el.querySelector('colab-run-button');
+                    if(!btn) return 'no_btn';
+                    btn.click();
+                    return 'clicked';
+                }})()
+            """)
+
+        click_result = _click_run(session, ci)
+        _debug_log(f"stage_inject: click_result = {click_result}")
+        time.sleep(3)
+
+        too_many = session.evaluate("""
+            (function(){
+                var btns = document.querySelectorAll('md-text-button');
+                for (var i = 0; i < btns.length; i++) {
+                    if ((btns[i].innerText||'').trim()==='Terminate other sessions') return 'found';
+                }
+                return '';
+            })()
+        """)
+        if too_many == "found":
+            _debug_log("stage_inject: too many sessions, using kernel API to terminate others")
+            term_result = session.send_and_recv("Runtime.evaluate", {
+                "expression": """
+                    (async function(){
+                        try {
+                            var k = colab.global.notebook.kernel;
+                            var ss = await k.listNotebookSessions();
+                            if (!Array.isArray(ss)) return JSON.stringify({killed: 0});
+                            var currentFile = k.getNotebookId();
+                            var killed = 0;
+                            for (var i = 0; i < ss.length; i++) {
+                                var sid = ss[i].sessionId;
+                                var fid = ss[i].fileId || (ss[i].notebookId||{}).fileId || '';
+                                if (fid === currentFile) continue;
+                                try { await k.terminateSession({sessionId: sid}); killed++; }
+                                catch(e) {}
+                            }
+                            return JSON.stringify({killed: killed, total: ss.length});
+                        } catch(e) { return JSON.stringify({error: e.message}); }
+                    })()
+                """,
+                "awaitPromise": True,
+                "returnByValue": True,
+            })
+            term_val = term_result.get("result", {}).get("value", "{}")
+            _debug_log(f"stage_inject: terminate result = {term_val}")
+            time.sleep(3)
+
+            session.evaluate("""
+                (function(){
+                    var dlgs = document.querySelectorAll('mwc-dialog[open]');
+                    dlgs.forEach(function(d){ d.removeAttribute('open'); });
+                })()
+            """)
+            time.sleep(1)
+
+            ec_now = session.evaluate(
+                f"(function(){{ var c=colab.global.notebook.cells[{ci}];"
+                f" return typeof c.getExecutionCount==='function'?c.getExecutionCount():0; }})()"
+            )
+            start_exec_count[0] = int(ec_now or 0)
+            _debug_log(f"stage_inject: exec count before retry = {start_exec_count[0]}")
+            _click_run(session, ci)
+            _debug_log("stage_inject: retried after session cleanup")
         _debug_log("stage_inject: cell execution started")
         time.sleep(1)
         return True
@@ -129,8 +293,29 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
             return False
         _debug_log("stage_oauth: start")
 
+        session.evaluate("""
+            (function(){
+                var dlgs = document.querySelectorAll('mwc-dialog[open]');
+                dlgs.forEach(function(d){
+                    var txt = d.textContent || '';
+                    if (txt.indexOf('Permit this notebook') >= 0) return;
+                    if (d.close) d.close();
+                    else d.removeAttribute('open');
+                });
+            })()
+        """)
+        time.sleep(0.5)
+
+        ov = overlay_mod[0]
+        if ov:
+            try:
+                ov.set_lock_passthrough(session, True)
+                _debug_log("stage_oauth: lock passthrough enabled")
+            except Exception:
+                pass
+
         def _cell_done():
-            done = _is_cell_done(session)
+            done = _is_cell_done(session, injected_cell_idx[0], start_exec_count[0])
             if done:
                 cell_done_early[0] = True
             return done
@@ -138,7 +323,7 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
         result = handle_oauth_if_needed(
             session,
             port=CDP_PORT,
-            dialog_timeout=20,
+            dialog_timeout=60,
             popup_timeout=90,
             log_fn=lambda m: _debug_log(f"oauth: {m}"),
             cell_done_fn=_cell_done,
@@ -165,11 +350,29 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
             _debug_log("stage_wait: already done (early)")
             return True
         _debug_log("stage_wait: polling cell state")
+        ci = injected_cell_idx[0]
         for i in range(90):
             time.sleep(2)
-            if _is_cell_done(session):
+            if _is_cell_done(session, ci, start_exec_count[0]):
                 _debug_log(f"stage_wait: cell done at {(i+1)*2}s")
                 return True
+            if i < 5 or i % 10 == 0:
+                try:
+                    st = session.evaluate(f"""
+                        (function(){{
+                            var c = colab.global.notebook.cells[{ci}];
+                            if(!c) return 'no_cell';
+                            return JSON.stringify({{
+                                r: typeof c.isRunning==='function'?c.isRunning():null,
+                                p: typeof c.isPending==='function'?c.isPending():null,
+                                e: typeof c.getExecutionCount==='function'?c.getExecutionCount():null,
+                                o: typeof c.hasOutput==='function'?c.hasOutput():null
+                            }});
+                        }})()
+                    """)
+                    _debug_log(f"stage_wait: {(i+1)*2}s state={st}")
+                except Exception:
+                    _debug_log(f"stage_wait: {(i+1)*2}s evaluate failed")
         if stage:
             stage.error_brief = "Cell execution timed out (180 s)"
         _debug_log("stage_wait: timeout")
@@ -178,6 +381,7 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
     # -- Stage 4: verify mount result ------------------------------------
     def stage_verify(stage=None):
         if session_holder[0]:
+            _cleanup_overlays(session_holder[0])
             try:
                 session_holder[0].close()
             except Exception:
@@ -253,8 +457,8 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
                 json.dump(cfg, f, indent=2)
         return 0
 
-    # Cleanup on failure
     if session_holder[0]:
+        _cleanup_overlays(session_holder[0])
         try:
             session_holder[0].close()
         except Exception:

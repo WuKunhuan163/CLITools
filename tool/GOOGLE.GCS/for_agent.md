@@ -40,9 +40,21 @@ Logical shells are identified by a `{timestamp}_{6-digit-hash}` ID.
 ### 5. MCP Browser Mode
 `GCS <command> --mcp` enables browser-based execution in the Cursor IDE built-in browser.
 
-**Workflow:**
+**No dedicated notebook required.** GCS works with any open Colab tab -- the default "Welcome to Colab" page is sufficient. Run `GCS --mcp boot` to ensure a Colab tab is open.
+
+#### Automated Remount
+`GCS --mcp-remount` performs a fully automated Google Drive remount via CDP:
+1. Injects the remount script into a Colab cell.
+2. Detects and clicks the "Connect to Google Drive" dialog if it appears.
+3. Navigates OAuth consent popup (clicks "Continue" / "Allow" buttons).
+4. Waits for the cell to finish executing.
+5. Verifies the mount result via the Drive API (fingerprint file check).
+
+This is a 4-stage Turing machine: inject -> OAuth -> wait -> verify. The OAuth stage auto-skips if the user is already authorized.
+
+#### Manual MCP Workflow
 1. Run `GCS <command>` (opens GUI window, auto-copies script to clipboard).
-2. Navigate built-in browser to Colab notebook.
+2. Navigate built-in browser to any Colab tab.
 3. Create a new cell (Escape -> Ctrl+M -> B), enter edit mode (Enter).
 4. Use `browser_type` with `slowly: true` to type the cell code.
 5. Press Escape (dismiss autocomplete), then Meta+Enter to execute.

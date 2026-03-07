@@ -4,34 +4,36 @@ Linear product development tool via Chrome DevTools Protocol.
 
 ## Overview
 
-Access Linear user info, authentication state, and organization data
-through the authenticated browser session using Chrome CDP. Data is read
-from `localStorage` (`ApplicationStore`) since Linear's GraphQL API
-requires token auth not carried via cross-origin cookies.
+Access Linear user info, authentication state, and organization data through the authenticated browser session.
 
 ## Prerequisites
 
 - Chrome running with `--remote-debugging-port=9222`
 - An authenticated Linear session at `linear.app`
 
-## Commands
+## MCP Commands
 
-| Command  | Description                                  |
-|----------|----------------------------------------------|
-| `status` | Check authentication and organization state  |
-| `me`     | Show user info (account ID, email, orgs)     |
-| `page`   | Show current page state                      |
+All MCP commands use the `--mcp-` prefix.
 
-## Usage
+| Command | Description |
+|---------|-------------|
+| `--mcp-status` | Check authentication and organization state |
+| `--mcp-me` | Show user info (account ID, email, orgs) |
+| `--mcp-page` | Show current page state |
+
+### Usage
 
 ```bash
-LINEAR status
-LINEAR me
-LINEAR page
+LINEAR --mcp-status
+LINEAR --mcp-me
+LINEAR --mcp-page
 ```
 
-## Architecture
+## Built-in Commands
 
-- `logic/chrome/api.py` — CDP-based Linear functions (localStorage)
-- `interface/main.py` — Cross-tool interface exports
-- `logic/translation/zh.json` — Chinese translations
+| Command | Description |
+|---------|-------------|
+| `--setup` | Run tool setup |
+| `--test` | Run unit tests |
+| `--dev <cmd>` | Developer commands |
+| `--rule` | Show AI rules |

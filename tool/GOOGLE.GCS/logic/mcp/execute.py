@@ -40,14 +40,6 @@ YELLOW = get_color("YELLOW")
 RESET = get_color("RESET")
 
 
-def _load_config():
-    config_path = _project_root / "data" / "config.json"
-    if not config_path.exists():
-        return {}
-    with open(config_path, 'r') as f:
-        return json.load(f)
-
-
 def _command_hash(command: str) -> str:
     return hashlib.md5(command.encode()).hexdigest()[:8].upper()
 
@@ -63,16 +55,7 @@ def build_execute_workflow(command, as_python=False, marker=None):
     Returns:
         dict with status, colab_url, and agent workflow steps.
     """
-    cfg = _load_config()
-    notebook_id = cfg.get("root_notebook_id", "")
-
-    if not notebook_id:
-        return {
-            "status": "error",
-            "message": "No notebook configured. Run GCS --mcp-create colab @ --name .root.ipynb first.",
-        }
-
-    colab_url = f"https://colab.research.google.com/drive/{notebook_id}"
+    colab_url = "https://colab.research.google.com/"
     cmd_hash = _command_hash(command)
 
     if not marker:
@@ -212,11 +195,6 @@ def _is_cdp_available():
 
 def _run_cdp_execute(command, as_python=False):
     """Execute command via CDP directly. Returns (exit_code, output_text)."""
-    cfg = _load_config()
-    notebook_id = cfg.get("root_notebook_id", "")
-    if not notebook_id:
-        return 1, "No notebook configured."
-
     import time
     marker = f"GCS_DONE_{hashlib.md5(f'{command}{time.time()}'.encode()).hexdigest()[:8]}"
 

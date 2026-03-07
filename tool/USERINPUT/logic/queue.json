@@ -1,5 +1,12 @@
 {
   "prompts": [
-    "接着给USERINPUT加入一系列新的--queue、--enquiry等功能的单元测试，注意测试逻辑可能会限定的执行顺序，需要通过标记相应的decorator实现。"
+    "成功接收: 好的，现在你用这个闭环工作流，继续深化探索Boardmix MCP。（如果没有这个工具，请先TOOL dev create创建）",
+    "成功接收: 好的，现在你用这个闭环工作流，继续深化探索Miro MCP。（如果没有这个工具，请先TOOL dev create创建）",
+    "成功接收: 好的，现在你用这个闭环工作流，继续深化探索Coggle MCP。（如果没有这个工具，请先TOOL dev create创建）",
+    "成功接收: 好的，现在你用这个闭环工作流，继续深化探索ChartCube MCP。（如果没有这个工具，请先TOOL dev create创建）",
+    "成功接收: 好的，现在你用这个闭环工作流，继续深化探索语雀（WebCatalog） MCP。（如果没有这个工具，请先TOOL dev create创建）",
+    "成功接收: 好的，现在你用这个闭环工作流，继续深化探索ShowDoc MCP。（如果没有这个工具，请先TOOL dev create创建）",
+    "成功接收: 好的，现在你用这个闭环工作流，继续深化探索HowdyGo MCP。（如果没有这个工具，请先TOOL dev create创建）",
+    "成功接收: 好的，现在你用这个闭环工作流，继续深化探索c7c7.app (InsCode快马) MCP。（如果没有这个工具，请先TOOL dev create创建）"
   ]
 }

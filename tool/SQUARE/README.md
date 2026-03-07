@@ -4,32 +4,36 @@ Square business platform tool via Chrome DevTools Protocol.
 
 ## Overview
 
-Access Square dashboard info, merchant data, and payment overview
-through the authenticated browser session using Chrome CDP.
+Access Square dashboard info, merchant data, and payment overview through the authenticated browser session.
 
 ## Prerequisites
 
 - Chrome running with `--remote-debugging-port=9222`
 - An authenticated Square session at `squareup.com`
 
-## Commands
+## MCP Commands
 
-| Command     | Description                          |
-|-------------|--------------------------------------|
-| `status`    | Check authentication state           |
-| `page`      | Show current page info               |
-| `dashboard` | Show dashboard summary (auth)        |
+All MCP commands use the `--mcp-` prefix.
 
-## Usage
+| Command | Description |
+|---------|-------------|
+| `--mcp-status` | Check authentication state |
+| `--mcp-page` | Show current page info |
+| `--mcp-dashboard` | Show dashboard summary (auth) |
+
+### Usage
 
 ```bash
-SQUARE status
-SQUARE page
-SQUARE dashboard
+SQUARE --mcp-status
+SQUARE --mcp-page
+SQUARE --mcp-dashboard
 ```
 
-## Architecture
+## Built-in Commands
 
-- `logic/chrome/api.py` — CDP-based Square functions
-- `interface/main.py` — Cross-tool interface exports
-- `logic/translation/zh.json` — Chinese translations
+| Command | Description |
+|---------|-------------|
+| `--setup` | Run tool setup |
+| `--test` | Run unit tests |
+| `--dev <cmd>` | Developer commands |
+| `--rule` | Show AI rules |

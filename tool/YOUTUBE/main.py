@@ -20,9 +20,11 @@ def main():
     tool = ToolBase("YOUTUBE")
 
     parser = argparse.ArgumentParser(
-        description="YouTube automation via CDMCP", add_help=False
+        description="YouTube automation via CDMCP",
+        epilog="MCP commands use --mcp- prefix: e.g., YOUTUBE --mcp-boot, YOUTUBE --mcp-play",
+        add_help=False,
     )
-    sub = parser.add_subparsers(dest="command", help="Subcommand")
+    sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
     sub.add_parser("boot", help="Boot YouTube session in dedicated window")
     sub.add_parser("session", help="Show session and state machine status")
@@ -114,6 +116,51 @@ def main():
     p_comments.add_argument("--limit", type=int, default=10)
 
     sub.add_parser("expand-description", help="Expand video description")
+
+    sub.add_parser("back", help="Navigate back to previous page")
+    sub.add_parser("layout", help="Identify home page layout areas")
+    sub.add_parser("channel", help="Navigate to current video's channel page")
+
+    p_hist = sub.add_parser("history", help="View watch history")
+    p_hist.add_argument("--limit", type=int, default=10)
+
+    p_del_hist = sub.add_parser("delete-history", help="Delete a watch history item")
+    p_del_hist.add_argument("--index", type=int, default=0, help="0-based index")
+
+    # Advanced commands
+    sub.add_parser("chapters", help="List video chapters")
+    p_chap = sub.add_parser("seek-chapter", help="Jump to a chapter by index")
+    p_chap.add_argument("--index", type=int, default=0)
+
+    p_defaults = sub.add_parser("apply-settings", help="Apply playback settings combo")
+    p_defaults.add_argument("--quality", default="720p")
+    p_defaults.add_argument("--speed", type=float, default=1.0)
+    p_defaults.add_argument("--captions", action="store_true")
+
+    p_live = sub.add_parser("live-streams", help="Find live streams")
+    p_live.add_argument("--category", default="")
+    p_live.add_argument("--limit", type=int, default=5)
+
+    sub.add_parser("live-stats", help="Get live stream statistics")
+
+    p_studio = sub.add_parser("studio", help="Navigate to YouTube Studio section")
+    p_studio.add_argument("section", nargs="?", default="dashboard",
+                          choices=["dashboard", "content", "analytics", "comments",
+                                   "playlists", "subtitles", "monetization", "customization"])
+
+    p_playlist = sub.add_parser("create-playlist", help="Create a new playlist")
+    p_playlist.add_argument("name", help="Playlist name")
+
+    p_settings = sub.add_parser("settings", help="Navigate to YouTube settings")
+    p_settings.add_argument("section", nargs="?", default="account",
+                           choices=["account", "notifications", "privacy", "playback", "advanced"])
+
+    sub.add_parser("premium", help="View YouTube Premium benefits (no purchase)")
+
+    p_fsearch = sub.add_parser("filter-search", help="Search with advanced filters")
+    p_fsearch.add_argument("query", help="Search query")
+    p_fsearch.add_argument("--type", default="video", choices=["video", "live", "playlist"])
+    p_fsearch.add_argument("--limit", type=int, default=10)
 
     if tool.handle_command_line(parser):
         return
@@ -446,6 +493,143 @@ def main():
         r = api.expand_description()
         if r.get("ok"):
             print(f"  {r.get('description', '')[:500]}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "back":
+        r = api.go_back()
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Navigated back{RESET}")
+            print(f"  URL: {r.get('url', '?')[:80]}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "layout":
+        r = api.get_home_layout()
+        if r.get("ok"):
+            for area in r.get("areas", []):
+                print(f"    - {area}")
+            chips = r.get("category_chips", [])
+            if chips:
+                print(f"  Categories: {', '.join(chips[:8])}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "channel":
+        r = api.navigate_to_channel()
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Navigated{RESET} to channel: {r.get('channel', '?')}")
+            print(f"  URL: {r.get('url', '?')[:80]}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "history":
+        r = api.get_watch_history(limit=args.limit)
+        if r.get("ok"):
+            items = r.get("items", [])
+            print(f"  Watch History: {r.get('count', 0)} items")
+            for i, item in enumerate(items):
+                print(f"    [{i}] {item.get('title', '?')[:60]}")
+                if item.get("channel"):
+                    print(f"        {item['channel']}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "delete-history":
+        r = api.delete_history_item(index=args.index)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Deleted{RESET}: {r.get('title', '?')[:60]}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "chapters":
+        r = api.get_chapters()
+        if r.get("ok"):
+            chs = r.get("chapters", [])
+            print(f"  Chapters: {r.get('count', 0)}")
+            for ch in chs:
+                print(f"    [{ch['index']}] {ch.get('time', '?'):>8}  {ch.get('title', '?')[:60]}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "seek-chapter":
+        r = api.seek_to_chapter(index=args.index)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Jumped{RESET} to chapter {args.index}: {r.get('title', '?')[:60]}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "apply-settings":
+        r = api.apply_default_settings(
+            quality_level=args.quality, speed_rate=args.speed, captions_on=args.captions)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Applied{RESET} settings: quality={args.quality}, speed={args.speed}x, captions={'on' if args.captions else 'off'}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "live-streams":
+        r = api.find_live_streams(category=args.category, limit=args.limit)
+        if r.get("ok"):
+            streams = r.get("streams", [])
+            print(f"  Live streams: {r.get('count', 0)}")
+            for i, s in enumerate(streams):
+                print(f"    [{i+1}] {s.get('title', '?')[:55]} | {s.get('viewers', '')}")
+                if s.get("channel"):
+                    print(f"        {s['channel']}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "live-stats":
+        r = api.get_live_stats()
+        if r.get("ok"):
+            print(f"  Title:   {r.get('title', '?')[:60]}")
+            print(f"  Channel: {r.get('channel', '?')}")
+            print(f"  Viewers: {r.get('viewers', '?')}")
+            print(f"  Likes:   {r.get('likes', '?')}")
+            print(f"  Chat:    {'available' if r.get('has_chat') else 'not found'}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "studio":
+        r = api.navigate_studio(args.section)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Navigated{RESET} to YouTube Studio: {args.section}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "create-playlist":
+        r = api.create_playlist(args.name)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Playlist dialog opened{RESET} for: {args.name}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "settings":
+        r = api.navigate_settings(args.section)
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Navigated{RESET} to settings: {args.section}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "premium":
+        r = api.navigate_premium()
+        if r.get("ok"):
+            print(f"  {BOLD}{GREEN}Navigated{RESET} to YouTube Premium page")
+            b = api.get_premium_benefits()
+            if b.get("ok"):
+                for item in b.get("benefits", []):
+                    print(f"    - {item}")
+        else:
+            print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "filter-search":
+        r = api.search_with_filters(args.query, filter_type=args.type, limit=args.limit)
+        if r.get("ok"):
+            results = r.get("results", [])
+            print(f"  Filtered search '{args.query}' ({args.type}): {r.get('count', 0)} results")
+            for i, v in enumerate(results):
+                dur = f" [{v['duration']}]" if v.get("duration") else ""
+                print(f"  [{i+1:2d}]{dur} {v.get('title', '?')[:70]}")
         else:
             print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
 

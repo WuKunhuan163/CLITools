@@ -21,9 +21,11 @@ def main():
     tool = MCPToolBase("BILIBILI", session_name="bilibili")
 
     parser = argparse.ArgumentParser(
-        description="Bilibili video platform automation via CDMCP", add_help=False
+        description="Bilibili video platform automation via CDMCP",
+        epilog="MCP commands use --mcp- prefix: e.g., BILIBILI --mcp-boot, BILIBILI --mcp-play",
+        add_help=False,
     )
-    sub = parser.add_subparsers(dest="command", help="Subcommand")
+    sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
     # Session & status
     sub.add_parser("boot", help="Boot Bilibili session in dedicated window")
@@ -91,6 +93,95 @@ def main():
     p_recs.add_argument("--limit", type=int, default=10)
     p_comments = sub.add_parser("comments", help="Extract top comments")
     p_comments.add_argument("--limit", type=int, default=10)
+    p_trend = sub.add_parser("trending", help="List trending/popular videos")
+    p_trend.add_argument("--limit", type=int, default=20)
+    p_hist = sub.add_parser("history", help="View watch history")
+    p_hist.add_argument("--limit", type=int, default=20)
+
+    sub.add_parser("back", help="Navigate back to previous page")
+    sub.add_parser("layout", help="Identify home page layout areas")
+    sub.add_parser("uploader", help="Navigate to current video's UP page")
+    sub.add_parser("personal", help="Navigate to personal space")
+
+    # Advanced: Danmaku settings
+    sub.add_parser("danmaku-settings", help="View danmaku display settings")
+    p_dm_filter = sub.add_parser("danmaku-filter", help="Add danmaku block keyword")
+    p_dm_filter.add_argument("keyword", help="Keyword to block")
+    p_dm_opacity = sub.add_parser("danmaku-opacity", help="Set danmaku opacity")
+    p_dm_opacity.add_argument("opacity", type=int, help="Opacity 0-100")
+
+    # Advanced: Chapters
+    sub.add_parser("chapters", help="List video chapters")
+    p_seek_ch = sub.add_parser("seek-chapter", help="Seek to chapter by index")
+    p_seek_ch.add_argument("index", type=int, help="Chapter index (0-based)")
+
+    # Advanced: Auto speed
+    sub.add_parser("auto-speed", help="Auto-adjust speed based on content type")
+
+    # Advanced: Subtitles
+    sub.add_parser("subtitles", help="Check subtitle availability")
+    p_sub_toggle = sub.add_parser("toggle-subtitles", help="Toggle subtitles")
+    p_sub_toggle.add_argument("--on", action="store_true", default=True)
+    p_sub_toggle.add_argument("--off", action="store_true")
+
+    # Advanced: Watch Later
+    sub.add_parser("watchlater-add", help="Add current video to Watch Later")
+    p_wl = sub.add_parser("watchlater", help="List Watch Later videos")
+    p_wl.add_argument("--limit", type=int, default=20)
+    sub.add_parser("watchlater-play", help="Play Watch Later list")
+
+    # Advanced: Live
+    p_live = sub.add_parser("live", help="Navigate to Bilibili Live")
+    p_live.add_argument("--category", help="Category: tech, game, music, anime, entertainment")
+    p_live_enter = sub.add_parser("live-enter", help="Enter a live room")
+    p_live_enter.add_argument("room_id", nargs="?", help="Room ID (optional)")
+    sub.add_parser("live-info", help="Get current live room info")
+    p_live_dm = sub.add_parser("live-danmaku", help="Send danmaku in live room")
+    p_live_dm.add_argument("text", help="Danmaku text")
+    sub.add_parser("live-stats", help="Get live stream statistics")
+    p_live_replays = sub.add_parser("live-replays", help="Get past live replays")
+    p_live_replays.add_argument("--limit", type=int, default=5)
+
+    # Advanced: Creative Center
+    p_creative = sub.add_parser("creative", help="Navigate to Creative Center")
+    p_creative.add_argument("section", nargs="?", help="Section: home, upload, content, article, data, fans")
+    p_article = sub.add_parser("article-draft", help="Create an article draft")
+    p_article.add_argument("title", help="Article title")
+    p_article.add_argument("--content", default="", help="Article body text")
+    p_inspire = sub.add_parser("inspiration", help="Fetch creative inspiration topics")
+    p_inspire.add_argument("--category", default="tech")
+    sub.add_parser("data-center", help="View data center overview")
+
+    # Advanced: Favorites management
+    p_fav_mgmt = sub.add_parser("favorites-manage", help="Manage favorite folders")
+    p_fav_mgmt.add_argument("action", choices=["list", "create"], help="Action")
+    p_fav_mgmt.add_argument("--name", help="Folder name (for create)")
+
+    # Advanced: Community
+    p_dyn = sub.add_parser("post-dynamic", help="Post a dynamic/feed post")
+    p_dyn.add_argument("text", help="Dynamic text")
+    p_dyn.add_argument("--poll", nargs="+", help="Poll options (2-4)")
+    p_batch_reply = sub.add_parser("batch-reply", help="Batch reply to comments")
+    p_batch_reply.add_argument("text", help="Reply text")
+    p_batch_reply.add_argument("--count", type=int, default=3)
+    sub.add_parser("fan-medal", help="Navigate to fan medal page")
+    p_topic = sub.add_parser("topic-challenge", help="Navigate to topic challenges")
+    p_topic.add_argument("query", nargs="?", help="Topic search query")
+
+    # Advanced: Settings & Privacy
+    sub.add_parser("privacy-settings", help="Navigate to privacy settings")
+    sub.add_parser("privacy", help="Read privacy settings")
+    sub.add_parser("notification-settings", help="Navigate to notification settings")
+    sub.add_parser("notifications", help="Read notification settings")
+    sub.add_parser("vip-page", help="Navigate to VIP/大会员 page")
+    sub.add_parser("vip-benefits", help="Read VIP benefits")
+
+    # Advanced: Filtered search
+    p_fsearch = sub.add_parser("filter-search", help="Search with filters")
+    p_fsearch.add_argument("query", help="Search query")
+    p_fsearch.add_argument("--duration", help="Duration filter: 0-10, 10-30, 30-60, 60+")
+    p_fsearch.add_argument("--sort", help="Sort: views, date, danmaku, favorites")
+    p_fsearch.add_argument("--limit", type=int, default=10)
 
     if tool.handle_command_line(parser):
         return
@@ -296,6 +387,288 @@ def main():
                 print(f"    {c.get('text', '')[:120]}")
                 if c.get("likes", "0") != "0": print(f"    likes: {c['likes']}")
                 print()
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "trending":
+        r = api.get_trending(limit=args.limit)
+        if r.get("ok"):
+            print(f"  Trending: {r.get('count', 0)} videos")
+            for i, v in enumerate(r.get("results", [])):
+                dur = f" [{v['duration']}]" if v.get("duration") else ""
+                print(f"  [{i+1:2d}]{dur} {v.get('title', '?')[:60]}")
+                if v.get("author"): print(f"       {v['author']} | {v.get('views', '')}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "history":
+        r = api.get_history(limit=args.limit)
+        if r.get("ok"):
+            print(f"  History: {r.get('count', 0)} items")
+            for i, v in enumerate(r.get("results", [])):
+                prog = f" ({v['progress']})" if v.get("progress") else ""
+                print(f"  [{i+1:2d}] {v.get('title', '?')[:60]}{prog}")
+                if v.get("author"): print(f"       {v['author']}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "back":
+        r = api.go_back()
+        if r.get("ok"): print(f"  {B}{G}Navigated back{E}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "layout":
+        r = api.get_home_layout()
+        if r.get("ok"):
+            for area in r.get("areas", []):
+                print(f"    - {area}")
+            tabs = r.get("nav_tabs", [])
+            if tabs: print(f"  Tabs: {', '.join(tabs[:10])}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "uploader":
+        r = api.navigate_to_uploader()
+        if r.get("ok"): print(f"  {B}{G}Navigated{E} to UP: {r.get('up_name', '?')}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "personal":
+        r = api.navigate_personal()
+        if r.get("ok"): print(f"  {B}{G}Navigated{E} to personal space")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    # --- Advanced commands ---
+    elif args.command == "danmaku-settings":
+        r = api.get_danmaku_settings()
+        if r.get("ok"):
+            print(f"  Panel open: {r.get('panel_open', False)}")
+            for sw in r.get("switches", []):
+                st = "on" if sw.get("checked") else "off"
+                print(f"    [{st}] {sw.get('label', '?')}")
+            if r.get("opacity"): print(f"  Opacity: {r['opacity']}")
+            if r.get("area"): print(f"  Area: {', '.join(r['area'])}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "danmaku-filter":
+        r = api.set_danmaku_filter(args.keyword)
+        if r.get("ok"): print(f"  {B}{G}Added filter{E}: {args.keyword}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "danmaku-opacity":
+        r = api.set_danmaku_opacity(args.opacity)
+        if r.get("ok"): print(f"  {B}{G}Opacity set{E} to {args.opacity}%")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "chapters":
+        r = api.get_chapters()
+        if r.get("ok"):
+            chs = r.get("chapters", [])
+            if chs:
+                print(f"  Chapters: {len(chs)}")
+                for ch in chs:
+                    t = f" {ch['time']}" if ch.get("time") else ""
+                    print(f"  [{ch['index']}]{t} {ch.get('title', '?')[:60]}")
+            else:
+                print(f"  No chapters found.")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "seek-chapter":
+        r = api.seek_to_chapter(args.index)
+        if r.get("ok"): print(f"  {B}{G}Seeked{E} to chapter {args.index}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "auto-speed":
+        r = api.auto_speed()
+        if r.get("ok"):
+            print(f"  {B}Type:{E}  {r.get('detected_type', '?')}")
+            print(f"  {B}Speed:{E} {r.get('applied_speed', '?')}x")
+            print(f"  Title: {r.get('title', '')[:60]}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "subtitles":
+        r = api.get_subtitles()
+        if r.get("ok"):
+            if r.get("available"):
+                print(f"  Subtitle options: {', '.join(r.get('options', []))}")
+            else:
+                print(f"  {Y}No subtitles available{E}: {r.get('message', '')}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "toggle-subtitles":
+        on = not args.off
+        r = api.toggle_subtitles(on=on)
+        if r.get("ok"): print(f"  {B}{G}Subtitles {'on' if on else 'off'}{E}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "watchlater-add":
+        r = api.add_to_watchlater()
+        if r.get("ok"): print(f"  {B}{G}Added to Watch Later{E}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "watchlater":
+        r = api.get_watchlater(limit=args.limit)
+        if r.get("ok"):
+            print(f"  Watch Later: {r.get('count', 0)} items")
+            for i, v in enumerate(r.get("results", [])):
+                dur = f" [{v['duration']}]" if v.get("duration") else ""
+                print(f"  [{i+1:2d}]{dur} {v.get('title', '?')[:60]}")
+                if v.get("author"): print(f"       {v['author']}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "watchlater-play":
+        r = api.play_watchlater()
+        if r.get("ok"): print(f"  {B}{G}Playing Watch Later{E}: {r.get('url', '')[:80]}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "live":
+        r = api.navigate_live(category=args.category)
+        if r.get("ok"): print(f"  {B}{G}Navigated{E} to Bilibili Live")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "live-enter":
+        r = api.enter_live_room(room_id=args.room_id)
+        if r.get("ok"): print(f"  {B}{G}Entered{E} live room")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "live-info":
+        r = api.get_live_info()
+        if r.get("ok"):
+            print(f"  {B}Title:{E}    {r.get('title', '?')}")
+            print(f"  {B}Streamer:{E} {r.get('streamer', '?')}")
+            print(f"  {B}Viewers:{E}  {r.get('viewers', '?')}")
+            print(f"  {B}Area:{E}     {r.get('area', '?')}")
+            if r.get("announcement"): print(f"  {B}Notice:{E}   {r['announcement'][:100]}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "live-danmaku":
+        r = api.send_live_danmaku(args.text)
+        if r.get("ok"): print(f"  {B}{G}Sent{E} live danmaku: {args.text}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "live-stats":
+        r = api.get_live_stats()
+        if r.get("ok"):
+            print(f"  Viewers:  {r.get('viewers', '?')}")
+            print(f"  Likes:    {r.get('likes', '?')}")
+            print(f"  Chat:     {r.get('chat_count', 0)} messages")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "live-replays":
+        r = api.get_live_replays(limit=args.limit)
+        if r.get("ok"):
+            print(f"  Replays: {r.get('count', 0)}")
+            for i, rp in enumerate(r.get("replays", [])):
+                print(f"  [{i+1}] {rp.get('title', '?')[:60]}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "creative":
+        r = api.navigate_creative_center(section=args.section)
+        if r.get("ok"): print(f"  {B}{G}Navigated{E} to Creative Center")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "article-draft":
+        r = api.create_article_draft(args.title, content=args.content)
+        if r.get("ok"): print(f"  {B}{G}Draft created{E}: {args.title}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "inspiration":
+        r = api.get_creative_inspiration(category=args.category)
+        if r.get("ok"):
+            print(f"  Topics: {r.get('count', 0)}")
+            for t in r.get("topics", []):
+                heat = f" ({t['heat']})" if t.get("heat") else ""
+                print(f"    - {t.get('topic', '?')}{heat}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "data-center":
+        r = api.get_data_center()
+        if r.get("ok"):
+            print(f"  Data Center:")
+            for m in r.get("metrics", []):
+                print(f"    {B}{m.get('name', '?')}:{E} {m.get('value', '?')}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "favorites-manage":
+        r = api.manage_favorites(action=args.action, name=args.name)
+        if r.get("ok"):
+            if args.action == "list":
+                print(f"  Folders: {r.get('count', 0)}")
+                for f in r.get("folders", []):
+                    cnt = f" ({f['count']})" if f.get("count") else ""
+                    print(f"  [{f['index']}] {f.get('name', '?')}{cnt}")
+            else:
+                print(f"  {B}{G}{args.action.capitalize()}d{E} folder: {args.name or '?'}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "post-dynamic":
+        r = api.post_dynamic(args.text, poll_options=args.poll)
+        if r.get("ok"):
+            poll_info = " (with poll)" if r.get("has_poll") else ""
+            print(f"  {B}{G}Dynamic composed{E}{poll_info}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "batch-reply":
+        r = api.batch_reply_comments(args.text, count=args.count)
+        if r.get("ok"): print(f"  {B}{G}Replied{E} to {r.get('replied', 0)} comments")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "fan-medal":
+        r = api.navigate_fan_medal()
+        if r.get("ok"): print(f"  {B}{G}Navigated{E} to fan medal page")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "topic-challenge":
+        r = api.navigate_topic_challenge(query=args.query)
+        if r.get("ok"): print(f"  {B}{G}Navigated{E} to topic challenges")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "privacy-settings":
+        r = api.navigate_privacy_settings()
+        if r.get("ok"): print(f"  {B}{G}Navigated{E} to privacy settings")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "privacy":
+        r = api.set_privacy()
+        if r.get("ok"):
+            print(f"  Privacy settings:")
+            for s in r.get("settings", []):
+                st = "on" if s.get("enabled") else ("off" if s.get("enabled") is False else "?")
+                print(f"    [{st}] {s.get('label', '?')}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "notification-settings":
+        r = api.navigate_notification_settings()
+        if r.get("ok"): print(f"  {B}{G}Navigated{E} to notification settings")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "notifications":
+        r = api.set_notifications()
+        if r.get("ok"):
+            print(f"  Notification settings:")
+            for s in r.get("settings", []):
+                st = "on" if s.get("enabled") else ("off" if s.get("enabled") is False else "?")
+                print(f"    [{st}] {s.get('label', '?')}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "vip-page":
+        r = api.navigate_vip_page()
+        if r.get("ok"): print(f"  {B}{G}Navigated{E} to VIP page")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "vip-benefits":
+        r = api.get_vip_benefits()
+        if r.get("ok"):
+            print(f"  VIP Benefits: {r.get('count', 0)}")
+            for b in r.get("benefits", []):
+                desc = f" - {b['description']}" if b.get("description") else ""
+                print(f"    - {b.get('name', '?')}{desc}")
+        else: print(f"  {R}Error: {r.get('error')}{E}")
+
+    elif args.command == "filter-search":
+        r = api.search_with_filters(
+            args.query, duration=args.duration, sort_by=args.sort, limit=args.limit)
+        if r.get("ok"):
+            print(f"  Filtered search '{r.get('query', '')}': {r.get('count', 0)} results")
+            for i, v in enumerate(r.get("results", [])):
+                dur = f" [{v['duration']}]" if v.get("duration") else ""
+                print(f"  [{i+1:2d}]{dur} {v.get('title', '?')[:65]}")
+                if v.get("author"): print(f"       {v['author']} | {v.get('views', '')}")
         else: print(f"  {R}Error: {r.get('error')}{E}")
 
     else:

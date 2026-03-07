@@ -20,9 +20,11 @@ def main():
     tool = ToolBase("PAYPAL")
 
     parser = argparse.ArgumentParser(
-        description="PayPal payment integration via Chrome CDP", add_help=False
+        description="PayPal payment integration via Chrome CDP",
+        epilog="MCP commands use --mcp- prefix: e.g., PAYPAL --mcp-status, PAYPAL --mcp-page",
+        add_help=False,
     )
-    sub = parser.add_subparsers(dest="command", help="Subcommand")
+    sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
     sub.add_parser("status", help="Check authentication state")
     sub.add_parser("page", help="Show current page info")

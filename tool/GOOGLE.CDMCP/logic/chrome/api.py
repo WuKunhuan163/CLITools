@@ -25,6 +25,7 @@ _OVERLAY_PATH = _TOOL_DIR / "logic" / "cdp" / "overlay.py"
 _SESSION_PATH = _TOOL_DIR / "logic" / "cdp" / "session_manager.py"
 _SERVER_PATH = _TOOL_DIR / "logic" / "cdp" / "server.py"
 _DEMO_PATH = _TOOL_DIR / "logic" / "cdp" / "demo.py"
+_AUTH_PATH = _TOOL_DIR / "logic" / "cdp" / "google_auth.py"
 _REPORT_DIR = _TOOL_DIR / "data" / "report"
 _CONFIG_DIR = _TOOL_DIR / "data" / "config"
 _CONFIG_FILE = _CONFIG_DIR / "cdmcp_config.json"
@@ -39,6 +40,7 @@ def _load_mod(name, path):
 
 _overlay = None
 _session_mgr = None
+_auth_mod = None
 
 
 def _get_overlay():
@@ -53,6 +55,13 @@ def _get_session_mgr():
     if _session_mgr is None:
         _session_mgr = _load_mod("cdmcp_session_mgr", _SESSION_PATH)
     return _session_mgr
+
+
+def _get_auth():
+    global _auth_mod
+    if _auth_mod is None:
+        _auth_mod = _load_mod("cdmcp_google_auth", _AUTH_PATH)
+    return _auth_mod
 
 
 DEFAULT_CONFIG = {
@@ -333,45 +342,21 @@ def boot_session(name: str = "default", url: str = None,
                  port: int = CDP_PORT) -> Dict[str, Any]:
     """Boot a named CDMCP session. Opens a welcome page in a new Chrome window.
 
+    Delegates to session_manager.boot_tool_session which handles the full lifecycle:
+    ensure Chrome -> create session -> welcome page -> pin -> overlays -> demo tab.
+
     Args:
         name: Session name.
         url: URL to open after the welcome page. If None, stays on welcome.
     """
     session_mgr = _load_mod("cdmcp_session_mgr", _SESSION_PATH)
-    overlay = _load_mod("cdmcp_overlay", _OVERLAY_PATH)
-    server_mod = _load_mod("cdmcp_server", _SERVER_PATH)
 
-    server_url, _ = server_mod.start_server()
+    result = session_mgr.boot_tool_session(name, timeout_sec=86400, port=port)
+    if not result.get("ok"):
+        return result
 
-    session = session_mgr.create_session(name, timeout_sec=86400, port=port)
-    sid_short = session.session_id[:8]
-    created_ts = int(session.created_at) if hasattr(session, 'created_at') else int(time.time())
-    idle_sec = getattr(session, 'timeout_sec', 3600)
-    welcome_html_path = _TOOL_DIR / "data" / "welcome.html"
-    welcome_url = (
-        f"file://{welcome_html_path}?session_id={sid_short}"
-        f"&port={port}&timeout_sec=86400&created_at={created_ts}"
-        f"&idle_timeout_sec={idle_sec}&last_activity={created_ts}"
-    )
-    boot_result = session.boot(welcome_url, new_window=True)
-
-    if not boot_result.get("ok"):
-        return boot_result
-
-    time.sleep(0.8)
-    cdp = session.get_cdp()
-
-    if cdp:
-        tab_id = session.lifetime_tab_id
-        if tab_id:
-            overlay.pin_tab_by_target_id(tab_id, pinned=True, port=port)
-            overlay.activate_tab(tab_id, port)
-            session.register_tab("welcome", tab_id, url=welcome_url, state="active")
-        overlay.inject_favicon(cdp, svg_color="#1a73e8", letter="C")
-        overlay.inject_badge(cdp, text=f"CDMCP [{sid_short}]", color="#1a73e8")
-        overlay.inject_focus(cdp, color="#1a73e8")
-
-    if url:
+    session = result.get("session")
+    if url and session:
         time.sleep(1.5)
         cdp = session.get_cdp()
         if cdp:
@@ -379,52 +364,8 @@ def boot_session(name: str = "default", url: str = None,
             time.sleep(2)
         session.lifetime_tab_url = url
 
-    # Open the demo chat in a second tab within the same window (not pinned)
-    time.sleep(0.5)
-    chat_html_path = _TOOL_DIR / "data" / "chat_app.html"
-    chat_url = f"file://{chat_html_path}?session_id={sid_short}"
-    demo_tab_id = session.open_tab_in_session(chat_url)
-    demo_ws = None
-    if demo_tab_id:
-        time.sleep(1.5)
-        from logic.chrome.session import list_tabs as _list_tabs
-        for t in _list_tabs(port):
-            if t.get("id") == demo_tab_id:
-                ws = t.get("webSocketDebuggerUrl")
-                if ws:
-                    demo_ws = ws
-                    session.register_tab("demo", demo_tab_id,
-                                         url=chat_url, ws=ws, state="active")
-                    demo_cdp = CDPSession(ws, timeout=10)
-                    overlay.inject_favicon(demo_cdp, svg_color="#1a73e8", letter="C")
-                    overlay.inject_badge(demo_cdp, text=f"Demo [{sid_short}]",
-                                         color="#34a853")
-                    demo_cdp.close()
-                break
-
-    # Start the continuous demo in a background subprocess
-    if demo_ws:
-        import subprocess, sys
-        project_root = str(_TOOL_DIR.parent.parent)
-        demo_py = str(_TOOL_DIR / "logic" / "cdp" / "demo.py")
-        inline_code = (
-            f"import sys, os; os.chdir({project_root!r}); "
-            f"sys.path.insert(0, {project_root!r}); "
-            "import importlib.util; "
-            f"spec = importlib.util.spec_from_file_location('demo', {demo_py!r}); "
-            "mod = importlib.util.module_from_spec(spec); "
-            "spec.loader.exec_module(mod); "
-            f"mod.run_demo_on_tab({demo_ws!r}, port={port})"
-        )
-        subprocess.Popen(
-            [sys.executable, "-c", inline_code],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
-
-    boot_result["session_id_short"] = sid_short
-    return boot_result
+    result["session_id_short"] = session.session_id[:8] if session else ""
+    return result
 
 
 def run_demo(port: int = CDP_PORT, delay: float = 1.2,
@@ -499,3 +440,106 @@ def show_config_str() -> str:
         if doc:
             lines.append(f"    # {doc}")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Google Account Auth API
+# ---------------------------------------------------------------------------
+
+def google_auth_status(port: int = CDP_PORT) -> Dict[str, Any]:
+    """Check current Google account login state.
+
+    Returns cached state from the 1-second polling monitor. If the monitor
+    isn't running yet, performs a one-shot cookie check with identity probe.
+    """
+    auth = _get_auth()
+    state = auth.get_cached_auth_state()
+    if state.get("last_checked", 0) > 0 and (state.get("email") or state.get("_probed")):
+        return state
+
+    result = {"signed_in": False, "email": None, "display_name": None}
+    tabs = list_tabs(port)
+    for t in tabs:
+        ws = t.get("webSocketDebuggerUrl")
+        if ws and t.get("type") == "page":
+            try:
+                cdp = CDPSession(ws, timeout=5)
+                cookie_result = auth.check_auth_cookies(cdp)
+                result["signed_in"] = cookie_result["signed_in"]
+                cdp.close()
+                if result["signed_in"]:
+                    break
+            except Exception:
+                continue
+    if not result["signed_in"]:
+        return result
+
+    for t in tabs:
+        url = t.get("url") or ""
+        ws = t.get("webSocketDebuggerUrl")
+        if ws and t.get("type") == "page" and "google.com" in url:
+            try:
+                cdp = CDPSession(ws, timeout=5)
+                body = cdp.evaluate(
+                    "document.body ? document.body.innerText.substring(0, 3000) : ''"
+                ) or ""
+                import re
+                m = re.search(r'[\w.+-]+@[\w.-]+\.[a-z]{2,}', body, re.I)
+                if m:
+                    result["email"] = m.group(0)
+                cdp.close()
+                if result["email"]:
+                    break
+            except Exception:
+                continue
+
+    result["last_checked"] = time.time()
+    return result
+
+
+def google_auth_ensure_monitor(session_name: str = "default"):
+    """Ensure the auth monitor is running for the given session."""
+    auth = _get_auth()
+    session_mgr = _get_session_mgr()
+    auth.start_auth_monitor(
+        get_session_fn=lambda: session_mgr.get_session(session_name),
+        interval=1.0
+    )
+
+
+def google_auth_on_change(callback):
+    """Register a callback for auth state changes (signed_in toggles)."""
+    auth = _get_auth()
+    auth.on_auth_change(callback)
+
+
+def google_auth_login(session_name: str = "default",
+                      tip_text: str = "Please sign in to your Google account below",
+                      auto_close: bool = True) -> Dict[str, Any]:
+    """Initiate Google login flow: open login tab, show tip, auto-close on success.
+
+    Returns:
+        Dict with 'status' ('opened', 'already_signed_in', 'login_in_progress', 'failed')
+        and 'tab_id' if applicable.
+    """
+    auth = _get_auth()
+    session_mgr = _get_session_mgr()
+    session = session_mgr.get_session(session_name)
+    if not session:
+        return {"status": "failed", "error": "No active session"}
+    return auth.initiate_login(session, tip_text=tip_text, auto_close=auto_close)
+
+
+def google_auth_logout(session_name: str = "default",
+                       auto_close: bool = True) -> Dict[str, Any]:
+    """Initiate Google logout flow: open logout page, track, auto-close.
+
+    Returns:
+        Dict with 'status' and 'tab_id'.
+    """
+    auth = _get_auth()
+    session_mgr = _get_session_mgr()
+    session = session_mgr.get_session(session_name)
+    if not session:
+        return {"status": "failed", "error": "No active session"}
+    return auth.initiate_logout(session, auto_close=auto_close)

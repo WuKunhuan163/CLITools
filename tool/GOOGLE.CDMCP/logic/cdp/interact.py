@@ -39,32 +39,86 @@ def _overlay():
     return _overlay_mod
 
 
-def _touch_session(session: CDPSession):
-    """Touch the owning CDMCPSession so MCP operations reset the idle timer."""
+def _session_mgr():
+    """Lazily load and cache the session manager module."""
     global _session_mgr_mod
+    if _session_mgr_mod is not None:
+        return _session_mgr_mod
     try:
-        if _session_mgr_mod is None:
-            import sys as _sys
-            _mod_name = "cdmcp_sessions"
-            if _mod_name in _sys.modules:
-                _session_mgr_mod = _sys.modules[_mod_name]
-            else:
-                spec = importlib.util.spec_from_file_location(
-                    _mod_name, str(_SESSION_MGR_PATH))
-                _session_mgr_mod = importlib.util.module_from_spec(spec)
-                _sys.modules[_mod_name] = _session_mgr_mod
-                spec.loader.exec_module(_session_mgr_mod)
-        _session_mgr_mod.touch_by_cdp(session)
+        import sys as _sys
+        _mod_name = "cdmcp_sessions"
+        if _mod_name in _sys.modules:
+            _session_mgr_mod = _sys.modules[_mod_name]
+        else:
+            spec = importlib.util.spec_from_file_location(
+                _mod_name, str(_SESSION_MGR_PATH))
+            _session_mgr_mod = importlib.util.module_from_spec(spec)
+            _sys.modules[_mod_name] = _session_mgr_mod
+            spec.loader.exec_module(_session_mgr_mod)
     except Exception:
         pass
+    return _session_mgr_mod
+
+
+def _touch_session(session: CDPSession):
+    """Touch the owning CDMCPSession so MCP operations reset the idle timer."""
+    mgr = _session_mgr()
+    if mgr:
+        try:
+            mgr.touch_by_cdp(session)
+        except Exception:
+            pass
 
 
 def _ensure_locked(session: CDPSession, tool_name: str = "CDMCP"):
-    """Auto-lock the tab if not already locked."""
+    """Auto-lock the tab if not already locked, restoring the persistent MPC count."""
     ov = _overlay()
     if not ov.is_locked(session):
         ov.inject_lock(session, base_opacity=0.08, flash_opacity=0.25,
                        tool_name=tool_name)
+        mgr = _session_mgr()
+        if mgr:
+            try:
+                count = mgr.get_mcp_count_by_cdp(session)
+                if count > 0:
+                    session.evaluate(
+                        f"window.__cdmcp_mcp_count__ = {count};"
+                        " if (window.__cdmcp_update_timer__)"
+                        " window.__cdmcp_update_timer__();")
+            except Exception:
+                pass
+
+
+def _was_unlocked(session: CDPSession) -> bool:
+    """Check if the user unlocked the tab during an operation."""
+    try:
+        return _overlay().is_locked(session) is not True
+    except Exception:
+        return False
+
+
+def _update_cursor(session: CDPSession, x: int, y: int):
+    """Update cursor position on the overlay badge and dot."""
+    try:
+        _overlay().update_cursor_position(session, x, y)
+    except Exception:
+        pass
+
+
+def _count_mcp_op(session: CDPSession):
+    """Increment MPC counter only if the tab is still locked (not user-interrupted)."""
+    if _was_unlocked(session):
+        return
+    mgr = _session_mgr()
+    if mgr:
+        try:
+            mgr.increment_mcp_count_by_cdp(session)
+        except Exception:
+            pass
+    try:
+        _overlay().increment_mcp_count(session, 1)
+    except Exception:
+        pass
 
 
 def mcp_click(session: CDPSession, selector: str,
@@ -108,15 +162,21 @@ def mcp_click(session: CDPSession, selector: str,
     cx = rect["left"] + rect["width"] / 2
     cy = rect["top"] + rect["height"] / 2
 
-    if unlock_for_click:
-        ov.set_lock_passthrough(session, True)
+    try:
+        if unlock_for_click:
+            ov.set_lock_passthrough(session, True)
 
-    ov.remove_highlight(session)
-    real_click(session, cx, cy)
+        ov.remove_highlight(session)
+        _update_cursor(session, cx, cy)
+        real_click(session, cx, cy)
+    finally:
+        if unlock_for_click:
+            ov.set_lock_passthrough(session, False)
 
-    if unlock_for_click:
-        ov.set_lock_passthrough(session, False)
-
+    if _was_unlocked(session):
+        return {"ok": False, "error": "User unlocked during operation",
+                "interrupted": True}
+    _count_mcp_op(session)
     return {
         "ok": True,
         "clicked": True,
@@ -166,30 +226,37 @@ def mcp_type(session: CDPSession, selector: str, text: str,
 
     time.sleep(0.3)
 
-    if manage_passthrough:
-        ov.set_lock_passthrough(session, True)
+    try:
+        if manage_passthrough:
+            ov.set_lock_passthrough(session, True)
 
-    if focus_first:
-        session.evaluate(f"document.querySelector({json.dumps(selector)}).focus()")
-        time.sleep(0.15)
+        if focus_first:
+            session.evaluate(f"document.querySelector({json.dumps(selector)}).focus()")
+            time.sleep(0.15)
 
-    if clear_first:
-        session.evaluate(f"""
-            (function() {{
-                var el = document.querySelector({json.dumps(selector)});
-                if (el) {{ el.value = ''; el.dispatchEvent(new Event('input')); }}
-            }})()
-        """)
-        time.sleep(0.1)
+        if clear_first:
+            session.evaluate(f"""
+                (function() {{
+                    var el = document.querySelector({json.dumps(selector)});
+                    if (el) {{ el.value = ''; el.dispatchEvent(new Event('input')); }}
+                }})()
+            """)
+            time.sleep(0.1)
 
-    for char in text:
-        insert_text(session, char)
-        time.sleep(char_delay)
+        for char in text:
+            if _was_unlocked(session):
+                break
+            insert_text(session, char)
+            time.sleep(char_delay)
+    finally:
+        if manage_passthrough:
+            ov.set_lock_passthrough(session, False)
+        ov.remove_highlight(session)
 
-    if manage_passthrough:
-        ov.set_lock_passthrough(session, False)
-    ov.remove_highlight(session)
-
+    if _was_unlocked(session):
+        return {"ok": False, "error": "User unlocked during operation",
+                "interrupted": True}
+    _count_mcp_op(session)
     return {
         "ok": True,
         "typed": True,
@@ -216,6 +283,7 @@ def mcp_scroll(session: CDPSession, direction: str = "down",
     session.evaluate(f"window.scrollBy({{top: {dy}, behavior: '{behavior}'}})")
     time.sleep(0.3 if smooth else 0.1)
 
+    _count_mcp_op(session)
     return {"ok": True, "direction": direction, "amount": amount}
 
 
@@ -254,38 +322,40 @@ def mcp_paste(session: CDPSession, text: str,
         session.evaluate(f"document.querySelector({json.dumps(selector)}).focus()")
         time.sleep(0.15)
 
-    ov.set_lock_passthrough(session, True)
+    try:
+        ov.set_lock_passthrough(session, True)
 
-    session.send_and_recv("Runtime.evaluate", {
-        "expression": f"navigator.clipboard.writeText({json.dumps(text)})",
-        "awaitPromise": True,
-    })
-    time.sleep(0.1)
+        session.send_and_recv("Runtime.evaluate", {
+            "expression": f"navigator.clipboard.writeText({json.dumps(text)})",
+            "awaitPromise": True,
+        })
+        time.sleep(0.1)
 
-    mod_key = "Meta" if platform.system() == "Darwin" else "Control"
-    session.send_and_recv("Input.dispatchKeyEvent", {
-        "type": "keyDown", "key": mod_key, "code": f"{mod_key}Left",
-        "modifiers": 4 if mod_key == "Meta" else 2,
-    })
-    session.send_and_recv("Input.dispatchKeyEvent", {
-        "type": "keyDown", "key": "v", "code": "KeyV",
-        "text": "v",
-        "modifiers": 4 if mod_key == "Meta" else 2,
-    })
-    session.send_and_recv("Input.dispatchKeyEvent", {
-        "type": "keyUp", "key": "v", "code": "KeyV",
-        "modifiers": 4 if mod_key == "Meta" else 2,
-    })
-    session.send_and_recv("Input.dispatchKeyEvent", {
-        "type": "keyUp", "key": mod_key, "code": f"{mod_key}Left",
-    })
+        mod_key = "Meta" if platform.system() == "Darwin" else "Control"
+        session.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyDown", "key": mod_key, "code": f"{mod_key}Left",
+            "modifiers": 4 if mod_key == "Meta" else 2,
+        })
+        session.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyDown", "key": "v", "code": "KeyV",
+            "text": "v",
+            "modifiers": 4 if mod_key == "Meta" else 2,
+        })
+        session.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyUp", "key": "v", "code": "KeyV",
+            "modifiers": 4 if mod_key == "Meta" else 2,
+        })
+        session.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyUp", "key": mod_key, "code": f"{mod_key}Left",
+        })
+    finally:
+        ov.set_lock_passthrough(session, False)
+        time.sleep(0.2)
 
-    ov.set_lock_passthrough(session, False)
-    time.sleep(0.2)
+        if selector:
+            ov.remove_highlight(session)
 
-    if selector:
-        ov.remove_highlight(session)
-
+    _count_mcp_op(session)
     return {"ok": True, "pasted": True, "text": text, "length": len(text)}
 
 
@@ -330,8 +400,6 @@ def mcp_navigate(session: CDPSession, url: str,
         require_lock: If True, auto-lock tab before interaction.
     """
     _touch_session(session)
-    if require_lock:
-        _ensure_locked(session, tool_name)
     session.evaluate(f"window.location.href = {json.dumps(url)}")
 
     if wait_selector:
@@ -342,8 +410,79 @@ def mcp_navigate(session: CDPSession, url: str,
                 f"!!document.querySelector({json.dumps(wait_selector)})"
             )
             if found:
-                return {"ok": True, "url": url, "element_found": True}
-        return {"ok": True, "url": url, "element_found": False, "timeout": True}
+                break
+        else:
+            if require_lock:
+                _ensure_locked(session, tool_name)
+            _count_mcp_op(session)
+            return {"ok": True, "url": url, "element_found": False, "timeout": True}
+    else:
+        time.sleep(2)
 
-    time.sleep(2)
-    return {"ok": True, "url": url}
+    if require_lock:
+        _ensure_locked(session, tool_name)
+    _count_mcp_op(session)
+    return {"ok": True, "url": url,
+            **({"element_found": True} if wait_selector else {})}
+
+
+def mcp_drag(session: CDPSession,
+             x1: int, y1: int, x2: int, y2: int,
+             steps: int = 15,
+             label: str = "",
+             color: str = "#e8710a",
+             tool_name: str = "CDMCP",
+             require_lock: bool = True) -> Dict[str, Any]:
+    """Perform a smooth mouse drag from (x1,y1) to (x2,y2) with visual indicator.
+
+    Auto-locks, enables passthrough during drag, and counts as one MPC operation.
+
+    Args:
+        session: Active CDP session.
+        x1, y1: Start viewport coordinates.
+        x2, y2: End viewport coordinates.
+        steps: Number of intermediate mouseMoved events for smoothness.
+        label: Optional label for the overlay badge shown during drag.
+        color: Overlay badge color.
+        tool_name: Name for lock label.
+        require_lock: Auto-lock before interaction.
+    """
+    _touch_session(session)
+    ov = _overlay()
+    if require_lock:
+        _ensure_locked(session, tool_name)
+
+    try:
+        ov.set_lock_passthrough(session, True)
+
+        session.send_and_recv("Input.dispatchMouseEvent", {
+            "type": "mouseMoved", "x": x1, "y": y1})
+        time.sleep(0.05)
+        _update_cursor(session, x1, y1)
+        session.send_and_recv("Input.dispatchMouseEvent", {
+            "type": "mousePressed", "x": x1, "y": y1,
+            "button": "left", "clickCount": 1, "buttons": 1})
+        time.sleep(0.05)
+
+        for i in range(1, steps + 1):
+            frac = i / steps
+            mx = int(x1 + (x2 - x1) * frac)
+            my = int(y1 + (y2 - y1) * frac)
+            session.send_and_recv("Input.dispatchMouseEvent", {
+                "type": "mouseMoved", "x": mx, "y": my,
+                "button": "left", "buttons": 1})
+            time.sleep(0.02)
+
+        _update_cursor(session, x2, y2)
+        session.send_and_recv("Input.dispatchMouseEvent", {
+            "type": "mouseReleased", "x": x2, "y": y2,
+            "button": "left", "clickCount": 1, "buttons": 0})
+    finally:
+        ov.set_lock_passthrough(session, False)
+
+    if _was_unlocked(session):
+        return {"ok": False, "error": "User unlocked during drag",
+                "interrupted": True}
+    _count_mcp_op(session)
+    return {"ok": True, "action": "drag",
+            "from": {"x": x1, "y": y1}, "to": {"x": x2, "y": y2}}

@@ -231,7 +231,13 @@ class ToolBase:
 
         sys.argv = [sys.argv[0]] + [a for a in sys.argv[1:] if a not in ["--no-warning", "--tool-quiet"]]
 
-        # ---- --dev / --test flag intercept (before argparse) ----
+        # ---- Rewrite --mcp-* to bare subcommands for argparse ----
+        sys.argv = [sys.argv[0]] + [
+            a[6:] if a.startswith("--mcp-") else a
+            for a in sys.argv[1:]
+        ]
+
+        # ---- Flag intercepts (before argparse) ----
         if "--dev" in sys.argv:
             idx = sys.argv.index("--dev")
             dev_args = sys.argv[idx + 1:]
@@ -250,15 +256,20 @@ class ToolBase:
                 self._handle_default_test(test_args)
             return True
 
+        if "--setup" in sys.argv or (len(sys.argv) > 1 and sys.argv[1] == "setup"):
+            self.run_setup()
+            return True
+
+        if "--rule" in sys.argv or (len(sys.argv) > 1 and sys.argv[1] == "rule"):
+            self.print_rule()
+            return True
+
         if len(sys.argv) > 1:
             args_to_check = sys.argv[1:]
             cmd = args_to_check[0]
             if not cmd: return False
 
-            if cmd == "setup":
-                self.run_setup()
-                return True
-            elif cmd in ["-h", "--help", "help"]:
+            if cmd in ["-h", "--help", "help"]:
                 if parser:
                     parser.print_help()
                 else:
@@ -278,9 +289,6 @@ class ToolBase:
                     self.run_subtool_uninstall(subtool_name, force_yes=force_yes)
                 else:
                     print(f"Usage: {self.tool_name} uninstall <SUBTOOL_NAME> [-y]")
-                return True
-            elif cmd == "rule":
-                self.print_rule()
                 return True
             elif cmd == "skills":
                 self._handle_skills_command(args_to_check[1:])

@@ -30,9 +30,11 @@ def main():
     tool = MCPToolBase("GOOGLE.GS", session_name="scholar")
 
     parser = argparse.ArgumentParser(
-        description="Google Scholar automation via CDMCP", add_help=False
+        description="Google Scholar automation via CDMCP",
+        epilog="MCP commands use --mcp- prefix: e.g., GOOGLE.GS --mcp-status, GOOGLE.GS --mcp-search",
+        add_help=False,
     )
-    sub = parser.add_subparsers(dest="command", help="Subcommand")
+    sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
     sub.add_parser("boot", help="Boot Scholar session in dedicated window")
     sub.add_parser("state", help="Get comprehensive MCP state")

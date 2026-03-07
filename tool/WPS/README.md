@@ -4,34 +4,37 @@ WPS Office / KDocs tool via Chrome DevTools Protocol.
 
 ## Overview
 
-Access WPS user info and recent documents through the authenticated
-KDocs/WPS web session using Chrome CDP. Supports WeChat/QQ/email
-login on `kdocs.cn`.
+Access WPS user info and recent documents through the authenticated KDocs/WPS web session.
 
 ## Prerequisites
 
 - Chrome running with `--remote-debugging-port=9222`
 - Authenticated WPS/KDocs session at `kdocs.cn` or `wps.com`
 
-## Commands
+## MCP Commands
 
-| Command  | Description                          |
-|----------|--------------------------------------|
-| `status` | Check authentication state           |
-| `page`   | Show current page info               |
-| `me`     | Show user info (requires auth)       |
-| `docs`   | List recent documents (requires auth)|
+All MCP commands use the `--mcp-` prefix.
 
-## Usage
+| Command | Description |
+|---------|-------------|
+| `--mcp-status` | Check authentication state |
+| `--mcp-page` | Show current page info |
+| `--mcp-me` | Show user info (requires auth) |
+| `--mcp-docs` | List recent documents (requires auth) |
+
+### Usage
 
 ```bash
-WPS status
-WPS me
-WPS docs
+WPS --mcp-status
+WPS --mcp-me
+WPS --mcp-docs
 ```
 
-## Architecture
+## Built-in Commands
 
-- `logic/chrome/api.py` — CDP-based WPS/KDocs functions
-- `interface/main.py` — Cross-tool interface exports
-- `logic/translation/zh.json` — Chinese translations
+| Command | Description |
+|---------|-------------|
+| `--setup` | Run tool setup |
+| `--test` | Run unit tests |
+| `--dev <cmd>` | Developer commands |
+| `--rule` | Show AI rules |

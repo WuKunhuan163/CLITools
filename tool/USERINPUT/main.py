@@ -474,8 +474,10 @@ def _handle_queue(tool, args, unknown):
         unit = get_msg("label_items", "items") if n != 1 else get_msg("label_item", "item")
         print(f"{BOLD}{queue_label}{RESET} ({n} {unit}):")
         for i, p in enumerate(prompts):
-            display = p if len(p) <= 80 else p[:77] + "..."
+            flat = p.replace("\n", " ").replace("\r", " ")
+            display = flat if len(flat) <= 80 else flat[:77] + "..."
             print(f"  {i}: {display}")
+        print(f"\n{get_msg('label_queue_hint', 'Manage: --queue --add <text> | --delete <id> | --move-up/down/to-top/to-bottom <id> | --gui')}")
         return 0
 
     # --queue --gui
@@ -638,36 +640,9 @@ win.run()
             os.remove(tmp_path)
 
 
-def _handle_config(tool, args, unknown):
-    """Handle the 'config' command including system prompt management."""
+def _handle_system_prompt(tool, args, unknown):
+    """Handle --system-prompt: manage system prompts independently."""
     config = get_config()
-    updated = False
-
-    config_parser = argparse.ArgumentParser(add_help=False)
-    config_parser.add_argument("--focus-interval", type=int)
-    config_parser.add_argument("--time-increment", type=int)
-    config_parser.add_argument("--cpu-limit", type=float)
-    config_parser.add_argument("--cpu-timeout", type=int)
-    config_parser.add_argument("--system-prompt", type=str)
-    config_parser.add_argument("--add-prompt", type=str)
-    config_parser.add_argument("--remove-prompt", type=int)
-    config_parser.add_argument("--list", action="store_true")
-    config_parser.add_argument("--gui", action="store_true")
-    config_parser.add_argument("--move-up", type=int, default=None)
-    config_parser.add_argument("--move-down", type=int, default=None)
-    config_parser.add_argument("--move-to-top", type=int, default=None)
-    config_parser.add_argument("--move-to-bottom", type=int, default=None)
-    c_args, _ = config_parser.parse_known_args(unknown)
-
-    # Merge top-level flags that the main parser already consumed
-    if args.list: c_args.list = True
-    if args.gui: c_args.gui = True
-    if args.add and not c_args.add_prompt: c_args.add_prompt = args.add
-    if args.delete is not None and c_args.remove_prompt is None: c_args.remove_prompt = args.delete
-    if args.move_up is not None: c_args.move_up = args.move_up
-    if args.move_down is not None: c_args.move_down = args.move_down
-    if args.move_to_top is not None: c_args.move_to_top = args.move_to_top
-    if args.move_to_bottom is not None: c_args.move_to_bottom = args.move_to_bottom
 
     from interface.config import get_color
     BOLD, GREEN, RED, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("RESET")
@@ -678,8 +653,7 @@ def _handle_config(tool, args, unknown):
 
     sp_label = get_msg("label_system_prompts", "System prompts")
 
-    # --list: show system prompts
-    if c_args.list:
+    if args.list:
         if not prompts:
             print(f"{BOLD}{sp_label}{RESET}: {get_msg('label_system_prompts_empty', 'empty.')}")
         else:
@@ -687,16 +661,16 @@ def _handle_config(tool, args, unknown):
             unit = get_msg("label_items", "items") if n != 1 else get_msg("label_item", "item")
             print(f"{BOLD}{sp_label}{RESET} ({n} {unit}):")
             for i, p in enumerate(prompts):
-                display = p if len(p) <= 80 else p[:77] + "..."
+                flat = p.replace("\n", " ").replace("\r", " ")
+                display = flat if len(flat) <= 80 else flat[:77] + "..."
                 print(f"  {i}: {display}")
+            print(f"\n{get_msg('label_sp_hint', 'Manage: --system-prompt --add <text> | --delete <id> | --move-up/down/to-top/to-bottom <id> | --gui')}")
         return 0
 
-    # --gui: open GUI for system prompt management
-    if c_args.gui:
+    if args.gui:
         return _config_prompt_gui(tool, config)
 
-    # --move-* for system prompts
-    has_reorder = any(v is not None for v in [c_args.move_up, c_args.move_down, c_args.move_to_top, c_args.move_to_bottom])
+    has_reorder = any(v is not None for v in [args.move_up, args.move_down, args.move_to_top, args.move_to_bottom])
     if has_reorder:
         label_map = {
             "up": get_msg("label_moved_up", "Moved up"),
@@ -705,10 +679,8 @@ def _handle_config(tool, args, unknown):
             "bottom": get_msg("label_moved_to_bottom", "Moved to bottom"),
         }
         ops = [
-            (c_args.move_up, "up"),
-            (c_args.move_down, "down"),
-            (c_args.move_to_top, "top"),
-            (c_args.move_to_bottom, "bottom"),
+            (args.move_up, "up"), (args.move_down, "down"),
+            (args.move_to_top, "top"), (args.move_to_bottom, "bottom"),
         ]
         sp_item = get_msg("label_system_prompt_item", "system prompt")
         for val, direction in ops:
@@ -724,50 +696,73 @@ def _handle_config(tool, args, unknown):
                     return 1
         return 0
 
-    if c_args.focus_interval is not None:
-        config["focus_interval"] = c_args.focus_interval
-        updated = True
-    if c_args.time_increment is not None:
-        config["time_increment"] = c_args.time_increment
-        updated = True
-    if c_args.cpu_limit is not None:
-        config["cpu_limit"] = c_args.cpu_limit
-        updated = True
-    if c_args.cpu_timeout is not None:
-        config["cpu_timeout"] = c_args.cpu_timeout
-        updated = True
-    if c_args.system_prompt is not None:
-        config["system_prompt"] = [c_args.system_prompt]
-        updated = True
-    if c_args.add_prompt is not None:
-        prompts.append(c_args.add_prompt)
+    if args.add:
+        prompts.append(args.add)
         config["system_prompt"] = prompts
-        updated = True
-    if c_args.remove_prompt is not None:
-        if 0 <= c_args.remove_prompt < len(prompts):
-            prompts.pop(c_args.remove_prompt)
-            config["system_prompt"] = prompts
-            updated = True
-
-    if updated:
         with open(TOOL_INTERNAL / "config.json", 'w') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
-
-        print(f"{BOLD}{GREEN}{get_msg('label_successfully_updated', 'Successfully updated')}{RESET} USERINPUT configuration:")
-        for k, v in config.items():
-            if k == "system_prompt" and isinstance(v, list):
-                print(f"  {k}:")
-                for i, p in enumerate(v):
-                    print(f"    {i}. {p}")
-            else:
-                print(f"  {k}: {v}")
+        n = len(prompts)
+        unit = get_msg("label_items", "items") if n != 1 else get_msg("label_item", "item")
+        print(f"{BOLD}{GREEN}{get_msg('label_successfully_added', 'Successfully added')}{RESET} {sp_label} ({n} {unit}).")
         return 0
-    else:
-        print("Usage: USERINPUT config [--focus-interval <int>] [--time-increment <int>]")
-        print("  System prompts: --add <str> | --delete <id> | --list | --gui")
-        print("  (aliases:        --add-prompt <str> | --remove-prompt <id>)")
-        print("  Reorder:        --move-up <id> | --move-down <id> | --move-to-top <id> | --move-to-bottom <id>")
-        return 1
+
+    if args.delete is not None:
+        idx = args.delete
+        if 0 <= idx < len(prompts):
+            removed = prompts.pop(idx)
+            config["system_prompt"] = prompts
+            with open(TOOL_INTERNAL / "config.json", 'w') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            n = len(prompts)
+            rem_label = get_msg("label_remaining", "remaining")
+            print(f"{BOLD}{GREEN}{get_msg('label_successfully_deleted', 'Successfully deleted')}{RESET} {sp_label} {idx} ({n} {rem_label}).")
+        else:
+            print(f"{BOLD}{RED}{get_msg('label_failed_to_delete', 'Failed to delete')}{RESET} {sp_label} {idx}.", file=sys.stderr)
+            return 1
+        return 0
+
+    print("Usage: USERINPUT --system-prompt --add <str> | --delete <id> | --list | --gui")
+    print("  Reorder: --move-up <id> | --move-down <id> | --move-to-top <id> | --move-to-bottom <id>")
+    return 1
+
+
+def _handle_config(tool, args, unknown):
+    """Handle --config: manage USERINPUT configuration values."""
+    config = get_config()
+    updated = False
+
+    if args.focus_interval is not None:
+        config["focus_interval"] = args.focus_interval
+        updated = True
+    if args.time_increment is not None:
+        config["time_increment"] = args.time_increment
+        updated = True
+    if args.cpu_limit is not None:
+        config["cpu_limit"] = args.cpu_limit
+        updated = True
+    if args.cpu_timeout is not None:
+        config["cpu_timeout"] = args.cpu_timeout
+        updated = True
+
+    from interface.config import get_color
+    BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
+
+    if not updated:
+        print(f"{BOLD}USERINPUT configuration{RESET}:")
+        for k, v in config.items():
+            if k == "system_prompt":
+                continue
+            print(f"  {k}: {v}")
+        return 0
+
+    with open(TOOL_INTERNAL / "config.json", 'w') as f:
+        json.dump(config, f, indent=2, ensure_ascii=False)
+    print(f"{BOLD}{GREEN}{get_msg('label_successfully_updated', 'Successfully updated')}{RESET} USERINPUT configuration:")
+    for k, v in config.items():
+        if k == "system_prompt":
+            continue
+        print(f"  {k}: {v}")
+    return 0
 
 
 def _reorder_prompt(prompts, index, direction):
@@ -957,12 +952,15 @@ def main():
         return handle_gui_remote_command("USERINPUT", tool.project_root, _gui_cmd_map[_gui_match], remaining, tool.get_translation)
 
     parser = argparse.ArgumentParser(description="USERINPUT Tool")
-    parser.add_argument('command', nargs='?', choices=['setup', 'config', 'rule'], help="Command to run")
     parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--id', type=str)
     parser.add_argument('--hint', type=str)
     parser.add_argument('--queue', action='store_true', help="Queue mode: add to queue or manage queue")
     parser.add_argument('--enquiry', action='store_true', help="Bypass queue, request real-time user feedback")
+    parser.add_argument('--system-prompt', action='store_true', dest='system_prompt_mode',
+                        help="System prompt management mode")
+    parser.add_argument('--config', action='store_true', dest='config_mode',
+                        help="Configuration management mode")
     parser.add_argument('--list', action='store_true', help="List items (queue or system prompts)")
     parser.add_argument('--gui', action='store_true', help="Open GUI manager (queue or system prompts)")
     parser.add_argument('--add', type=str, metavar='TEXT', help="Add item (to queue or system prompts)")
@@ -971,23 +969,42 @@ def main():
     parser.add_argument('--move-down', type=int, metavar='ID', default=None)
     parser.add_argument('--move-to-top', type=int, metavar='ID', default=None)
     parser.add_argument('--move-to-bottom', type=int, metavar='ID', default=None)
+    parser.add_argument('--focus-interval', type=int, default=None)
+    parser.add_argument('--time-increment', type=int, default=None)
+    parser.add_argument('--cpu-limit', type=float, default=None)
+    parser.add_argument('--cpu-timeout', type=int, default=None)
     
     if tool.handle_command_line(parser): return 0
     args, unknown = parser.parse_known_args()
+
+    # Suggest flags for bare words that look like known options
+    _known_flags = {'list', 'gui', 'add', 'delete', 'queue', 'enquiry',
+                    'system-prompt', 'config', 'help', 'setup', 'rule',
+                    'test', 'dev'}
+    for u in unknown:
+        if not u.startswith('-') and u.lower() in _known_flags:
+            from interface.config import get_color
+            BOLD, YELLOW, RESET = get_color("BOLD"), get_color("YELLOW"), get_color("RESET")
+            print(f"{BOLD}{YELLOW}Did you mean{RESET} --{u.lower()} ?")
+            return 1
 
     # ── Queue management ───────────────────────────────────
     if args.queue:
         return _handle_queue(tool, args, unknown)
 
-    # ── Config command (includes system prompt management) ─
-    if args.command == "config":
+    # ── System prompt management (--system-prompt) ─
+    if getattr(args, 'system_prompt_mode', False):
+        return _handle_system_prompt(tool, args, unknown)
+
+    # ── Config management (--config) ─
+    if getattr(args, 'config_mode', False):
         return _handle_config(tool, args, unknown)
 
-    # --list / --gui / --move-* / --add / --delete without --queue or config are invalid
+    # --list / --gui / --move-* / --add / --delete without context are invalid
     mgmt_flags = args.list or args.gui or args.add or args.delete is not None
     mgmt_flags = mgmt_flags or any(v is not None for v in [args.move_up, args.move_down, args.move_to_top, args.move_to_bottom])
     if mgmt_flags:
-        print("Usage: --list, --gui, --add, --delete, --move-* require --queue or config command.", file=sys.stderr)
+        print("Usage: --list, --gui, --add, --delete, --move-* require --queue, --system-prompt, or --config.", file=sys.stderr)
         return 1
 
     from interface.config import get_color

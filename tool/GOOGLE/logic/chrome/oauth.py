@@ -116,8 +116,47 @@ def _find_and_click_button(session: CDPSession, text_match: str) -> bool:
     return False
 
 
-def _handle_popup_consent(port: int, log_fn: Callable, timeout_s: int = 90) -> bool:
-    """Wait for the OAuth popup, then click through consent screens."""
+def _extract_oauth_url_from_output(session: CDPSession) -> Optional[str]:
+    """Try to extract the OAuth URL from Colab cell output when popup is blocked."""
+    try:
+        url = session.evaluate("""
+            (function(){
+                var links = document.querySelectorAll('a[href*="accounts.google.com"]');
+                for (var i = links.length - 1; i >= 0; i--) {
+                    var h = links[i].href || '';
+                    if (h.indexOf('oauth2') >= 0 || h.indexOf('signin') >= 0) return h;
+                }
+                var outputs = document.querySelectorAll('.output-content, .output_text');
+                for (var j = outputs.length - 1; j >= 0; j--) {
+                    var txt = outputs[j].textContent || '';
+                    var m = txt.match(/https:\\/\\/accounts\\.google\\.com[^\\s"'<>]+/);
+                    if (m) return m[0];
+                }
+                return '';
+            })()
+        """)
+        return url if url else None
+    except Exception:
+        return None
+
+
+def _open_url_as_tab(url: str, port: int) -> Optional[dict]:
+    """Open a URL as a new tab via CDP, bypassing popup blocker."""
+    try:
+        req_url = f"http://localhost:{port}/json/new?{url}"
+        with urllib.request.urlopen(req_url, timeout=5) as resp:
+            return json.loads(resp.read().decode())
+    except Exception:
+        return None
+
+
+def _handle_popup_consent(port: int, log_fn: Callable, timeout_s: int = 90,
+                          colab_session: CDPSession = None) -> bool:
+    """Wait for the OAuth popup, then click through consent screens.
+
+    If the popup is blocked by Chrome, attempts to extract the OAuth URL
+    from the Colab cell output and open it directly.
+    """
     oauth_tab = None
     for _ in range(10):
         time.sleep(1)
@@ -126,8 +165,18 @@ def _handle_popup_consent(port: int, log_fn: Callable, timeout_s: int = 90) -> b
             break
 
     if not oauth_tab:
-        log_fn("No OAuth popup appeared")
-        return False
+        log_fn("No OAuth popup appeared - checking for popup blocked state")
+        if colab_session:
+            auth_url = _extract_oauth_url_from_output(colab_session)
+            if auth_url:
+                log_fn(f"Found OAuth URL in output - opening directly")
+                new_tab = _open_url_as_tab(auth_url, port)
+                if new_tab:
+                    time.sleep(2)
+                    oauth_tab = find_oauth_tab(port)
+        if not oauth_tab:
+            log_fn("Popup blocked: no OAuth popup and no fallback URL found")
+            return False
 
     log_fn("OAuth popup opened")
     time.sleep(2)
@@ -215,7 +264,8 @@ def handle_oauth_if_needed(
             time.sleep(1)
 
             _log("Navigating consent screens")
-            ok = _handle_popup_consent(port, _log, popup_timeout)
+            ok = _handle_popup_consent(port, _log, popup_timeout,
+                                       colab_session=session)
             return "success" if ok else "failed"
 
     _log("No OAuth dialog appeared within timeout")

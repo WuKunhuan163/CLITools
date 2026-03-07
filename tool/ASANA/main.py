@@ -20,9 +20,11 @@ def main():
     tool = ToolBase("ASANA")
 
     parser = argparse.ArgumentParser(
-        description="Asana project management via Chrome CDP", add_help=False
+        description="Asana project management via Chrome CDP",
+        epilog="MCP commands use --mcp- prefix: e.g., ASANA --mcp-status, ASANA --mcp-page",
+        add_help=False,
     )
-    sub = parser.add_subparsers(dest="command", help="Subcommand")
+    sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
     sub.add_parser("me", help="Show authenticated user info")
     sub.add_parser("workspaces", help="List workspaces")

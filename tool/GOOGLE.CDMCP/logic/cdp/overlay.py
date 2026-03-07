@@ -182,8 +182,7 @@ _LOCK_JS_TEMPLATE = r"""
         'cursor: pointer',
         'letter-spacing: 0.3px',
     ].join('; ');
-    label.textContent = "Locked by Terminal Tool '" + toolName + "', Click to unlock";
-    label.title = 'Click to unlock this tab';
+    label.textContent = "Locked by Terminal Tool '" + toolName + "' — Double-click to unlock";
 
     // Timer / MCP counter in bottom-left
     var timer = document.createElement('div');
@@ -215,24 +214,82 @@ _LOCK_JS_TEMPLATE = r"""
     if (window.__cdmcp_timer_interval__) clearInterval(window.__cdmcp_timer_interval__);
     window.__cdmcp_timer_interval__ = setInterval(_updateTimer, 1000);
 
-    shade.addEventListener('mousedown', function(e) {
-        if (e.target === label) return;
-        shade.style.background = 'rgba(0, 0, 0, ' + flashOpacity + ')';
-        setTimeout(function() {
-            shade.style.background = 'rgba(0, 0, 0, ' + baseOpacity + ')';
-        }, 300);
+    function _blockEvent(e) {
+        if (e.target === label && e.type === 'dblclick') return;
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        if (e.type === 'mousedown' || e.type === 'pointerdown') {
+            shade.style.background = 'rgba(0, 0, 0, ' + flashOpacity + ')';
+            setTimeout(function() {
+                shade.style.background = 'rgba(0, 0, 0, ' + baseOpacity + ')';
+            }, 300);
+        }
+    }
+    ['mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu', 'auxclick',
+     'pointerdown', 'pointerup', 'touchstart', 'touchend'].forEach(function(evt) {
+        shade.addEventListener(evt, _blockEvent, true);
     });
 
-    label.addEventListener('click', function(e) {
+    label.addEventListener('dblclick', function(e) {
         e.stopPropagation();
+        e.preventDefault();
         shade.remove();
+        var dot = document.getElementById('__LOCK_ID___dot');
+        if (dot) dot.remove();
         window.__cdmcp_locked__ = false;
         if (window.__cdmcp_timer_interval__) clearInterval(window.__cdmcp_timer_interval__);
         window.dispatchEvent(new CustomEvent('cdmcp-unlock'));
     });
 
+    var cursorBadge = document.createElement('div');
+    cursorBadge.id = '__LOCK_ID___cursor';
+    cursorBadge.style.cssText = [
+        'position: absolute',
+        'bottom: 12px', 'right: 16px',
+        'background: rgba(0, 0, 0, 0.55)',
+        'color: #ccc',
+        'font-family: "SF Mono", Menlo, monospace',
+        'font-size: 11px',
+        'padding: 4px 10px',
+        'border-radius: 4px',
+        'pointer-events: none',
+    ].join('; ');
+    cursorBadge.textContent = 'Cursor: --, --';
+
+    var cursorDot = document.createElement('div');
+    cursorDot.id = '__LOCK_ID___dot';
+    cursorDot.style.cssText = [
+        'position: fixed',
+        'width: 10px', 'height: 10px',
+        'border-radius: 50%',
+        'background: rgba(26, 115, 232, 0.7)',
+        'border: 1.5px solid rgba(255, 255, 255, 0.8)',
+        'box-shadow: 0 0 6px rgba(26, 115, 232, 0.4)',
+        'pointer-events: none',
+        'z-index: 2147483647',
+        'display: none',
+        'transform: translate(-50%, -50%)',
+        'transition: left 0.08s ease-out, top 0.08s ease-out',
+    ].join('; ');
+    document.documentElement.appendChild(cursorDot);
+
+    window.__cdmcp_cursor_pos__ = {x: 0, y: 0};
+    window.__cdmcp_update_cursor__ = function(x, y) {
+        window.__cdmcp_cursor_pos__ = {x: x, y: y};
+        var dot = document.getElementById('__LOCK_ID___dot');
+        if (dot) {
+            dot.style.left = x + 'px';
+            dot.style.top = y + 'px';
+            dot.style.display = 'block';
+        }
+        var badge = document.getElementById('__LOCK_ID___cursor');
+        if (badge) badge.textContent = 'Cursor: ' + x + ', ' + y;
+    };
+
     shade.appendChild(label);
     shade.appendChild(timer);
+    shade.appendChild(cursorBadge);
     document.documentElement.appendChild(shade);
     window.__cdmcp_locked__ = true;
     return 'lock_injected';
@@ -258,6 +315,19 @@ def increment_mcp_count(session: CDPSession, count: int = 1) -> None:
         f"window.__cdmcp_mcp_count__ = (window.__cdmcp_mcp_count__ || 0) + {count};"
         " if (window.__cdmcp_update_timer__) window.__cdmcp_update_timer__();"
     )
+
+
+def update_cursor_position(session: CDPSession, x: int, y: int) -> None:
+    """Update the cursor position badge and dot on the lock overlay.
+
+    Uses fire-and-forget without awaitPromise to avoid blocking during
+    rapid mouse drags when the main thread is busy processing input events.
+    """
+    session.send_and_recv("Runtime.evaluate", {
+        "expression": f"if(window.__cdmcp_update_cursor__)window.__cdmcp_update_cursor__({x},{y})",
+        "returnByValue": True,
+        "awaitPromise": False,
+    }, timeout=1)
 
 
 def remove_lock(session: CDPSession) -> bool:
@@ -406,6 +476,61 @@ def remove_highlight(session: CDPSession) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Tip banner overlay (top-center notification strip)
+# ---------------------------------------------------------------------------
+
+CDMCP_TIP_ID = "__cdmcp_tip_banner__"
+
+_TIP_JS = r"""
+(function() {
+    var existing = document.getElementById('__TIP_ID__');
+    if (existing) { existing.remove(); }
+
+    var banner = document.createElement('div');
+    banner.id = '__TIP_ID__';
+    banner.style.cssText = [
+        'position: fixed',
+        'top: 0', 'left: 0', 'right: 0',
+        'z-index: 2147483647',
+        'background: __TIP_BG__',
+        'color: #fff',
+        'font-family: system-ui, -apple-system, sans-serif',
+        'font-size: 14px',
+        'font-weight: 500',
+        'text-align: center',
+        'padding: 10px 20px',
+        'box-shadow: 0 2px 8px rgba(0,0,0,0.2)',
+        'pointer-events: none',
+        'transition: opacity 0.3s ease',
+    ].join('; ');
+    banner.textContent = __TIP_TEXT__;
+    document.documentElement.appendChild(banner);
+    return 'tip_injected';
+})()
+""".replace("__TIP_ID__", CDMCP_TIP_ID)
+
+
+def inject_tip(session: CDPSession, text: str,
+               bg_color: str = "#1a73e8") -> bool:
+    """Show a top-center tip banner. Non-interactive (pointer-events: none)."""
+    js = (_TIP_JS
+          .replace("__TIP_BG__", bg_color)
+          .replace("__TIP_TEXT__", json.dumps(text)))
+    return session.evaluate(js) == "tip_injected"
+
+
+def remove_tip(session: CDPSession) -> bool:
+    js = f"""
+    (function() {{
+        var el = document.getElementById('{CDMCP_TIP_ID}');
+        if (el) {{ el.remove(); return 'removed'; }}
+        return 'not_found';
+    }})()
+    """
+    return session.evaluate(js) == "removed"
+
+
+# ---------------------------------------------------------------------------
 # Composite operations
 # ---------------------------------------------------------------------------
 
@@ -427,7 +552,8 @@ def remove_all_overlays(session: CDPSession) -> Dict[str, Any]:
     """Remove all CDMCP overlays from the tab."""
     js = f"""
     (function() {{
-        var ids = {json.dumps([CDMCP_BADGE_ID, CDMCP_FOCUS_ID, CDMCP_LOCK_ID, CDMCP_HIGHLIGHT_ID])};
+        var ids = {json.dumps([CDMCP_BADGE_ID, CDMCP_FOCUS_ID, CDMCP_LOCK_ID, CDMCP_HIGHLIGHT_ID, CDMCP_TIP_ID])};
+        ids.push('{CDMCP_LOCK_ID}_dot');
         var removed = [];
         ids.forEach(function(id) {{
             var el = document.getElementById(id);

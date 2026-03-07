@@ -29,6 +29,7 @@ _OVERLAY_PATH = _TOOL_DIR / "logic" / "cdp" / "overlay.py"
 _SESSION_PATH = _TOOL_DIR / "logic" / "cdp" / "session_manager.py"
 _SERVER_PATH = _TOOL_DIR / "logic" / "cdp" / "server.py"
 _DEMO_PATH = _TOOL_DIR / "logic" / "cdp" / "demo.py"
+_AUTH_PATH = _TOOL_DIR / "logic" / "cdp" / "google_auth.py"
 
 
 def _load_module(name: str, path: Path):
@@ -56,3 +57,18 @@ def load_server():
 def load_demo():
     """Load the demo interaction module."""
     return _load_module("cdmcp_demo", _DEMO_PATH)
+
+
+def load_google_auth():
+    """Load the Google auth monitoring module.
+
+    Provides:
+        - check_auth_cookies(cdp) -> dict: fast cookie-based auth check
+        - check_auth_full(port) -> dict: full auth check with email/name
+        - get_cached_auth_state() -> dict: cached state from monitor
+        - start_auth_monitor(get_session_fn, interval) -> None
+        - stop_auth_monitor() -> None
+        - on_auth_change(callback) -> None: register state change callback
+        - watch_tab_close(tab_id, on_close) -> None: tab close hook
+    """
+    return _load_module("cdmcp_google_auth", _AUTH_PATH)

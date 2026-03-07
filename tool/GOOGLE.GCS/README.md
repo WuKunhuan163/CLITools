@@ -114,7 +114,13 @@ Shows the current active shell and its remote configuration.
 
 ### MCP Browser Integration
 
-When running in an MCP-capable environment (e.g., Cursor IDE), GCS commands can be executed directly in Colab via the built-in browser.
+When running in an MCP-capable environment (e.g., Cursor IDE), GCS commands can be executed directly in Colab via the built-in browser. **No dedicated notebook is required** -- GCS works with any open Colab tab, including the default "Welcome to Colab" page.
+
+#### `GCS --mcp boot`
+Launches debug Chrome and opens a Colab tab (or reuses an existing one).
+
+#### `GCS --mcp-remount`
+Fully automated Google Drive remount via CDP. Injects the remount script into a Colab cell, handles the OAuth consent dialog and popup automatically, waits for completion, and verifies the result via Drive API. Uses a 4-stage Turing machine: inject -> OAuth -> wait -> verify.
 
 #### `GCS <command> --mcp [--json]`
 Generates an MCP workflow for browser-based execution.

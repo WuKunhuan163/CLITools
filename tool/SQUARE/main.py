@@ -20,9 +20,11 @@ def main():
     tool = ToolBase("SQUARE")
 
     parser = argparse.ArgumentParser(
-        description="Square business platform via Chrome CDP", add_help=False
+        description="Square business platform via Chrome CDP",
+        epilog="MCP commands use --mcp- prefix: e.g., SQUARE --mcp-status, SQUARE --mcp-page",
+        add_help=False,
     )
-    sub = parser.add_subparsers(dest="command", help="Subcommand")
+    sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
 
     sub.add_parser("status", help="Check authentication state")
     sub.add_parser("page", help="Show current page info")

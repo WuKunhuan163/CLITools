@@ -58,27 +58,41 @@ USERINPUT --enquiry --hint "Should I proceed with approach A or B?"
 
 ## System Prompt Management
 
+System prompts are managed via the `--system-prompt` flag:
+
 ```bash
 # List current system prompts
-USERINPUT config --list
+USERINPUT --system-prompt --list
 
 # Add / remove prompts
-USERINPUT config --add "New instruction"
-USERINPUT config --delete 3
+USERINPUT --system-prompt --add "New instruction"
+USERINPUT --system-prompt --delete 3
 
 # Reorder prompts
-USERINPUT config --move-up 2
-USERINPUT config --move-to-top 5
+USERINPUT --system-prompt --move-up 2
+USERINPUT --system-prompt --move-to-top 5
 
 # Manage via GUI
-USERINPUT config --gui
+USERINPUT --system-prompt --gui
+```
+
+## Configuration
+
+Non-prompt settings are managed via the `--config` flag:
+
+```bash
+# Show current configuration
+USERINPUT --config
+
+# Set specific values
+USERINPUT --config --focus-interval 90
+USERINPUT --config --time-increment 60
 ```
 
 ## Remote Control
 
 - **Stop All**: `USERINPUT --gui-stop`
 - **Stop Specific**: `USERINPUT --gui-stop <PID>`
-- **Config**: `USERINPUT config --focus-interval 90`
 
 ## Implementation
 

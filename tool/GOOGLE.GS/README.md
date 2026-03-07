@@ -1,4 +1,4 @@
-# GOOGLE.GS — Google Scholar MCP
+# GOOGLE.GS -- Google Scholar MCP
 
 Automate Google Scholar searches, citation management, author discovery,
 and library operations via CDMCP session management and visual overlays.
@@ -9,41 +9,52 @@ and library operations via CDMCP session management and visual overlays.
 - GOOGLE.CDMCP tool installed
 - Logged into Google account in Chrome
 
-## Features
+## MCP Commands
+
+All MCP commands use the `--mcp-` prefix.
 
 ### Search & Navigation
 ```bash
-GS search large language model reasoning           # Search papers
-GS search transformers --year-from 2023             # With year filter
-GS results                                          # Re-read current results
-GS next                                             # Next page
-GS prev                                             # Previous page
-GS filter --time 2025                               # Filter: since 2025
-GS filter --sort date                               # Sort by date
+GOOGLE.GS --mcp-search large language model reasoning    # Search papers
+GOOGLE.GS --mcp-search transformers --year-from 2023     # With year filter
+GOOGLE.GS --mcp-results                                  # Re-read current results
+GOOGLE.GS --mcp-next                                     # Next page
+GOOGLE.GS --mcp-prev                                     # Previous page
+GOOGLE.GS --mcp-filter --time 2025                       # Filter: since 2025
+GOOGLE.GS --mcp-filter --sort date                       # Sort by date
 ```
 
 ### Per-Result Actions
 ```bash
-GS open --index 0          # Open paper link
-GS save --index 0          # Save to Google Scholar library
-GS cite --index 0          # Get citation (MLA, APA, Chicago, Harvard, Vancouver + BibTeX/EndNote/RefMan)
-GS cited-by --index 0      # Papers citing this paper
-GS pdf --index 0           # Get PDF URL
+GOOGLE.GS --mcp-open --index 0          # Open paper link
+GOOGLE.GS --mcp-save --index 0          # Save to Google Scholar library
+GOOGLE.GS --mcp-cite --index 0          # Get citation formats + BibTeX
+GOOGLE.GS --mcp-cited-by --index 0      # Papers citing this paper
+GOOGLE.GS --mcp-pdf --index 0           # Get PDF URL
 ```
 
 ### Profile & Library
 ```bash
-GS profile                 # Open your Scholar profile (name, affiliation, stats)
-GS library                 # View saved papers
-GS author Geoffrey Hinton  # Search for author profiles
+GOOGLE.GS --mcp-profile                 # Open your Scholar profile
+GOOGLE.GS --mcp-library                 # View saved papers
+GOOGLE.GS --mcp-author Geoffrey Hinton  # Search for author profiles
 ```
 
 ### Session & State
 ```bash
-GS boot                    # Boot Scholar session in dedicated window
-GS state                   # Get Turing machine state + page info
-GS screenshot --output /tmp/shot.png
+GOOGLE.GS --mcp-boot                    # Boot Scholar session in dedicated window
+GOOGLE.GS --mcp-state                   # Get Turing machine state + page info
+GOOGLE.GS --mcp-screenshot --output /tmp/shot.png
 ```
+
+## Built-in Commands
+
+| Command | Description |
+|---------|-------------|
+| `--setup` | Run tool setup |
+| `--test` | Run unit tests |
+| `--dev <cmd>` | Developer commands |
+| `--rule` | Show AI rules |
 
 ## Visual Effects
 
@@ -56,34 +67,8 @@ All operations use CDMCP MCP interaction interfaces:
 ## State Machine
 
 ```
-UNINITIALIZED → BOOTING → IDLE
-IDLE → SEARCHING → IDLE
-IDLE → VIEWING_PAPER / VIEWING_PROFILE / VIEWING_CITATIONS
-Any → ERROR → RECOVERING → IDLE
-```
-
-State persists in `data/state/gs_<session>.json`.
-
-## API Usage (for other tools)
-
-```python
-import importlib.util
-spec = importlib.util.spec_from_file_location("gs_api", "<path>/logic/chrome/api.py")
-api = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(api)
-
-api.boot_session()
-r = api.search("neural network")
-print(r["results"][0]["title"])
-
-c = api.cite_paper(index=0)
-print(c["citations"]["format_0"])  # MLA citation
-```
-
-## Testing
-
-```bash
-TOOL test GOOGLE.GS
-python3 test/test_00_help.py    # Help flag
-python3 test/test_01_search.py  # Live search + cite + PDF
+UNINITIALIZED -> BOOTING -> IDLE
+IDLE -> SEARCHING -> IDLE
+IDLE -> VIEWING_PAPER / VIEWING_PROFILE / VIEWING_CITATIONS
+Any -> ERROR -> RECOVERING -> IDLE
 ```
