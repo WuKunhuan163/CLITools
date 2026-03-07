@@ -62,9 +62,9 @@ def _has_colab_tab():
 def _create_notebook_via_cdp(folder_id, notebook_name=None):
     """Create notebook via CDP + gapi.client. Requires an open Colab tab."""
     try:
-        from logic.cdp.colab import create_notebook
+        from logic.cdp.colab import create_drive_file
         name = notebook_name or _DEFAULT_NOTEBOOK_NAME
-        return create_notebook(name, folder_id, CDP_PORT)
+        return create_drive_file(name, "colab", folder_id, port=CDP_PORT)
     except Exception as e:
         return {"success": False, "error": str(e)}
 

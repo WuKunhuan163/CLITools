@@ -365,9 +365,30 @@ def _run_interactive_test():
     else:
         append_log("pynput is not installed. Install with: pip install pynput")
 
-    # --- Tkinter native key binding (always works within the window) ---
+    # --- Tkinter native key binding (works when window has focus) ---
+    tk_paste_state = {"modifier": False, "pasted": False, "paste_time": 0}
+
     def on_tk_key(event):
-        root.after(0, lambda: append_log(f"TK_KEY  keysym={event.keysym!r}  keycode={event.keycode}  state={event.state:#06x}"))
+        desc = f"TK_KEY  keysym={event.keysym!r}  keycode={event.keycode}  state={event.state:#06x}"
+
+        if event.keysym in ('Meta_L', 'Meta_R', 'Control_L', 'Control_R'):
+            tk_paste_state["modifier"] = True
+
+        is_cmd = (event.state & 0x0008) or (event.state & 0x0004)
+        if is_cmd and event.keysym.lower() == 'v':
+            tk_paste_state["pasted"] = True
+            tk_paste_state["paste_time"] = time.time()
+            desc += "  [TK PASTE]"
+
+        if event.keysym in ('Return', 'KP_Enter'):
+            if tk_paste_state["pasted"] and (time.time() - tk_paste_state["paste_time"]) < _PASTE_TIMEOUT:
+                desc += "  [TK PASTE+ENTER -> TRIGGERED]"
+                root.after(0, lambda: pe_status.set("Paste+Enter: TRIGGERED! (tkinter)"))
+                root.after(0, lambda: conclusion_var.set("Keyboard capture is WORKING (window focus)."))
+                root.after(1500, root.destroy)
+            tk_paste_state["modifier"] = False
+
+        root.after(0, lambda d=desc: append_log(d))
 
     root.bind("<Key>", on_tk_key)
 
@@ -391,10 +412,9 @@ def _run_interactive_test():
     append_log(f"Accessibility: {'trusted' if access_ok else 'NOT trusted'}")
     append_log("---")
     append_log("Instructions:")
-    append_log("  1. Switch to another app (e.g., browser)")
-    append_log("  2. Press Cmd+V (paste) then Enter")
-    append_log("  3. Come back here and check the log")
-    append_log("  If NO events appear for step 2, keyboard capture is broken.")
+    append_log("  Test 1 (global): Switch to another app, Cmd+V then Enter")
+    append_log("  Test 2 (local):  Press Cmd+V then Enter in this window")
+    append_log("  Global = pynput events; Local = tkinter events")
     append_log("---")
 
     root.mainloop()

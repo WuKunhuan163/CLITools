@@ -116,7 +116,8 @@ with open(os.environ["GCS_RESULT_FILE"], "w") as f: json.dump(r, f, indent=2, en
 
 rm -f "$OUTPUT_FILE" "$ERROR_FILE"
 clear
-echo -e "\\033[1m{finished_label or 'Finished'}\\033[0m [GCS_DONE_{cmd_hash}]: {finished_msg or 'Execution completed and result saved. You may now press the Finished button.'}"
+echo -e "\\033[1m{finished_label or 'GCS Remote Command'} [{cmd_hash.upper()}]\\033[0m: {finished_msg or 'Execution completed and result saved. You may now press the Finished button.'}"
+echo "GCS_DONE_{cmd_hash}"
 '''
 
     script_template = f'''cat > /tmp/gcs_run_{script_id}.sh << 'GCS_SCRIPT_EOF'
@@ -185,7 +186,9 @@ json.dump({{'command': _CMD, 'stdout': _r.stdout, 'stderr': _r.stderr,
     'completed': datetime.now().isoformat()
 }}, open(_RESULT, 'w'), indent=2, ensure_ascii=False)
 
-print(f'\\n\\033[1m{fin_label}\\033[0m [{done_marker}]: {fin_msg}')
+_gui_title = f'{fin_label} [{cmd_hash.upper()}]'
+print(f'\\n\\033[1m{{_gui_title}}\\033[0m: {fin_msg}')
+print(f'{done_marker}')
 '''
 
 
@@ -278,20 +281,27 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
                 "cmd": None,
                 "on_click": on_feedback_click,
                 "close_on_click": True,
-                "disable_seconds": 15
+                "disable_seconds": 30
             })
         buttons.append({
             "text": btn_finished_text,
             "return_value": "Finished",
             "cmd": None,
             "close_on_click": True,
-            "disable_seconds": 15
+            "disable_seconds": 30
         })
     
     # Auto-copy on startup
     copy_to_clipboard()
 
     cdp_thread_result = {"success": False, "attempted": False}
+
+    def _update_gui_status(text):
+        """Thread-safe GUI status update."""
+        try:
+            win.root.after(0, lambda: win.update_status_line(text))
+        except Exception:
+            pass
 
     def _cdp_auto_inject():
         """Background thread: inject script into Colab via Chrome DevTools Protocol."""
@@ -304,6 +314,7 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
             return
 
         cdp_thread_result["attempted"] = True
+        _update_gui_status("[MCP] Executing command...")
 
         inject_code = script
         if not as_python:
@@ -320,13 +331,18 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
             cdp_thread_result.update(result)
 
             if result.get("success"):
+                _update_gui_status("[MCP] Execution finished.")
+                import time as _t
+                _t.sleep(0.5)
                 stop_file = project_root / "tmp" / f".gcs_cdp_done_{id(win)}"
                 with open(stop_file, "w") as sf:
                     sf.write("Finished")
             else:
+                _update_gui_status("[MCP] Execution failed. Use Feedback to report.")
                 _enable_feedback_btn_via_signal()
         except Exception as e:
             cdp_thread_result["error"] = str(e)
+            _update_gui_status("[MCP] Connection error. Use Feedback to report.")
             _enable_feedback_btn_via_signal()
 
     def _enable_feedback_btn_via_signal():
@@ -372,7 +388,10 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
                 return
             if fail_file.exists():
                 fail_file.unlink(missing_ok=True)
-                _enable_feedback_btn()
+                if no_capture:
+                    win.finalize("error", "CDP_FAILED")
+                else:
+                    _enable_feedback_btn()
                 return
         except Exception:
             pass
@@ -408,7 +427,7 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
             command=display_command)
 
     if cdp_available:
-        instruction = base_instruction + "\n\n[CDP] Connecting to Chrome..."
+        instruction = base_instruction + "\n\n[MCP] Connecting to Chrome with CDP..."
     else:
         instruction = base_instruction
 
@@ -417,7 +436,10 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
     extra_height = min(cmd_lines, 8) * 18
     win_height = base_height + extra_height
 
-    cmd_hash = hashlib.md5(command.encode()).hexdigest()[:8].upper()
+    if done_marker and done_marker.startswith("GCS_DONE_"):
+        cmd_hash = done_marker[len("GCS_DONE_"):].upper()
+    else:
+        cmd_hash = hashlib.md5(command.encode()).hexdigest()[:8].upper()
     gui_title = _("gui_title_remote_command", "GCS Remote Command")
     gui_title = f"{gui_title} [{cmd_hash}]"
 

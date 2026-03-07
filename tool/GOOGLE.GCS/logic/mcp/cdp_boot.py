@@ -243,12 +243,13 @@ def _find_or_create_notebook(cfg):
         return existing_id, colab_url, False
 
     try:
-        from logic.cdp.colab import create_notebook
+        from logic.cdp.colab import create_drive_file
         nb_name = cfg.get("root_notebook_name", _DEFAULT_NOTEBOOK_NAME)
-        result = create_notebook(nb_name, target_folder)
+        result = create_drive_file(nb_name, "colab", target_folder)
         if result.get("success"):
-            file_id = result["file_id"]
-            colab_url = result["colab_url"]
+            file_id = result.get("id", result.get("file_id", ""))
+            colab_url = result.get("link", result.get("colab_url",
+                        f"https://colab.research.google.com/drive/{file_id}"))
             cfg["root_notebook_id"] = file_id
             cfg["root_notebook_url"] = colab_url
             _save_config(cfg)

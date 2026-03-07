@@ -69,7 +69,7 @@ def build_execute_workflow(command, as_python=False, marker=None):
     if not notebook_id:
         return {
             "status": "error",
-            "message": "No notebook configured. Run GCS --mcp-create-notebook first.",
+            "message": "No notebook configured. Run GCS --mcp-create colab @ --name .root.ipynb first.",
         }
 
     colab_url = f"https://colab.research.google.com/drive/{notebook_id}"

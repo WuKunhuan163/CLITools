@@ -44,6 +44,7 @@ class ButtonBarWindow(BaseGUIWindow):
         main_frame.pack(fill=tk.BOTH, expand=True)
         
         # Optional Instruction Area (using Text for markdown-like bolding)
+        self._text_widget = None
         if self.instruction_text:
             line_count = self.instruction_text.count('\n') + 1
             display_height = min(max(line_count, 2), 10)
@@ -90,6 +91,7 @@ class ButtonBarWindow(BaseGUIWindow):
                     text_widget.insert(tk.END, part)
             
             text_widget.config(state=tk.DISABLED)
+            self._text_widget = text_widget
 
         button_frame = tk.Frame(main_frame)
         button_frame.pack(fill=tk.X, expand=True)
@@ -108,8 +110,6 @@ class ButtonBarWindow(BaseGUIWindow):
             close_on_click = btn_cfg.get("close_on_click", False)
             on_click_callback = btn_cfg.get("on_click")
             disable_seconds = btn_cfg.get("disable_seconds", 0)
-            if disable_seconds > 0 and not self._keyboard_available:
-                disable_seconds = 2
             
             bg = btn_cfg.get("bg")
             fg = btn_cfg.get("fg")
@@ -151,17 +151,18 @@ class ButtonBarWindow(BaseGUIWindow):
         self._delayed_buttons = delayed_buttons
         self._buttons_unlocked = False
 
+        _cmd_hint = " - Cmd" if not self._disable_auto_unlock else ""
         for btn, original_text, seconds in delayed_buttons:
-            btn.config(state="disabled", text=f"{original_text} ({seconds}s)")
-            def countdown(b=btn, t=original_text, remaining=seconds):
+            btn.config(state="disabled", text=f"{original_text} ({seconds}s{_cmd_hint})")
+            def countdown(b=btn, t=original_text, remaining=seconds, hint=_cmd_hint):
                 if self._buttons_unlocked:
                     return
                 if remaining <= 1:
                     b.config(state="normal", text=t)
                     return
-                b.config(text=f"{t} ({remaining - 1}s)")
-                self.root.after(1000, lambda: countdown(b, t, remaining - 1))
-            self.root.after(1000, lambda b=btn, t=original_text, s=seconds: countdown(b, t, s))
+                b.config(text=f"{t} ({remaining - 1}s{hint})")
+                self.root.after(1000, lambda: countdown(b, t, remaining - 1, hint))
+            self.root.after(1000, lambda b=btn, t=original_text, s=seconds, h=_cmd_hint: countdown(b, t, s, h))
 
         if delayed_buttons:
             self._global_listener = None
@@ -169,6 +170,7 @@ class ButtonBarWindow(BaseGUIWindow):
             if not self._disable_auto_unlock:
                 self._start_focus_detection()
                 self._start_global_key_listener()
+                self._start_tkinter_key_detection()
 
         if self.on_startup_callback:
             self.root.after(100, self.on_startup_callback)
@@ -232,13 +234,25 @@ class ButtonBarWindow(BaseGUIWindow):
         When the user switches away (to paste in browser) and comes back,
         the buttons unlock. No special permissions required.
         """
+        def _flog(msg):
+            try:
+                from logic.accessibility.keyboard.monitor import _log
+                _log(msg)
+            except Exception:
+                pass
+
+        _flog("ButtonBar: focus detection started")
+
         def on_focus_out(event):
             if event.widget == self.root:
                 self._focus_lost = True
+                _flog("ButtonBar: FocusOut (user switched away)")
 
         def on_focus_in(event):
-            if event.widget == self.root and self._focus_lost and not self._buttons_unlocked:
-                self._unlock_delayed_buttons(reason="focus_regained")
+            if event.widget == self.root:
+                _flog(f"ButtonBar: FocusIn (focus_lost={self._focus_lost}, unlocked={self._buttons_unlocked})")
+                if self._focus_lost and not self._buttons_unlocked:
+                    self._unlock_delayed_buttons(reason="focus_regained")
 
         self.root.bind("<FocusOut>", on_focus_out)
         self.root.bind("<FocusIn>", on_focus_in)
@@ -259,6 +273,29 @@ class ButtonBarWindow(BaseGUIWindow):
         self._global_listener = start_paste_enter_listener(
             lambda: self.root.after(0, lambda: self._unlock_delayed_buttons(reason="paste_enter_detected"))
         )
+
+    def _start_tkinter_key_detection(self):
+        """Detect Command key press to unlock buttons (works when window has focus).
+
+        On macOS, pynput global capture fails in subprocesses and FocusIn
+        is unreliable. Detecting Command key in tkinter is the most
+        reliable local mechanism.
+        """
+        def _klog(msg):
+            try:
+                from logic.accessibility.keyboard.monitor import _log
+                _log(msg)
+            except Exception:
+                pass
+
+        def on_tk_key(event):
+            if event.keysym in ('Meta_L', 'Meta_R', 'Control_L', 'Control_R',
+                                'Super_L', 'Super_R'):
+                _klog(f"ButtonBar: TK_KEY {event.keysym} -> unlocking")
+                if not self._buttons_unlocked:
+                    self._unlock_delayed_buttons(reason="command_key")
+
+        self.root.bind("<Key>", on_tk_key)
 
     def _stop_global_key_listener(self):
         from logic.accessibility.keyboard.monitor import stop_listener
@@ -282,6 +319,25 @@ class ButtonBarWindow(BaseGUIWindow):
             except Exception:
                 pass
         self._stop_global_key_listener()
+
+    def update_status_line(self, new_status: str):
+        """Update the last line of the instruction text (used for CDP status updates)."""
+        if not self._text_widget:
+            return
+        try:
+            tw = self._text_widget
+            tw.config(state="normal")
+            content = tw.get("1.0", "end-1c")
+            last_nl = content.rfind("\n")
+            if last_nl >= 0:
+                tw.delete(f"1.0+{last_nl + 1}c", "end")
+                tw.insert("end", new_status)
+            else:
+                tw.delete("1.0", "end")
+                tw.insert("end", new_status)
+            tw.config(state="disabled")
+        except Exception:
+            pass
 
     def run(self, custom_id: Optional[str] = None):
         super().run(self.setup_ui, custom_id=custom_id)

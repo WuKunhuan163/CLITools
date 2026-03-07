@@ -39,7 +39,7 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
     finished_msg = _t(tool, "remote_finished_result_saved",
                        "Execution completed and result saved. You may now press the Finished button.")
     executing_msg = _t(tool, "remote_executing", "Executing")
-    finished_label = _t(tool, "remote_finished", "Finished")
+    finished_label = _t(tool, "gui_title_remote_command", "GCS Remote Command")
 
     cdp_enabled = os.environ.get("GCS_CDP_ENABLED") == "1"
     script, metadata = executor_mod.generate_remote_command_script(
