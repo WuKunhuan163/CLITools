@@ -1,5 +1,13 @@
 {
-  "tool_description": "通过Kling API生成AI视频",
-  "status_label": "状态",
-  "config_set_success": "成功设置"
+  "tool_description": "通过 Chrome CDP 访问 Kling AI 视频生成",
+  "me": "用户信息",
+  "points": "积分余额",
+  "page": "页面状态",
+  "history": "生成历史",
+  "user_id": "用户 ID",
+  "username": "用户名",
+  "email": "邮箱",
+  "credit_points": "积分",
+  "plan": "套餐",
+  "no_items_visible": "未发现可见项目 — 请先导航至 Assets 页面"
 }

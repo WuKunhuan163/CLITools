@@ -1,12 +1,12 @@
 {
   "name": "LINEAR",
   "version": "1.0.0",
-  "description": "Product development system via Linear MCP",
-  "purpose": "Manage issues, projects, and initiatives in Linear.",
+  "description": "Linear product development via Chrome DevTools Protocol",
+  "purpose": "Access Linear user info, authentication state, and organization data via CDP using the authenticated session.",
   "dependencies": [
     "PYTHON"
   ],
-  "npm_dependencies": [
-    "@linear/mcp-server"
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

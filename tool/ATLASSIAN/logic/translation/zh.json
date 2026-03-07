@@ -1,5 +1,6 @@
 {
-  "tool_description": "Jira和Confluence集成",
-  "status_label": "状态",
-  "config_set_success": "成功设置"
+  "tool_description": "通过 Chrome DevTools Protocol 管理 Atlassian",
+  "cmd_me": "显示用户信息",
+  "cmd_notifications": "显示通知",
+  "no_tab": "未找到 Atlassian 标签页"
 }

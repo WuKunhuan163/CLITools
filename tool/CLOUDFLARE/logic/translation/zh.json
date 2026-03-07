@@ -1,5 +1,14 @@
 {
-  "tool_description": "Cloudflare基础设施管理",
-  "status_label": "状态",
-  "config_set_success": "成功设置"
+  "tool_description": "通过 Chrome DevTools Protocol 管理 Cloudflare",
+  "cmd_user": "显示用户信息",
+  "cmd_account": "显示账户信息",
+  "cmd_zones": "列出 DNS 区域",
+  "cmd_dns": "列出 DNS 记录",
+  "cmd_workers": "列出 Workers 脚本",
+  "cmd_pages": "列出 Pages 项目",
+  "cmd_kv": "列出 KV 命名空间",
+  "no_tab": "未找到 Cloudflare 仪表盘标签页",
+  "no_zones": "没有 DNS 区域",
+  "no_workers": "没有 Workers 脚本",
+  "no_pages": "没有 Pages 项目"
 }

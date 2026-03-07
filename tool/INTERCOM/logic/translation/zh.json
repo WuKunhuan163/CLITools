@@ -1,5 +1,13 @@
 {
-  "tool_description": "通过Intercom管理客户消息",
-  "status_label": "状态",
-  "config_set_success": "成功设置"
+  "tool_description": "通过 Chrome CDP 访问 Intercom 客户消息",
+  "status": "认证状态",
+  "page": "页面信息",
+  "conversations": "对话列表",
+  "contacts": "联系人列表",
+  "authenticated": "已认证",
+  "not_authenticated": "未认证",
+  "account_setup_not_complete": "账户设置未完成",
+  "no_conversations": "暂无对话",
+  "no_contacts": "暂无联系人",
+  "requires_authenticated_session": "需要已认证的会话"
 }

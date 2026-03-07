@@ -2,16 +2,19 @@
 import sys
 from pathlib import Path
 
-script_path = Path(__file__).resolve()
-project_root = script_path.parent.parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+_r = Path(__file__).resolve().parent
+while _r != _r.parent:
+    if (_r / "bin" / "TOOL").exists(): break
+    _r = _r.parent
+sys.path.insert(0, str(_r))
+from logic.resolve import setup_paths
+setup_paths(__file__)
 
-from logic.interface.tool import ToolEngine
+from logic.tool.setup.engine import ToolEngine
 
 def setup():
     tool_name = "CLOUDFLARE"
-    engine = ToolEngine(tool_name, project_root)
+    engine = ToolEngine(tool_name, _r)
     return engine.install()
 
 if __name__ == "__main__":

@@ -1,19 +1,23 @@
-"""Cross-tool interface for ASANA."""
-import sys
-from pathlib import Path
+"""ASANA Tool Interface — Asana project management via Chrome CDP.
 
-_project_root = Path(__file__).resolve().parent.parent.parent.parent
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
+Exposes Asana management functions for other tools to import::
 
-try:
-    from tool.ASANA.main import ASANATool
-except ImportError:
-    ASANATool = None
-
-
-def get_asana_tool():
-    """Return an instance of the ASANA tool, or None if unavailable."""
-    if ASANATool is None:
-        return None
-    return ASANATool()
+    from tool.ASANA.logic.interface.main import (
+        find_asana_tab,
+        get_me,
+        list_workspaces,
+        create_task,
+    )
+"""
+from tool.ASANA.logic.chrome.api import (  # noqa: F401
+    find_asana_tab,
+    get_me,
+    list_workspaces,
+    list_projects,
+    list_tasks,
+    get_task,
+    create_task,
+    create_project,
+    complete_task,
+    search_tasks,
+)

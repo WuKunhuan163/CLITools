@@ -1,96 +1,93 @@
 #!/usr/bin/env python3
-"""
-KLING Tool - AI video generation via Kling API
-MCP-based integration wrapping mcp-kling.
-"""
-import os
 import sys
-import json
 import argparse
+import json
 from pathlib import Path
 
-script_path = Path(__file__).resolve()
-project_root = script_path.parent.parent.parent
-root_str = str(project_root)
-if root_str in sys.path:
-    sys.path.remove(root_str)
-sys.path.insert(0, root_str)
+_r = Path(__file__).resolve().parent
+while _r != _r.parent:
+    if (_r / "bin" / "TOOL").exists(): break
+    _r = _r.parent
+sys.path.insert(0, str(_r))
+from logic.resolve import setup_paths
+setup_paths(__file__)
 
 from logic.interface.tool import ToolBase
 from logic.interface.config import get_color
 
-BOLD = get_color("BOLD")
-GREEN = get_color("GREEN")
-RED = get_color("RED")
-BLUE = get_color("BLUE")
-YELLOW = get_color("YELLOW")
-RESET = get_color("RESET")
-
-
-class KLINGTool(ToolBase):
-    def __init__(self):
-        super().__init__("KLING")
-
-    def get_config_value(self, key):
-        """Retrieve a config value from data/config.json."""
-        config_file = self.script_dir / "data" / "config.json"
-        if config_file.exists():
-            try:
-                with open(config_file) as f:
-                    return json.load(f).get(key)
-            except Exception:
-                pass
-        return None
-
-    def set_config_value(self, key, value):
-        """Store a config value in data/config.json."""
-        config_file = self.script_dir / "data" / "config.json"
-        config_file.parent.mkdir(parents=True, exist_ok=True)
-        config = {}
-        if config_file.exists():
-            try:
-                with open(config_file) as f:
-                    config = json.load(f)
-            except Exception:
-                pass
-        config[key] = value
-        with open(config_file, "w") as f:
-            json.dump(config, f, indent=2)
-
 
 def main():
-    tool = KLINGTool()
+    tool = ToolBase("KLING")
 
-    parser = argparse.ArgumentParser(description="AI video generation via Kling API", add_help=False)
-    parser.add_argument("command", nargs="?", help="Command to run")
-    parser.add_argument("args", nargs="*", help="Additional arguments")
-    parser.add_argument("--json", action="store_true", help="Output as JSON")
+    parser = argparse.ArgumentParser(
+        description="Kling AI video generation via Chrome CDP", add_help=False
+    )
+    sub = parser.add_subparsers(dest="command", help="Subcommand")
+
+    sub.add_parser("me", help="Show user info")
+    sub.add_parser("points", help="Show credit points balance")
+    sub.add_parser("page", help="Show current page state")
+    sub.add_parser("history", help="Show recent generation history from DOM")
 
     if tool.handle_command_line(parser):
         return
 
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
+    BOLD = get_color("BOLD")
+    GREEN = get_color("GREEN")
+    RED = get_color("RED")
+    RESET = get_color("RESET")
 
-    if args.command == "status":
-        print(f"{BOLD}KLING{RESET} tool status:")
-        print(f"  MCP package: mcp-kling")
-        print(f"  Type: npm")
-        print(f"  Capabilities: text-to-video, image-to-video, lip-sync, image-generation, virtual-try-on")
-        return 0
+    from tool.KLING.logic.chrome.api import (
+        get_user_info, get_points, get_page_info, get_generation_history,
+    )
 
-    if args.command == "config":
-        if not args.args or len(args.args) < 2:
-            print(f"Usage: KLING config <key> <value>")
-            return 1
-        key, value = args.args[0], args.args[1]
-        tool.set_config_value(key, value)
-        print(f"{BOLD}{GREEN}Successfully set{RESET} {key}.")
-        return 0
+    if args.command == "me":
+        r = get_user_info()
+        if r.get("ok"):
+            d = r["data"]
+            print(f"  User ID:  {d.get('userId', '?')}")
+            print(f"  Username: {d.get('userName', '?')}")
+            print(f"  Email:    {d.get('email', '?')}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
 
-    parser.print_help()
-    print(f"\n{BOLD}Capabilities{RESET}: text-to-video, image-to-video, lip-sync, image-generation, virtual-try-on")
-    return 0
+    elif args.command == "points":
+        r = get_points()
+        if r.get("ok"):
+            d = r["data"]
+            print(f"  Points: {d.get('points', '?')}")
+            if d.get("plan"):
+                print(f"  Plan:   {d['plan']}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "page":
+        r = get_page_info()
+        if r.get("ok"):
+            print(f"  Title: {r.get('title', '?')}")
+            print(f"  URL:   {r.get('url', '?')}")
+            if r.get("activePage"):
+                print(f"  Page:  {r['activePage']}")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    elif args.command == "history":
+        r = get_generation_history()
+        if r.get("ok"):
+            items = r.get("items", [])
+            print(f"  Found {r.get('count', 0)} items")
+            for i, item in enumerate(items):
+                media = "video" if item.get("hasVideo") else ("image" if item.get("hasImage") else "?")
+                print(f"  [{i+1}] [{media}] {item.get('text', '')[:80]}")
+            if not items:
+                print("  (no items visible — navigate to Assets page first)")
+        else:
+            print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
+
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
-    sys.exit(main() or 0)
+    main()

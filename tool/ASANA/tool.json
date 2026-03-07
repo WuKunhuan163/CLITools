@@ -1,12 +1,12 @@
 {
   "name": "ASANA",
   "version": "1.0.0",
-  "description": "Project management via Asana MCP",
-  "purpose": "Manage tasks, projects, and workspaces through Asana.",
+  "description": "Asana project management via Chrome DevTools Protocol",
+  "purpose": "Manage Asana workspaces, projects, and tasks via CDP using the authenticated app session.",
   "dependencies": [
     "PYTHON"
   ],
-  "npm_dependencies": [
-    "@iflow-mcp/mcp-server-asana"
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

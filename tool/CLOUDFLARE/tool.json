@@ -1,12 +1,12 @@
 {
   "name": "CLOUDFLARE",
   "version": "1.0.0",
-  "description": "Cloudflare infrastructure management via Cloudflare MCP",
-  "purpose": "Manage DNS, Workers, R2 storage, and other Cloudflare services.",
+  "description": "Cloudflare account management via Chrome DevTools Protocol",
+  "purpose": "Manage Cloudflare zones, Workers, Pages, and R2 via CDP using the authenticated dashboard session.",
   "dependencies": [
     "PYTHON"
   ],
-  "npm_dependencies": [
-    "mcp-server-cloudflare"
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

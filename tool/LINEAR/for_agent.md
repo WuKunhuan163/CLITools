@@ -1,26 +1,20 @@
-# LINEAR - Agent Guide
+# LINEAR — Agent Reference
 
-Product development system via Linear MCP
-
-## Quick Reference
-
-```bash
-LINEAR status          # Check status and capabilities
-LINEAR config <k> <v>  # Set API credentials
-LINEAR setup           # Install dependencies and configure
+## Quick Start
+```
+LINEAR status  # Auth and organization state
+LINEAR me      # User info (account ID, email, orgs)
+LINEAR page    # Current page state
 ```
 
-## Capabilities
-
-- list-issues
-- create-issue
-- update-issue
-- search
-
-Required credentials: `LINEAR_API_KEY`
+## CDP API (`tool.LINEAR.logic.chrome.api`)
+- `find_linear_tab()` — Locate the Linear browser tab
+- `get_auth_state()` — Check authentication and org presence
+- `get_user_info()` — Read user data from localStorage `ApplicationStore`
+- `get_page_info()` — Get current page title/URL/pathname
 
 ## Notes
-
-- Run `LINEAR setup` before first use to install MCP dependencies.
-- API credentials are stored in `tool/LINEAR/data/config.json`.
-- Use `LINEAR --json` for machine-readable output.
+- Requires Chrome CDP on port 9222
+- Data comes from localStorage (not direct API)
+- Linear's GraphQL API at `client-api.linear.app` requires token auth
+- User may be authenticated but have no organizations yet

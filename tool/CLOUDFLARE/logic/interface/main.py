@@ -1,19 +1,21 @@
-"""Cross-tool interface for CLOUDFLARE."""
-import sys
-from pathlib import Path
+"""CLOUDFLARE Tool Interface — Cloudflare API via Chrome CDP.
 
-_project_root = Path(__file__).resolve().parent.parent.parent.parent
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
+Exposes Cloudflare management functions for other tools to import::
 
-try:
-    from tool.CLOUDFLARE.main import CLOUDFLARETool
-except ImportError:
-    CLOUDFLARETool = None
-
-
-def get_cloudflare_tool():
-    """Return an instance of the CLOUDFLARE tool, or None if unavailable."""
-    if CLOUDFLARETool is None:
-        return None
-    return CLOUDFLARETool()
+    from tool.CLOUDFLARE.logic.interface.main import (
+        find_cloudflare_tab,
+        get_user,
+        list_zones,
+    )
+"""
+from tool.CLOUDFLARE.logic.chrome.api import (  # noqa: F401
+    find_cloudflare_tab,
+    get_user,
+    get_account,
+    list_zones,
+    get_zone,
+    list_dns_records,
+    list_workers,
+    list_pages_projects,
+    list_kv_namespaces,
+)

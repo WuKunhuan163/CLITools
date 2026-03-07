@@ -1,12 +1,12 @@
 {
   "name": "INTERCOM",
   "version": "1.0.0",
-  "description": "Customer messaging via Intercom MCP",
-  "purpose": "Manage conversations, contacts, and support tickets through Intercom.",
+  "description": "Intercom customer messaging via Chrome DevTools Protocol",
+  "purpose": "Access Intercom conversations, contacts, and support info via CDP using the authenticated session.",
   "dependencies": [
     "PYTHON"
   ],
-  "npm_dependencies": [
-    "mcp-intercom"
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }

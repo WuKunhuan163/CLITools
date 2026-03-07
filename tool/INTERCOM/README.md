@@ -1,32 +1,37 @@
 # INTERCOM
 
-Customer messaging via Intercom MCP
+Intercom customer messaging tool via Chrome DevTools Protocol.
 
-**Purpose**: Manage conversations, contacts, and support tickets through Intercom.
+## Overview
 
-## Capabilities
+Access Intercom conversations, contacts, and authentication state through
+the authenticated browser session using Chrome CDP.
 
-- conversations
-- contacts
-- articles
-- tickets
+## Prerequisites
+
+- Chrome running with `--remote-debugging-port=9222`
+- An authenticated Intercom session at `app.intercom.com`
+
+## Commands
+
+| Command         | Description                        |
+|-----------------|------------------------------------|
+| `status`        | Check authentication state         |
+| `page`          | Show current page info             |
+| `conversations` | List recent conversations          |
+| `contacts`      | List contacts                      |
 
 ## Usage
 
 ```bash
-INTERCOM status          # Show tool status
-INTERCOM config <k> <v>  # Set configuration
-INTERCOM setup           # Install dependencies
+INTERCOM status
+INTERCOM page
+INTERCOM conversations
+INTERCOM contacts
 ```
 
-## Environment Variables
+## Architecture
 
-- `INTERCOM_ACCESS_TOKEN`
-
-## API Key
-
-Obtain credentials at: https://app.intercom.com/a/apps/_/developer-hub
-
-## MCP Backend
-
-Package: `mcp-intercom`
+- `logic/chrome/api.py` — CDP-based Intercom API functions
+- `logic/interface/main.py` — Cross-tool interface exports
+- `logic/translation/zh.json` — Chinese translations

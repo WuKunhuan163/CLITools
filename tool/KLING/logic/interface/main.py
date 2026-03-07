@@ -1,19 +1,17 @@
-"""Cross-tool interface for KLING."""
-import sys
-from pathlib import Path
+"""KLING Tool Interface — Kling AI via Chrome CDP.
 
-_project_root = Path(__file__).resolve().parent.parent.parent.parent
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
+Exposes Kling functions for other tools::
 
-try:
-    from tool.KLING.main import KLINGTool
-except ImportError:
-    KLINGTool = None
-
-
-def get_kling_tool():
-    """Return an instance of the KLING tool, or None if unavailable."""
-    if KLINGTool is None:
-        return None
-    return KLINGTool()
+    from tool.KLING.logic.interface.main import (
+        find_kling_tab,
+        get_user_info,
+        get_points,
+    )
+"""
+from tool.KLING.logic.chrome.api import (  # noqa: F401
+    find_kling_tab,
+    get_user_info,
+    get_points,
+    get_page_info,
+    get_generation_history,
+)

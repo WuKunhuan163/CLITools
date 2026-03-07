@@ -158,6 +158,7 @@ Tools with dots in their name (e.g., `GOOGLE.GCS`, `GOOGLE.GD`) cannot be import
 - `logic.lang`: Language management, translation utilities, and audit.
 - `logic.git`: Git operations, persistence manager, and branch utilities.
 - `logic.interface`: Cross-tool interface registry. Use `get_interface("TOOL_NAME")` to load any tool's interface module.
+- `logic.chrome`: **Shared Chrome CDP infrastructure** — generic session management, tab finding, JS evaluation, input dispatch, screenshot capture, DOM helpers, and `fetch_api()`. Service-agnostic; used by GOOGLE, CLOUDFLARE, ASANA, ATLASSIAN, INTERCOM, KLING, LINEAR, and future CDP-based tools.
 - `logic.cdp`: Backward-compatibility shims for Chrome CDP imports (redirects to `tool.GOOGLE.logic.chrome.*`).
 
 ### Unified Logging (`tool.log()`)
@@ -189,8 +190,8 @@ The GOOGLE tool family follows a layered architecture:
 | Compute | **GOOGLE.GC** | Google Colab cell injection, execution, tab management |
 | Application | **GOOGLE.GCS** | Simulated shell on Colab (highest abstraction) |
 
-**Import hierarchy**: GCS → GC + GD → GOOGLE. All Chrome CDP logic lives in `tool/GOOGLE/logic/chrome/` with four modules:
-- `session.py`: Core CDP session, tab management, input dispatch
+**Import hierarchy**: GCS → GC + GD → GOOGLE. Generic Chrome CDP logic lives in `logic/chrome/session.py` (shared module). Google-specific logic lives in `tool/GOOGLE/logic/chrome/` with four modules:
+- `session.py`: Re-exports from shared `logic.chrome.session` (backward compat)
 - `colab.py`: Colab-specific cell injection and execution
 - `drive.py`: Drive file operations via gapi.client
 - `oauth.py`: Google OAuth consent flow automation
@@ -206,6 +207,58 @@ Google Drive Remote Controller for Colab:
 - **Architecture**: Modular `logic/command/` structure. Non-interactive API via isolated tmp scripts. GUI serialization via `GUIQueue` (fcntl locking).
 - **Exit Codes**: Bash-compatible non-zero on failure.
 
+### Chrome CDP-Based Service Tools
+The following tools use the shared `logic.chrome.session` module to interact with web services through Chrome's DevTools Protocol. Each tool finds its service's tab, establishes a CDP session, and calls the service's REST API using the tab's authenticated session cookies.
+
+**Prerequisite**: Chrome must be running with `--remote-debugging-port=9222 --remote-allow-origins=*` and the relevant service tab must be open and logged in.
+
+#### CLOUDFLARE
+Cloudflare account management via `dash.cloudflare.com/api/v4/`:
+- `CLOUDFLARE user` — authenticated user info
+- `CLOUDFLARE account` — account name, ID, type
+- `CLOUDFLARE zones` — list DNS zones
+- `CLOUDFLARE dns <zone_id>` — list DNS records
+- `CLOUDFLARE workers` — list Workers scripts
+- `CLOUDFLARE pages` — list Pages projects
+- `CLOUDFLARE kv` — list KV namespaces
+
+#### ASANA
+Asana project management via `app.asana.com/api/1.0/`:
+- `ASANA me` — user info and workspaces
+- `ASANA workspaces` — list workspaces
+- `ASANA projects <ws_gid>` — list projects
+- `ASANA tasks <ws_gid>` — list assigned tasks
+- `ASANA create-task <ws_gid> <name>` — create task
+- `ASANA create-project <ws_gid> <name>` — create project
+- `ASANA search <ws_gid> <query>` — search tasks
+- `ASANA complete <task_gid>` — mark task done
+
+#### ATLASSIAN
+Atlassian account management via `home.atlassian.com/gateway/api/`:
+- `ATLASSIAN me` — user profile
+- `ATLASSIAN notifications` — recent notifications
+- `ATLASSIAN preferences` — locale, timezone, account info
+
+#### INTERCOM
+Intercom customer messaging via `app.intercom.com` CDP session:
+- `INTERCOM status` — authentication state (sign-up vs authenticated)
+- `INTERCOM page` — current page title, URL, heading
+- `INTERCOM conversations` — list recent conversations (requires auth)
+- `INTERCOM contacts` — list contacts (requires auth)
+
+#### KLING
+Kling AI video generation via `app.klingai.com` CDP session. Data is read from localStorage and DOM since the API gateway (`api-app-global.klingai.com`) blocks cross-origin fetch:
+- `KLING me` — user info (ID, name, email from localStorage)
+- `KLING points` — credit points balance (from DOM)
+- `KLING page` — current page state
+- `KLING history` — generation history (from Assets page DOM)
+
+#### LINEAR
+Linear product development via `linear.app` CDP session. Data is read from localStorage (`ApplicationStore`) since the GraphQL API requires token auth:
+- `LINEAR status` — authentication and organization state
+- `LINEAR me` — user info (account ID, email, organizations)
+- `LINEAR page` — current page state
+
 ### TAVILY Tool
 AI-optimized web search:
 - `TAVILY <query>`: Search with Turing Machine progress display.
@@ -217,7 +270,6 @@ AI-optimized web search:
 The following tools wrap external MCP (Model Context Protocol) servers, providing unified CLI access to popular services. Each supports `<NAME> status`, `<NAME> config <key> <value>`, and `<NAME> setup`.
 
 **AI/Creative**:
-- `KLING`: AI video generation (text-to-video, image-to-video, lip-sync) via Kling API.
 - `MIDJOURNEY`: AI image generation/transformation via Midjourney (AceDataCloud).
 - `HEYGEN`: AI avatar video generation via HeyGen API.
 - `SUNO`: AI music generation, lyrics, covers via Suno API.
@@ -226,14 +278,10 @@ The following tools wrap external MCP (Model Context Protocol) servers, providin
 **Productivity/Collaboration**:
 - `XMIND`: Mind mapping and brainstorming.
 - `WPS`: WPS Office document integration.
-- `ATLASSIAN`: Jira issues and Confluence pages management.
-- `ASANA`: Project and task management.
-- `LINEAR`: Product development issue tracking.
 
 **Messaging/Communication**:
 - `DINGTALK`: DingTalk messaging and workspace integration.
 - `WHATSAPP`: WhatsApp Business API messaging.
-- `INTERCOM`: Customer messaging and support.
 
 **Payments/Finance**:
 - `STRIPE`: Payment processing via Stripe MCP.
@@ -245,7 +293,6 @@ The following tools wrap external MCP (Model Context Protocol) servers, providin
 - `GITHUB`: GitHub repositories, issues, PRs (depends on GIT).
 - `GITLAB`: GitLab repositories, merge requests, CI/CD.
 - `SENTRY`: AI-powered error monitoring and debugging.
-- `CLOUDFLARE`: DNS, Workers, R2 storage, analytics.
 
 **Automation**:
 - `ZAPIER`: Workflow automation across 8000+ apps.

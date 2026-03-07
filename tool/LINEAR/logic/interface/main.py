@@ -1,19 +1,16 @@
-"""Cross-tool interface for LINEAR."""
-import sys
-from pathlib import Path
+"""LINEAR Tool Interface — Linear via Chrome CDP.
 
-_project_root = Path(__file__).resolve().parent.parent.parent.parent
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
+Exposes Linear functions for other tools::
 
-try:
-    from tool.LINEAR.main import LINEARTool
-except ImportError:
-    LINEARTool = None
-
-
-def get_linear_tool():
-    """Return an instance of the LINEAR tool, or None if unavailable."""
-    if LINEARTool is None:
-        return None
-    return LINEARTool()
+    from tool.LINEAR.logic.interface.main import (
+        find_linear_tab,
+        get_auth_state,
+        get_user_info,
+    )
+"""
+from tool.LINEAR.logic.chrome.api import (  # noqa: F401
+    find_linear_tab,
+    get_auth_state,
+    get_user_info,
+    get_page_info,
+)

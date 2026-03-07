@@ -1,19 +1,17 @@
-"""Cross-tool interface for INTERCOM."""
-import sys
-from pathlib import Path
+"""INTERCOM Tool Interface — Intercom via Chrome CDP.
 
-_project_root = Path(__file__).resolve().parent.parent.parent.parent
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
+Exposes Intercom functions for other tools::
 
-try:
-    from tool.INTERCOM.main import INTERCOMTool
-except ImportError:
-    INTERCOMTool = None
-
-
-def get_intercom_tool():
-    """Return an instance of the INTERCOM tool, or None if unavailable."""
-    if INTERCOMTool is None:
-        return None
-    return INTERCOMTool()
+    from tool.INTERCOM.logic.interface.main import (
+        find_intercom_tab,
+        get_auth_state,
+        get_page_info,
+    )
+"""
+from tool.INTERCOM.logic.chrome.api import (  # noqa: F401
+    find_intercom_tab,
+    get_auth_state,
+    get_page_info,
+    get_conversations,
+    get_contacts,
+)

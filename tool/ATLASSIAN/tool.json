@@ -1,12 +1,12 @@
 {
   "name": "ATLASSIAN",
   "version": "1.0.0",
-  "description": "Jira and Confluence integration via Atlassian MCP",
-  "purpose": "Manage Jira issues, Confluence pages, and Compass components.",
+  "description": "Atlassian account management via Chrome DevTools Protocol",
+  "purpose": "Access Atlassian user profile, notifications, and product info via CDP using the authenticated session.",
   "dependencies": [
     "PYTHON"
   ],
-  "npm_dependencies": [
-    "atlassian-mcp-server"
+  "pip_dependencies": [
+    "websocket-client"
   ]
 }
