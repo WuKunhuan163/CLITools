@@ -23,6 +23,12 @@ KLING history # Generation history from DOM
 
 ## ToS Compliance
 
-**Status: MEDIUM RISK** -- Kling AI ToS contains general misuse prohibitions. Current implementation uses DOM scraping (11 DOM calls). **Migration recommended** if an official API becomes available. CDMCP should only be retained for initial login.
+**Status: MEDIUM RISK -- API AVAILABLE** -- Kling AI ToS contains general misuse prohibitions. Current implementation uses DOM scraping (11 DOM calls). An official API now exists at klingapi.com with Python and Node.js SDKs.
 
-**Alternative**: Research Kling AI API availability for programmatic access.
+**Migration path**:
+- CDMCP: Retain ONLY for session boot and auth state detection.
+- Data operations: Use Kling AI official API (https://klingapi.com/docs).
+  - Supports text-to-video, image-to-video, video extension.
+  - Async task polling, multiple model versions (O1, 2.6 Pro/Standard, 2.5 Turbo).
+  - Python SDK: `pip install kling-ai`
+- Reference: GMAIL tool shows the auth-only CDMCP pattern.

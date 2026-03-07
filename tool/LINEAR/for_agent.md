@@ -21,4 +21,10 @@ LINEAR page    # Current page state
 
 ## ToS Compliance
 
-**Status: COMPLIANT** -- This tool only reads from `localStorage` (ApplicationStore) and `document.cookie` for auth state and user info. No DOM manipulation, UI clicking, or form filling is performed. This is equivalent to reading session tokens from the browser context, which is acceptable for the auth/bootstrap flow. For future data operations (issues, projects), the Linear GraphQL API at `api.linear.app/graphql` should be used.
+**Status: COMPLIANT** -- This tool only reads from `localStorage` (ApplicationStore) and `document.cookie` for auth state and user info. No DOM manipulation, UI clicking, or form filling is performed.
+
+**Migration path (for future features)**:
+- Linear provides an official GraphQL API at `api.linear.app/graphql` with OAuth 2.0 and personal API keys.
+- Linear also offers an Agents API (Developer Preview) for AI agents that can be @mentioned, assigned issues, and create comments.
+- Future data operations (issues, projects, cycles) MUST use the official API, not DOM scraping.
+- Docs: https://developers.linear.app/docs, https://linear.app/developers/agents

@@ -99,6 +99,10 @@ Recovery: max 3 attempts, reboots session and restores last URL.
 
 ## ToS Compliance
 
-**Status: UNCLEAR** -- XMind prohibits commercial use without written authorization. No official API is available. Current implementation is heavily DOM-based (1225 lines). Use only for personal non-commercial purposes. Consider requesting authorization from XMind or limiting tool scope.
+**Status: VIOLATION** -- XMind membership agreement (effective July 2025) explicitly prohibits "using plugins, external tools, or unauthorized third-party tools" and "technical interference or destruction of applications or services." Current implementation performs full UI automation (DOM scraping, button clicking, keyboard dispatch). Account warnings, restrictions, or bans may result.
 
-**Alternative**: No official API available. XMind files (.xmind) are ZIP archives containing JSON; local file parsing may be an alternative for read-only operations.
+**Migration path**:
+- CDMCP: Retain ONLY for session boot and auth state detection.
+- File operations: Use XMind SDK (`xmind` npm package) for programmatic file creation/manipulation. XMind files (.xmind) are ZIP archives containing JSON.
+- No web REST API exists. All data ops should use local file manipulation via the SDK.
+- Reference: GMAIL tool shows the auth-only CDMCP pattern.
