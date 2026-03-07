@@ -17,7 +17,7 @@ import base64
 import shlex
 import hashlib
 from pathlib import Path
-from logic.interface.config import get_color
+from interface.config import get_color
 
 
 SMALL_THRESHOLD = 1 * 1024 * 1024   # 1 MB
@@ -92,7 +92,7 @@ def _resolve_remote_dest(args, state_mgr, utils):
 def _upload_small(tool, local_path, filename, file_size,
                   remote_dest_dir, state_mgr, load_logic, as_python):
     """Upload a small file by base64-encoding and writing through the Colab pipeline."""
-    from logic.interface.turing import ProgressTuringMachine, TuringStage
+    from interface.turing import ProgressTuringMachine, TuringStage
 
     with open(local_path, "rb") as f:
         encoded = base64.b64encode(f.read()).decode("ascii")
@@ -133,8 +133,8 @@ def _upload_small(tool, local_path, filename, file_size,
 def _upload_via_drive_desktop(tool, local_path, filename, file_size,
                                remote_dest_dir, state_mgr, load_logic, utils, as_python):
     """Upload via Google Drive Desktop: copy to sync folder, wait for sync, mv to destination."""
-    from logic.interface.turing import ProgressTuringMachine
-    from logic.interface.turing import TuringStage
+    from interface.turing import ProgressTuringMachine
+    from interface.turing import TuringStage
 
     BOLD = get_color("BOLD", "\033[1m")
     RESET = get_color("RESET", "\033[0m")
@@ -223,9 +223,9 @@ def _upload_via_drive_desktop(tool, local_path, filename, file_size,
 def _upload_large(tool, local_path, filename, file_size,
                   remote_dest_dir, state_mgr, load_logic, utils, as_python):
     """Show a GUI window instructing the user to manually upload large files."""
-    from logic.interface.turing import ProgressTuringMachine
-    from logic.interface.turing import TuringStage
-    from logic.interface.gui import run_gui_subprocess
+    from interface.turing import ProgressTuringMachine
+    from interface.turing import TuringStage
+    from interface.gui import run_gui_subprocess
     gui_queue_mod = load_logic("command/gui_queue")
 
     BOLD = get_color("BOLD", "\033[1m")

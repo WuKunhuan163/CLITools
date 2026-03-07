@@ -34,8 +34,8 @@ if str(project_root) not in sys.path:
 
 try:
     from logic.tool.blueprint.base import ToolBase
-    from logic.interface.gui import setup_gui_environment, get_safe_python_for_gui
-    from logic.interface.lang import get_translation
+    from interface.gui import setup_gui_environment, get_safe_python_for_gui
+    from interface.lang import get_translation
     from logic.utils import get_logic_dir
 except ImportError:
     # Minimal fallback
@@ -64,7 +64,7 @@ class FileDialogTool(ToolBase):
     def get_python_exe(self, version=None):
         if not version: version = "3.11.14"
         try:
-            from logic.interface import get_interface
+            from interface import get_interface
             python_iface = get_interface("PYTHON")
             install_root = python_iface.get_python_install_dir()
         except (ImportError, AttributeError):
@@ -140,7 +140,7 @@ def get_user_selection(title, initial_dir, file_types, multiple, directory_only,
         # Initialize quiet mode if needed
         tool.is_quiet = "--tool-quiet" in sys.argv
     
-    from logic.interface.gui import get_safe_python_for_gui
+    from interface.gui import get_safe_python_for_gui
     python_exe = get_safe_python_for_gui()
     
     tkinter_script = r'''
@@ -158,9 +158,9 @@ if PROJECT_ROOT.exists() and str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
-    from logic.interface.gui import BaseGUIWindow, setup_common_bottom_bar
-    from logic.interface.gui import setup_gui_environment
-    from logic.interface.gui import get_label_style, get_gui_colors, get_button_style
+    from interface.gui import BaseGUIWindow, setup_common_bottom_bar
+    from interface.gui import setup_gui_environment
+    from interface.gui import get_label_style, get_gui_colors, get_button_style
 except ImportError:
     sys.exit("Error: Could not import GUI blueprint components")
 
@@ -609,7 +609,7 @@ def main():
     _gui_cmd_map = {"--gui-submit": "submit", "--gui-cancel": "cancel", "--gui-stop": "stop", "--gui-add-time": "add_time"}
     _gui_match = next((f for f in _gui_cmd_map if f in sys.argv), None)
     if _gui_match:
-        from logic.interface.gui import handle_gui_remote_command
+        from interface.gui import handle_gui_remote_command
         remaining = [a for a in sys.argv[1:] if a not in _gui_cmd_map and a != "--no-warning"]
         return handle_gui_remote_command("FILEDIALOG", tool.project_root, _gui_cmd_map[_gui_match], remaining, tool.get_translation)
 
@@ -630,7 +630,7 @@ def main():
     
     result = get_user_selection(args.title, initial_dir, file_types, args.multiple, args.directory, custom_id=args.id, tool=tool)
     
-    from logic.interface.config import get_color
+    from interface.config import get_color
     BOLD, GREEN, RED, RESET = get_color("BOLD", "\033[1m"), get_color("GREEN", "\033[32m"), get_color("RED", "\033[31m"), get_color("RESET", "\033[0m")
 
     if result['status'] == 'success':

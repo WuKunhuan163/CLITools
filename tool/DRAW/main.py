@@ -16,7 +16,7 @@ project_root = script_dir.parent.parent
 sys.path.append(str(project_root))
 
 from logic.tool.blueprint.base import ToolBase
-from logic.interface.config import get_color
+from interface.config import get_color
 
 def main():
     tool = ToolBase("DRAW")
@@ -33,7 +33,7 @@ def main():
         RESET = get_color("RESET")
         
         import time
-        from logic.interface.turing import _get_configured_width, truncate_to_width
+        from interface.turing import _get_configured_width, truncate_to_width
         width = _get_configured_width()
         
         for i in range(3, 0, -1):

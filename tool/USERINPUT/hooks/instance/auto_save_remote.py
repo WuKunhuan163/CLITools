@@ -32,7 +32,7 @@ class AutoSaveRemote(HookInstance):
             return {"skipped": True, "reason": "not a git repo"}
 
         try:
-            from logic.interface import get_interface
+            from interface import get_interface
             git_iface = get_interface("GIT")
             if git_iface is None:
                 return {"skipped": True, "reason": "GIT tool unavailable"}
@@ -173,7 +173,7 @@ class AutoSaveRemote(HookInstance):
                     )
                 return False
 
-        from logic.interface.turing import TuringStage, ProgressTuringMachine
+        from interface.turing import TuringStage, ProgressTuringMachine
 
         pm = tool.create_progress_machine([
             TuringStage(

@@ -11,7 +11,7 @@ project_root = script_path.parent.parent.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from logic.interface.gui import TwoStepLoginWindow
+from interface.gui import TwoStepLoginWindow
 
 class ICloudLoginWindow(TwoStepLoginWindow):
     """
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     parser.add_argument("--internal-dir")
     args = parser.parse_args()
 
-    from logic.interface.gui import setup_gui_environment, get_safe_python_for_gui
+    from interface.gui import setup_gui_environment, get_safe_python_for_gui
     import subprocess
 
     # Auto-reexecute with safe python if current one lacks tkinter

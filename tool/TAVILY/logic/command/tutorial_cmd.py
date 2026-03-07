@@ -3,12 +3,12 @@
 import sys
 import importlib.util
 from pathlib import Path
-from logic.interface.config import get_color
+from interface.config import get_color
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent)
 
 def _(key, default, **kwargs):
-    from logic.interface.lang import get_translation
+    from interface.lang import get_translation
     return get_translation(_LOGIC_DIR, key, default, **kwargs)
 
 

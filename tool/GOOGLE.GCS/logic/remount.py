@@ -170,7 +170,7 @@ def log_remount(msg):
 
 def _get_gcs_translation(project_root, key, default, **kwargs):
     try:
-        from logic.interface.lang import get_translation
+        from interface.lang import get_translation
         logic_dir = str(project_root / "tool" / "GOOGLE.GCS" / "logic")
         return get_translation(logic_dir, key, default, **kwargs)
     except Exception:
@@ -178,7 +178,7 @@ def _get_gcs_translation(project_root, key, default, **kwargs):
 
 def show_remount_gui(project_root: Path, script: str, metadata: dict):
     log_remount("Entering show_remount_gui")
-    from logic.interface.gui import ButtonBarWindow
+    from interface.gui import ButtonBarWindow
 
     _ = lambda key, default, **kw: _get_gcs_translation(project_root, key, default, **kw)
 

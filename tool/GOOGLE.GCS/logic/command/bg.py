@@ -57,7 +57,7 @@ def execute(tool, args, state_mgr, load_logic, unknown=None, **kwargs):
 
 def _bg_submit(tool, state_mgr, load_logic, utils, command):
     """Submit a command for background execution."""
-    from logic.interface.config import get_color
+    from interface.config import get_color
     GREEN, BOLD, RESET = get_color("GREEN"), get_color("BOLD"), get_color("RESET")
 
     bg_pid = f"{int(time.time())}_{random.randint(1000, 9999)}"
@@ -161,7 +161,7 @@ echo "Background task launched (PID: $REAL_PID)"
 
 def _bg_status(tool, state_mgr, load_logic, utils, task_id=None):
     """Show status of background task(s)."""
-    from logic.interface.config import get_color
+    from interface.config import get_color
     GREEN, RED, YELLOW, BOLD, RESET = (
         get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("BOLD"), get_color("RESET")
     )
@@ -203,7 +203,7 @@ def _bg_log(tool, state_mgr, load_logic, utils, task_id):
 
 def _bg_result(tool, state_mgr, load_logic, utils, task_id):
     """Show result of a background task."""
-    from logic.interface.config import get_color
+    from interface.config import get_color
     GREEN, RED, BOLD, RESET = get_color("GREEN"), get_color("RED"), get_color("BOLD"), get_color("RESET")
 
     result_file = BG_RESULT_TEMPLATE.format(pid=task_id)
@@ -248,7 +248,7 @@ def _bg_result(tool, state_mgr, load_logic, utils, task_id):
 
 def _bg_cleanup(tool, state_mgr, load_logic, utils, task_id=None):
     """Clean up background task files."""
-    from logic.interface.config import get_color
+    from interface.config import get_color
     GREEN, BOLD, RESET = get_color("GREEN"), get_color("BOLD"), get_color("RESET")
 
     if task_id:
@@ -352,8 +352,8 @@ def _run_remote_cmd(tool, state_mgr, load_logic, utils, command):
             stage.error_brief = msg
         return False
 
-    from logic.interface.turing import ProgressTuringMachine
-    from logic.interface.turing import TuringStage
+    from interface.turing import ProgressTuringMachine
+    from interface.turing import TuringStage
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GOOGLE.GCS", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage(

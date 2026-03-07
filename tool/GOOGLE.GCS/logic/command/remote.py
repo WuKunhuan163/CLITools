@@ -3,15 +3,15 @@
 import os
 import sys
 from pathlib import Path
-from logic.interface.config import get_color
-from logic.interface.turing import ProgressTuringMachine
-from logic.interface.turing import TuringStage
+from interface.config import get_color
+from interface.turing import ProgressTuringMachine
+from interface.turing import TuringStage
 
 
 def _t(tool, key, default, **kwargs):
     """Get GCS translated string."""
     try:
-        from logic.interface.lang import get_translation
+        from interface.lang import get_translation
         logic_dir = str(tool.project_root / "tool" / "GOOGLE.GCS" / "logic")
         return get_translation(logic_dir, key, default, **kwargs)
     except Exception:

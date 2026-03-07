@@ -47,8 +47,8 @@ current_dir = Path(__file__).resolve().parent
 try:
     # Root logic imports
     from logic.tool.blueprint.base import ToolBase
-    from logic.interface.gui import setup_gui_environment, get_safe_python_for_gui, is_sandboxed, get_sandbox_type
-    from logic.interface.lang import get_translation
+    from interface.gui import setup_gui_environment, get_safe_python_for_gui, is_sandboxed, get_sandbox_type
+    from interface.lang import get_translation
     from logic.utils import get_logic_dir, cleanup_old_files
 except ImportError:
     # Fallback
@@ -102,7 +102,7 @@ class UserInputTool(ToolBase):
 
     def get_python_exe(self, version=None):
         if not version:
-            from logic.interface.config import get_setting
+            from interface.config import get_setting
             version = get_setting("default_python_version", "3.11.14")
 
         # Normalize version name
@@ -111,7 +111,7 @@ class UserInputTool(ToolBase):
         elif v.startswith("python"): v = v[6:]
         
         try:
-            from logic.interface import get_interface
+            from interface import get_interface
             python_iface = get_interface("PYTHON")
             install_root = python_iface.get_python_install_dir()
         except (ImportError, AttributeError):
@@ -198,9 +198,9 @@ import re
 from pathlib import Path
 
 try:
-    from logic.interface.gui import BaseGUIWindow, setup_common_bottom_bar
-    from logic.interface.gui import setup_gui_environment, play_notification_bell
-    from logic.interface.gui import get_label_style
+    from interface.gui import BaseGUIWindow, setup_common_bottom_bar
+    from interface.gui import setup_gui_environment, play_notification_bell
+    from interface.gui import get_label_style
     from logic.utils import find_project_root
 except ImportError:
     sys.exit("Error: Could not import GUI blueprint components")
@@ -455,7 +455,7 @@ if __name__ == "__main__":
 
 def _handle_queue(tool, args, unknown):
     """Handle all --queue sub-commands."""
-    from logic.interface.config import get_color
+    from interface.config import get_color
     BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
 
     _qmod = _load_queue_module()
@@ -520,7 +520,7 @@ def _handle_queue(tool, args, unknown):
 
 def _queue_add_interactive(tool, args):
     """Open USERINPUT GUI and save the result to the queue (not displayed)."""
-    from logic.interface.config import get_color
+    from interface.config import get_color
     BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
 
     try:
@@ -531,13 +531,13 @@ def _queue_add_interactive(tool, args):
             custom_id=args.id,
         )
     except UserInputFatalError as e:
-        from logic.interface.config import get_color
+        from interface.config import get_color
         RED, RESET = get_color("RED"), get_color("RESET")
         sys.stdout.write("\r\033[K"); sys.stdout.flush()
         print(f"{RED}{get_msg('label_terminated', 'Terminated')}{RESET}: {e}", file=sys.stderr, flush=True)
         return 130
     except (UserInputRetryableError, RuntimeError) as e:
-        from logic.interface.config import get_color
+        from interface.config import get_color
         RED, RESET = get_color("RED"), get_color("RESET")
         sys.stdout.write("\r\033[K"); sys.stdout.flush()
         print(f"{RED}Error{RESET}: {e}", file=sys.stderr)
@@ -584,7 +584,7 @@ project_root = %(project_root)r
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from logic.interface.gui import setup_gui_environment, EditableListWindow
+from interface.gui import setup_gui_environment, EditableListWindow
 setup_gui_environment()
 
 items = %(items)r
@@ -616,7 +616,7 @@ win.run()
 
     try:
         res = tool.run_gui_with_fallback(python_exe, tmp_path, 600, None)
-        from logic.interface.config import get_color
+        from interface.config import get_color
         BOLD, GREEN, RED, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("RESET")
 
         if res.get("status") == "success":
@@ -669,7 +669,7 @@ def _handle_config(tool, args, unknown):
     if args.move_to_top is not None: c_args.move_to_top = args.move_to_top
     if args.move_to_bottom is not None: c_args.move_to_bottom = args.move_to_bottom
 
-    from logic.interface.config import get_color
+    from interface.config import get_color
     BOLD, GREEN, RED, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("RESET")
 
     prompts = config.get("system_prompt", [])
@@ -810,7 +810,7 @@ project_root = %(project_root)r
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from logic.interface.gui import setup_gui_environment, EditableListWindow
+from interface.gui import setup_gui_environment, EditableListWindow
 setup_gui_environment()
 
 items = %(items)r
@@ -842,7 +842,7 @@ win.run()
 
     try:
         res = tool.run_gui_with_fallback(python_exe, tmp_path, 600, None)
-        from logic.interface.config import get_color
+        from interface.config import get_color
         BOLD, GREEN, RED, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("RESET")
 
         if res.get("status") == "success":
@@ -952,7 +952,7 @@ def main():
     _gui_cmd_map = {"--gui-submit": "submit", "--gui-cancel": "cancel", "--gui-stop": "stop", "--gui-add-time": "add_time"}
     _gui_match = next((f for f in _gui_cmd_map if f in sys.argv), None)
     if _gui_match:
-        from logic.interface.gui import handle_gui_remote_command
+        from interface.gui import handle_gui_remote_command
         remaining = [a for a in sys.argv[1:] if a not in _gui_cmd_map and a != "--no-warning"]
         return handle_gui_remote_command("USERINPUT", tool.project_root, _gui_cmd_map[_gui_match], remaining, tool.get_translation)
 
@@ -990,7 +990,7 @@ def main():
         print("Usage: --list, --gui, --add, --delete, --move-* require --queue or config command.", file=sys.stderr)
         return 1
 
-    from logic.interface.config import get_color
+    from interface.config import get_color
     BOLD, GREEN, RED, YELLOW, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RED"), get_color("YELLOW"), get_color("RESET")
 
     # ── Queue claiming (unless --enquiry bypasses it) ─────

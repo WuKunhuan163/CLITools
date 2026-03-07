@@ -329,7 +329,7 @@ if __name__ == "__main__":
 
 Provides functions for cross-tool communication.
 Other tools can access this via:
-    from logic.interface import get_interface
+    from interface import get_interface
     iface = get_interface("{tool_name}")
 """
 
@@ -409,7 +409,7 @@ This tool supports the hooks system. See `{short_name} hooks list` for available
 
 Other tools can import this tool's interface:
 ```python
-from logic.interface import get_interface
+from interface import get_interface
 iface = get_interface("{tool_name}")
 info = iface.get_info()
 ```
@@ -457,7 +457,7 @@ Event-driven callback system. See [Hooks Documentation](#hooks-system).
 ## Interface
 
 ```python
-from logic.interface import get_interface
+from interface import get_interface
 iface = get_interface("{tool_name}")
 info = iface.get_info()  # {{"name": "{tool_name}", "version": "1.0.0"}}
 ```

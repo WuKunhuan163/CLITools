@@ -33,7 +33,7 @@ if project_root:
     sys.path.insert(0, root_str)
 
 from logic.tool.blueprint.base import ToolBase
-from logic.interface.config import get_color
+from interface.config import get_color
 from logic.utils import format_table
 
 class BackgroundManager(ToolBase):

@@ -132,7 +132,7 @@ class MCPToolBase(ToolBase):
         subcmd = args[1] if len(args) > 1 else "list"
         name = args[2] if len(args) > 2 else self._session_name
 
-        from logic.interface.config import get_color
+        from interface.config import get_color
         BOLD = get_color("BOLD")
         GREEN = get_color("GREEN")
         RESET = get_color("RESET")
@@ -288,7 +288,7 @@ class MCPToolBase(ToolBase):
                         tab_label: str = "") -> None:
         """Print a human-readable MCP state report."""
         import json as _json
-        from logic.interface.config import get_color
+        from interface.config import get_color
         BOLD = get_color("BOLD")
         GREEN = get_color("GREEN")
         BLUE = get_color("BLUE")

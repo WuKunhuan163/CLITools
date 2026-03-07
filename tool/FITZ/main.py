@@ -19,7 +19,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from logic.tool.blueprint.base import ToolBase
-from logic.interface.config import get_color
+from interface.config import get_color
 
 def main():
     tool = ToolBase("FITZ")

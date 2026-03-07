@@ -65,7 +65,7 @@ class GUIQueue:
         Acquire the queue lock, run the GUI subprocess, then release.
         Wraps logic.gui.manager.run_gui_subprocess with queue ordering.
         """
-        from logic.interface.gui import run_gui_subprocess as _run_gui
+        from interface.gui import run_gui_subprocess as _run_gui
 
         rid = request_id or f"{os.getpid()}_{int(time.time())}"
         if not self.acquire(timeout=timeout, request_id=rid):

@@ -45,9 +45,9 @@ else:
     sys.path.insert(0, str(project_root))
 
 from logic.tool.blueprint.base import ToolBase
-from logic.interface.config import get_color
-from logic.interface.turing import ProgressTuringMachine
-from logic.interface.turing import TuringStage
+from interface.config import get_color
+from interface.turing import ProgressTuringMachine
+from interface.turing import TuringStage
 
 def main():
     tool = ToolBase("iCloud.iCloudPD")
@@ -90,7 +90,7 @@ def main():
         library_path = None
         if args.local_photos == 'default':
             if not args.no_gui:
-                from logic.interface.gui import run_gui_subprocess
+                from interface.gui import run_gui_subprocess
                 fd_tool = ToolBase("FILEDIALOG")
                 fd_script = str(project_root / "tool" / "FILEDIALOG" / "main.py")
                 
@@ -248,8 +248,8 @@ def main():
         try:
             api = PyiCloudService(apple_id, password)
             if api.requires_2fa:
-                from logic.interface.gui import TwoFactorAuthWindow
-                from logic.interface.gui import setup_gui_environment
+                from interface.gui import TwoFactorAuthWindow
+                from interface.gui import setup_gui_environment
                 setup_gui_environment()
                 
                 def v_handler(code):
@@ -471,7 +471,7 @@ def main():
         print(f"{BOLD}Using local library{RESET}: {local_library.library_path}")
 
     # 4. Parallel Downloading
-    from logic.interface.turing import ParallelWorkerPool
+    from interface.turing import ParallelWorkerPool
     output_root = Path(args.output or ".").resolve()
     to_download_objects = []
 
@@ -701,23 +701,23 @@ def main():
         print(f"{BOLD}Reason:{RESET} {failed_tasks[0]['error']}... {BOLD}Full log saved to:{RESET} {log_path}")
 
 if __name__ == "__main__":
-    from logic.interface.turing import get_global_suppressor
+    from interface.turing import get_global_suppressor
     try:
         get_global_suppressor().stop(force=True)
     except: pass
     try:
         main()
     except KeyboardInterrupt:
-        from logic.interface.turing import MultiLineManager
+        from interface.turing import MultiLineManager
         try: MultiLineManager().finalize()
         except: pass
-        from logic.interface.config import get_color
+        from interface.config import get_color
         RED, BOLD, RESET = get_color("RED"), get_color("BOLD"), get_color("RESET")
         sys.stdout.write(f"\r\033[K{BOLD}{RED}Operation cancelled{RESET} by user.\n")
         sys.stdout.flush()
         sys.exit(130)
     except SystemExit:
-        from logic.interface.turing import MultiLineManager
+        from interface.turing import MultiLineManager
         try: MultiLineManager().finalize()
         except: pass
         raise

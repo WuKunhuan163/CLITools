@@ -19,7 +19,7 @@ sys.path.insert(0, str(_r))
 from logic.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.interface.config import get_color
+from interface.config import get_color
 
 BOLD = get_color("BOLD")
 GREEN = get_color("GREEN")

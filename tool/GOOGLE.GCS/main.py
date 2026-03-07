@@ -14,7 +14,7 @@ from logic.resolve import setup_paths
 setup_paths(__file__)
 
 from logic.tool.blueprint.base import ToolBase
-from logic.interface.config import get_color
+from interface.config import get_color
 
 
 def main():
@@ -81,7 +81,7 @@ def main():
     _gui_cmd_map = {"--gui-submit": "submit", "--gui-cancel": "cancel", "--gui-stop": "stop", "--gui-add-time": "add_time"}
     _gui_match = next((f for f in _gui_cmd_map if f in sys.argv), None)
     if _gui_match:
-        from logic.interface.gui import handle_gui_remote_command
+        from interface.gui import handle_gui_remote_command
         remaining = [a for a in sys.argv[1:] if a not in _gui_cmd_map and a != "--no-warning"]
         sys.exit(handle_gui_remote_command("GOOGLE.GCS", project_root, _gui_cmd_map[_gui_match], remaining, tool.get_translation))
 
@@ -356,7 +356,7 @@ def main():
 
 def _handle_reconnection(tool, reconnection_args):
     """Handle --reconnection subcommands: status, config, reset."""
-    from logic.interface.config import get_color
+    from interface.config import get_color
     gcs_logic_dir = str(tool.project_root / "tool" / "GOOGLE.GCS" / "logic")
     if gcs_logic_dir not in sys.path:
         sys.path.insert(0, gcs_logic_dir)

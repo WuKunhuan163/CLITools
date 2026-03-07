@@ -24,7 +24,7 @@ def main():
     if str(proj_root) not in sys.path:
         sys.path.insert(0, str(proj_root))
 
-    from logic.interface.gui import ButtonBarWindow
+    from interface.gui import ButtonBarWindow
     import tkinter as tk
 
     drive_url = f"https://drive.google.com/drive/folders/{args.drive_folder_id}"

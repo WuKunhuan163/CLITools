@@ -1,5 +1,5 @@
 {
   "prompts": [
-    "能否把当前的interface由工具的logic目录移出来，放到工具的根目录下（包括TOOL工具）？我们以后将logic视作工具的具体内部实现，不希望除开发之外的随意访问）\n使用临时的批量检测/替换脚本来处理各个跨工具的interface调用，以及interface内部的logic路径引用。\n——之前说到，audit工具的时候我不知道有没有任何代码质量分析的能力。请探究一下能否使用一些成熟的库，或者自己编程来直接检测，但凡是import其它工具一定要从它们的interface来import。这个任务也完成了吗？\n\n更新一下各个README以及for_agent。\n（现在根目录的interface还在logic文件夹内！请检查这项工作之前是不是没有完成！）"
+    "接着给USERINPUT加入一系列新的--queue、--enquiry等功能的单元测试，注意测试逻辑可能会限定的执行顺序，需要通过标记相应的decorator实现。"
   ]
 }

@@ -15,7 +15,7 @@ setup_paths(__file__)
 
 from logic.tool.blueprint.base import ToolBase
 from logic.tool.blueprint.mcp import MCPToolBase
-from logic.interface.config import get_color
+from interface.config import get_color
 
 
 def _get_colab_open_url() -> str:
@@ -164,7 +164,7 @@ def _run_cell_action(tool, args):
     """
     from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
-    from logic.interface.config import get_color
+    from interface.config import get_color
 
     action = getattr(args, "cell_action", None) or "add"
     cell_text = getattr(args, "text", "") or ""

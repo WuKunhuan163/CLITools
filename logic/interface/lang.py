@@ -1,9 +1,2 @@
-"""Language/translation interface for tools.
-
-Provides access to the translation helper.
-"""
-from logic.lang.utils import get_translation
-
-__all__ = [
-    "get_translation",
-]
+"""Compatibility shim — use interface.lang instead."""
+from interface.lang import *  # noqa: F401,F403

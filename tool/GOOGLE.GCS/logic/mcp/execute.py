@@ -30,7 +30,7 @@ _project_root = _find_project_root()
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from logic.interface.config import get_color
+from interface.config import get_color
 
 BOLD = get_color("BOLD")
 GREEN = get_color("GREEN")
@@ -303,7 +303,7 @@ def _cleanup_cdmcp_overlays(cdp, overlay):
 
 def _run_cdp_with_turing(command, as_python=False):
     """Execute via CDP with Turing Machine progress display and CDMCP visual effects."""
-    from logic.interface.turing import ProgressTuringMachine, TuringStage
+    from interface.turing import ProgressTuringMachine, TuringStage
 
     _cdp_result = {}
     _cdp_session_holder = [None]

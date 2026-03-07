@@ -13,7 +13,7 @@ if root_str in sys.path:
 sys.path.insert(0, root_str)
 
 from logic.tool.blueprint.base import ToolBase
-from logic.interface.config import get_color
+from interface.config import get_color
 
 
 def main():
@@ -79,8 +79,8 @@ def main():
 
 def _search(tool, query, api_key, args):
     """Execute Tavily search and display results."""
-    from logic.interface.turing import ProgressTuringMachine
-    from logic.interface.turing import TuringStage
+    from interface.turing import ProgressTuringMachine
+    from interface.turing import TuringStage
 
     BOLD = get_color("BOLD", "\033[1m")
     GREEN = get_color("GREEN", "\033[32m")

@@ -13,7 +13,7 @@ from logic.resolve import setup_paths
 setup_paths(__file__)
 
 from logic.tool.blueprint.base import ToolBase
-from logic.interface.config import get_color
+from interface.config import get_color
 
 
 def main():

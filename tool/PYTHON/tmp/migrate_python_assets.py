@@ -18,8 +18,8 @@ project_root = script_dir.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from logic.interface.config import get_color
-from logic.interface.turing import MultiLineManager
+from interface.config import get_color
+from interface.turing import MultiLineManager
 
 PYTHON_BIN = project_root / "bin" / "PYTHON"
 ASSETS_CACHE_PATH = script_dir / "assets_cache.json"

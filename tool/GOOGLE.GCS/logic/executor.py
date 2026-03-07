@@ -195,7 +195,7 @@ print(f'{done_marker}')
 def _get_gcs_translation(project_root, key, default, **kwargs):
     """Get a translated string for GCS using the logic translation dir."""
     try:
-        from logic.interface.lang import get_translation
+        from interface.lang import get_translation
         logic_dir = str(project_root / "tool" / "GOOGLE.GCS" / "logic")
         return get_translation(logic_dir, key, default, **kwargs)
     except Exception:
@@ -237,7 +237,7 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
     When no_feedback=True, all action buttons are hidden (unit test mode).
     In CDP mode with no_feedback, the GUI auto-closes on success/failure.
     """
-    from logic.interface.gui import ButtonBarWindow
+    from interface.gui import ButtonBarWindow
     import sys
 
     _ = lambda key, default, **kw: _get_gcs_translation(project_root, key, default, **kw)

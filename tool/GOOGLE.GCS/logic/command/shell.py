@@ -2,7 +2,7 @@
 """GCS --shell command: interactive REPL and shell management."""
 import subprocess
 import os
-from logic.interface.config import get_color
+from interface.config import get_color
 
 
 def enter_interactive(tool, state_mgr, load_logic, default_as_python=False):

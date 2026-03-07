@@ -5,9 +5,9 @@ import sys
 import json
 import time
 from pathlib import Path
-from logic.interface.config import get_color
-from logic.interface.turing import ProgressTuringMachine
-from logic.interface.turing import TuringStage
+from interface.config import get_color
+from interface.turing import ProgressTuringMachine
+from interface.turing import TuringStage
 
 _DEBUG_LOG = Path("/Applications/AITerminalTools/tmp/remount_debug.log")
 
@@ -24,7 +24,7 @@ def _debug_log(msg):
 
 def _t(tool, key, default):
     try:
-        from logic.interface.lang import get_translation
+        from interface.lang import get_translation
         logic_dir = str(tool.project_root / "tool" / "GOOGLE.GCS" / "logic")
         return get_translation(logic_dir, key, default)
     except Exception:

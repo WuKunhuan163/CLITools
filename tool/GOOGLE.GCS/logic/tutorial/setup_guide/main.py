@@ -21,8 +21,8 @@ else:
     project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
     sys.path.insert(0, str(project_root))
 
-from logic.interface.gui import TutorialWindow, TutorialStep
-from logic.interface.lang import get_translation
+from interface.gui import TutorialWindow, TutorialStep
+from interface.lang import get_translation
 
 import importlib.util
 

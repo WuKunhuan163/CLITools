@@ -15,7 +15,7 @@ from logic.resolve import setup_paths
 ROOT_PROJECT_ROOT = setup_paths(__file__)
 
 from logic.tool.blueprint.base import ToolBase
-from logic.interface.config import get_color
+from interface.config import get_color
 
 class GoogleTool(ToolBase):
     def __init__(self):

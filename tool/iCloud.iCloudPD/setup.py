@@ -29,7 +29,7 @@ else:
     project_root = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(project_root))
 
-from logic.interface.tool import ToolEngine
+from interface.tool import ToolEngine
 
 def setup():
     # Standard installation (dependencies, shortcut) is handled by ToolEngine.

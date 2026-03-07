@@ -14,7 +14,7 @@ from logic.resolve import setup_paths
 setup_paths(__file__)
 
 from logic.tool.blueprint.mcp import MCPToolBase
-from logic.interface.config import get_color
+from interface.config import get_color
 
 
 def main():

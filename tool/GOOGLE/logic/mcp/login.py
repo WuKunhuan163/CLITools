@@ -23,7 +23,7 @@ _project_root = _find_project_root()
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from logic.interface.config import get_color
+from interface.config import get_color
 
 BOLD = get_color("BOLD")
 GREEN = get_color("GREEN")

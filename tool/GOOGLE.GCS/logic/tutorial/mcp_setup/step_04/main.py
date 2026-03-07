@@ -5,8 +5,8 @@ import hashlib
 import tkinter as tk
 import threading
 from pathlib import Path
-from logic.interface.gui import get_label_style, get_gui_colors
-from logic.interface.lang import get_translation
+from interface.gui import get_label_style, get_gui_colors
+from interface.lang import get_translation
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent.parent.parent)
 def _(key, default, **kwargs):

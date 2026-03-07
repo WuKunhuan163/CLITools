@@ -91,10 +91,29 @@ class TestRunner:
                 print(self._("test_no_selected", "No tests selected in the specified range."))
                 return True
 
-            print(self._("test_running", "Preparing to run {count} tests for {tool} tool (max {max} concurrent tests)...", count=len(selected_tests), tool=self.tool_name, max=max_concurrent))
+            parallel_tests = [f for f in selected_tests if not self._is_sequential(f)]
+            sequential_tests = [f for f in selected_tests if self._is_sequential(f)]
+
+            total = len(selected_tests)
+            seq_count = len(sequential_tests)
+
+            if seq_count > 0 and len(parallel_tests) > 0:
+                print(self._("test_running_split",
+                             "Preparing to run {count} tests for {tool} ({parallel} parallel, {sequential} sequential)...",
+                             count=total, tool=self.tool_name, parallel=len(parallel_tests), sequential=seq_count))
+            else:
+                print(self._("test_running", "Preparing to run {count} tests for {tool} tool (max {max} concurrent tests)...",
+                             count=total, tool=self.tool_name, max=max_concurrent))
             sys.stdout.flush()
-            
-            success = self._run_parallel_tests(selected_tests, max_concurrent, timeout)
+
+            success = True
+            if parallel_tests:
+                success = self._run_parallel_tests(parallel_tests, max_concurrent, timeout)
+
+            if sequential_tests:
+                seq_ok = self._run_sequential_tests(sequential_tests, timeout)
+                success = success and seq_ok
+
             return success
             
         finally:
@@ -107,12 +126,36 @@ class TestRunner:
                         subprocess.run(["/usr/bin/git", "checkout", current_branch], capture_output=True, cwd=str(self.project_root))
                 except: pass
 
+    @staticmethod
+    def _test_sort_key(path):
+        """Sort test files by numeric prefix if present (test_XX_name.py)."""
+        m = re.match(r'^test_(\d+)', path.stem)
+        if m:
+            return (int(m.group(1)), path.name)
+        return (999999, path.name)
+
+    @staticmethod
+    def _is_sequential(path):
+        """Check if a test file has the SEQUENTIAL = True marker."""
+        try:
+            with open(path, 'r') as f:
+                for line in f:
+                    stripped = line.strip()
+                    if stripped.startswith("SEQUENTIAL") and "=" in stripped:
+                        val = stripped.split("=", 1)[1].strip()
+                        return val in ("True", "true", "1")
+                    if stripped.startswith("import ") or stripped.startswith("class ") or stripped.startswith("def "):
+                        break
+        except Exception:
+            pass
+        return False
+
     def _get_test_files(self):
         test_dir = self.tool_dir / "test"
         if not test_dir.exists():
             return []
 
-        files = sorted([f for f in test_dir.glob("test_*.py")])
+        files = sorted([f for f in test_dir.glob("test_*.py")], key=self._test_sort_key)
         file_names = [f.name for f in files]
         if not self.cache_file.exists():
             self._save_cache(file_names)
@@ -396,6 +439,125 @@ class TestRunner:
             print(self._("test_all_completed", "All tests completed."))
         sys.stdout.flush()
         return success_count[0] == len(test_files)
+
+    def _run_sequential_tests(self, test_files, timeout=60):
+        """Run tests one by one in order, using single-worker TuringWorker display."""
+        from logic.turing.display.manager import MultiLineManager
+        from logic.turing.worker import TuringWorker
+        from logic.turing.logic import TuringTask, StepResult, WorkerState
+
+        all_success = True
+        all_test_pids = set()
+        pids_lock = threading.Lock()
+
+        print(f"\n{self.colors['BOLD']}{self._('test_sequential_header', 'Running {count} sequential test(s)...')}{self.colors['RESET']}".format(count=len(test_files)))
+
+        for test_file in test_files:
+            manager = MultiLineManager()
+            task_queue = Queue()
+            task_queue.put(test_file)
+            stop_event = threading.Event()
+            test_success = [False]
+
+            def make_step(tf, worker_id):
+                def logic():
+                    test_timeout = timeout
+                    try:
+                        with open(tf, 'r') as _f:
+                            for _line in _f:
+                                _line = _line.strip()
+                                if _line.startswith("EXPECTED_TIMEOUT"):
+                                    _val = _line.split("=", 1)[1].strip()
+                                    test_timeout = int(float(_val))
+                                    break
+                                if _line.startswith("import ") or _line.startswith("class "):
+                                    break
+                    except Exception:
+                        pass
+
+                    active_label = self.colors['BLUE'] + self.colors['BOLD'] + self._("test_running_status", "Running") + self.colors['RESET']
+                    timeout_msg = self._("label_timeout", "timeout")
+
+                    def get_msg(elapsed, _to=test_timeout):
+                        bold_file = f"{self.colors['BOLD']}{tf.name}{self.colors['RESET']}"
+                        return self._("test_running_line", "{status}: {file} ({elapsed}s / {timeout_label}: {timeout}s)",
+                                     status=active_label, file=bold_file, elapsed=int(elapsed),
+                                     timeout_label=timeout_msg, timeout=_to)
+
+                    yield StepResult(get_msg(0), state=WorkerState.CONTINUE)
+
+                    start_time = time.time()
+                    python_exec = self._get_python_exec()
+                    env = os.environ.copy()
+                    env["PYTHONPATH"] = f"{self.project_root}:{self.tool_dir}:{env.get('PYTHONPATH', '')}"
+
+                    status_raw, error_msg, report_path = "Error", None, None
+
+                    try:
+                        proc = subprocess.Popen([python_exec, "-u", str(tf)],
+                                               env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                        with pids_lock:
+                            all_test_pids.add(proc.pid)
+
+                        while proc.poll() is None:
+                            if stop_event.is_set():
+                                proc.kill()
+                                return
+                            elapsed = time.time() - start_time
+                            if elapsed > test_timeout:
+                                proc.kill()
+                                status_raw = "Timeout"
+                                break
+                            yield StepResult(get_msg(elapsed), state=WorkerState.CONTINUE)
+                            time.sleep(0.5)
+                        else:
+                            stdout, stderr = proc.communicate()
+                            if proc.returncode == 0:
+                                status_raw = "Success"
+                                test_success[0] = True
+                            else:
+                                full_output = stdout + stderr
+                                report_path = self._save_result(tf.name, "Failed", full_output, python_info=python_exec)
+                                reason = self._get_error_reason(full_output)
+                                status_raw, error_msg = "Failed", f"(code {proc.returncode}) Reason: {reason}"
+                    except Exception as e:
+                        status_raw, error_msg = "Error", str(e)
+
+                    duration = time.time() - start_time
+                    status_label = self._get_status_label(status_raw)
+                    duration_label = self._("label_duration", "Duration")
+                    bold_file = f"{self.colors['BOLD']}{tf.name}{self.colors['RESET']}"
+                    if error_msg:
+                        msg = self._("test_finished_with_error", "{status}: {file} {error} ({duration_label}: {duration:.2f}s)",
+                                     status=status_label, file=bold_file, error=error_msg, duration_label=duration_label, duration=duration)
+                    else:
+                        msg = self._("test_finished", "{status}: {file} ({duration_label}: {duration:.2f}s)",
+                                     status=status_label, file=bold_file, duration_label=duration_label, duration=duration)
+
+                    if report_path:
+                        report_label = self._("test_full_report", "Full report: {path}", path=report_path)
+                        msg += f" | {report_label}"
+
+                    yield StepResult(msg, state=WorkerState.SUCCESS if status_raw == "Success" else WorkerState.ERROR, is_final=True)
+                return logic
+
+            worker = TuringWorker("SEQ", manager)
+            task = TuringTask(test_file.name, [make_step(test_file, "SEQ")])
+            try:
+                worker.execute(task)
+            except KeyboardInterrupt:
+                stop_event.set()
+                manager.finalize()
+                self._cleanup_resources(all_test_pids)
+                return False
+
+            manager.finalize()
+
+            if not test_success[0]:
+                all_success = False
+
+        self._cleanup_resources(all_test_pids)
+        return all_success
 
     def _cleanup_resources(self, test_pids=None):
         """Cleanup leftover processes and GUI windows surgicaly."""

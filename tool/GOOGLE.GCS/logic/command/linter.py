@@ -67,7 +67,7 @@ def execute(tool, args, state_mgr, load_logic, unknown=None, **kwargs):
     has_errors = bool(result.get("errors", []))
     status = "FAIL" if has_errors else "PASS"
 
-    from logic.interface.config import get_color
+    from interface.config import get_color
     BOLD = get_color("BOLD")
     GREEN = get_color("GREEN")
     RED = get_color("RED")

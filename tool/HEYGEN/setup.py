@@ -7,7 +7,7 @@ project_root = script_path.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from logic.interface.tool import ToolEngine
+from interface.tool import ToolEngine
 
 def setup():
     tool_name = "HEYGEN"

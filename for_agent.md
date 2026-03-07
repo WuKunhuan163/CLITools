@@ -159,7 +159,7 @@ Tools with dots in their name (e.g., `GOOGLE.GCS`, `GOOGLE.GD`) cannot be import
 - `logic.accessibility.keyboard`: Global keyboard monitoring (`monitor`) and shortcut settings (`settings`).
 - `logic.lang`: Language management, translation utilities, and audit.
 - `logic.git`: Git operations, persistence manager, and branch utilities.
-- `logic.interface`: Cross-tool interface registry. Use `get_interface("TOOL_NAME")` to load any tool's interface module.
+- `interface`: Cross-tool interface registry. Use `get_interface("TOOL_NAME")` to load any tool's interface module. (Previously at `logic.interface`, compatibility shims remain.)
 - `logic.chrome`: **Shared Chrome CDP infrastructure** — generic session management, tab finding, JS evaluation, input dispatch, screenshot capture, DOM helpers, and `fetch_api()`. Service-agnostic; used by GOOGLE, CLOUDFLARE, ASANA, ATLASSIAN, INTERCOM, KLING, LINEAR, and future CDP-based tools.
 - `logic.cdp`: Backward-compatibility shims for Chrome CDP imports (redirects to `tool.GOOGLE.logic.chrome.*`).
 

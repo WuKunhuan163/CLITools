@@ -32,7 +32,7 @@ def _get_project_root():
 if str(_get_project_root()) not in sys.path:
     sys.path.insert(0, str(_get_project_root()))
 
-from logic.interface.config import get_color
+from interface.config import get_color
 
 BOLD = get_color("BOLD")
 GREEN = get_color("GREEN")
@@ -432,7 +432,7 @@ def run_mcp_status():
 def _get_translation(key, default, **kwargs):
     """Translation helper for CLI messages."""
     try:
-        from logic.interface.lang import get_translation
+        from interface.lang import get_translation
         logic_dir = str(Path(__file__).resolve().parent.parent.parent)
         return get_translation(logic_dir, key, default, **kwargs)
     except Exception:

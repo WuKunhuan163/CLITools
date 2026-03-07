@@ -17,7 +17,7 @@ if root_str in sys.path:
 sys.path.insert(0, root_str)
 
 from logic.tool.blueprint.base import ToolBase
-from logic.interface.config import get_color
+from interface.config import get_color
 
 BOLD = get_color("BOLD")
 GREEN = get_color("GREEN")

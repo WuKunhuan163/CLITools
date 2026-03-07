@@ -26,8 +26,8 @@ try:
         sys.path.remove(str(python_tool_dir))
     sys.path.insert(1, str(python_tool_dir))
     
-    from logic.interface.lang import get_translation
-    from logic.interface.config import get_color
+    from interface.lang import get_translation
+    from interface.config import get_color
     from tool.PYTHON.logic.config import DATA_DIR, RESOURCE_ROOT, INSTALL_DIR, TMP_INSTALL_DIR, PROJECT_ROOT
 except ImportError:
     def get_translation(dir, key, default): return default
@@ -109,8 +109,8 @@ def get_all_assets_from_cache(tag_filter=None, version_filter=None, platform_fil
 
 def download_and_verify(asset, target_root, silent=False):
     """Downloads an asset to tmp, verifies it, then moves to target_dir using a Turing Machine."""
-    from logic.interface.turing import ProgressTuringMachine
-    from logic.interface.turing import TuringStage
+    from interface.turing import ProgressTuringMachine
+    from interface.turing import TuringStage
     from logic.utils import run_with_progress, extract_resource, print_success_status
     
     # Use consistent naming: X.Y.Z-platform (no 'python' prefix)

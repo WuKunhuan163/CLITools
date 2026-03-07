@@ -29,8 +29,8 @@ except ImportError:
     pass
 
 from logic.tool.blueprint.base import ToolBase
-from logic.interface.config import get_color
-from logic.interface.gui import get_safe_python_for_gui
+from interface.config import get_color
+from interface.gui import get_safe_python_for_gui
 
 # Global colors
 BOLD = get_color("BOLD")
