@@ -58,17 +58,45 @@ interact.mcp_paste(session, "text to paste", selector="input#field")
 Each operation: highlight element -> hold for dwell time -> perform action -> remove highlight.
 All operations auto-lock the tab and increment the MCP counter.
 
-### Tab Lifecycle Management
-```python
-from logic.cdmcp_loader import load_cdmcp_sessions
-sm = load_cdmcp_sessions()
+### Unified Tool Boot (for tool developers)
 
-tab_info = sm.require_tab(
+Tools should use `boot_tool_session()` instead of implementing their own boot logic:
+
+```python
+from <cdmcp_session_manager> import boot_tool_session
+
+result = boot_tool_session(
+    "youtube",                # Session name
+    timeout_sec=86400,        # Maximum lifetime (default 24h)
+    idle_timeout_sec=3600,    # Idle timeout (default 1h)
+)
+session = result["session"]
+
+# Open the app tab within the session window
+tab_info = session.require_tab(
+    "youtube", url_pattern="youtube.com",
+    open_url="https://www.youtube.com",
+)
+cdp = CDPSession(tab_info["ws"])
+```
+
+`boot_tool_session` handles the full lifecycle:
+1. Creates named session
+2. Opens new Chrome window with welcome page
+3. Pins the session tab
+4. Applies CDMCP overlays (badge, focus, favicon)
+5. Opens demo tab automatically
+6. Starts demo process in background
+
+### Tab Lifecycle Management
+
+```python
+tab_info = session.require_tab(
     label="my_tab",
     url_pattern="example.com",
     open_url="https://example.com",
-    auto_open=True,    # Open if missing
-    wait_sec=10.0,     # Wait for page load
+    auto_open=True,
+    wait_sec=10.0,
 )
 ```
 

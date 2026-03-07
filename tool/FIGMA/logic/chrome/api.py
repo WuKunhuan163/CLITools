@@ -82,10 +82,9 @@ def _reapply_overlays(cdp, session, port):
 
 
 def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
-    """Boot a new Figma CDMCP session in a dedicated window."""
+    """Boot a Figma CDMCP session using the unified CDMCP boot interface."""
     global _fg_session
     machine = get_machine(_session_name)
-    sm = _load_session_mgr()
 
     if machine.state not in (FigmaState.UNINITIALIZED, FigmaState.ERROR):
         existing = _get_or_create_session(port)
@@ -100,47 +99,31 @@ def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
 
     machine.transition(FigmaState.BOOTING, {"url": FIGMA_HOME})
 
-    server_path = _CDMCP_TOOL_DIR / "logic" / "cdp" / "server.py"
-    server_mod = _load_module("cdmcp_server", server_path)
-    server_url, _ = server_mod.start_server()
-    session = sm.create_session(_session_name, timeout_sec=86400, port=port)
-    sid_short = session.session_id[:8]
-    created_ts = int(session.created_at)
-    welcome_url = (
-        f"{server_url}/welcome?session_id={sid_short}"
-        f"&port={port}&timeout_sec=86400&created_at={created_ts}"
-    )
-    boot_result = session.boot(welcome_url, new_window=True)
+    sm = _load_session_mgr()
+    boot_result = sm.boot_tool_session(_session_name, timeout_sec=86400, port=port)
 
     if not boot_result.get("ok"):
         machine.transition(FigmaState.ERROR, {"error": boot_result.get("error", "Boot failed")})
         return {"ok": False, "error": boot_result.get("error"), **machine.to_dict()}
 
-    _fg_session = session
-    time.sleep(0.8)
+    _fg_session = boot_result.get("session")
 
-    cdp = session.get_cdp()
-    if cdp:
-        _reapply_overlays(cdp, session, port)
-
-    # Open Figma in a new tab within the session (keep welcome as session tab)
-    time.sleep(2)
-    tab_info = session.require_tab(
+    # Open Figma in a new tab within the session
+    tab_info = _fg_session.require_tab(
         "figma", url_pattern="figma.com",
         open_url=FIGMA_HOME, auto_open=True, wait_sec=10,
     )
-    if tab_info:
+    if tab_info and tab_info.get("ws"):
         overlay = _load_overlay()
-        fg_cdp = CDPSession(tab_info["ws"]) if tab_info.get("ws") else None
-        if fg_cdp:
-            overlay.inject_favicon(fg_cdp, svg_color="#a259ff", letter="F")
-            overlay.inject_badge(fg_cdp, text="Figma MCP", color="#a259ff")
-            overlay.inject_focus(fg_cdp, color="#a259ff")
+        fg_cdp = CDPSession(tab_info["ws"])
+        overlay.inject_favicon(fg_cdp, svg_color="#a259ff", letter="F")
+        overlay.inject_badge(fg_cdp, text="Figma MCP", color="#a259ff")
+        overlay.inject_focus(fg_cdp, color="#a259ff")
 
     machine.transition(FigmaState.IDLE)
     machine.set_url(FIGMA_HOME)
 
-    return {"ok": True, "action": "booted", **machine.to_dict(), **boot_result}
+    return {"ok": True, "action": "booted", **machine.to_dict()}
 
 
 def _ensure_session(port: int = CDP_PORT) -> Optional[CDPSession]:

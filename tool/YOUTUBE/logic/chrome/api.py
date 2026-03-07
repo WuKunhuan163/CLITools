@@ -91,15 +91,9 @@ def _get_or_create_session(port: int = CDP_PORT):
 
 
 def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
-    """Boot a new YouTube CDMCP session in a dedicated window.
-
-    Opens with a welcome page first, pins the tab, applies overlays,
-    then navigates to YouTube.
-    """
+    """Boot a YouTube CDMCP session using the unified CDMCP boot interface."""
     global _yt_session
     machine = get_machine(_session_name)
-    sm = _load_session_mgr()
-    overlay = _load_overlay()
 
     if machine.state not in (YTState.UNINITIALIZED, YTState.ERROR):
         existing = _get_or_create_session(port)
@@ -114,58 +108,31 @@ def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
 
     machine.transition(YTState.BOOTING, {"url": YOUTUBE_HOME})
 
-    # Start CDMCP server so we can show the welcome page
-    server_mod_path = _CDMCP_TOOL_DIR / "logic" / "cdp" / "server.py"
-    server_mod = _load_module("cdmcp_server", server_mod_path)
-    server_url, _ = server_mod.start_server()
-    session = sm.create_session(_session_name, timeout_sec=86400, port=port)
-    sid_short = session.session_id[:8]
-    created_ts = int(session.created_at)
-    welcome_url = (
-        f"{server_url}/welcome?session_id={sid_short}"
-        f"&port={port}&timeout_sec=86400&created_at={created_ts}"
-    )
-
-    # Boot with welcome page (opens in new window)
-    boot_result = session.boot(welcome_url, new_window=True)
+    sm = _load_session_mgr()
+    boot_result = sm.boot_tool_session(_session_name, timeout_sec=86400, port=port)
 
     if not boot_result.get("ok"):
         machine.transition(YTState.ERROR, {"error": boot_result.get("error", "Boot failed")})
         return {"ok": False, "error": boot_result.get("error"), **machine.to_dict()}
 
-    _yt_session = session
-    time.sleep(0.8)
+    _yt_session = boot_result.get("session")
 
-    # Pin immediately, then overlays (no lock for YouTube)
-    cdp = session.get_cdp()
-    if cdp:
-        tab_id = session.lifetime_tab_id
-        if tab_id:
-            overlay.pin_tab_by_target_id(tab_id, pinned=True, port=port)
-            overlay.activate_tab(tab_id, port)
-        overlay.inject_favicon(cdp, svg_color="#ff0000", letter="Y")
-        overlay.inject_badge(cdp, text="YouTube MCP", color="#ff0000")
-        overlay.inject_focus(cdp, color="#ff0000")
-        # No lock for YouTube — user needs to interact freely
-
-    # Open YouTube in a new tab within the session window (keep welcome tab as session tab)
-    time.sleep(2)
-    tab_info = session.require_tab(
+    # Open YouTube in a new tab within the session window
+    tab_info = _yt_session.require_tab(
         "youtube", url_pattern="youtube.com",
         open_url=YOUTUBE_HOME, auto_open=True, wait_sec=10,
     )
-
-    if tab_info:
-        yt_cdp = CDPSession(tab_info["ws"]) if tab_info.get("ws") else None
-        if yt_cdp:
-            overlay.inject_favicon(yt_cdp, svg_color="#ff0000", letter="Y")
-            overlay.inject_badge(yt_cdp, text="YouTube MCP", color="#ff0000")
-            overlay.inject_focus(yt_cdp, color="#ff0000")
+    if tab_info and tab_info.get("ws"):
+        overlay = _load_overlay()
+        yt_cdp = CDPSession(tab_info["ws"])
+        overlay.inject_favicon(yt_cdp, svg_color="#ff0000", letter="Y")
+        overlay.inject_badge(yt_cdp, text="YouTube MCP", color="#ff0000")
+        overlay.inject_focus(yt_cdp, color="#ff0000")
 
     machine.transition(YTState.IDLE)
     machine.set_url(YOUTUBE_HOME)
 
-    return {"ok": True, "action": "booted", **machine.to_dict(), **boot_result}
+    return {"ok": True, "action": "booted", **machine.to_dict()}
 
 
 def _ensure_session(port: int = CDP_PORT) -> Optional[CDPSession]:

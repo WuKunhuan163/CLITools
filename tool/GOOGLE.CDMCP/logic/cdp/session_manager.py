@@ -13,6 +13,8 @@ import time
 import threading
 import datetime
 import uuid
+import importlib.util
+import subprocess
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -49,11 +51,13 @@ class CDMCPSession:
     """A named CDMCP session with a lifetime tab."""
 
     def __init__(self, name: str, timeout_sec: int = DEFAULT_TIMEOUT_SEC,
+                 idle_timeout_sec: int = 3600,
                  port: int = CDP_PORT):
         self.name = name
         self.session_id = str(uuid.uuid4())[:8]
         self.port = port
         self.timeout_sec = timeout_sec
+        self.idle_timeout_sec = idle_timeout_sec
         self.created_at = time.time()
         self.last_activity = time.time()
         self.lifetime_tab_id: Optional[str] = None
@@ -660,13 +664,15 @@ _load_state()
 
 
 def create_session(name: str, timeout_sec: int = DEFAULT_TIMEOUT_SEC,
+                   idle_timeout_sec: int = 3600,
                    port: int = CDP_PORT) -> CDMCPSession:
     """Create a new named session (replaces any existing session with the same name)."""
     if name in _sessions:
         _sessions[name].close()
-    session = CDMCPSession(name, timeout_sec=timeout_sec, port=port)
+    session = CDMCPSession(name, timeout_sec=timeout_sec,
+                           idle_timeout_sec=idle_timeout_sec, port=port)
     _sessions[name] = session
-    _log_session("create", name, f"timeout={timeout_sec}s")
+    _log_session("create", name, f"timeout={timeout_sec}s idle={idle_timeout_sec}s")
     _save_state()
     return session
 
@@ -731,6 +737,145 @@ def require_tab(label: str, url_pattern: str = "",
     return s.require_tab(label, url_pattern=url_pattern,
                          open_url=open_url, auto_open=auto_open,
                          wait_sec=wait_sec)
+
+
+def boot_tool_session(
+    session_name: str,
+    timeout_sec: int = 86400,
+    idle_timeout_sec: int = 3600,
+    port: int = CDP_PORT,
+) -> Dict[str, Any]:
+    """Unified session boot for any tool.
+
+    Creates or reuses a CDMCP session with the standard lifecycle:
+      1. Create session
+      2. Boot with welcome page in new window
+      3. Pin the session tab + apply CDMCP overlays
+      4. Open demo tab automatically
+      5. Return the ready session
+
+    Tools should call this instead of implementing their own boot.
+    After calling, use session.require_tab() to open tool-specific tabs.
+
+    Returns: {"ok": bool, "session": CDMCPSession | None, ...}
+    """
+    existing = get_session(session_name)
+    if existing:
+        cdp = existing.get_cdp()
+        if cdp:
+            return {
+                "ok": True, "action": "already_booted",
+                "session": existing,
+                "session_id": existing.session_id,
+                "window_id": existing.window_id,
+            }
+        close_session(session_name)
+
+    session = create_session(
+        session_name,
+        timeout_sec=timeout_sec,
+        idle_timeout_sec=idle_timeout_sec,
+        port=port,
+    )
+
+    # Build welcome URL
+    try:
+        server_path = _TOOL_DIR / "logic" / "cdp" / "server.py"
+        spec = importlib.util.spec_from_file_location("cdmcp_srv_boot", str(server_path))
+        srv = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(srv)
+        server_url, _ = srv.start_server()
+    except Exception as e:
+        return {"ok": False, "error": f"Server start failed: {e}"}
+
+    sid_short = session.session_id[:8]
+    created_ts = int(session.created_at)
+    welcome_url = (
+        f"{server_url}/welcome?session_id={sid_short}"
+        f"&port={port}&timeout_sec={timeout_sec}&created_at={created_ts}"
+    )
+
+    boot_result = session.boot(welcome_url, new_window=True)
+    if not boot_result.get("ok"):
+        close_session(session_name)
+        return {"ok": False, "error": boot_result.get("error", "Boot failed")}
+
+    time.sleep(0.8)
+
+    # Pin + overlays
+    try:
+        overlay_path = _TOOL_DIR / "logic" / "cdp" / "overlay.py"
+        spec = importlib.util.spec_from_file_location("cdmcp_ov_boot", str(overlay_path))
+        ov = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ov)
+
+        cdp = session.get_cdp()
+        if cdp and session.lifetime_tab_id:
+            ov.pin_tab_by_target_id(session.lifetime_tab_id, pinned=True, port=port)
+            ov.activate_tab(session.lifetime_tab_id, port)
+            ov.inject_favicon(cdp, svg_color="#1a73e8", letter="C")
+            ov.inject_badge(cdp, text=f"CDMCP [{sid_short}]", color="#1a73e8")
+            ov.inject_focus(cdp, color="#1a73e8")
+    except Exception:
+        pass
+
+    # Open demo tab
+    try:
+        chat_html = _TOOL_DIR / "data" / "chat_app.html"
+        chat_url = f"file://{chat_html}?session_id={session.session_id}"
+        demo_tab_id = session.open_tab_in_session(chat_url)
+        if demo_tab_id:
+            time.sleep(1.5)
+            for t in list_tabs(port):
+                if t.get("id") == demo_tab_id:
+                    ws = t.get("webSocketDebuggerUrl", "")
+                    if ws:
+                        session.register_tab("demo", demo_tab_id,
+                                             url=chat_url, ws=ws, state="active")
+                        try:
+                            demo_cdp = CDPSession(ws, timeout=10)
+                            ov.inject_favicon(demo_cdp, svg_color="#1a73e8", letter="C")
+                            ov.inject_badge(demo_cdp, text=f"Demo [{sid_short}]",
+                                            color="#34a853")
+                            demo_cdp.close()
+                        except Exception:
+                            pass
+
+                        # Start demo in background
+                        project_root = str(_TOOL_DIR.parent.parent)
+                        demo_py = str(_TOOL_DIR / "logic" / "cdp" / "demo.py")
+                        inline_code = (
+                            f"import sys, os; os.chdir({project_root!r}); "
+                            f"sys.path.insert(0, {project_root!r}); "
+                            "import importlib.util; "
+                            f"spec = importlib.util.spec_from_file_location('demo', {demo_py!r}); "
+                            "mod = importlib.util.module_from_spec(spec); "
+                            "spec.loader.exec_module(mod); "
+                            f"mod.run_demo_on_tab({ws!r}, port={port})"
+                        )
+                        python_bin = _TOOL_DIR.parent.parent / "tool" / "PYTHON" / "data" / "install"
+                        py_candidates = list(python_bin.glob("*/install/bin/python3"))
+                        py_path = str(py_candidates[0]) if py_candidates else "python3"
+                        subprocess.Popen(
+                            [py_path, "-c", inline_code],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            start_new_session=True,
+                        )
+                    break
+    except Exception:
+        pass
+
+    _save_state()
+
+    return {
+        "ok": True,
+        "action": "booted",
+        "session": session,
+        "session_id": session.session_id,
+        "window_id": session.window_id,
+        **boot_result,
+    }
 
 
 def _cleanup_expired():

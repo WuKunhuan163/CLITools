@@ -81,11 +81,9 @@ def _reapply_overlays(cdp, session, port):
 
 
 def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
-    """Boot a new XMind CDMCP session in a dedicated window."""
+    """Boot an XMind CDMCP session using the unified CDMCP boot interface."""
     global _xm_session
     machine = get_machine(_session_name)
-    sm = _load_session_mgr()
-    overlay = _load_overlay()
 
     if machine.state not in (XMState.UNINITIALIZED, XMState.ERROR):
         existing = _get_or_create_session(port)
@@ -100,48 +98,31 @@ def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
 
     machine.transition(XMState.BOOTING, {"url": XMIND_HOME})
 
-    # Show welcome page first
-    server_path = _CDMCP_TOOL_DIR / "logic" / "cdp" / "server.py"
-    server_mod = _load_module("cdmcp_server", server_path)
-    server_url, _ = server_mod.start_server()
-    session = sm.create_session(_session_name, timeout_sec=86400, port=port)
-    sid_short = session.session_id[:8]
-    created_ts = int(session.created_at)
-    welcome_url = (
-        f"{server_url}/welcome?session_id={sid_short}"
-        f"&port={port}&timeout_sec=86400&created_at={created_ts}"
-    )
-    boot_result = session.boot(welcome_url, new_window=True)
+    sm = _load_session_mgr()
+    boot_result = sm.boot_tool_session(_session_name, timeout_sec=86400, port=port)
 
     if not boot_result.get("ok"):
         machine.transition(XMState.ERROR, {"error": boot_result.get("error", "Boot failed")})
         return {"ok": False, "error": boot_result.get("error"), **machine.to_dict()}
 
-    _xm_session = session
-    time.sleep(0.8)
+    _xm_session = boot_result.get("session")
 
-    cdp = session.get_cdp()
-    if cdp:
-        _reapply_overlays(cdp, session, port)
-
-    # Open XMind in a new tab within the session (keep welcome as session tab)
-    time.sleep(2)
-    tab_info = session.require_tab(
+    # Open XMind in a new tab within the session
+    tab_info = _xm_session.require_tab(
         "xmind", url_pattern="xmind.com",
         open_url=XMIND_HOME, auto_open=True, wait_sec=10,
     )
-    if tab_info:
+    if tab_info and tab_info.get("ws"):
         overlay = _load_overlay()
-        xm_cdp = CDPSession(tab_info["ws"]) if tab_info.get("ws") else None
-        if xm_cdp:
-            overlay.inject_favicon(xm_cdp, svg_color="#f44336", letter="X")
-            overlay.inject_badge(xm_cdp, text="XMind MCP", color="#f44336")
-            overlay.inject_focus(xm_cdp, color="#f44336")
+        xm_cdp = CDPSession(tab_info["ws"])
+        overlay.inject_favicon(xm_cdp, svg_color="#f44336", letter="X")
+        overlay.inject_badge(xm_cdp, text="XMind MCP", color="#f44336")
+        overlay.inject_focus(xm_cdp, color="#f44336")
 
     machine.transition(XMState.IDLE)
     machine.set_url(XMIND_HOME)
 
-    return {"ok": True, "action": "booted", **machine.to_dict(), **boot_result}
+    return {"ok": True, "action": "booted", **machine.to_dict()}
 
 
 def _ensure_session(port: int = CDP_PORT) -> Optional[CDPSession]:

@@ -13,13 +13,24 @@ CDMCP cleanup example.com                       # Remove all overlays
 ```
 
 ## Session API
-- `create_session(name, timeout_sec)` -- Create session in a dedicated Chrome window
-- `session.boot(url)` -- Open lifetime tab at URL (new window only on first boot/reboot)
-- `session.get_cdp()` -- Get live CDPSession (auto-reconnects, reopens tab if closed)
-- `session.ensure_tab()` -- Reopen tab if closed (reopens in new window)
-- `session.open_tab_in_session(url)` -- Open new tab in session's existing window
-- `session.window_id` -- The Chrome window ID for this session
+
+**Unified Boot (preferred for all tools):**
+```python
+from <cdmcp_session_manager> import boot_tool_session
+result = boot_tool_session("tool_name", timeout_sec=86400, idle_timeout_sec=3600)
+session = result["session"]  # CDMCPSession with pinned tab + demo tab
+```
+
+`boot_tool_session` handles: welcome page -> new window -> pin -> overlays -> demo tab -> demo process.
+
+**Session Methods:**
+- `session.require_tab(label, url_pattern, open_url)` -- Find/open app tab in session window
+- `session.get_cdp()` -- Get live CDPSession (auto-reconnects)
+- `session.open_tab_in_session(url)` -- Open new tab in session's window
+- `session.window_id` -- Chrome window ID
 - `list_sessions()` / `close_session(name)`
+
+**CRITICAL: Tools must NOT implement their own boot logic.** Use `boot_tool_session` then `session.require_tab` to open the app tab.
 
 ## MCP Interaction Interfaces
 ```python
@@ -74,12 +85,26 @@ CDMCP config --set allow_oauth_windows true      # Set value
 CDMCP config --reset                              # Reset defaults
 ```
 
-## Workflow Pattern
-1. `create_session("tool_name")` -> `session.boot(url)` (welcome page shown, then navigates)
-2. `inject_badge(cdp)` + `inject_focus(cdp)` + `inject_favicon(cdp)`
-3. `interact.mcp_click(cdp, selector, dwell=1.0)` for clicks with visual cue
-4. `interact.mcp_type(cdp, selector, text, char_delay=0.04)` for typing with effect
-5. `close_session(name)` when done
+## Workflow Pattern (for tool developers)
+1. `boot_tool_session("tool_name")` -- Creates session with pinned tab + demo
+2. `session.require_tab("app", url_pattern="app.com", open_url="https://app.com")` -- Opens app tab
+3. `overlay.inject_badge(cdp)` + `inject_focus(cdp)` + `inject_favicon(cdp)` -- Customize app tab
+4. `interact.mcp_click(cdp, selector, dwell=1.0)` -- Clicks with visual cue
+5. `interact.mcp_type(cdp, selector, text)` -- Typing with effect
+6. `close_session(name)` -- Cleanup
+
+## Page Scanning
+```
+CDMCP scan --pattern "youtube.com" --full --output /tmp/scan.json --screenshot /tmp/scan.png
+```
+Flags: `--shadow`, `--scroll`, `--menus`, `--apis`, `--full` (all).
+
+## Lessons Learned
+- **Never navigate the session tab** to the app URL. Always use `require_tab` for separate app tabs.
+- **Demo tab must auto-start** on every boot/reboot. The unified `boot_tool_session` handles this.
+- **Window closure triggers full_reboot**: `require_tab` detects window loss and calls `full_reboot()`.
+- **Each tool reuses CDMCP interfaces**: No duplicate boot/overlay/session logic in tool code.
+- **idle_timeout_sec** resets on any `session.touch()` call (done automatically by operations).
 
 ## Notes
 - Requires Chrome CDP on port 9222
@@ -87,5 +112,4 @@ CDMCP config --reset                              # Reset defaults
 - Tab lifetime: auto-reopened if user closes it (in new window for session recovery)
 - Tab pinning: native Chrome pin via extension chrome.tabs API
 - Each session = one Chrome window; new tabs go into that window
-- Demo runs continuously by default (Ctrl+C to stop)
-- Demo auto-relocks 10s after user unlock, shows countdown between messages
+- Demo runs continuously by default; auto-relocks 10s after user unlock
