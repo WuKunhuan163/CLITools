@@ -456,27 +456,43 @@ class OpenClawCLI:
             return "/quit"
 
     def _mark_running(self, text: str):
-        """Rewrite the prompt line to show ■ (default, running)."""
-        sys.stdout.write(f"\033[A\033[K{self._ACTIVE} {text}\n")
-        sys.stdout.flush()
+        """Rewrite the prompt line(s) to show ■ (default, running)."""
+        self._rewrite_submitted(text, "")
 
     def _mark_done(self, text: str):
-        """Rewrite the prompt line to show ■ (green, done)."""
-        sys.stdout.write(f"\033[A\033[K{GREEN}{self._ACTIVE}{RESET} {text}\n")
-        sys.stdout.flush()
+        """Rewrite the prompt line(s) to show ■ (green, done)."""
+        self._rewrite_submitted(text, GREEN)
 
     def _mark_failed(self, text: str):
-        """Rewrite the prompt line to show ■ (red, failed)."""
-        sys.stdout.write(f"\033[A\033[K{RED}{self._ACTIVE}{RESET} {text}\n")
+        """Rewrite the prompt line(s) to show ■ (red, failed)."""
+        self._rewrite_submitted(text, RED)
+
+    def _rewrite_submitted(self, text: str, color: str):
+        """Rewrite all lines of submitted text with the ■ indicator."""
+        text_lines = text.split('\n')
+        n = len(text_lines)
+        sys.stdout.write(f"\033[{n}A")
+        for i, line in enumerate(text_lines):
+            if i == 0:
+                pfx = f"{color}{self._ACTIVE}{RESET} " if color else f"{self._ACTIVE} "
+            else:
+                pfx = "  "
+            sys.stdout.write(f"\033[K{pfx}{line}\n")
         sys.stdout.flush()
 
     def _recolor_indicator(self, text: str, lines_below: int, color: str):
-        """Rewrite the indicator line from a distance, then return cursor."""
-        up = lines_below + 1
-        down = lines_below
-        sys.stdout.write(
-            f"\033[{up}A\033[K{color}{self._ACTIVE}{RESET} {text}\n"
-            f"\033[{down}B")
+        """Rewrite the indicator line(s) from a distance, then return cursor."""
+        text_lines = text.split('\n')
+        n = len(text_lines)
+        up = lines_below + n
+        sys.stdout.write(f"\033[{up}A")
+        for i, line in enumerate(text_lines):
+            if i == 0:
+                sys.stdout.write(f"\033[K{color}{self._ACTIVE}{RESET} {line}\n")
+            else:
+                sys.stdout.write(f"\033[K  {line}\n")
+        if lines_below > 0:
+            sys.stdout.write(f"\033[{lines_below}B")
         sys.stdout.flush()
 
     def _show_sessions(self):
