@@ -137,12 +137,24 @@ def inject_and_execute(code: str, port: int = CDP_PORT, timeout: int = 300,
     session = CDPSession(ws_url)
     try:
         cell_count = session.evaluate(
-            "colab.global.notebook.cells ? colab.global.notebook.cells.length : 0"
+            "(function(){ var c = colab.global.notebook.cells;"
+            " return (Array.isArray(c) && c.length > 0 && typeof c[0].setText === 'function') ? c.length : 0; })()"
         )
         if not cell_count or int(cell_count) == 0:
             _log("No cells found. Adding a code cell...")
             session.evaluate("colab.global.notebook.addCell('code', {cellIndex: 0})")
-            time.sleep(1)
+            time.sleep(2)
+            verify = session.evaluate(
+                "(function(){ var c = colab.global.notebook.cells;"
+                " return (Array.isArray(c) && c.length > 0 && typeof c[0].setText === 'function') ? c.length : 0; })()"
+            )
+            if not verify or int(verify) == 0:
+                _log("API addCell did not render. Clicking toolbar button...")
+                session.evaluate(
+                    "(function(){ var b = document.getElementById('toolbar-add-code');"
+                    " if(b) b.click(); })()"
+                )
+                time.sleep(2)
 
         code_json = json.dumps(code)
         session.evaluate(f"colab.global.notebook.cells[0].setText({code_json})")

@@ -153,6 +153,7 @@ _LOCK_JS_TEMPLATE = r"""
 
     var baseOpacity = __BASE_OPACITY__;
     var flashOpacity = __FLASH_OPACITY__;
+    var toolName = '__TOOL_NAME__';
 
     var shade = document.createElement('div');
     shade.id = '__LOCK_ID__';
@@ -181,8 +182,38 @@ _LOCK_JS_TEMPLATE = r"""
         'cursor: pointer',
         'letter-spacing: 0.3px',
     ].join('; ');
-    label.textContent = 'Locked by CDMCP, Click to unlock';
+    label.textContent = 'Locked by ' + toolName + ', Click to unlock';
     label.title = 'Click to unlock this tab';
+
+    // Timer / MCP counter in bottom-left
+    var timer = document.createElement('div');
+    timer.id = '__LOCK_ID___timer';
+    timer.style.cssText = [
+        'position: absolute',
+        'bottom: 12px', 'left: 16px',
+        'background: rgba(0, 0, 0, 0.55)',
+        'color: #ccc',
+        'font-family: "SF Mono", Menlo, monospace',
+        'font-size: 11px',
+        'padding: 4px 10px',
+        'border-radius: 4px',
+        'pointer-events: none',
+    ].join('; ');
+    timer.textContent = 'Last: --:--:--, MCP: 0';
+    window.__cdmcp_mcp_count__ = window.__cdmcp_mcp_count__ || 0;
+
+    function _updateTimer() {
+        var now = new Date();
+        var ts = String(now.getHours()).padStart(2,'0') + ':' +
+                 String(now.getMinutes()).padStart(2,'0') + ':' +
+                 String(now.getSeconds()).padStart(2,'0');
+        var el = document.getElementById('__LOCK_ID___timer');
+        if (el) el.textContent = 'Last: ' + ts + ', MCP: ' + (window.__cdmcp_mcp_count__ || 0);
+    }
+    window.__cdmcp_update_timer__ = _updateTimer;
+    _updateTimer();
+    if (window.__cdmcp_timer_interval__) clearInterval(window.__cdmcp_timer_interval__);
+    window.__cdmcp_timer_interval__ = setInterval(_updateTimer, 1000);
 
     shade.addEventListener('mousedown', function(e) {
         if (e.target === label) return;
@@ -196,10 +227,12 @@ _LOCK_JS_TEMPLATE = r"""
         e.stopPropagation();
         shade.remove();
         window.__cdmcp_locked__ = false;
+        if (window.__cdmcp_timer_interval__) clearInterval(window.__cdmcp_timer_interval__);
         window.dispatchEvent(new CustomEvent('cdmcp-unlock'));
     });
 
     shade.appendChild(label);
+    shade.appendChild(timer);
     document.documentElement.appendChild(shade);
     window.__cdmcp_locked__ = true;
     return 'lock_injected';
@@ -208,13 +241,23 @@ _LOCK_JS_TEMPLATE = r"""
 
 
 def inject_lock(session: CDPSession, base_opacity: float = 0.08,
-                flash_opacity: float = 0.25) -> bool:
-    """Lock the tab with a semi-transparent overlay."""
+                flash_opacity: float = 0.25,
+                tool_name: str = "CDMCP") -> bool:
+    """Lock the tab with a semi-transparent overlay showing 'Locked by <tool_name>'."""
     js = (_LOCK_JS_TEMPLATE
           .replace("__BASE_OPACITY__", str(base_opacity))
-          .replace("__FLASH_OPACITY__", str(flash_opacity)))
+          .replace("__FLASH_OPACITY__", str(flash_opacity))
+          .replace("__TOOL_NAME__", tool_name))
     result = session.evaluate(js)
     return result == "lock_injected"
+
+
+def increment_mcp_count(session: CDPSession, count: int = 1) -> None:
+    """Increment the MCP operation counter shown in the lock timer."""
+    session.evaluate(
+        f"window.__cdmcp_mcp_count__ = (window.__cdmcp_mcp_count__ || 0) + {count};"
+        " if (window.__cdmcp_update_timer__) window.__cdmcp_update_timer__();"
+    )
 
 
 def remove_lock(session: CDPSession) -> bool:
@@ -222,6 +265,7 @@ def remove_lock(session: CDPSession) -> bool:
     (function() {{
         var el = document.getElementById('{CDMCP_LOCK_ID}');
         if (el) {{ el.remove(); window.__cdmcp_locked__ = false; return 'removed'; }}
+        if (window.__cdmcp_timer_interval__) clearInterval(window.__cdmcp_timer_interval__);
         return 'not_found';
     }})()
     """
@@ -390,6 +434,7 @@ def remove_all_overlays(session: CDPSession) -> Dict[str, Any]:
             if (el) {{ el.remove(); removed.push(id); }}
         }});
         window.__cdmcp_locked__ = false;
+        if (window.__cdmcp_timer_interval__) clearInterval(window.__cdmcp_timer_interval__);
         return JSON.stringify({{removed: removed}});
     }})()
     """

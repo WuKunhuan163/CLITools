@@ -271,11 +271,44 @@ def run_mcp_execute(command, as_python=False, as_json=False):
     return 0
 
 
+def _load_cdmcp():
+    """Try to load CDMCP overlay and interact modules. Returns (overlay, interact) or (None, None)."""
+    try:
+        from logic.cdmcp_loader import load_cdmcp_overlay, load_cdmcp_interact
+        return load_cdmcp_overlay(), load_cdmcp_interact()
+    except Exception:
+        return None, None
+
+
+def _apply_cdmcp_overlays(cdp, overlay):
+    """Apply CDMCP overlays to Colab tab: badge, focus, lock with timer."""
+    try:
+        overlay.inject_badge(cdp, text="GCS [colab]", color="#0d904f")
+        overlay.inject_focus(cdp, color="#0d904f")
+        overlay.inject_favicon(cdp, svg_color="#0d904f", letter="G")
+        overlay.inject_lock(cdp, base_opacity=0.08, flash_opacity=0.25,
+                            tool_name="GCS")
+        overlay.increment_mcp_count(cdp, 1)
+    except Exception:
+        pass
+
+
+def _cleanup_cdmcp_overlays(cdp, overlay):
+    """Remove CDMCP overlays after execution."""
+    try:
+        overlay.remove_all_overlays(cdp)
+    except Exception:
+        pass
+
+
 def _run_cdp_with_turing(command, as_python=False):
-    """Execute via CDP with Turing Machine progress display."""
+    """Execute via CDP with Turing Machine progress display and CDMCP visual effects."""
     from logic.interface.turing import ProgressTuringMachine, TuringStage
 
     _cdp_result = {}
+    _cdp_session_holder = [None]
+    overlay, interact = _load_cdmcp()
+    mcp_count = [0]
 
     def _stage_connect(stage):
         if _is_cdp_available():
@@ -284,22 +317,69 @@ def _run_cdp_with_turing(command, as_python=False):
         return False
 
     def _stage_find_tab(stage):
-        from logic.cdp.colab import find_colab_tab, _reopen_colab_tab as reopen_colab_tab
+        from logic.cdp.colab import find_colab_tab, CDPSession, _reopen_colab_tab as reopen_colab_tab
         tab = find_colab_tab()
-        if tab:
-            return True
-        stage.active_name = "Reopening Colab tab..."
-        stage.refresh()
-        tab = reopen_colab_tab()
-        if tab:
-            return True
-        stage.report_error("Colab tab not found and reopen failed.")
-        return False
+        if not tab:
+            stage.active_name = "Reopening Colab tab..."
+            stage.refresh()
+            tab = reopen_colab_tab()
+        if not tab:
+            stage.report_error("Colab tab not found and reopen failed.")
+            return False
+
+        ws = tab.get("webSocketDebuggerUrl")
+        if ws:
+            cdp = CDPSession(ws, timeout=15)
+            _cdp_session_holder[0] = cdp
+            if overlay:
+                _apply_cdmcp_overlays(cdp, overlay)
+                mcp_count[0] += 1
+        return True
 
     def _stage_execute(stage):
+        cdp = _cdp_session_holder[0]
+        if overlay and cdp:
+            cell_sel = ".cell.code"
+            try:
+                cell_ok = cdp.evaluate(
+                    "(function(){ var c = colab.global.notebook.cells;"
+                    " return (Array.isArray(c) && c.length > 0 "
+                    " && typeof c[0].setText === 'function') ? 1 : 0; })()"
+                )
+                if not cell_ok or int(cell_ok) == 0:
+                    stage.active_name = "Creating code cell..."
+                    stage.refresh()
+                    if interact:
+                        interact.mcp_click(cdp, "#toolbar-add-code",
+                                           label="+ Code (create cell)", dwell=0.8,
+                                           color="#e8710a", unlock_for_click=True)
+                    else:
+                        cdp.evaluate("colab.global.notebook.addCell('code', {cellIndex: 0})")
+                    import time as _t
+                    _t.sleep(2)
+                    mcp_count[0] += 1
+                    stage.active_name = f"{command}..."
+                    stage.refresh()
+
+                overlay.inject_highlight(cdp, cell_sel,
+                                         label=f"Injecting: {command[:30]}",
+                                         color="#1a73e8")
+                overlay.increment_mcp_count(cdp, 1)
+                import time as _t
+                _t.sleep(0.8)
+                overlay.remove_highlight(cdp)
+            except Exception:
+                pass
+
         code, output = _run_cdp_execute(command, as_python)
+        if overlay and _cdp_session_holder[0]:
+            try:
+                overlay.increment_mcp_count(_cdp_session_holder[0], 1)
+            except Exception:
+                pass
         _cdp_result["code"] = code
         _cdp_result["output"] = output
+        mcp_count[0] += 1
         if code == 0:
             return True
         out_lower = (output or "").lower()
@@ -353,6 +433,17 @@ def _run_cdp_with_turing(command, as_python=False):
     ))
 
     success = pm.run()
+
+    cdp = _cdp_session_holder[0]
+    if cdp and overlay:
+        try:
+            _cleanup_cdmcp_overlays(cdp, overlay)
+        except Exception:
+            pass
+        try:
+            cdp.close()
+        except Exception:
+            pass
 
     output = _cdp_result.get("output", "")
     if success and output:

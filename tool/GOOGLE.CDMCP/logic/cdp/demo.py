@@ -161,6 +161,14 @@ def _now():
     return time.strftime("%H:%M:%S")
 
 
+def _is_unlocked(overlay, cdp):
+    """Quick check: return True if the tab is not locked (user took control)."""
+    try:
+        return not overlay.is_locked(cdp)
+    except Exception:
+        return False
+
+
 def _check_and_relock(overlay, cdp, session, machine, ds, port):
     """Check if user unlocked, wait 10s with countdown, then re-lock.
 
@@ -172,6 +180,8 @@ def _check_and_relock(overlay, cdp, session, machine, ds, port):
 
     if overlay.is_locked(cdp):
         return cdp
+
+    overlay.set_lock_passthrough(cdp, False)
 
     machine.transition(ds.DemoState.WAITING_RELOCK)
     _log(f"User unlocked. Resuming in {RELOCK_WAIT_SEC}s...")
@@ -365,6 +375,13 @@ def _run_continuous_loop(overlay, interact, cdp, session, machine, ds, delay, re
             )
             time.sleep(delay * 0.2 + random.uniform(0, 0.3))
 
+            if _is_unlocked(overlay, cdp):
+                overlay.set_lock_passthrough(cdp, False)
+                cdp = _check_and_relock(overlay, cdp, session, machine, ds, port)
+                if not cdp:
+                    continue
+                overlay.set_lock_passthrough(cdp, True)
+
             machine.transition(ds.DemoState.TYPING_MESSAGE)
             interact.mcp_type(
                 cdp, '#messageInput', message,
@@ -373,6 +390,13 @@ def _run_continuous_loop(overlay, interact, cdp, session, machine, ds, delay, re
                 manage_passthrough=False,
             )
             time.sleep(delay * 0.15 + random.uniform(0, 0.2))
+
+            if _is_unlocked(overlay, cdp):
+                overlay.set_lock_passthrough(cdp, False)
+                cdp = _check_and_relock(overlay, cdp, session, machine, ds, port)
+                if not cdp:
+                    continue
+                overlay.set_lock_passthrough(cdp, True)
 
             machine.transition(ds.DemoState.SENDING)
             interact.mcp_click(
