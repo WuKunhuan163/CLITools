@@ -302,7 +302,13 @@ def _run_cdp_with_turing(command, as_python=False):
         _cdp_result["output"] = output
         if code == 0:
             return True
-        stage.report_error(output[:200] if output else "Execution failed.")
+        out_lower = (output or "").lower()
+        if "not mounted" in out_lower or "drive not mounted" in out_lower:
+            stage.error_brief = "Google Drive not mounted. Run 'GCS --remount' first."
+        elif "fingerprint" in out_lower and "failed" in out_lower:
+            stage.error_brief = "Mount fingerprint mismatch. Run 'GCS --remount' to refresh."
+        else:
+            stage.error_brief = output[:200] if output else "Execution failed."
         return False
 
     def _stage_result(stage):
@@ -333,7 +339,7 @@ def _run_cdp_with_turing(command, as_python=False):
         "execute", _stage_execute,
         active_status="Executing", active_name=f"{command}...",
         success_status="Executed", success_name=f"{command}.",
-        fail_status="Failed to execute", fail_name=f"{command}.",
+        fail_status="Failed to execute", fail_name="command.",
         bold_part="Executing"
     ))
 

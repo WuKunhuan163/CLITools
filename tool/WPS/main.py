@@ -19,7 +19,7 @@ def main():
     tool = ToolBase("WPS")
 
     parser = argparse.ArgumentParser(
-        description="WPS Office / KDocs via Chrome CDP", add_help=False
+        description="WPS Office / KDocs via CDMCP", add_help=False
     )
     sub = parser.add_subparsers(dest="command", help="Subcommand")
 

@@ -345,15 +345,16 @@ def _execute_manual(tool, remount_mod, load_logic, script, metadata):
     return 1
 
 
-def _set_failure_reason(stage, res):
+def _set_failure_reason(stage, res, tool=None):
     status = res.get("status", "error")
     reason = res.get("reason", "")
     if status == "cancelled" or reason in ("interrupted", "signal", "stop"):
-        stage.fail_status = "Cancelled"
+        stage.fail_status = _t(tool, "turing_cancelled", "Cancelled") if tool else "Cancelled"
         stage.fail_name = ""
         stage.fail_color = "YELLOW"
-        stage.error_brief = "Cancelled by user."
+        stage.error_brief = _t(tool, "turing_cancelled_by_user", "Cancelled by user.") if tool else "Cancelled by user."
     elif status == "timeout":
-        stage.error_brief = "GUI timed out."
+        stage.error_brief = _t(tool, "turing_gui_timed_out", "GUI timed out.") if tool else "GUI timed out."
     else:
-        stage.error_brief = res.get("message", "GUI closed unexpectedly.")
+        stage.error_brief = res.get("message",
+                                    _t(tool, "turing_gui_closed_unexpectedly", "GUI closed unexpectedly.") if tool else "GUI closed unexpectedly.")

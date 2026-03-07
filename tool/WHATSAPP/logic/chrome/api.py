@@ -1,11 +1,11 @@
-"""WhatsApp Web operations via Chrome DevTools Protocol.
+"""WhatsApp Web operations via CDMCP (Chrome DevTools MCP).
 
-Uses the ``web.whatsapp.com`` session.  When linked (QR scanned),
-the tool can read chats, search contacts, send messages, and read
-profile info from the DOM.
+Uses the ``web.whatsapp.com`` session via CDP (port 9222).  When
+linked (QR scanned), the tool can read chats, search contacts, send
+messages, and read profile info from the DOM.
 
-Sending messages uses WhatsApp Web's URL scheme (``wa.me``) to open
-a chat and then types + sends via the message input area.
+Sending messages uses WhatsApp Web's URL scheme to open a chat and
+then types + sends via the message input area.
 """
 import json
 import time as _time
@@ -182,22 +182,24 @@ def search_contact(query: str, port: int = CDP_PORT) -> Dict[str, Any]:
     if not session:
         return {"ok": False, "error": "WhatsApp tab not found"}
     try:
-        # Click the search box
         session.evaluate("""
             (function() {
                 var search = document.querySelector(
                     "[data-testid='chat-list-search'], " +
+                    "input[aria-label*='Search'], input[aria-label*='search'], " +
+                    "input[placeholder*='Search'], input[placeholder*='search'], " +
+                    "input[placeholder*='\\u641c'], " +
                     "[contenteditable='true'][data-tab='3'], " +
                     "div[title='Search input textbox']"
                 );
-                if (search) { search.focus(); search.click(); }
+                if (search) { search.focus(); search.click(); search.value = ''; }
             })()
         """)
         _time.sleep(0.5)
 
         safe_q = query.replace("\\", "\\\\").replace("'", "\\'")
         session.send_and_recv("Input.insertText", {"text": safe_q})
-        _time.sleep(2)
+        _time.sleep(3)
 
         r = session.evaluate("""
             (function() {
@@ -209,10 +211,19 @@ def search_contact(query: str, port: int = CDP_PORT) -> Dict[str, Any]:
                         var pane = document.querySelector("#pane-side");
                         if (pane) results = pane.querySelectorAll("[role='listitem'], [role='row']");
                     }
+                    if (!results.length) {
+                        results = document.querySelectorAll(
+                            "[data-testid='search-result'], [class*='search-result']"
+                        );
+                    }
                     var contacts = Array.from(results).slice(0, 20).map(function(el) {
-                        var name = el.querySelector("[data-testid='cell-frame-title'] span, span[dir='auto']");
+                        var name = el.querySelector(
+                            "[data-testid='cell-frame-title'] span, " +
+                            "span[dir='auto'][title], span[dir='auto']"
+                        );
                         return {
-                            name: name ? name.textContent.trim().substring(0, 50) : el.textContent.trim().substring(0, 50)
+                            name: name ? name.textContent.trim().substring(0, 50) :
+                                  el.textContent.trim().substring(0, 50)
                         };
                     });
                     return JSON.stringify({ok: true, count: contacts.length, contacts: contacts});
@@ -222,7 +233,11 @@ def search_contact(query: str, port: int = CDP_PORT) -> Dict[str, Any]:
             })()
         """)
 
-        # Clear the search by pressing Escape
+        session.send_and_recv("Input.dispatchKeyEvent", {
+            "type": "keyDown", "key": "Escape", "code": "Escape",
+            "windowsVirtualKeyCode": 27, "nativeVirtualKeyCode": 27,
+        })
+        _time.sleep(0.3)
         session.send_and_recv("Input.dispatchKeyEvent", {
             "type": "keyDown", "key": "Escape", "code": "Escape",
             "windowsVirtualKeyCode": 27, "nativeVirtualKeyCode": 27,
@@ -257,13 +272,13 @@ def send_message(phone: str, message: str, port: int = CDP_PORT) -> Dict[str, An
         )
         _time.sleep(5)
 
-        # Wait for the message input to appear
-        for _ in range(6):
+        for _ in range(8):
             has_input = session.evaluate("""
                 (function() {
                     var inp = document.querySelector(
                         "[data-testid='conversation-compose-box-input'], " +
-                        "div[contenteditable='true'][data-tab='10']"
+                        "div[contenteditable='true'][data-tab='10'], " +
+                        "div[contenteditable='true'][role='textbox']"
                     );
                     return inp ? 'yes' : 'no';
                 })()
@@ -279,12 +294,12 @@ def send_message(phone: str, message: str, port: int = CDP_PORT) -> Dict[str, An
             ) or ""
             return {"ok": False, "error": "Message input not found", "page": body[:150]}
 
-        # Focus the compose box and type
         session.evaluate("""
             (function() {
                 var inp = document.querySelector(
                     "[data-testid='conversation-compose-box-input'], " +
-                    "div[contenteditable='true'][data-tab='10']"
+                    "div[contenteditable='true'][data-tab='10'], " +
+                    "div[contenteditable='true'][role='textbox']"
                 );
                 if (inp) { inp.focus(); inp.click(); }
             })()
@@ -295,24 +310,47 @@ def send_message(phone: str, message: str, port: int = CDP_PORT) -> Dict[str, An
         session.send_and_recv("Input.insertText", {"text": safe_msg})
         _time.sleep(0.5)
 
-        # Click the send button
         session.evaluate("""
             (function() {
                 var btn = document.querySelector(
-                    "[data-testid='send'], button[aria-label='Send']"
+                    "[data-testid='send'], " +
+                    "[data-icon='send'], [data-icon*='send'], " +
+                    "button[aria-label='Send'], button[aria-label='send']"
                 );
+                if (!btn) {
+                    var all = document.querySelectorAll("button, [role='button']");
+                    for (var i = 0; i < all.length; i++) {
+                        var icon = all[i].querySelector("[data-icon]");
+                        if (icon && icon.getAttribute("data-icon").toLowerCase().includes("send")) {
+                            btn = all[i]; break;
+                        }
+                    }
+                }
                 if (btn) btn.click();
             })()
         """)
         _time.sleep(2)
 
-        # Verify the message was sent by checking last outgoing message
+        _time.sleep(1)
         r = session.evaluate("""
             (function() {
-                var msgs = document.querySelectorAll("[data-testid='msg-container'] [class*='message-out']");
+                var compose = document.querySelector(
+                    "[data-testid='conversation-compose-box-input'], " +
+                    "div[contenteditable='true'][data-tab='10'], " +
+                    "div[contenteditable='true'][role='textbox']"
+                );
+                var composeEmpty = compose ? compose.textContent.trim().length === 0 : false;
+                var msgs = document.querySelectorAll(
+                    "[data-testid='msg-container'] [class*='message-out'], " +
+                    "[class*='message-out'], .message-out"
+                );
                 var last = msgs.length > 0 ? msgs[msgs.length - 1] : null;
                 var lastText = last ? last.textContent.trim().substring(0, 100) : null;
-                return JSON.stringify({ok: true, sent: !!last, lastOutgoing: lastText});
+                return JSON.stringify({
+                    ok: true,
+                    sent: composeEmpty || !!last,
+                    lastOutgoing: lastText
+                });
             })()
         """)
         return json.loads(r) if r else {"ok": True, "sent": True, "note": "Could not verify"}

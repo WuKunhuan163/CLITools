@@ -1,9 +1,8 @@
-"""Kling AI operations via Chrome DevTools Protocol.
+"""Kling AI operations via CDMCP (Chrome DevTools MCP).
 
-Uses the authenticated ``app.klingai.com`` session.  User data is read
-from ``localStorage`` and DOM elements since the Kling API gateway
-(``api-app-global.klingai.com``) blocks cross-origin fetch from the app
-domain.
+Uses the authenticated ``klingai.com`` session via CDP (port 9222).
+User data is read from ``localStorage`` (key ``klingai_user``) and DOM
+elements since the Kling API gateway blocks cross-origin fetch.
 """
 import json
 from typing import Dict, Any, Optional
@@ -14,7 +13,7 @@ from logic.chrome.session import (
     find_tab,
 )
 
-KLING_URL_PATTERN = "app.klingai.com"
+KLING_URL_PATTERN = "klingai.com"
 
 
 def find_kling_tab(port: int = CDP_PORT) -> Optional[Dict[str, Any]]:
@@ -41,18 +40,18 @@ def get_user_info(port: int = CDP_PORT) -> Dict[str, Any]:
         r = session.evaluate("""
             (function() {
                 try {
-                    var user = JSON.parse(localStorage.getItem("user") || "{}");
+                    var user = JSON.parse(localStorage.getItem("klingai_user") || "{}");
+                    if (!user.id) user = JSON.parse(localStorage.getItem("user") || "{}");
                     var userId = document.cookie.split(";").map(c => c.trim())
                         .find(c => c.startsWith("userId="));
-                    var uid = userId ? userId.split("=")[1] : user.userId;
+                    var uid = userId ? userId.split("=")[1] : null;
                     return JSON.stringify({
                         ok: true,
                         data: {
-                            userId: uid || user.userId,
-                            userName: user.userName,
-                            email: user.userEmail,
-                            avatar: (user.userAvatars || [])[0] || null,
-                            introduction: user.introduction || ""
+                            userId: uid || user.id || user.userId,
+                            userName: user.nickname || user.userName || null,
+                            email: user.email || user.userEmail || null,
+                            avatar: user.avatar || (user.userAvatars || [])[0] || null
                         }
                     });
                 } catch(e) {
@@ -68,7 +67,7 @@ def get_user_info(port: int = CDP_PORT) -> Dict[str, Any]:
 
 
 def get_points(port: int = CDP_PORT) -> Dict[str, Any]:
-    """Get Kling AI credit points from DOM."""
+    """Get Kling AI credit points from DOM or page context."""
     session = _get_session(port)
     if not session:
         return {"ok": False, "error": "Kling AI tab not found"}
@@ -76,13 +75,24 @@ def get_points(port: int = CDP_PORT) -> Dict[str, Any]:
         r = session.evaluate("""
             (function() {
                 try {
-                    var pointBox = document.querySelector("[class*=point-box], [class*=pointBox]");
+                    var url = window.location.href;
+                    var isStudio = url.includes("/ai/") || url.includes("/creation") ||
+                                   url.includes("/assets") || url.includes("/video");
+                    var pointBox = document.querySelector(
+                        "[class*='point-box'], [class*='pointBox'], [class*='credit'], " +
+                        "[class*='coin'], [class*='balance']"
+                    );
                     var points = pointBox ? pointBox.textContent.trim() : null;
-
-                    var subEl = document.querySelector("[class*=subscribe], [class*=membership], [class*=plan]");
+                    var subEl = document.querySelector(
+                        "[class*='subscribe'], [class*='membership'], [class*='plan'], " +
+                        "[class*='vip'], [class*='VIP']"
+                    );
                     var plan = subEl ? subEl.textContent.trim().substring(0, 50) : null;
-
-                    return JSON.stringify({ok: true, data: {points: points, plan: plan}});
+                    return JSON.stringify({
+                        ok: true,
+                        data: {points: points, plan: plan, isStudio: isStudio},
+                        note: !isStudio ? "Navigate to Creative Studio for credit info" : null
+                    });
                 } catch(e) {
                     return JSON.stringify({ok: false, error: e.toString()});
                 }

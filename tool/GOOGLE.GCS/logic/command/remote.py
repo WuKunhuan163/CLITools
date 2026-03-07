@@ -19,6 +19,30 @@ def _t(tool, key, default, **kwargs):
 
 
 def execute(tool, remote_command, state_mgr, load_logic, as_python=False, capture=False, no_feedback=False, **kwargs):
+    import time as _time_mod
+
+    gcs_logic_dir = str(tool.project_root / "tool" / "GOOGLE.GCS" / "logic")
+    if gcs_logic_dir not in sys.path:
+        sys.path.insert(0, gcs_logic_dir)
+    from reconnection_manager import (
+        should_remount_before_command, should_remount_after_command,
+        increment_execution_counter, set_remount_required_flag,
+        clear_remount_required_flag, reset_execution_counter,
+        is_remount_in_progress, wait_for_remount_completion,
+    )
+
+    if is_remount_in_progress(tool.project_root):
+        wait_for_remount_completion(tool.project_root, max_wait=120)
+
+    needs, reason = should_remount_before_command(tool.project_root)
+    if needs:
+        remount_mod_cmd = load_logic("command/remount_cmd")
+        remount_mod_cmd.execute(tool, None, state_mgr, load_logic)
+        clear_remount_required_flag(tool.project_root)
+        reset_execution_counter(tool.project_root)
+
+    _cmd_start_time = _time_mod.time()
+
     executor_mod = load_logic("executor")
     utils = load_logic("utils")
 
@@ -42,6 +66,22 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
     finished_label = _t(tool, "gui_title_remote_command", "GCS Remote Command")
 
     cdp_enabled = os.environ.get("GCS_CDP_ENABLED") == "1"
+
+    if cdp_enabled:
+        mount_ok = _verify_mount_precheck(tool, utils)
+        if not mount_ok:
+            BOLD = get_color("BOLD")
+            BLUE = get_color("BLUE")
+            RESET = get_color("RESET")
+            print(f"{BOLD}{BLUE}{_t(tool, 'turing_auto_remounting', 'Auto-remounting Google Drive...')}{RESET}")
+            remount_mod_cmd = load_logic("command/remount_cmd")
+            rc = remount_mod_cmd.execute(tool, None, state_mgr, load_logic, no_feedback=no_feedback)
+            if rc != 0:
+                print(f"{get_color('BOLD')}{get_color('RED')}"
+                      f"{_t(tool, 'turing_failed_to_remount', 'Failed to remount')}{get_color('RESET')} "
+                      f"Google Drive. {_t(tool, 'hint_run_remount_manually', 'Run GCS --remount manually.')}")
+                return 1 if not capture else None
+
     script, metadata = executor_mod.generate_remote_command_script(
         tool.project_root, expanded_command, remote_cwd=remote_cwd, as_python=as_python,
         shell_type=shell_type, finished_msg=finished_msg,
@@ -99,7 +139,7 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
         if status == "cancelled" or reason in ("interrupted", "signal", "stop"):
             raise KeyboardInterrupt
         if stage:
-            _set_failure_reason(stage, res)
+            _set_failure_reason(stage, res, tool=tool)
         return False
 
     def verify_action(stage=None):
@@ -134,23 +174,31 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
     def on_failure():
         pass
 
-    waiting_label = _t(tool, "turing_waiting_user_action", "Waiting for user action")
-    verifying_label = _t(tool, "turing_verifying_result", "Verifying the command result file")
+    if cdp_enabled:
+        waiting_label = _t(tool, "turing_executing_via_cdp", "Executing via CDP...")
+    else:
+        waiting_label = _t(tool, "turing_waiting_user_action", "Waiting for user action...")
+    verifying_label = _t(tool, "turing_verifying_result", "Verifying the command result file...")
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
     fail_complete_label = _t(tool, "turing_failed_to_complete", "Failed to complete")
     completed_label = _t(tool, "turing_completed_user_action", "Completed")
-    user_action_label = _t(tool, "turing_user_action", "user action")
+    user_action_label = _t(tool, "turing_user_action", "user action.")
     fail_execute_label = _t(tool, "turing_failed_to_execute", "Failed to execute")
     retrieved_label = _t(tool, "turing_retrieved_result", "Retrieved")
-    exec_result_label = _t(tool, "turing_execution_result", "execution result")
+    exec_result_label = _t(tool, "turing_execution_result", "execution result.")
     command_label = _t(tool, "turing_command", "command")
+    if cdp_enabled:
+        exec_stage_label = _t(tool, "turing_remote_execution", "remote execution.")
+    else:
+        exec_stage_label = user_action_label
 
     pm.add_stage(TuringStage(
         "user action", gui_action,
         active_status="", active_name=waiting_label,
-        fail_status=fail_complete_label, success_status=completed_label,
-        success_name=user_action_label, bold_part=waiting_label
+        fail_status=fail_complete_label, fail_name=exec_stage_label,
+        success_status=completed_label,
+        success_name=exec_stage_label, bold_part=waiting_label
     ))
     pm.add_stage(TuringStage(
         "command execution", verify_action,
@@ -160,7 +208,15 @@ def execute(tool, remote_command, state_mgr, load_logic, as_python=False, captur
         bold_part=verifying_label
     ))
 
-    if pm.run(ephemeral=True):
+    success = pm.run(ephemeral=True)
+
+    _cmd_elapsed = _time_mod.time() - _cmd_start_time
+    increment_execution_counter(tool.project_root)
+    post_needs, post_reason = should_remount_after_command(tool.project_root, _cmd_elapsed)
+    if post_needs:
+        set_remount_required_flag(tool.project_root, post_reason)
+
+    if success:
         if feedback_mode[0]:
             feedback_text = command_result.get("stdout", "")
             if feedback_text and not capture:
@@ -209,6 +265,41 @@ def _run_userinput_feedback(tool):
     return res.stdout.strip() if res.returncode == 0 else None
 
 
+def _verify_mount_precheck(tool, utils):
+    """Quick Drive API check: verify mount fingerprint file exists in REMOTE_ROOT/tmp/."""
+    import json as _json
+    config_path = tool.project_root / "data" / "config.json"
+    if not config_path.exists():
+        return False
+    try:
+        with open(config_path, "r") as f:
+            cfg = _json.load(f)
+    except Exception:
+        return False
+
+    mount_hash = cfg.get("mount_hash", "")
+    root_id = cfg.get("root_folder_id", "")
+    if not mount_hash or not root_id:
+        return False
+
+    try:
+        ok, items = utils.list_folder_via_api(tool.project_root, root_id, timeout=15)
+        if not ok:
+            return False
+        tmp_folder = next((i for i in items if i.get("name") == "tmp" and i.get("type") == "folder"), None)
+        if not tmp_folder:
+            return False
+
+        ok2, tmp_items = utils.list_folder_via_api(tool.project_root, tmp_folder["id"], timeout=15)
+        if not ok2:
+            return False
+
+        fingerprint_name = f".gds_mount_fingerprint_{mount_hash}"
+        return any(i.get("name") == fingerprint_name for i in tmp_items)
+    except Exception:
+        return False
+
+
 def _get_venv_prefix(state_mgr):
     """If a virtual environment is active, return a shell export statement."""
     sid = state_mgr.get_active_shell_id()
@@ -222,15 +313,46 @@ def _get_venv_prefix(state_mgr):
     return None
 
 
-def _set_failure_reason(stage, res):
+def _set_failure_reason(stage, res, tool=None):
     status = res.get("status", "error")
     reason = res.get("reason", "")
     if status == "cancelled" or reason in ("interrupted", "signal", "stop"):
-        stage.fail_status = "Cancelled"
+        stage.fail_status = _ts(tool, "turing_cancelled", "Cancelled")
         stage.fail_name = ""
         stage.fail_color = "YELLOW"
-        stage.error_brief = "Cancelled by user."
+        stage.error_brief = _ts(tool, "turing_cancelled_by_user", "Cancelled by user.")
     elif status == "timeout":
-        stage.error_brief = "GUI timed out."
+        stage.error_brief = _ts(tool, "turing_gui_timed_out", "GUI timed out.")
+    elif reason == "drive_not_mounted":
+        stage.fail_status = _ts(tool, "turing_failed_to_execute", "Failed to execute")
+        stage.fail_name = _ts(tool, "turing_command", "command")
+        stage.error_brief = _ts(tool, "turing_drive_not_mounted",
+                                "Google Drive not mounted. Run 'GCS --remount' first.")
+    elif reason == "mount_fingerprint_invalid":
+        stage.fail_status = _ts(tool, "turing_failed_to_execute", "Failed to execute")
+        stage.fail_name = _ts(tool, "turing_command", "command")
+        stage.error_brief = _ts(tool, "turing_mount_fingerprint_invalid",
+                                "Mount fingerprint mismatch. Run 'GCS --remount' to refresh.")
+    elif reason == "execution_timeout":
+        stage.error_brief = _ts(tool, "turing_execution_timed_out",
+                                "Remote execution timed out.")
+    elif reason == "colab_tab_not_found":
+        stage.error_brief = _ts(tool, "turing_colab_tab_not_found",
+                                "Colab notebook tab not found. Run 'GCS --mcp boot' first.")
+    elif reason == "cdp_connection_error":
+        stage.error_brief = _ts(tool, "turing_cdp_connection_error",
+                                "CDP connection failed. Check Chrome is running with remote debugging.")
+    elif reason and reason.startswith("cdp_"):
+        stage.error_brief = _ts(tool, "turing_cdp_execution_failed",
+                                "CDP execution failed.")
     else:
-        stage.error_brief = res.get("message", "GUI closed unexpectedly.")
+        stage.error_brief = res.get("message",
+                                    _ts(tool, "turing_gui_closed_unexpectedly",
+                                        "GUI closed unexpectedly."))
+
+
+def _ts(tool, key, default, **kwargs):
+    """Translation helper that tolerates a None tool."""
+    if tool is None:
+        return default.format(**kwargs) if kwargs else default
+    return _t(tool, key, default, **kwargs)

@@ -19,7 +19,7 @@ def main():
     tool = ToolBase("WHATSAPP")
 
     parser = argparse.ArgumentParser(
-        description="WhatsApp Web messaging via Chrome CDP", add_help=False
+        description="WhatsApp Web messaging via CDMCP", add_help=False
     )
     sub = parser.add_subparsers(dest="command", help="Subcommand")
 

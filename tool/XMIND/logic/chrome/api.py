@@ -1,8 +1,8 @@
-"""XMind operations via Chrome DevTools Protocol.
+"""XMind operations via CDMCP (Chrome DevTools MCP).
 
-Uses the authenticated ``app.xmind.com`` session.  The web app stores
-user/team data in cookies and localStorage.  Mind map listings are read
-from the DOM of the home page.
+Uses the authenticated ``app.xmind.com`` session via CDP (port 9222).
+The web app stores user/team data in cookies and localStorage.
+Mind map listings are read from the DOM of the home page.
 """
 import json
 from typing import Dict, Any, Optional

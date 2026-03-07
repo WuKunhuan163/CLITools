@@ -19,7 +19,7 @@ def main():
     tool = ToolBase("XMIND")
 
     parser = argparse.ArgumentParser(
-        description="XMind mind mapping via Chrome CDP", add_help=False
+        description="XMind mind mapping via CDMCP", add_help=False
     )
     sub = parser.add_subparsers(dest="command", help="Subcommand")
 

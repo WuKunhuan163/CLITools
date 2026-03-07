@@ -64,6 +64,7 @@ def main():
     # Special-purpose --options (non-bash, tool-specific)
     parser.add_argument("--setup-tutorial", action="store_true", help="Run the GCS setup tutorial")
     parser.add_argument("--remount", action="store_true", help="Generate and show Colab remount script")
+    parser.add_argument("--reconnection", nargs="*", help="API reconnection manager: status, config <count> <duration>, reset")
     parser.add_argument("--shell", nargs="*", help="Interactive shell (no args) or management: list, switch <id>, create <name>, info [id], type [name], install <name>")
     parser.add_argument("--folder-id", help="Target Google Drive folder ID (overrides default)")
     parser.add_argument("--bash", action="store_true", help="Generate bash script instead of Python")
@@ -217,7 +218,7 @@ def main():
         sys.argv.remove("--no-feedback")
     
     # Check for special --options first
-    special_options = ["--setup-tutorial", "--remount", "--shell", "--mcp-create", "--mcp-delete", "--mcp-list", "--mcp-upload", "--mcp"]
+    special_options = ["--setup-tutorial", "--remount", "--reconnection", "--shell", "--mcp-create", "--mcp-delete", "--mcp-list", "--mcp-upload", "--mcp"]
     has_special = any(opt in sys.argv for opt in special_options)
 
     if len(sys.argv) > 1 and sys.argv[1] not in recognized and not sys.argv[1].startswith("-") and not has_special:
@@ -230,7 +231,7 @@ def main():
         tool.check_cpu_load_and_warn()
         tool.is_quiet = "--tool-quiet" in sys.argv
         clean_argv = [a for a in sys.argv if a not in ["--no-warning", "--tool-quiet"]]
-        args = argparse.Namespace(command=None, setup_tutorial=False, remount=False, shell=None, folder_id=None)
+        args = argparse.Namespace(command=None, setup_tutorial=False, remount=False, reconnection=None, shell=None, folder_id=None)
         unknown = clean_argv[1:]
 
     # Use importlib to load logic from the current directory
@@ -249,7 +250,7 @@ def main():
     remote_command = None
     if not args.command:
         if unknown: remote_command = " ".join(unknown)
-        elif not getattr(args, 'setup_tutorial', False) and not getattr(args, 'remount', False) and getattr(args, 'shell', None) is None:
+        elif not getattr(args, 'setup_tutorial', False) and not getattr(args, 'remount', False) and getattr(args, 'reconnection', None) is None and getattr(args, 'shell', None) is None:
             parser.print_help()
             return
     elif args.command not in recognized:
@@ -266,6 +267,10 @@ def main():
             shell_cmd.enter_interactive(tool, state_mgr, load_logic, as_python)
         else:
             shell_cmd.manage(tool, args.shell, state_mgr, load_logic=load_logic)
+        return
+
+    if getattr(args, 'reconnection', None) is not None:
+        _handle_reconnection(tool, args.reconnection)
         return
 
     if getattr(args, 'remount', False):
@@ -341,6 +346,63 @@ def main():
         code = load_command("bg").execute(tool, args, state_mgr, load_logic, unknown=unknown)
         if code: sys.exit(code)
         return
+
+def _handle_reconnection(tool, reconnection_args):
+    """Handle --reconnection subcommands: status, config, reset."""
+    from logic.interface.config import get_color
+    gcs_logic_dir = str(tool.project_root / "tool" / "GOOGLE.GCS" / "logic")
+    if gcs_logic_dir not in sys.path:
+        sys.path.insert(0, gcs_logic_dir)
+    from reconnection_manager import (
+        get_thresholds, save_thresholds,
+        get_execution_counter, reset_execution_counter,
+        is_remount_flagged, clear_remount_required_flag,
+        is_remount_in_progress,
+    )
+
+    BOLD = get_color("BOLD")
+    GREEN = get_color("GREEN")
+    BLUE = get_color("BLUE")
+    YELLOW = get_color("YELLOW")
+    RED = get_color("RED")
+    RESET = get_color("RESET")
+
+    sub = reconnection_args[0] if reconnection_args else "status"
+
+    if sub == "status":
+        count_thresh, dur_thresh = get_thresholds(tool.project_root)
+        counter = get_execution_counter(tool.project_root)
+        flagged = is_remount_flagged(tool.project_root)
+        in_progress = is_remount_in_progress(tool.project_root)
+
+        print(f"{BOLD}GCS API Reconnection Status{RESET}")
+        print(f"  Commands executed:   {BLUE}{counter.get('count', 0)}{RESET} / {count_thresh}")
+        print(f"  Duration threshold:  {dur_thresh}s")
+        print(f"  Remount flagged:     {YELLOW if flagged else GREEN}{'Yes' if flagged else 'No'}{RESET}")
+        print(f"  Remount in progress: {YELLOW if in_progress else GREEN}{'Yes' if in_progress else 'No'}{RESET}")
+
+    elif sub == "config":
+        if len(reconnection_args) < 3:
+            print(f"{RED}Usage:{RESET} GCS --reconnection config <command_count> <duration_seconds>")
+            return
+        try:
+            new_count = int(reconnection_args[1])
+            new_dur = float(reconnection_args[2])
+        except ValueError:
+            print(f"{RED}Error:{RESET} count must be int, duration must be float")
+            return
+        save_thresholds(tool.project_root, new_count, new_dur)
+        print(f"{GREEN}Thresholds updated:{RESET} count={new_count}, duration={new_dur}s")
+
+    elif sub == "reset":
+        reset_execution_counter(tool.project_root)
+        clear_remount_required_flag(tool.project_root)
+        print(f"{GREEN}Reconnection counter and flags cleared.{RESET}")
+
+    else:
+        print(f"{YELLOW}Unknown subcommand:{RESET} {sub}")
+        print(f"Usage: GCS --reconnection [status|config <count> <duration>|reset]")
+
 
 if __name__ == "__main__":
     main()

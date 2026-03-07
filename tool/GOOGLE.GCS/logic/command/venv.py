@@ -77,38 +77,35 @@ def _read_venv_states(tool, utils):
     if not venv_fid:
         return {}
 
-    ok, data = utils.read_file_via_api(tool.project_root, venv_fid, "venv_states.json")
+    ok, items = utils.list_folder_via_api(tool.project_root, venv_fid)
+    if not ok:
+        return {}
+    states_file_id = None
+    for item in items:
+        if item.get("name") == "venv_states.json" and item.get("type") != "folder":
+            states_file_id = item.get("id")
+            break
+    if not states_file_id:
+        return {}
+
+    ok, data = utils.read_file_via_api(tool.project_root, states_file_id)
     if not ok:
         return {}
     try:
-        return json.loads(data.get("content", "{}"))
-    except json.JSONDecodeError:
+        content = data.get("content", "{}")
+        return json.loads(content) if content else {}
+    except (json.JSONDecodeError, TypeError):
         return {}
 
 
 def _resolve_venv_folder(tool, utils, env_folder_id):
-    """Resolve the @/venv/ folder ID."""
-    script_body = f'''    import uuid
-    env_id = {repr(env_folder_id)}
-    q = f"'{{env_id}}' in parents and name = 'venv' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-    params = {{"q": q, "fields": "files(id, name)", "pageSize": 10,
-               "supportsAllDrives": "true", "includeItemsFromAllDrives": "true",
-               "quotaUser": f"vf_{{uuid.uuid4().hex[:8]}}"}}
-    r = api_get("https://www.googleapis.com/drive/v3/files", headers=headers, params=params)
-    if r.status_code == 200:
-        files = r.json().get("files", [])
-        for ff in files:
-            if ff.get("name") == "venv":
-                result = {{"folder_id": ff["id"]}}
-                break
-        else:
-            result = {{"folder_id": None}}
-    else:
-        result = {{"error": f"API error {{r.status_code}}"}}'''
-
-    ok, data = utils.run_drive_api_script(tool.project_root, script_body)
-    if ok:
-        return data.get("folder_id")
+    """Resolve the @/venv/ folder ID using list_folder_via_api."""
+    ok, items = utils.list_folder_via_api(tool.project_root, env_folder_id)
+    if not ok:
+        return None
+    for item in items:
+        if item.get("name") == "venv" and item.get("type") == "folder":
+            return item.get("id")
     return None
 
 

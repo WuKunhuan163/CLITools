@@ -20,7 +20,7 @@ def main():
     tool = ToolBase("KLING")
 
     parser = argparse.ArgumentParser(
-        description="Kling AI video generation via Chrome CDP", add_help=False
+        description="Kling AI video generation via CDMCP", add_help=False
     )
     sub = parser.add_subparsers(dest="command", help="Subcommand")
 
@@ -36,6 +36,7 @@ def main():
     BOLD = get_color("BOLD")
     GREEN = get_color("GREEN")
     RED = get_color("RED")
+    YELLOW = get_color("YELLOW")
     RESET = get_color("RESET")
 
     from tool.KLING.logic.chrome.api import (
@@ -56,9 +57,12 @@ def main():
         r = get_points()
         if r.get("ok"):
             d = r["data"]
-            print(f"  Points: {d.get('points', '?')}")
+            pts = d.get("points")
+            print(f"  Points: {pts if pts else '(not visible)'}")
             if d.get("plan"):
                 print(f"  Plan:   {d['plan']}")
+            if r.get("note"):
+                print(f"  {YELLOW}{r['note']}{RESET}")
         else:
             print(f"{BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
 

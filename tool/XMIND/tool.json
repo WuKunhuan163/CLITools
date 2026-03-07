@@ -1,8 +1,8 @@
 {
   "name": "XMIND",
   "version": "1.0.0",
-  "description": "XMind mind mapping via Chrome DevTools Protocol",
-  "purpose": "Access XMind mind maps and workspace via CDP using the authenticated app.xmind.com session.",
+  "description": "XMind mind mapping via CDMCP (Chrome DevTools MCP)",
+  "purpose": "Access XMind mind maps, sidebar navigation, and workspace via CDMCP using the authenticated app.xmind.com session.",
   "dependencies": [
     "PYTHON"
   ],

@@ -19,7 +19,7 @@ def main():
     tool = ToolBase("GMAIL")
 
     parser = argparse.ArgumentParser(
-        description="Gmail email client via Chrome CDP", add_help=False
+        description="Gmail email client via CDMCP", add_help=False
     )
     sub = parser.add_subparsers(dest="command", help="Subcommand")
 

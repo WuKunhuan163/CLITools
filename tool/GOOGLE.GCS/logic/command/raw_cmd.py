@@ -126,26 +126,41 @@ def execute(tool, remote_command, state_mgr, load_logic, no_capture=False, no_fe
             return True
         if stage:
             stage.fail_status = _t(tool, "turing_failed_to_execute", "Failed to execute")
-            stage.fail_name = "command"
+            stage.fail_name = _t(tool, "turing_command", "command")
             stage.error_brief = msg
         return False
 
-    waiting_label = _t(tool, "turing_waiting_user_action", "Waiting for user action")
-    verifying_label = _t(tool, "turing_verifying_result", "Verifying the command result file")
+    cdp_enabled = os.environ.get("GCS_CDP_ENABLED") == "1"
+    if cdp_enabled:
+        waiting_label = _t(tool, "turing_executing_via_cdp", "Executing via CDP...")
+    else:
+        waiting_label = _t(tool, "turing_waiting_user_action", "Waiting for user action...")
+    verifying_label = _t(tool, "turing_verifying_result", "Verifying the command result file...")
+
+    fail_complete = _t(tool, "turing_failed_to_complete", "Failed to complete")
+    completed = _t(tool, "turing_completed_user_action", "Completed")
+    user_action = _t(tool, "turing_user_action", "user action.")
+    remote_exec = _t(tool, "turing_remote_execution", "remote execution.")
+    exec_label = remote_exec if cdp_enabled else user_action
+    fail_execute = _t(tool, "turing_failed_to_execute", "Failed to execute")
+    command_label = _t(tool, "turing_command", "command")
+    retrieved = _t(tool, "turing_retrieved_result", "Retrieved")
+    exec_result = _t(tool, "turing_execution_result", "execution result.")
 
     pm = ProgressTuringMachine(project_root=tool.project_root, tool_name="GCS", log_dir=tool.get_log_dir())
     pm.add_stage(TuringStage(
         "user action", gui_action,
         active_status="", active_name=waiting_label,
-        fail_status="Failed to complete", success_status="Completed",
-        success_name="user action", bold_part=waiting_label
+        fail_status=fail_complete, fail_name=exec_label,
+        success_status=completed, success_name=exec_label,
+        bold_part=waiting_label
     ))
     if not no_capture:
         pm.add_stage(TuringStage(
             "command execution", verify_action,
             active_status="", active_name=verifying_label,
-            fail_status="Failed to execute", fail_name="command",
-            success_status="Retrieved", success_name="execution result",
+            fail_status=fail_execute, fail_name=command_label,
+            success_status=retrieved, success_name=exec_result,
             bold_part=verifying_label
         ))
 
@@ -364,15 +379,23 @@ def _get_venv_prefix(state_mgr):
     return None
 
 
-def _set_failure_reason(stage, res):
+def _set_failure_reason(stage, res, tool=None):
     status = res.get("status", "error")
     reason = res.get("reason", "")
     if status == "cancelled" or reason in ("interrupted", "signal", "stop"):
-        stage.fail_status = "Cancelled"
+        stage.fail_status = _t(tool, "turing_cancelled", "Cancelled") if tool else "Cancelled"
         stage.fail_name = ""
         stage.fail_color = "YELLOW"
-        stage.error_brief = "Cancelled by user."
+        stage.error_brief = _t(tool, "turing_cancelled_by_user", "Cancelled by user.") if tool else "Cancelled by user."
     elif status == "timeout":
-        stage.error_brief = "GUI timed out."
+        stage.error_brief = _t(tool, "turing_gui_timed_out", "GUI timed out.") if tool else "GUI timed out."
+    elif reason == "drive_not_mounted":
+        stage.fail_status = _t(tool, "turing_failed_to_execute", "Failed to execute") if tool else "Failed to execute"
+        stage.fail_name = _t(tool, "turing_command", "command") if tool else "command"
+        stage.error_brief = _t(tool, "turing_drive_not_mounted",
+                               "Google Drive not mounted. Run 'GCS --remount' first.") if tool else "Google Drive not mounted. Run 'GCS --remount' first."
+    elif reason and reason.startswith("cdp_"):
+        stage.error_brief = _t(tool, "turing_cdp_execution_failed", "CDP execution failed.") if tool else "CDP execution failed."
     else:
-        stage.error_brief = res.get("message", "GUI closed unexpectedly.")
+        stage.error_brief = res.get("message",
+                                    _t(tool, "turing_gui_closed_unexpectedly", "GUI closed unexpectedly.") if tool else "GUI closed unexpectedly.")

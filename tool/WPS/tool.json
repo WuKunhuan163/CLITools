@@ -1,8 +1,8 @@
 {
   "name": "WPS",
   "version": "1.0.0",
-  "description": "WPS Office / KDocs via Chrome DevTools Protocol",
-  "purpose": "Access WPS user info and recent documents via CDP using the authenticated KDocs/WPS session.",
+  "description": "WPS Office / KDocs via CDMCP (Chrome DevTools MCP)",
+  "purpose": "Access WPS user info and recent documents via CDMCP using the authenticated docs.wps.com / kdocs.cn session.",
   "dependencies": [
     "PYTHON"
   ],

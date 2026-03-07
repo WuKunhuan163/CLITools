@@ -1,8 +1,8 @@
-"""Gmail operations via Chrome DevTools Protocol.
+"""Gmail operations via CDMCP (Chrome DevTools MCP).
 
-Uses the authenticated ``mail.google.com`` session.  Gmail's UI is a
-single-page app; data is read from the rendered DOM (inbox rows, labels)
-and from the page title (unread count, email address).
+Uses the authenticated ``mail.google.com`` session via CDP (port 9222).
+Gmail's UI is a single-page app; data is read from the rendered DOM
+(inbox rows, labels) and from the page title (unread count, email address).
 
 Compose/send uses Gmail's compose window triggered by the Compose button,
 then fills To/Subject/Body fields and clicks Send.

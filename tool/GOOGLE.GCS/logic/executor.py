@@ -210,6 +210,26 @@ def _collapse_home(text: str) -> str:
     return text
 
 
+def _classify_cdp_failure(detail: dict) -> str:
+    """Classify a CDP execution failure into a reason string for Turing machine display."""
+    output = (detail.get("output", "") or "").lower()
+    error = (detail.get("error", "") or "").lower()
+    errors = (detail.get("errors", "") or "").lower()
+    combined = f"{output} {error} {errors}"
+
+    if "not mounted" in combined or "drive not mounted" in combined:
+        return "drive_not_mounted"
+    if "fingerprint" in combined and "failed" in combined:
+        return "mount_fingerprint_invalid"
+    if "timeout" in combined or detail.get("state") == "timeout":
+        return "execution_timeout"
+    if "colab" in combined and "not found" in combined:
+        return "colab_tab_not_found"
+    if "websocket" in combined or "connection" in combined:
+        return "cdp_connection_error"
+    return "cdp_execution_failed"
+
+
 def show_command_gui(project_root: Path, command: str, script: str, as_python: bool = False, no_capture: bool = False, done_marker: str = "", cdp_enabled: bool = False, no_feedback: bool = False):
     """
     Shows a GUI window with Copy Script and action buttons.
@@ -352,11 +372,23 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
     def _enable_feedback_btn_via_signal():
         """Write a signal file to tell the GUI to enable the feedback button."""
         try:
+            import json as _json_sig
             signal_file = project_root / "tmp" / f".gcs_cdp_fail_{id(win)}"
+            detail = {
+                "error": cdp_thread_result.get("error", ""),
+                "output": cdp_thread_result.get("output", ""),
+                "errors": cdp_thread_result.get("errors", ""),
+                "state": cdp_thread_result.get("state", ""),
+            }
             with open(signal_file, "w") as sf:
-                sf.write("failed")
+                _json_sig.dump(detail, sf)
         except Exception:
-            pass
+            try:
+                signal_file = project_root / "tmp" / f".gcs_cdp_fail_{id(win)}"
+                with open(signal_file, "w") as sf:
+                    sf.write("failed")
+            except Exception:
+                pass
 
     def _enable_feedback_btn():
         """Enable the Feedback button (when CDP fails, user needs manual fallback)."""
@@ -391,9 +423,20 @@ def show_command_gui(project_root: Path, command: str, script: str, as_python: b
                 win.finalize("success", "Finished")
                 return
             if fail_file.exists():
+                import json as _json_check
+                fail_detail = {}
+                try:
+                    with open(fail_file, "r") as ff:
+                        content = ff.read().strip()
+                        if content and content != "failed":
+                            fail_detail = _json_check.loads(content)
+                except Exception:
+                    pass
                 fail_file.unlink(missing_ok=True)
+
                 if no_capture or no_feedback:
-                    win.finalize("error", "CDP_FAILED")
+                    reason = _classify_cdp_failure(fail_detail)
+                    win.finalize("error", "CDP_FAILED", reason=reason)
                 else:
                     _enable_feedback_btn()
                 return

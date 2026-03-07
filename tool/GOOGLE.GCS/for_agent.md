@@ -78,8 +78,30 @@ If a file exists on Colab but not locally (or vice-versa), advise the user to:
 2. Run `GCS remount` again.
 3. Wait for the API verification loop to complete in the remount GUI.
 
+### 7. API Reconnection Manager
+The tool automatically tracks command execution count and duration. When thresholds are exceeded, it triggers `GCS --remount` before the next command.
+
+- **Thresholds**: Default 50 commands or 300s single-command duration. Configure with `GCS --reconnection config <count> <duration>`.
+- **State files**: `tool/GOOGLE.GCS/data/run/reconnection_counter.json`, `reconnection_config.json`, `remount_required.flag`, `remount_in_progress.lock`.
+- **Pre-check flow**: Before every remote command, the reconnection manager checks the counter and flag. If remount is needed, it's triggered automatically.
+- **Lock coordination**: A lock file prevents concurrent remount attempts. The lock has PID-based liveness checks and a 5-minute expiry.
+
+### 8. MCP-Mode Mount Pre-Check
+In CDP/MCP mode, `remote.py execute()` performs a lightweight Drive API check for the mount fingerprint file before running any command. If the fingerprint is missing:
+1. Auto-remount is triggered via `remount_cmd.execute()`.
+2. If remount fails, a clear error message is shown with guidance to run `GCS --remount` manually.
+This prevents the "GUI closed unexpectedly" error that previously occurred when Drive was not mounted.
+
 ### Debugging Timeouts
 If `wait_for_gdrive_file` times out:
 1. Check `tool/GOOGLE.GCS/tmp/gcs_debug.log`.
 2. Ensure the remote script was actually executed and finished (printed the "Finished" message).
 3. Verify that Google Drive is mounted on Colab (`/content/drive/MyDrive` exists).
+
+### Debugging CDP Failures
+When a CDP-mode command fails, the Turing machine now shows specific error reasons:
+- **"Google Drive not mounted"**: Run `GCS --remount` to re-mount.
+- **"Mount fingerprint mismatch"**: Stale session. Run `GCS --remount` to refresh.
+- **"Colab notebook tab not found"**: Run `GCS --mcp boot` to start Chrome CDP.
+- **"CDP connection failed"**: Verify Chrome is running with `--remote-debugging-port=9222`.
+- **"Remote execution timed out"**: Command exceeded the timeout. Consider `GCS --raw` for long tasks.

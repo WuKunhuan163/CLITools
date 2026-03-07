@@ -1,0 +1,13 @@
+{
+  "name": "GOOGLE.CDMCP",
+  "version": "0.1.0",
+  "description": "Chrome DevTools MCP — Visual browser automation with tab management and overlays",
+  "purpose": "Provide visual browser automation via CDP with tab grouping, focus indicators, lock overlays, element highlighting, and privacy configuration.",
+  "dependencies": [
+    "PYTHON",
+    "GOOGLE"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
+  ]
+}

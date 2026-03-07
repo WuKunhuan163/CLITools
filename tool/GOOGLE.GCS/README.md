@@ -134,8 +134,21 @@ Creates a Google Drive native file (Colab, Docs, Sheets, etc.) via browser.
 #### `GCS --mcp-upload <local_path> [folder]`
 Uploads a local file to Google Drive via browser.
 
+### `GCS --reconnection [status|config|reset]`
+Manages the API reconnection (auto-remount) mechanism.
+- `status`: Show current command counter, thresholds, and flag states.
+- `config <count> <duration>`: Set thresholds (default: 50 commands / 300s).
+- `reset`: Clear counter and remount flags.
+
+When thresholds are exceeded (command count or single-command duration), the next remote command will auto-trigger `GCS --remount` before execution.
+
+### MCP-Mode Mount Pre-Check
+
+In CDP/MCP mode (`--mcp`), the tool performs an automatic mount verification via the Drive API before executing any remote command. If the mount fingerprint is missing or stale, `GCS --remount` is triggered automatically. This prevents the confusing "GUI closed unexpectedly" error that occurs when Drive is not mounted.
+
 ## Data Locations
 - **Config**: `data/config.json`
 - **Keys**: `data/google_cloud_console/console_key.json`
 - **Shell State**: `tool/GOOGLE.GCS/data/shell_state.json`
+- **Reconnection State**: `tool/GOOGLE.GCS/data/run/reconnection_*.json`
 - **Debug Logs**: `tool/GOOGLE.GCS/tmp/gcs_debug.log`

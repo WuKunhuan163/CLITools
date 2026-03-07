@@ -1,7 +1,7 @@
-"""WPS Office / KDocs operations via Chrome DevTools Protocol.
+"""WPS Office / KDocs operations via CDMCP (Chrome DevTools MCP).
 
-Uses the ``kdocs.cn`` or ``wps.com`` session.  When authenticated,
-the tool can list recent documents and read user info.
+Uses the ``kdocs.cn`` or ``wps.com`` session via CDP (port 9222).
+When authenticated, the tool can list recent documents and read user info.
 """
 import json
 from typing import Dict, Any, Optional
