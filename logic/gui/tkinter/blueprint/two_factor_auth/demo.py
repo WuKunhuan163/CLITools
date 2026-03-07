@@ -12,7 +12,7 @@ from logic.gui.tkinter.blueprint.two_factor_auth.gui import TwoFactorAuthWindow
 
 if __name__ == "__main__":
     from logic.gui.engine import setup_gui_environment, get_safe_python_for_gui
-    from logic.tool.base import ToolBase
+    from logic.tool.blueprint.base import ToolBase
     from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
     from logic.config import get_color

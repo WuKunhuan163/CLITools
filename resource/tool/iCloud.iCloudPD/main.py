@@ -37,7 +37,7 @@ else:
     project_root = curr.parent.parent.parent.parent
     sys.path.insert(0, str(project_root))
 
-from logic.tool.base import ToolBase
+from logic.tool.blueprint.base import ToolBase
 from logic.config import get_color
 from logic.turing.models.progress import ProgressTuringMachine
 from logic.turing.logic import TuringStage

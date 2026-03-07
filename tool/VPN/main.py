@@ -15,7 +15,7 @@ script_dir = Path(__file__).resolve().parent
 project_root = script_dir.parent.parent
 sys.path.append(str(project_root))
 
-from logic.interface.tool import ToolBase
+from logic.tool.blueprint.base import ToolBase
 from logic.interface.config import get_color
 
 def main():

@@ -37,7 +37,7 @@ A boxy numeric code entry interface:
 Use the `run_gui` method provided by `ToolBase`:
 
 ```python
-from logic.tool.base import ToolBase
+from logic.tool.blueprint.base import ToolBase
 
 tool = ToolBase("MyTool")
 # ...

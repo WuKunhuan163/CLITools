@@ -26,7 +26,7 @@ from tool.PYTHON.logic.config import INSTALL_DIR, RESOURCE_ROOT, PROJECT_ROOT, g
 try:
     from logic.interface.config import get_color
     from logic.interface.lang import get_translation
-    from logic.interface.tool import ToolBase
+    from logic.tool.blueprint.base import ToolBase
 except ImportError:
     def get_color(name, default="\033[0m"): return default
     def get_translation(d, k, default): return default

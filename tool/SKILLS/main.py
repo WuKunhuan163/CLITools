@@ -22,7 +22,7 @@ else:
     project_root = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(project_root))
 
-from logic.interface.tool import ToolBase
+from logic.tool.blueprint.base import ToolBase
 from logic.interface.config import get_color
 
 CURSOR_SKILLS_DIR = Path.home() / ".cursor" / "skills"

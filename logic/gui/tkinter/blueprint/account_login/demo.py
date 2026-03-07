@@ -12,7 +12,7 @@ from logic.gui.tkinter.blueprint.account_login.gui import AccountLoginWindow
 
 if __name__ == "__main__":
     from logic.gui.engine import setup_gui_environment, get_safe_python_for_gui
-    from logic.tool.base import ToolBase
+    from logic.tool.blueprint.base import ToolBase
     from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
     from logic.config import get_color

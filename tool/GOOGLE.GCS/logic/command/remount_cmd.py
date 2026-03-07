@@ -102,12 +102,17 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
         session = CDPSession(tab["webSocketDebuggerUrl"], timeout=30)
         session_holder[0] = session
 
-        cell_count = session.evaluate(
-            "colab.global.notebook.cells ? colab.global.notebook.cells.length : 0"
+        cell_ok = session.evaluate(
+            "(function(){ var c = colab.global.notebook.cells;"
+            " return (Array.isArray(c) && c.length > 0"
+            " && typeof c[0].setText === 'function') ? 1 : 0; })()"
         )
-        if not cell_count or int(cell_count) == 0:
-            session.evaluate("colab.global.notebook.addCell('code', {cellIndex: 0})")
-            time.sleep(1)
+        if not cell_ok or int(cell_ok) == 0:
+            session.evaluate(
+                "(function(){ var b = document.getElementById('toolbar-add-code');"
+                " if(b) b.click(); })()"
+            )
+            time.sleep(2)
 
         code_json = json.dumps(script)
         session.evaluate(f"colab.global.notebook.cells[0].setText({code_json})")

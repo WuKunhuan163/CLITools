@@ -37,10 +37,20 @@ def _overlay():
     return _overlay_mod
 
 
+def _ensure_locked(session: CDPSession, tool_name: str = "CDMCP"):
+    """Auto-lock the tab if not already locked."""
+    ov = _overlay()
+    if not ov.is_locked(session):
+        ov.inject_lock(session, base_opacity=0.08, flash_opacity=0.25,
+                       tool_name=tool_name)
+
+
 def mcp_click(session: CDPSession, selector: str,
               label: str = "", dwell: float = 1.0,
               color: str = "#e8710a",
-              unlock_for_click: bool = True) -> Dict[str, Any]:
+              unlock_for_click: bool = True,
+              tool_name: str = "CDMCP",
+              require_lock: bool = True) -> Dict[str, Any]:
     """Highlight an element, hold the highlight, then click it.
 
     Args:
@@ -50,10 +60,14 @@ def mcp_click(session: CDPSession, selector: str,
         dwell: Seconds to hold the highlight before clicking.
         color: Highlight border color.
         unlock_for_click: If locked, temporarily allow clicks through.
+        tool_name: Name shown in lock label (e.g. "GCS").
+        require_lock: If True, auto-lock tab before interaction.
 
     Returns dict with 'ok', 'clicked', 'rect', 'element' keys.
     """
     ov = _overlay()
+    if require_lock:
+        _ensure_locked(session, tool_name)
     if not label:
         label = selector
 
@@ -94,7 +108,9 @@ def mcp_type(session: CDPSession, selector: str, text: str,
              color: str = "#1a73e8",
              focus_first: bool = True,
              clear_first: bool = False,
-             manage_passthrough: bool = True) -> Dict[str, Any]:
+             manage_passthrough: bool = True,
+             tool_name: str = "CDMCP",
+             require_lock: bool = True) -> Dict[str, Any]:
     """Highlight an input element, then type text character by character.
 
     Args:
@@ -109,10 +125,14 @@ def mcp_type(session: CDPSession, selector: str, text: str,
         manage_passthrough: If True, temporarily enables lock passthrough
             during typing and restores it after. Set False when the
             caller manages passthrough externally.
+        tool_name: Name shown in lock label (e.g. "GCS").
+        require_lock: If True, auto-lock tab before interaction.
 
     Returns dict with 'ok', 'typed', 'length' keys.
     """
     ov = _overlay()
+    if require_lock:
+        _ensure_locked(session, tool_name)
     if not label:
         label = f"Typing: {text[:30]}{'...' if len(text) > 30 else ''}"
 
@@ -177,11 +197,15 @@ def mcp_scroll(session: CDPSession, direction: str = "down",
 def mcp_wait_and_click(session: CDPSession, selector: str,
                        label: str = "", timeout: float = 10.0,
                        dwell: float = 1.0, poll_interval: float = 0.5,
-                       color: str = "#e8710a") -> Dict[str, Any]:
+                       color: str = "#e8710a",
+                       tool_name: str = "CDMCP",
+                       require_lock: bool = True) -> Dict[str, Any]:
     """Wait for an element to appear, then highlight and click it.
 
     Polls until the element is found or timeout expires.
     """
+    if require_lock:
+        _ensure_locked(session, tool_name)
     deadline = time.time() + timeout
     while time.time() < deadline:
         exists = session.evaluate(
@@ -196,7 +220,9 @@ def mcp_wait_and_click(session: CDPSession, selector: str,
 
 def mcp_navigate(session: CDPSession, url: str,
                  wait_selector: Optional[str] = None,
-                 timeout: float = 10.0) -> Dict[str, Any]:
+                 timeout: float = 10.0,
+                 tool_name: str = "CDMCP",
+                 require_lock: bool = True) -> Dict[str, Any]:
     """Navigate to a URL and optionally wait for an element.
 
     Args:
@@ -204,7 +230,11 @@ def mcp_navigate(session: CDPSession, url: str,
         url: URL to navigate to.
         wait_selector: CSS selector to wait for after navigation.
         timeout: Max seconds to wait for the selector.
+        tool_name: Name shown in lock label.
+        require_lock: If True, auto-lock tab before interaction.
     """
+    if require_lock:
+        _ensure_locked(session, tool_name)
     session.evaluate(f"window.location.href = {json.dumps(url)}")
 
     if wait_selector:

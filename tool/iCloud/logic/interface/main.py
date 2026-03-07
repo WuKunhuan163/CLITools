@@ -17,7 +17,7 @@ def get_icloud_interface():
 
     def run_login_gui(timeout=300, apple_id=None, error_msg=None):
         from logic.interface.gui import run_gui_subprocess
-        from logic.interface.tool import ToolBase
+        from logic.tool.blueprint.base import ToolBase
         import os
         
         # We need a tool instance for the manager

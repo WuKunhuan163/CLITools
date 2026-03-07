@@ -15,7 +15,7 @@ def search(query, depth="basic", max_results=5, include_answer=False):
     """
     from tool.TAVILY.main import _load_config, _search
     from types import SimpleNamespace
-    from logic.interface.tool import ToolBase
+    from logic.tool.blueprint.base import ToolBase
 
     tool = ToolBase("TAVILY")
     config = _load_config(tool)

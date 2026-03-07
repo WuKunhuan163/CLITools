@@ -33,7 +33,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 try:
-    from logic.interface.tool import ToolBase
+    from logic.tool.blueprint.base import ToolBase
     from logic.interface.gui import setup_gui_environment, get_safe_python_for_gui
     from logic.interface.lang import get_translation
     from logic.utils import get_logic_dir

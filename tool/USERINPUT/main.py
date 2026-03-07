@@ -46,7 +46,7 @@ current_dir = Path(__file__).resolve().parent
 
 try:
     # Root logic imports
-    from logic.interface.tool import ToolBase
+    from logic.tool.blueprint.base import ToolBase
     from logic.interface.gui import setup_gui_environment, get_safe_python_for_gui, is_sandboxed, get_sandbox_type
     from logic.interface.lang import get_translation
     from logic.utils import get_logic_dir, cleanup_old_files
