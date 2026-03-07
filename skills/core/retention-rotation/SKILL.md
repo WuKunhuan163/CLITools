@@ -24,7 +24,7 @@ When a collection of files or entries reaches a configured limit, **delete the o
 **Use the built-in `cleanup_old_files` function**:
 
 ```python
-from logic.utils import cleanup_old_files
+from interface.utils import cleanup_old_files
 
 cleanup_old_files("/path/to/logs", pattern="*.log", limit=100)
 ```

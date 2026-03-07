@@ -24,7 +24,7 @@ TOOL --audit code --targets tool/  # Scan specific directory
 Programmatic access:
 
 ```python
-from logic.audit.code_quality import run_full_audit, print_report
+from interface.audit import run_full_audit, print_report
 
 report = run_full_audit(auto_fix=True)
 print_report(report)

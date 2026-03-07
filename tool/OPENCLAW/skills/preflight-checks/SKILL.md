@@ -18,19 +18,13 @@ Run pre-flight checks before:
 The core `preflight()` function and common checks are available as reusable infrastructure:
 
 ```python
-from logic.utils.preflight import preflight, check_command_exists, check_path_exists, check_port_available
+from interface.utils import preflight, check_command_exists, check_path_exists, check_port_available
 
 ok, failures = preflight([
     ("Chrome available", lambda: check_command_exists("google-chrome")),
     ("Output dir exists", lambda: check_path_exists("/tmp/output")),
     ("Port 9222 free", lambda: check_port_available(9222)),
 ])
-```
-
-Also importable from `logic.utils`:
-
-```python
-from logic.utils import preflight, check_command_exists, check_path_exists, check_port_available
 ```
 
 ## Standard Check Categories

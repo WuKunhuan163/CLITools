@@ -27,7 +27,7 @@ class MyTool(ToolBase):
 For cross-module logging within a single tool session:
 
 ```python
-from logic.utils.logging import SessionLogger
+from interface.utils import SessionLogger
 
 logger = SessionLogger("MY_TOOL")
 logger.info("Session started")

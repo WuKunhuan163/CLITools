@@ -11,10 +11,10 @@ Apply these patterns whenever executing multi-step or network-dependent operatio
 
 ## Pattern 1: Retry with Backoff
 
-**Infrastructure**: Use the built-in `retry` decorator from `logic.utils.progress`:
+**Infrastructure**: Use the built-in `retry` decorator:
 
 ```python
-from logic.utils import retry
+from interface.utils import retry
 
 @retry(max_attempts=3, backoff=1.0, retryable_exceptions=(ConnectionError, TimeoutError))
 def call_api():
