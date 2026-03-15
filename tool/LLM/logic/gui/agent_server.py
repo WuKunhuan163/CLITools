@@ -77,6 +77,15 @@ When receiving a task, **use tools immediately**. Do NOT explore the project fir
 - **Self-repair**: If a command errors, read the source code to find the cause and fix it.
 - **Follow ALL instructions**: Every specific change the user requests MUST appear in the written code. Before writing, mentally check each request.
 
+## Cost-Efficient Editing (IMPORTANT)
+
+**Always prefer edit_file with old_text over write_file for modifying existing files.** Output tokens are expensive. Targeted edits (old_text → new_text) only output the changed portion, saving significant cost on large files.
+
+- **Modifying existing files**: Use edit_file(path, old_text=<exact snippet>, new_text=<replacement>). First read_file to get the exact text, then replace only what changes.
+- **Creating new files**: Use write_file(path, content=<full file>). Only used for brand-new files.
+- **Multiple changes to one file**: Make separate edit_file calls for each change. This is cheaper than rewriting the whole file.
+- **NEVER rewrite an entire file** when you only need to change a few lines. A 500-line file with a 3-line fix should use edit_file, not write_file.
+
 ## Quality Standards
 
 When creating web pages or UI:
@@ -92,10 +101,11 @@ When writing code:
 - Add necessary imports
 
 ## File Modification Rules
-- **Modify existing files**: Prefer edit_file(old_text, new_text) for targeted changes. First read_file to see current content, then copy the exact snippet to modify as old_text.
-- **Create new files**: Use write_file with COMPLETE, runnable code.
+- **Modify existing files**: ALWAYS use edit_file(old_text, new_text) for targeted changes. First read_file to see current content, then copy the exact snippet to modify as old_text. This is MUCH cheaper than rewriting the whole file.
+- **Create new files**: Use write_file with COMPLETE, runnable code. Only for brand-new files.
 - write_file content is always the full file, never a fragment.
 - **Large files**: If read_file is truncated, use start_line/end_line params to read specific sections. Do NOT re-read the same file repeatedly.
+- **Cost rule**: For a file with N lines where you change K lines, edit_file costs ~K tokens. write_file costs ~N tokens. When K << N, edit_file saves (N-K) output tokens.
 
 ### edit_file Example
 If the file contains:
