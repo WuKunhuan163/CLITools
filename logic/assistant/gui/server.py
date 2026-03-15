@@ -466,9 +466,12 @@ class AgentServer:
         context_feed = body.get("context_feed")
         raw_tl = body.get("turn_limit")
         turn_limit = int(raw_tl) if raw_tl is not None else -1
+        mode = body.get("mode", "")
+        model = body.get("model", "")
         self._mgr.send_message(sid, text, blocking=False,
                                context_feed=context_feed,
-                               turn_limit=turn_limit)
+                               turn_limit=turn_limit,
+                               mode=mode, model=model)
         return {"ok": True, "session_id": sid}
 
     def _api_input(self, sid: str, body: dict) -> dict:
@@ -653,12 +656,30 @@ class AgentServer:
         if not sid:
             return {"ok": False, "error": "No active session"}
         if action == "list":
-            queue = self._mgr.get_task_queue(sid)
-            return {"ok": True, "queue": [
-                {"text": t.get("text", "")[:100]} for t in queue]}
+            return {"ok": True, "queue": self._mgr.get_task_queue(sid)}
         elif action == "clear":
             count = self._mgr.clear_task_queue(sid)
             return {"ok": True, "cleared": count}
+        elif action == "update":
+            task_id = body.get("task_id", "")
+            updates = {}
+            for k in ("mode", "model", "turn_limit"):
+                if k in body:
+                    updates[k] = body[k]
+            if self._mgr.update_queued_task(sid, task_id, updates):
+                return {"ok": True}
+            return {"ok": False, "error": "Task not found"}
+        elif action == "remove":
+            task_id = body.get("task_id", "")
+            if self._mgr.remove_queued_task(sid, task_id):
+                return {"ok": True}
+            return {"ok": False, "error": "Task not found"}
+        elif action == "reorder":
+            task_id = body.get("task_id", "")
+            new_index = int(body.get("index", 0))
+            if self._mgr.reorder_queued_task(sid, task_id, new_index):
+                return {"ok": True}
+            return {"ok": False, "error": "Task not found"}
         return {"ok": False, "error": f"Unknown queue action: {action}"}
 
     def _api_inject_event(self, sid: str, body: dict) -> dict:
@@ -1021,7 +1042,11 @@ class AgentServer:
             return {"ok": False, "error": str(exc)}
 
     def _save_session_config(self, key, value) -> dict:
-        """Save a single session config key from the frontend settings panel."""
+        """Save a single session config key from the frontend settings panel.
+
+        If the key exists in SESSION_SETTINGS_SCHEMA, the value is validated
+        against the defined min/max range and clamped accordingly.
+        """
         if not key:
             return {"ok": False, "error": "Missing key"}
         try:
@@ -1033,33 +1058,81 @@ class AgentServer:
                     value = int(value)
             except (ValueError, TypeError):
                 pass
+            schema_entry = next(
+                (s for s in self.SESSION_SETTINGS_SCHEMA if s["key"] == key), None
+            )
+            if schema_entry and isinstance(value, (int, float)):
+                clamped = max(schema_entry["min"], min(schema_entry["max"], value))
+                if "options" in schema_entry:
+                    opts = schema_entry["options"]
+                    value = min(opts, key=lambda o: abs(o - clamped))
+                elif isinstance(schema_entry["default"], float):
+                    value = float(clamped)
+                else:
+                    value = int(clamped)
             cfg[key] = value
             save_config(cfg)
             return {"ok": True, "key": key, "value": value}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    SESSION_SETTINGS_SCHEMA = [
+        {"key": "max_read_chars", "default": 16384, "min": 256, "max": 262144,
+         "mode": "pow2", "tab": "general",
+         "desc": "Max characters returned by read_file tool."},
+        {"key": "max_exec_chars", "default": 8192, "min": 128, "max": 131072,
+         "mode": "pow2", "tab": "general",
+         "desc": "Max characters returned by exec tool output."},
+        {"key": "max_edit_chars", "default": 8192, "min": 128, "max": 131072,
+         "mode": "pow2", "tab": "general",
+         "desc": "Max characters for edit_file old_text/new_text."},
+        {"key": "history_round_limit", "default": 64, "min": 1, "max": 1024,
+         "mode": "pow2", "tab": "general",
+         "desc": "Max history rounds shown in session timeline."},
+        {"key": "debug_tokens_round_limit", "default": 64, "min": 1, "max": 1024,
+         "mode": "pow2", "tab": "general",
+         "desc": "Max rounds retained for token/context detail inspection."},
+        {"key": "compression_ratio", "default": 0.5, "min": 0.25, "max": 0.75,
+         "mode": "percent", "step": 0.05, "tab": "chat",
+         "desc": "Compress context when it reaches this % of the model's max context window."},
+        {"key": "context_lines", "default": 2, "min": 0, "max": 10,
+         "mode": "options", "options": [0, 1, 2, 5, 10], "tab": "chat",
+         "desc": "Number of surrounding context lines shown around diffs and file reads."},
+    ]
+
     def _get_session_config(self) -> dict:
-        """Return session configuration defaults from the LLM config store."""
+        """Return session config values and their full schema.
+
+        The schema includes key, default, min, max, mode, and description
+        for each setting, so the frontend can render controls dynamically
+        without hardcoding these values.
+        """
         try:
             from tool.LLM.logic.config import get_config_value
-            SESSION_DEFAULTS = {
+            config = {}
+            for s in self.SESSION_SETTINGS_SCHEMA:
+                val = get_config_value(s["key"], s["default"])
+                try:
+                    config[s["key"]] = int(val)
+                except (ValueError, TypeError):
+                    config[s["key"]] = s["default"]
+
+            extra_defaults = {
                 "default_turn_limit": 20,
-                "max_read_chars": 16384,
-                "max_exec_chars": 8192,
-                "max_edit_chars": 8192,
-                "history_round_limit": 64,
-                "debug_tokens_round_limit": 64,
                 "compression_ratio": 0.5,
             }
-            config = {}
-            for key, default in SESSION_DEFAULTS.items():
+            for key, default in extra_defaults.items():
                 val = get_config_value(key, default)
                 try:
-                    config[key] = int(val)
+                    config[key] = float(val) if isinstance(default, float) else int(val)
                 except (ValueError, TypeError):
                     config[key] = default
-            return {"ok": True, "config": config}
+
+            return {
+                "ok": True,
+                "config": config,
+                "schema": self.SESSION_SETTINGS_SCHEMA,
+            }
         except Exception as e:
             return {"ok": False, "error": str(e)}
 

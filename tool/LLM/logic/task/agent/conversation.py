@@ -472,6 +472,7 @@ class ConversationManager:
         self._lock = threading.Lock()
         self._cancel_requested = False
         self._task_queues: Dict[str, list] = {}  # session_id -> queued tasks
+        self._next_task_id = 1
 
         if brain is not None:
             self._brain = brain
@@ -1109,7 +1110,9 @@ class ConversationManager:
     def send_message(self, session_id: str, text: str,
                      blocking: bool = False,
                      context_feed: Optional[Dict[str, Any]] = None,
-                     turn_limit: int = 0):
+                     turn_limit: int = 0,
+                     mode: str = "",
+                     model: str = ""):
         """Send a user message and get LLM response.
 
         If the session is already running, the task is queued and will
@@ -1117,15 +1120,15 @@ class ConversationManager:
         """
         session = self._sessions.get(session_id)
         if session and session.status == "running":
-            task = {"text": text, "context_feed": context_feed,
-                    "turn_limit": turn_limit}
+            task_id = f"q{self._next_task_id}"
+            self._next_task_id += 1
+            task = {"id": task_id, "text": text, "context_feed": context_feed,
+                    "turn_limit": turn_limit, "mode": mode, "model": model}
             if session_id not in self._task_queues:
                 self._task_queues[session_id] = []
             self._task_queues[session_id].append(task)
-            queue_pos = len(self._task_queues[session_id])
-            self._emit({"type": "notice", "level": "info",
-                        "message": f"Task queued (position {queue_pos}). "
-                                   f"Will start after current task completes."})
+            self._emit({"type": "queue_updated",
+                        "queue": self._serialize_queue(session_id)})
             return
 
         self._start_turn(session_id, text, blocking, context_feed, turn_limit)
@@ -1160,8 +1163,13 @@ class ConversationManager:
         queue = self._task_queues.get(session_id, [])
         while queue:
             task = queue.pop(0)
-            self._emit({"type": "notice", "level": "info",
-                        "message": f"Starting queued task ({len(queue)} remaining)."})
+            self._emit({"type": "queue_task_started",
+                        "task_id": task.get("id", ""),
+                        "mode": task.get("mode", ""),
+                        "model": task.get("model", ""),
+                        "remaining": len(queue)})
+            self._emit({"type": "queue_updated",
+                        "queue": self._serialize_queue(session_id)})
             try:
                 self._run_turn(session_id, task["text"],
                                task.get("context_feed"),
@@ -1176,16 +1184,66 @@ class ConversationManager:
                 if session:
                     self._mark_session_done(session_id)
 
+    def _serialize_queue(self, session_id: str) -> list:
+        """Return a serializable snapshot of the task queue."""
+        return [
+            {"id": t.get("id", ""), "text": t.get("text", "")[:120],
+             "mode": t.get("mode", ""), "model": t.get("model", ""),
+             "turn_limit": t.get("turn_limit", 0)}
+            for t in self._task_queues.get(session_id, [])
+        ]
+
     def get_task_queue(self, session_id: str) -> list:
         """Return the current task queue for a session."""
-        return list(self._task_queues.get(session_id, []))
+        return self._serialize_queue(session_id)
 
     def clear_task_queue(self, session_id: str) -> int:
         """Clear all queued tasks for a session. Returns count removed."""
         queue = self._task_queues.get(session_id, [])
         count = len(queue)
         queue.clear()
+        if count:
+            self._emit({"type": "queue_updated", "queue": []})
         return count
+
+    def update_queued_task(self, session_id: str, task_id: str,
+                           updates: dict) -> bool:
+        """Update mode/model/turn_limit for a queued task. Returns True if found."""
+        queue = self._task_queues.get(session_id, [])
+        for task in queue:
+            if task.get("id") == task_id:
+                for k in ("mode", "model", "turn_limit"):
+                    if k in updates:
+                        task[k] = updates[k]
+                self._emit({"type": "queue_updated",
+                            "queue": self._serialize_queue(session_id)})
+                return True
+        return False
+
+    def remove_queued_task(self, session_id: str, task_id: str) -> bool:
+        """Remove a queued task by ID. Returns True if found."""
+        queue = self._task_queues.get(session_id, [])
+        for i, task in enumerate(queue):
+            if task.get("id") == task_id:
+                queue.pop(i)
+                self._emit({"type": "queue_updated",
+                            "queue": self._serialize_queue(session_id)})
+                return True
+        return False
+
+    def reorder_queued_task(self, session_id: str, task_id: str,
+                            new_index: int) -> bool:
+        """Move a queued task to a new position. Returns True if found."""
+        queue = self._task_queues.get(session_id, [])
+        for i, task in enumerate(queue):
+            if task.get("id") == task_id:
+                queue.pop(i)
+                new_index = max(0, min(new_index, len(queue)))
+                queue.insert(new_index, task)
+                self._emit({"type": "queue_updated",
+                            "queue": self._serialize_queue(session_id)})
+                return True
+        return False
 
     def _run_turn(self, session_id: str, text: str,
                   context_feed: Optional[Dict[str, Any]] = None,

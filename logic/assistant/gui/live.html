@@ -62,7 +62,7 @@ body.light-mode {
   --purple: #7c3aed;
   --purple-dim: rgba(124,58,237,0.06);
 }
-body.brilliant-mode {
+body.brilliant-mode, body.brilliant-mode.palette-strawberry {
   --bg: #fef6f0;
   --surface: #fff8f3;
   --surface-2: #ffeee3;
@@ -76,14 +76,60 @@ body.brilliant-mode {
   --accent-dim: rgba(232,93,117,0.12);
   --green: #2db87a;
   --green-dim: rgba(45,184,122,0.10);
-  --green-card-bg: #ecfdf3;
-  --green-card-border: #a7e8c5;
+  --green-card-bg: #fff0f3;
+  --green-card-border: #f5b8c4;
   --orange: #f59e0b;
   --orange-dim: rgba(245,158,11,0.10);
   --red: #ef4444;
   --red-dim: rgba(239,68,68,0.10);
   --purple: #a855f7;
   --purple-dim: rgba(168,85,247,0.10);
+}
+body.brilliant-mode.palette-mango {
+  --bg: #fefcf0;
+  --surface: #fffbf0;
+  --surface-2: #fff4d6;
+  --surface-3: #ffe8b0;
+  --border: #f0d08a;
+  --border-active: #e0b050;
+  --text: #3d2f0a;
+  --text-2: #7a6530;
+  --text-3: #a89050;
+  --accent: #e8920b;
+  --accent-dim: rgba(232,146,11,0.12);
+  --green: #5cb85c;
+  --green-dim: rgba(92,184,92,0.10);
+  --green-card-bg: #fdf8e8;
+  --green-card-border: #f0d888;
+  --orange: #e87d20;
+  --orange-dim: rgba(232,125,32,0.10);
+  --red: #e85050;
+  --red-dim: rgba(232,80,80,0.10);
+  --purple: #c060e0;
+  --purple-dim: rgba(192,96,224,0.10);
+}
+body.brilliant-mode.palette-blueberry {
+  --bg: #f0f4fe;
+  --surface: #f5f8ff;
+  --surface-2: #e4ecfe;
+  --surface-3: #d0dcf8;
+  --border: #b0c4f0;
+  --border-active: #7098e0;
+  --text: #1a2340;
+  --text-2: #405080;
+  --text-3: #6878a8;
+  --accent: #5070e0;
+  --accent-dim: rgba(80,112,224,0.12);
+  --green: #40b080;
+  --green-dim: rgba(64,176,128,0.10);
+  --green-card-bg: #eef2ff;
+  --green-card-border: #a0b8f0;
+  --orange: #e0a020;
+  --orange-dim: rgba(224,160,32,0.10);
+  --red: #e05050;
+  --red-dim: rgba(224,80,80,0.10);
+  --purple: #8050e0;
+  --purple-dim: rgba(128,80,224,0.10);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font); background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; user-select: none; -webkit-user-select: none; }
@@ -370,6 +416,28 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .file-stat .added-count { color: var(--green); }
 .file-stat .removed-count { color: var(--red); }
 
+/* ── Task Queue Container ── */
+.queue-container { margin: 0 28px 8px; display: none; }
+.queue-container.visible { display: block; }
+.queue-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.queue-header { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 12.5px; font-weight: 500; color: var(--text-2); cursor: pointer; user-select: none; }
+.queue-header:hover { background: rgba(255,255,255,0.03); }
+.queue-header i { font-size: 14px; color: var(--accent); }
+.queue-badge-count { background: var(--accent); color: #fff; font-size: 10px; padding: 0 5px; border-radius: 8px; font-weight: 600; }
+.queue-clear-btn { margin-left: auto; border: none; background: none; color: var(--text-3); font-size: 11px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+.queue-clear-btn:hover { background: var(--red-dim); color: var(--red); }
+.queue-list { padding: 4px 0; }
+.queue-item { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 12px; color: var(--text); border-top: 1px solid var(--border); }
+.queue-item:first-child { border-top: none; }
+.queue-item-grip { cursor: grab; color: var(--text-3); font-size: 14px; }
+.queue-item-grip:active { cursor: grabbing; }
+.queue-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue-item select { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 11px; color: var(--text); font-family: var(--font); cursor: pointer; }
+.queue-item-remove { border: none; background: none; color: var(--text-3); font-size: 13px; cursor: pointer; padding: 2px; border-radius: 4px; line-height: 1; }
+.queue-item-remove:hover { color: var(--red); background: var(--red-dim); }
+.queue-item.dragging { opacity: 0.4; }
+.queue-item.drag-over { border-top: 2px solid var(--accent); }
+
 /* ── Persistent Task File Bar ── */
 .task-file-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 0 28px 8px; overflow: hidden; transition: opacity 0.3s ease; min-width: 400px; }
 .task-file-bar.removing { opacity: 0; }
@@ -643,6 +711,8 @@ body.debug-mode .debug-block { display: block; }
     </div>
   </div>
 
+  <div class="queue-container" id="queue-container"></div>
+
   <div class="messages" id="chat-area">
     <div class="welcome" id="welcome">
       <i class="bx bx-bot welcome-icon"></i>
@@ -911,8 +981,14 @@ const THEMES = {
   light:     { label: 'Light',     icon: 'bx-sun',     cls: 'light-mode' },
   brilliant: { label: 'Brilliant', icon: 'bx-palette',  cls: 'brilliant-mode' },
 };
+const BRILLIANT_PALETTES = [
+  { id: 'strawberry', icon: '🍓', label: 'Strawberry' },
+  { id: 'mango',      icon: '🥭', label: 'Mango' },
+  { id: 'blueberry',  icon: '🫐', label: 'Blueberry' },
+];
 let currentTheme = localStorage.getItem('theme') || 'dark';
 if (!THEMES[currentTheme]) currentTheme = 'dark';
+let currentPalette = localStorage.getItem('brilliantPalette') || 'strawberry';
 
 /* ── i18n ── */
 const _I18N = {
@@ -975,14 +1051,36 @@ function _refreshPillLabels() {
   }
 }
 
+function applyPalette(paletteId) {
+  currentPalette = paletteId;
+  localStorage.setItem('brilliantPalette', paletteId);
+  BRILLIANT_PALETTES.forEach(p => document.body.classList.remove('palette-' + p.id));
+  document.body.classList.add('palette-' + paletteId);
+  const btn = $('palette-cycle-btn');
+  if (btn) {
+    const pal = BRILLIANT_PALETTES.find(p => p.id === paletteId);
+    btn.textContent = pal ? pal.icon : '🍓';
+    btn.title = pal ? pal.label : 'Strawberry';
+  }
+}
+function cyclePalette() {
+  const idx = BRILLIANT_PALETTES.findIndex(p => p.id === currentPalette);
+  const next = BRILLIANT_PALETTES[(idx + 1) % BRILLIANT_PALETTES.length];
+  applyPalette(next.id);
+  renderSettingsTab();
+}
 function applyTheme(name) {
   currentTheme = name;
   document.body.classList.remove('light-mode', 'brilliant-mode');
+  BRILLIANT_PALETTES.forEach(p => document.body.classList.remove('palette-' + p.id));
   if (THEMES[name]?.cls) document.body.classList.add(THEMES[name].cls);
+  if (name === 'brilliant') applyPalette(currentPalette);
   const icon = $('theme-icon');
   if (icon) icon.className = 'bx ' + (THEMES[name]?.icon || 'bx-moon');
   localStorage.setItem('theme', name);
   _adaptLogoBrightness();
+  const overlay = $('settings-overlay');
+  if (overlay && overlay.classList.contains('open')) renderSettingsTab();
 }
 
 const _logoAdaptCache = new Map();
@@ -1218,25 +1316,124 @@ window.addEventListener('resize', _autoResizeInput);
 let taskRunning = false;
 let _userScrolledAt = 0;
 let _autoScrollIdleS = localStorage.getItem('auto_scroll_idle_s') === 'none' ? 0 : (parseInt(localStorage.getItem('auto_scroll_idle_s')) || 30);
-let _messageQueue = [];
+let _queuedTasks = [];
 
 function _updateQueueBadge() {
   const btn = $('btn-send');
   const badge = btn.querySelector('.queue-badge');
-  if (_messageQueue.length > 0 && taskRunning) {
+  if (_queuedTasks.length > 0 && taskRunning) {
     if (!badge) {
       const b = document.createElement('span');
       b.className = 'queue-badge';
-      b.textContent = _messageQueue.length;
+      b.textContent = _queuedTasks.length;
       btn.appendChild(b);
     } else {
-      badge.textContent = _messageQueue.length;
+      badge.textContent = _queuedTasks.length;
     }
     btn.querySelector('i').className = 'bx bx-list-plus';
   } else {
     if (badge) badge.remove();
     btn.querySelector('i').className = 'bx bx-send';
   }
+}
+
+function _renderQueueContainer() {
+  const container = $('queue-container');
+  if (!container) return;
+  if (!_queuedTasks.length) {
+    container.classList.remove('visible');
+    container.innerHTML = '';
+    return;
+  }
+  container.classList.add('visible');
+  const modelOpts = (window._configuredModels || []).map(m =>
+    `<option value="${m.id}">${m.display || m.id}</option>`
+  ).join('');
+  const modeOpts = ['agent','ask','plan'].map(m =>
+    `<option value="${m}">${m.charAt(0).toUpperCase()+m.slice(1)}</option>`
+  ).join('');
+  const items = _queuedTasks.map((t, i) => {
+    const modeSelect = `<select onchange="_queueUpdateTask('${t.id}',{mode:this.value})">${modeOpts}</select>`;
+    const modelSelect = `<select onchange="_queueUpdateTask('${t.id}',{model:this.value})"><option value="auto">Auto</option>${modelOpts}</select>`;
+    return `<div class="queue-item" draggable="true" data-task-id="${t.id}" data-idx="${i}"
+      ondragstart="_qDragStart(event)" ondragover="_qDragOver(event)" ondragleave="_qDragLeave(event)" ondrop="_qDrop(event)">
+      <span class="queue-item-grip"><i class="bx bx-grip-vertical"></i></span>
+      <span class="queue-item-text" title="${esc(t.text)}">${esc(t.text)}</span>
+      ${modeSelect}${modelSelect}
+      <button class="queue-item-remove" onclick="_queueRemoveTask('${t.id}')" title="Remove"><i class="bx bx-x"></i></button>
+    </div>`;
+  }).join('');
+  container.innerHTML = `<div class="queue-panel">
+    <div class="queue-header">
+      <i class="bx bx-list-ol"></i> Queued Tasks <span class="queue-badge-count">${_queuedTasks.length}</span>
+      <button class="queue-clear-btn" onclick="_queueClearAll()">Clear all</button>
+    </div>
+    <div class="queue-list">${items}</div>
+  </div>`;
+  _queuedTasks.forEach((t, i) => {
+    const row = container.querySelectorAll('.queue-item')[i];
+    if (!row) return;
+    const selects = row.querySelectorAll('select');
+    if (selects[0]) selects[0].value = t.mode || currentMode;
+    if (selects[1]) {
+      const mval = t.model || currentModel;
+      const opts = Array.from(selects[1].options).map(o => o.value);
+      if (opts.includes(mval)) {
+        selects[1].value = mval;
+      } else {
+        const suffix = opts.find(o => mval.endsWith(o));
+        selects[1].value = suffix || 'auto';
+      }
+    }
+  });
+}
+
+async function _queueUpdateTask(taskId, updates) {
+  if (!activeSessionId) return;
+  try {
+    await fetch(`/api/session/${activeSessionId}/queue`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action:'update', task_id: taskId, ...updates})
+    });
+  } catch(e) { console.warn('Queue update failed:', e); }
+}
+
+async function _queueRemoveTask(taskId) {
+  if (!activeSessionId) return;
+  try {
+    await fetch(`/api/session/${activeSessionId}/queue`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action:'remove', task_id: taskId})
+    });
+  } catch(e) { console.warn('Queue remove failed:', e); }
+}
+
+async function _queueClearAll() {
+  if (!activeSessionId) return;
+  try {
+    await fetch(`/api/session/${activeSessionId}/queue`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action:'clear'})
+    });
+  } catch(e) { console.warn('Queue clear failed:', e); }
+}
+
+let _qDragId = null;
+function _qDragStart(e) { _qDragId = e.currentTarget.dataset.taskId; e.dataTransfer.effectAllowed = 'move'; }
+function _qDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function _qDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+async function _qDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const targetIdx = parseInt(e.currentTarget.dataset.idx);
+  if (!_qDragId || !activeSessionId) return;
+  try {
+    await fetch(`/api/session/${activeSessionId}/queue`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action:'reorder', task_id: _qDragId, index: targetIdx})
+    });
+  } catch(e) { console.warn('Queue reorder failed:', e); }
+  _qDragId = null;
 }
 
 function _updateFloatPanel() {
@@ -1257,12 +1454,6 @@ function setStopMode(on) {
   taskRunning = on;
   _updateFloatPanel();
   _updateQueueBadge();
-  if (!on && _messageQueue.length > 0) {
-    const queued = _messageQueue.shift();
-    _updateQueueBadge();
-    $('input').value = queued;
-    sendMessage();
-  }
 }
 
 async function cancelTask() {
@@ -1276,13 +1467,15 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  if (taskRunning) {
-    _messageQueue.push(text);
+  if (taskRunning && activeSessionId) {
     input.value = '';
     input.style.height = 'auto';
-    input.placeholder = 'Queued (' + _messageQueue.length + '). Type another or wait...';
     _autoResizeInput();
-    _updateQueueBadge();
+    const payload = { text, mode: currentMode, model: currentModel, turn_limit: currentTurnLimit };
+    fetch(`/api/session/${activeSessionId}/send`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    }).catch(e => console.warn('Queue send failed:', e));
     return;
   }
 
@@ -1501,29 +1694,18 @@ function renderSettingsTab() {
   }
 }
 
-function _settingsNumInput(key, defaultVal, min, max, desc) {
-  const saved = localStorage.getItem(key);
-  const val = saved ? parseInt(saved) : defaultVal;
-  const step = defaultVal >= 1000 ? 1000 : defaultVal >= 100 ? 100 : defaultVal >= 10 ? 5 : 1;
-  return `<label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;">
-    <span style="flex:1"><strong>${key.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase())}</strong><br><span style="color:var(--text-3);font-size:11.5px;">${desc}</span></span>
-    <div class="settings-stepper" data-key="${key}" data-min="${min}" data-max="${max}" data-default="${defaultVal}" data-mode="linear" data-step="${step}">
-      <button class="stepper-btn down" onclick="_stepperClick(this,-1)">\u25BC</button>
-      <span class="stepper-value">${val}</span>
-      <button class="stepper-btn up" onclick="_stepperClick(this,1)">\u25B2</button>
-    </div>
-  </label>`;
-}
-
-function _settingsPow2Input(key, defaultVal, min, max, desc) {
+function _settingsNumInput(key, defaultVal, min, max, desc, mode) {
   const saved = localStorage.getItem(key);
   const val = saved ? parseInt(saved) : defaultVal;
   const fmtK = (n) => n >= 1048576 ? Math.floor(n/1048576)+'m' : n >= 1024 ? Math.floor(n/1024)+'k' : String(Math.floor(n));
+  const resolvedMode = mode || (defaultVal >= 256 ? 'pow2' : 'linear');
+  const step = defaultVal >= 1000 ? 1000 : defaultVal >= 100 ? 100 : defaultVal >= 10 ? 5 : 1;
+  const displayVal = resolvedMode === 'pow2' ? fmtK(val) : String(val);
   return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;">
     <span style="flex:1"><strong>${key.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase())}</strong><br><span style="color:var(--text-3);font-size:11.5px;">${desc}</span></span>
-    <div class="settings-stepper" data-key="${key}" data-min="${min}" data-max="${max}" data-default="${defaultVal}" data-mode="pow2" title="${fmtK(val)}">
+    <div class="settings-stepper" data-key="${key}" data-min="${min}" data-max="${max}" data-default="${defaultVal}" data-mode="${resolvedMode}" data-step="${step}" title="${fmtK(val)}">
       <button class="stepper-btn down" onclick="_stepperClick(this,-1)">\u25BC</button>
-      <span class="stepper-value">${fmtK(val)}</span>
+      <span class="stepper-value">${displayVal}</span>
       <button class="stepper-btn up" onclick="_stepperClick(this,1)">\u25B2</button>
     </div>
   </label>`;
@@ -1595,6 +1777,7 @@ function renderGeneralView() {
       <div style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:12px;">
         <span><strong>${_('Color Mode')}</strong></span>
         <select onchange="applyTheme(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:120px;">${themeOpts}</select>
+        ${currentTheme === 'brilliant' ? `<button id="palette-cycle-btn" onclick="cyclePalette()" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:16px;line-height:1;" title="${(BRILLIANT_PALETTES.find(p=>p.id===currentPalette)||{}).label||'Strawberry'}">${(BRILLIANT_PALETTES.find(p=>p.id===currentPalette)||{}).icon||'🍓'}</button>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:12px;">
         <span><strong>${_('Language')}</strong></span>
@@ -1628,11 +1811,9 @@ function renderGeneralView() {
     </div>
     <div class="settings-section-title" style="margin-top:16px;">${_('Runtime Limits')}</div>
     <div class="settings-card" style="padding:16px;">
-      ${_settingsNumInput('max_read_chars', 16384, 256, 262144, 'Max characters returned by read_file tool.')}
-      ${_settingsNumInput('max_exec_chars', 8192, 128, 131072, 'Max characters returned by exec tool output.')}
-      ${_settingsNumInput('max_edit_chars', 8192, 128, 131072, 'Max characters for edit_file old_text/new_text.')}
-      ${_settingsNumInput('history_round_limit', 64, 1, 1024, 'Max history rounds shown in session timeline.')}
-      ${_settingsNumInput('debug_tokens_round_limit', 64, 1, 1024, 'Max rounds retained for token/context detail inspection.')}
+      ${(window._sessionSettingsSchema || []).filter(s => s.tab === 'general').map(s =>
+        _settingsNumInput(s.key, s.default, s.min, s.max, s.desc, s.mode)
+      ).join('')}
     </div>`;
 }
 
@@ -1749,13 +1930,16 @@ function showSubPanel(id, title, bodyHtml, afterRender) {
 }
 
 function renderChatView() {
-  const savedRatio = parseFloat(localStorage.getItem('compression_ratio')) || 0.5;
+  const _cs = (window._sessionSettingsSchema || []).reduce((m,s)=>(m[s.key]=s,m),{});
+  const crSchema = _cs['compression_ratio'] || {default:0.5,min:0.25,max:0.75,step:0.05};
+  const clSchema = _cs['context_lines'] || {default:2,options:[0,1,2,5,10]};
+  const savedRatio = parseFloat(localStorage.getItem('compression_ratio')) || crSchema.default;
   const maxCtx = engine._rawMaxContextTokens || engine._maxContextTokens || 0;
   const effectiveLimit = maxCtx ? Math.round(maxCtx * savedRatio) : 0;
   const limitLabel = effectiveLimit > 0
     ? `${(effectiveLimit/1000).toFixed(1)}k tokens (${(maxCtx/1000).toFixed(0)}k × ${(savedRatio*100).toFixed(0)}%)`
     : 'N/A';
-  const ctxLines = parseInt(localStorage.getItem('context_lines')) || 2;
+  const ctxLines = parseInt(localStorage.getItem('context_lines')) || clSchema.default;
   return `
     <div class="settings-section-title">${_('Context Compression')}</div>
     <div class="settings-card" style="padding:16px;">
@@ -1766,7 +1950,7 @@ function renderChatView() {
             Compress context when it reaches this % of the model's max context window.
           </span>
         </span>
-        <div class="settings-stepper" id="compression-ratio-stepper" data-key="compression_ratio" data-min="25" data-max="75" data-default="50" data-mode="linear" data-step="5">
+        <div class="settings-stepper" id="compression-ratio-stepper" data-key="compression_ratio" data-min="${Math.round(crSchema.min*100)}" data-max="${Math.round(crSchema.max*100)}" data-default="${Math.round(crSchema.default*100)}" data-mode="linear" data-step="${Math.round((crSchema.step||0.05)*100)}">
           <button class="stepper-btn down" onclick="_compressionStep(-1)">&#x25BC;</button>
           <span class="stepper-value" id="compression-ratio-val">${(savedRatio*100).toFixed(0)}%</span>
           <button class="stepper-btn up" onclick="_compressionStep(1)">&#x25B2;</button>
@@ -1808,9 +1992,14 @@ function _calcEffectiveLabel(ratio) {
 }
 
 function _compressionStep(dir) {
-  const saved = parseFloat(localStorage.getItem('compression_ratio')) || 0.5;
-  let pct = Math.round(saved * 100) + dir * 5;
-  pct = Math.max(25, Math.min(75, pct));
+  const cs = (window._sessionSettingsSchema || []).find(x => x.key === 'compression_ratio') || {};
+  const defVal = cs.default || 0.5;
+  const minPct = Math.round((cs.min || 0.25) * 100);
+  const maxPct = Math.round((cs.max || 0.75) * 100);
+  const stepPct = Math.round((cs.step || 0.05) * 100);
+  const saved = parseFloat(localStorage.getItem('compression_ratio')) || defVal;
+  let pct = Math.round(saved * 100) + dir * stepPct;
+  pct = Math.max(minPct, Math.min(maxPct, pct));
   const ratio = pct / 100;
   localStorage.setItem('compression_ratio', String(ratio));
   document.getElementById('compression-ratio-val').textContent = pct + '%';
@@ -1821,11 +2010,16 @@ function _compressionStep(dir) {
   if (engine._rawMaxContextTokens) engine._maxContextTokens = Math.round(engine._rawMaxContextTokens * ratio);
 }
 
-const _CTX_LINES_OPTIONS = [0, 1, 2, 5, 10];
+function _getCtxLinesOptions() {
+  const s = (window._sessionSettingsSchema || []).find(x => x.key === 'context_lines');
+  return (s && s.options) || [0, 1, 2, 5, 10];
+}
 function _ctxLinesStep(dir) {
-  const cur = parseInt(localStorage.getItem('context_lines')) || 2;
+  const _CTX_LINES_OPTIONS = _getCtxLinesOptions();
+  const defVal = ((window._sessionSettingsSchema || []).find(x => x.key === 'context_lines') || {}).default || 2;
+  const cur = parseInt(localStorage.getItem('context_lines')) || defVal;
   let idx = _CTX_LINES_OPTIONS.indexOf(cur);
-  if (idx < 0) idx = 2;
+  if (idx < 0) idx = _CTX_LINES_OPTIONS.indexOf(defVal);
   idx = Math.max(0, Math.min(_CTX_LINES_OPTIONS.length - 1, idx + dir));
   const val = _CTX_LINES_OPTIONS[idx];
   localStorage.setItem('context_lines', String(val));
@@ -2780,6 +2974,30 @@ function handleSSEEvent(evt) {
       break;
     }
 
+    case 'queue_updated': {
+      _queuedTasks = evt.queue || [];
+      _updateQueueBadge();
+      _renderQueueContainer();
+      break;
+    }
+
+    case 'queue_task_started': {
+      if (evt.mode) {
+        currentMode = evt.mode;
+        const modeBtn = document.getElementById('mode-pill');
+        if (modeBtn) modeBtn.setValue(evt.mode);
+        const modeBtns = document.querySelectorAll('[data-mode]');
+        modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === evt.mode));
+      }
+      if (evt.model && modelPill) {
+        currentModel = evt.model;
+        modelPill.setValue(evt.model);
+      }
+      engine.enqueueEvent({type: 'notice', level: 'info',
+        message: `Starting queued task (${evt.remaining || 0} remaining).`});
+      break;
+    }
+
     case 'error': {
       const errMsg = evt.message || 'Unknown error';
       engine.renderCenterNotice(`<i class="bx bx-x-circle" style="color:var(--red);font-size:16px;vertical-align:middle;"></i> <strong style="color:var(--red);">Error</strong>: ${esc(errMsg)}`);
@@ -2861,8 +3079,10 @@ async function init() {
         const cfgData = await cfgResp.json();
         if (cfgData.ok && cfgData.models && cfgData.models.length > 1) {
           MODEL_OPTIONS = cfgData.models.map(m => ({ value: m.value, label: m.label }));
+          window._configuredModels = cfgData.models.filter(m => m.value !== 'auto').map(m => ({id: m.value, display: m.label}));
           const newOpts = MODEL_OPTIONS.map(m => m.value === 'auto' ? { value: 'auto', label: _('Auto'), icon: 'bx-bot' } : { value: m.value, label: m.label, ...(MODEL_LOGOS[m.value] ? { logo: MODEL_LOGOS[m.value] } : { icon: 'bx-bot' }) });
           modelPill.setOptions(newOpts);
+          if (_queuedTasks.length) _renderQueueContainer();
           return;
         }
       } catch (e) { /* retry */ }
@@ -2881,6 +3101,14 @@ async function init() {
         if (sel) sel.value = String(c.default_turn_limit);
       }
     }
+    if (scfg.ok && scfg.schema) {
+      window._sessionSettingsSchema = scfg.schema;
+      for (const s of scfg.schema) {
+        if (!localStorage.getItem(s.key) && scfg.config[s.key] != null) {
+          localStorage.setItem(s.key, String(scfg.config[s.key]));
+        }
+      }
+    }
   } catch (e) { console.warn('Failed to load session config:', e); }
 
   if (initialSessionId) {
@@ -2889,6 +3117,13 @@ async function init() {
     engine._refreshSessions();
     $('main-title').textContent = engine.sessions[initialSessionId]?.title || 'New Task';
     await apiActivateSession(initialSessionId);
+    try {
+      const qr = await fetch(`/api/session/${initialSessionId}/queue`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({action:'list'})
+      }).then(r => r.json());
+      if (qr.ok && qr.queue) { _queuedTasks = qr.queue; _renderQueueContainer(); _updateQueueBadge(); }
+    } catch(e) {}
   } else {
     $('main-title').textContent = 'New Task';
     $('chat-area').innerHTML = '<div id="welcome" class="welcome"><p>Type a message to start</p></div>';

@@ -41,6 +41,7 @@ from tool.LLM.logic.auto import (
     ProviderHealth, get_health, PROVIDER_RECOVERY_RULES,
     PRIMARY_LIST, FALLBACK_LIST,
 )
+from tool.LLM.logic.rate_queue import get_queue_manager, RateQueueManager
 
 
 class ProviderStatus:
@@ -69,6 +70,7 @@ class ProviderManager:
         self._lock = threading.Lock()
         self._rate_limiters: Dict[str, Any] = {}
         self._health: ProviderHealth = get_health()
+        self._queue_mgr: RateQueueManager = get_queue_manager()
 
     def _get_vendor(self, provider_name: str) -> str:
         """Extract vendor from provider name (e.g. 'zhipu-glm-4-flash' -> 'zhipu')."""
@@ -93,6 +95,7 @@ class ProviderManager:
         - key_summary: {total, active, rate_limited, stale, degraded}
         - health_errors_5m: int (error count in last 5 minutes)
         - rate_limiter: {consecutive_429s, in_flight} or None
+        - queue: {state, wait_s, rpm_used, rpm_limit, ...} from RateQueueManager
         - recovery_eta_s: float or None (seconds until next recovery window)
         """
         vendor = self._get_vendor(provider_name)
@@ -110,10 +113,12 @@ class ProviderManager:
                 "in_flight": limiter.in_flight,
             }
 
+        queue_info = self._get_queue_info(provider_name)
+
         status = self._compute_status(
-            key_summary, health_available, error_count, limiter
+            key_summary, health_available, error_count, limiter, queue_info
         )
-        wait_s = self._estimate_wait(provider_name, key_summary, limiter)
+        wait_s = self._estimate_wait(provider_name, key_summary, limiter, queue_info)
         recovery_eta = self._estimate_recovery(provider_name, now)
 
         is_configured = self._is_configured(provider_name)
@@ -129,6 +134,7 @@ class ProviderManager:
             "key_summary": key_summary,
             "health_errors_5m": error_count,
             "rate_limiter": limiter_info,
+            "queue": queue_info,
             "recovery_eta_s": round(recovery_eta, 1) if recovery_eta else None,
             "timestamp": now,
         }
@@ -274,8 +280,16 @@ class ProviderManager:
                 summary["degraded"] += 1
         return summary
 
+    def _get_queue_info(self, provider_name: str) -> Optional[Dict[str, Any]]:
+        """Get queue state from RateQueueManager."""
+        try:
+            return self._queue_mgr.get_status(provider_name)
+        except Exception:
+            return None
+
     def _compute_status(self, key_summary: Dict, health_available: bool,
-                        error_count: int, limiter) -> str:
+                        error_count: int, limiter,
+                        queue_info: Optional[Dict] = None) -> str:
         """Derive a single status label from all signals."""
         if key_summary["total"] == 0:
             return ProviderStatus.UNCONFIGURED
@@ -288,11 +302,17 @@ class ProviderManager:
                 return ProviderStatus.RATE_LIMITED
             return ProviderStatus.STALE
 
+        if queue_info and queue_info.get("state") in ("cooldown", "blocked"):
+            return ProviderStatus.RATE_LIMITED
+
         if key_summary["rate_limited"] > 0 and key_summary["active"] > 0:
             return ProviderStatus.DEGRADED
 
         if limiter and limiter.consecutive_429s > 0:
             return ProviderStatus.RATE_LIMITED
+
+        if queue_info and queue_info.get("state") == "throttled":
+            return ProviderStatus.DEGRADED
 
         if error_count >= 3:
             return ProviderStatus.DEGRADED
@@ -300,12 +320,20 @@ class ProviderManager:
         return ProviderStatus.AVAILABLE
 
     def _estimate_wait(self, provider_name: str,
-                       key_summary: Dict, limiter) -> float:
-        """Estimate seconds until a request could reasonably be sent."""
+                       key_summary: Dict, limiter,
+                       queue_info: Optional[Dict] = None) -> float:
+        """Estimate seconds until a request could reasonably be sent.
+
+        Combines signals from rate limiter, key state, and queue manager.
+        Returns the maximum wait across all subsystems.
+        """
         wait = 0.0
 
+        if queue_info and queue_info.get("wait_s", 0) > 0:
+            wait = max(wait, queue_info["wait_s"])
+
         if limiter and limiter.consecutive_429s > 0:
-            wait += min(2 ** limiter.consecutive_429s, 60)
+            wait = max(wait, min(2 ** limiter.consecutive_429s, 60))
 
         if key_summary["active"] == 0 and key_summary["rate_limited"] > 0:
             vendor = self._get_vendor(provider_name)
@@ -326,18 +354,24 @@ class ProviderManager:
         return wait
 
     def _estimate_recovery(self, provider_name: str, now: float) -> Optional[float]:
-        """Estimate seconds until the provider might recover from disabled state."""
+        """Estimate seconds until the provider might recover from disabled state.
+
+        Uses multiple signals:
+        1. TimedRecovery rules from PROVIDER_RECOVERY_RULES
+        2. Queue manager's next_safe_t (based on actual rate limit data from model.json)
+        3. Key state reset times
+        """
         disabled = self._health.get_disabled()
         if provider_name not in disabled:
             return None
 
-        ctx = disabled[provider_name]
+        min_eta = None
+
         rules = PROVIDER_RECOVERY_RULES.get(
             provider_name,
             PROVIDER_RECOVERY_RULES.get("__default__", []),
         )
-
-        min_eta = None
+        ctx = disabled[provider_name]
         for rule in rules:
             if hasattr(rule, "wait_seconds"):
                 last_err = ctx.get("last_error_time", 0)
@@ -345,6 +379,15 @@ class ProviderManager:
                 if eta > 0:
                     if min_eta is None or eta < min_eta:
                         min_eta = eta
+
+        try:
+            queue_status = self._queue_mgr.get_status(provider_name)
+            queue_wait = queue_status.get("wait_s", 0)
+            if queue_wait > 0 and (min_eta is None or queue_wait < min_eta):
+                min_eta = queue_wait
+        except Exception:
+            pass
+
         return min_eta
 
 

@@ -83,11 +83,58 @@ class UserSelectRecovery(RecoveryCondition):
         return context.get("user_selected", False)
 
 
+def _compute_timed_recovery(provider_name: str) -> float:
+    """Compute recovery wait from the provider's rate limit policy.
+
+    Uses RPM from model.json: wait = 60/RPM * 3 (3 RPM windows).
+    Falls back to 120s if no data available.
+
+    Reads model.json directly (no registry import) to avoid circular import
+    at module-level evaluation time.
+    """
+    try:
+        vendor = provider_name.split("-")[0] if "-" in provider_name else provider_name
+        for d in _MODELS_DIR.iterdir():
+            if not d.is_dir():
+                continue
+            mj = d / "model.json"
+            if not mj.exists():
+                continue
+            prov_dir = d / "providers"
+            if prov_dir.is_dir():
+                for pd in prov_dir.iterdir():
+                    if pd.is_dir() and pd.name == vendor:
+                        meta = json.loads(mj.read_text())
+                        rpm = meta.get("rate_limits", {}).get("free", {}).get("rpm", 0)
+                        if rpm > 0:
+                            return max(60.0 / rpm * 3, 30.0)
+    except Exception:
+        pass
+    return 120.0
+
+
 PROVIDER_RECOVERY_RULES: Dict[str, List[RecoveryCondition]] = {
-    "zhipu-glm-4.7-flash": [TimedRecovery(120), UserSelectRecovery()],
-    "zhipu-glm-4-flash": [TimedRecovery(120), UserSelectRecovery()],
-    "zhipu-glm-4.7": [TimedRecovery(120), UserSelectRecovery()],
-    "__default__": [UserSelectRecovery()],
+    "zhipu-glm-4.7-flash": [
+        TimedRecovery(_compute_timed_recovery("zhipu-glm-4.7-flash")),
+        UserSelectRecovery(),
+    ],
+    "zhipu-glm-4-flash": [
+        TimedRecovery(_compute_timed_recovery("zhipu-glm-4-flash")),
+        UserSelectRecovery(),
+    ],
+    "zhipu-glm-4.7": [
+        TimedRecovery(_compute_timed_recovery("zhipu-glm-4.7")),
+        UserSelectRecovery(),
+    ],
+    "google-gemini-2.0-flash": [
+        TimedRecovery(_compute_timed_recovery("google-gemini-2.0-flash")),
+        UserSelectRecovery(),
+    ],
+    "baidu-ernie-speed-8k": [
+        TimedRecovery(_compute_timed_recovery("baidu-ernie-speed-8k")),
+        UserSelectRecovery(),
+    ],
+    "__default__": [TimedRecovery(120), UserSelectRecovery()],
 }
 
 
