@@ -171,7 +171,7 @@ function renderDiffOutput(raw, enableHunkActions) {
     }
     hunkBuf.forEach(h => {
       const cls = h.t === '+' ? 'added' : 'removed';
-      html += '<div class="diff-line ' + cls + '">' + esc(h.s) + '</div>';
+      html += '<div class="diff-line ' + cls + '"><span class="diff-ln diff-marker">' + h.t + '</span>' + esc(h.s) + '</div>';
     });
     if (enableHunkActions) html += '</div>';
     hunkBuf = [];
@@ -732,8 +732,8 @@ class AgentGUIEngine {
     this._activeTextGrp = grp;
     this._activeTextEl = el;
     this._activeTextBuf = evt.tokens;
-    await this._streamText(el, evt.tokens, 10);
-    await sleep(200);
+    el.innerHTML = md(this._activeTextBuf);
+    this._scrollEnd();
   }
 
   _clearActiveText() {

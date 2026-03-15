@@ -517,8 +517,14 @@ class AgentServer:
         if sid in self._event_history:
             del self._event_history[sid]
         remaining = self._mgr.list_sessions()
-        self._default_session_id = remaining[-1]["id"] if remaining else None
         self._push_sse({"type": "session_deleted", "id": sid})
+        if remaining:
+            self._default_session_id = remaining[-1]["id"]
+        else:
+            new_sid = self._mgr.new_session(title="New Task")
+            self._default_session_id = new_sid
+            self._push_sse({"type": "session_created", "id": new_sid,
+                            "title": "New Task"})
         return {"ok": True}
 
     def _api_clear_all(self) -> dict:

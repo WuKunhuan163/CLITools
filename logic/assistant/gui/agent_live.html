@@ -302,6 +302,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .diff-hidden:hover { background: rgba(255,255,255,0.03); }
 .diff-hidden-sep { padding: 3px 14px; color: var(--text-3); font-size: 10px; text-align: center; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); margin: 2px 0; user-select: none; opacity: 0.7; }
 .diff-ln { display: inline-block; min-width: 4ch; text-align: right; margin-right: 10px; color: var(--text-3); opacity: 0.5; user-select: none; }
+.diff-ln.diff-marker { text-align: center; font-weight: 600; }
+.diff-line.added .diff-marker { color: var(--green); opacity: 0.7; }
+.diff-line.removed .diff-marker { color: var(--red); opacity: 0.7; }
 
 /* ── Tool Call ── */
 .tool-call { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 6px 0; overflow: hidden; max-width: 90%; animation: fadeIn 0.2s ease; }
