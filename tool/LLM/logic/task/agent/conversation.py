@@ -409,6 +409,31 @@ class ConversationManager:
                 pass
         return []
 
+    _RETRYABLE_CODES = {429, 500, 502, 503}
+
+    def _try_fallback_provider(self, failed_provider_name: str):
+        """Find a fallback provider after a retryable error.
+
+        Returns (provider, pipeline, provider_name) or None.
+        """
+        try:
+            from tool.LLM.logic.auto import AutoProvider, _health
+            _health.record_error(failed_provider_name)
+
+            auto = AutoProvider(preferred=None)
+            chain = auto._get_fallback_chain()
+
+            for name in chain:
+                if name == failed_provider_name:
+                    continue
+                from tool.LLM.logic.registry import get_provider, get_pipeline
+                candidate = get_provider(name)
+                if candidate.is_available():
+                    return candidate, get_pipeline(name), name
+        except Exception:
+            pass
+        return None
+
     def on_event(self, cb: Callable):
         """Register event callback: ``cb(event_dict)``."""
         self._event_cb = cb
@@ -460,11 +485,17 @@ class ConversationManager:
         """Package user text with system state for the LLM.
 
         Combines: runtime state + agent environment + context_feed + user text.
+        Guidance level controls how much boilerplate is included:
+          - full: first message (runtime state, cwd, file listing)
+          - normal: subsequent (reminder + file listing)
+          - minimal: capable models after round 3 (user text only + context_feed)
         """
         parts = []
 
         cwd = self._get_cwd()
-        if session.message_count == 1:
+        guidance = self._get_guidance_level(session)
+
+        if guidance == "full":
             parts.append(build_runtime_state())
             parts.append(f"[Working directory] {cwd}\nAll relative paths resolve against this directory. Use relative paths.")
             try:
@@ -476,7 +507,7 @@ class ConversationManager:
                     parts.append("[Files in directory] (empty directory)")
             except OSError:
                 pass
-        else:
+        elif guidance == "normal":
             try:
                 files = [f for f in os.listdir(cwd)
                          if not f.startswith('.')]
@@ -609,6 +640,18 @@ class ConversationManager:
                     })
         if files:
             self._emit({"type": "file_summary", "files": files})
+
+    def _get_guidance_level(self, session: Session) -> str:
+        """Determine guidance level based on message count.
+
+        Returns 'full' for first message, 'normal' for follow-ups,
+        'minimal' for round 4+ (model already has the pattern).
+        """
+        if session.message_count <= 1:
+            return "full"
+        if session.message_count <= 3:
+            return "normal"
+        return "minimal"
 
     def _get_cwd(self) -> str:
         """Return working directory: session codebase or project root."""
@@ -1085,13 +1128,16 @@ class ConversationManager:
         total_lines = len(lines)
 
         if tool_name in ("read_file", "read"):
-            head = "\n".join(lines[:30])
-            tail = "\n".join(lines[-10:])
+            read_limit = max(max_chars, 8000)
+            if len(output) <= read_limit:
+                return output
+            head = "\n".join(lines[:60])
+            tail = "\n".join(lines[-15:])
             return (
-                f"{head}\n\n... [{total_lines - 40} lines omitted] ...\n\n{tail}"
+                f"{head}\n\n... [{total_lines - 75} lines omitted] ...\n\n{tail}"
                 f"\n[Total: {total_lines} lines, {len(output)} chars. "
                 f"Use start_line/end_line to read specific sections.]"
-            )[:max_chars]
+            )[:read_limit]
 
         if tool_name == "exec":
             tail = "\n".join(lines[-20:])
@@ -1442,7 +1488,7 @@ class ConversationManager:
                 user_evt["suggestions"] = contextual
             self._emit(user_evt)
 
-            if session.context.needs_compression(trigger_ratio=0.6):
+            if session.context.needs_compression(trigger_ratio=0.5):
                 self._compress_context(session)
 
             packaged = self._package_message(session, text, context_feed)
@@ -1468,7 +1514,9 @@ class ConversationManager:
             from tool.LLM.logic.registry import get_pipeline
             pipeline = get_pipeline(self._provider_name)
 
-            max_tool_rounds = (turn_limit + 1) if turn_limit > 0 else 30
+            if turn_limit <= 0:
+                turn_limit = 10
+            max_tool_rounds = turn_limit
             round_num = 0
             empty_retries = 0
             max_empty_retries = pipeline.get_max_retries()
@@ -1492,6 +1540,8 @@ class ConversationManager:
                     break
                 round_num += 1
                 self._current_round = round_num
+                self._emit({"type": "debug",
+                             "text": f"Round {round_num}/{turn_limit} (max_tool_rounds={max_tool_rounds})"})
                 full_text = ""
                 tool_calls_accum = []
 
@@ -1504,126 +1554,154 @@ class ConversationManager:
                         "have multiple parts to address, do them in this "
                         "round. Summarize your findings concisely.")
 
-                llm_req_evt = {
-                    "type": "llm_request",
-                    "provider": self._provider_name,
-                    "round": round_num,
-                }
-                if self._provider_name == "auto" and hasattr(provider, '_last_used') and provider._last_used:
-                    llm_req_evt["auto_using"] = provider._last_used
-                    llm_req_evt["auto_chain"] = getattr(provider, '_get_fallback_chain', lambda: [])()
-                self._emit(llm_req_evt)
-
                 use_streaming = empty_retries == 0
+                _fallback_attempted = False
 
-                first_chunk = True
-                api_messages = pipeline.prepare_messages(
-                    session.context.get_messages_for_api(),
-                    turn_number=session.message_count,
-                )
-                if _force_no_tools:
-                    api_tools = None
-                else:
-                    api_tools = pipeline.prepare_tools(tools, provider.capabilities)
+                for _llm_attempt in range(2):
+                    llm_req_evt = {
+                        "type": "llm_request",
+                        "provider": self._provider_name if _llm_attempt == 0 else getattr(provider, 'name', '?'),
+                        "round": round_num,
+                    }
+                    if self._provider_name == "auto" and hasattr(provider, '_last_used') and provider._last_used:
+                        llm_req_evt["auto_using"] = provider._last_used
+                        llm_req_evt["auto_chain"] = getattr(provider, '_get_fallback_chain', lambda: [])()
+                    self._emit(llm_req_evt)
 
-                if use_streaming:
-                    for chunk in provider.stream(
-                        api_messages,
-                        temperature=0.7,
-                        max_tokens=current_max_tokens,
-                        tools=api_tools,
-                    ):
-                        if chunk.get("_auto_switched"):
-                            from_m = chunk.get("_auto_from", "?")
-                            to_m = chunk.get("_auto_to", "?")
+                    first_chunk = True
+                    api_messages = pipeline.prepare_messages(
+                        session.context.get_messages_for_api(),
+                        turn_number=session.message_count,
+                    )
+                    if _force_no_tools:
+                        api_tools = None
+                    else:
+                        api_tools = pipeline.prepare_tools(tools, provider.capabilities)
+
+                    _llm_error = None
+
+                    if use_streaming:
+                        for chunk in provider.stream(
+                            api_messages,
+                            temperature=0.7,
+                            max_tokens=current_max_tokens,
+                            tools=api_tools,
+                        ):
+                            if chunk.get("_auto_switched"):
+                                from_m = chunk.get("_auto_from", "?")
+                                to_m = chunk.get("_auto_to", "?")
+                                self._emit({
+                                    "type": "notice",
+                                    "text": f"Switched to {to_m}",
+                                    "detail": f"Fallback from {from_m}",
+                                    "icon": "bx-transfer",
+                                })
+                                continue
+                            if first_chunk and chunk.get("ok"):
+                                first_chunk = False
+                                self._emit({"type": "llm_response_start", "round": round_num})
+
+                            if chunk.get("ok"):
+                                t = chunk.get("text", "")
+                                if t:
+                                    full_text += t
+                                    self._emit({"type": "text", "tokens": t})
+                                tc = chunk.get("tool_calls")
+                                if tc:
+                                    self._merge_streaming_tool_calls(tool_calls_accum, tc)
+                                if chunk.get("done"):
+                                    if chunk.get("tool_calls") and not tool_calls_accum:
+                                        tool_calls_accum = chunk["tool_calls"]
+                                    latency = chunk.get("latency_s")
+                                    self._last_finish_reason = chunk.get("finish_reason", "")
+                                    self._last_usage = chunk.get("usage", {})
+                                    stream_end_evt = {
+                                        "type": "llm_response_end",
+                                        "round": round_num,
+                                        "latency_s": latency,
+                                        "has_tool_calls": bool(tool_calls_accum),
+                                        "provider": self._provider_name,
+                                        "model": chunk.get("model", self._provider_name),
+                                        "_full_text": full_text,
+                                    }
+                                    if chunk.get("usage"):
+                                        stream_end_evt["usage"] = chunk["usage"]
+                                    self._emit(stream_end_evt)
+                                    if turn_limit > 0 and not tool_calls_accum and round_num >= turn_limit:
+                                        if auto_title:
+                                            self._generate_title_async(session_id, text, full_text)
+                                        self._emit({"type": "notice",
+                                                    "text": f"Round limit reached ({round_num}/{turn_limit})",
+                                                    "icon": "bx-stop-circle"})
+                                        self._emit({"type": "complete"})
+                                        session.status = "idle"
+                                        self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                                        self._persist_session(session_id)
+                                        return
+                                    break
+                            else:
+                                _llm_error = chunk
+                                break
+                    else:
+                        self._emit({"type": "llm_response_start", "round": round_num})
+                        import time as _time
+                        t0 = _time.time()
+                        result = provider.send(
+                            api_messages,
+                            temperature=0.7,
+                            max_tokens=current_max_tokens,
+                            tools=api_tools,
+                        )
+                        latency = _time.time() - t0
+                        self._last_finish_reason = result.get("finish_reason", "")
+                        self._last_usage = result.get("usage", {})
+                        if result.get("ok"):
+                            full_text = result.get("text", "") or ""
+                            if result.get("tool_calls"):
+                                tool_calls_accum = result["tool_calls"]
+                        else:
+                            _llm_error = result
+
+                    if _llm_error is None:
+                        break
+
+                    err = _llm_error.get("error", "Unknown error")
+                    error_code = _llm_error.get("error_code", 0)
+                    if not error_code and ("429" in err or "rate limit" in err.lower()):
+                        error_code = 429
+                    failed_name = getattr(provider, 'name', self._provider_name)
+
+                    if not _fallback_attempted and error_code in self._RETRYABLE_CODES:
+                        fb = self._try_fallback_provider(failed_name)
+                        if fb:
+                            fb_provider, fb_pipeline, fb_name = fb
                             self._emit({
                                 "type": "notice",
-                                "text": f"Switched to {to_m}",
-                                "detail": f"Fallback from {from_m}",
+                                "text": f"Switching to {fb_name}",
+                                "detail": f"Fallback from {failed_name} ({error_code})",
                                 "icon": "bx-transfer",
                             })
+                            provider = fb_provider
+                            pipeline = fb_pipeline
+                            full_text = ""
+                            tool_calls_accum = []
+                            _fallback_attempted = True
                             continue
-                        if first_chunk and chunk.get("ok"):
-                            first_chunk = False
-                            self._emit({"type": "llm_response_start", "round": round_num})
 
-                        if chunk.get("ok"):
-                            t = chunk.get("text", "")
-                            if t:
-                                full_text += t
-                                self._emit({"type": "text", "tokens": t})
-                            tc = chunk.get("tool_calls")
-                            if tc:
-                                self._merge_streaming_tool_calls(tool_calls_accum, tc)
-                            if chunk.get("done"):
-                                if chunk.get("tool_calls") and not tool_calls_accum:
-                                    tool_calls_accum = chunk["tool_calls"]
-                                latency = chunk.get("latency_s")
-                                self._last_finish_reason = chunk.get("finish_reason", "")
-                                self._last_usage = chunk.get("usage", {})
-                                stream_end_evt = {
-                                    "type": "llm_response_end",
-                                    "round": round_num,
-                                    "latency_s": latency,
-                                    "has_tool_calls": bool(tool_calls_accum),
-                                    "provider": self._provider_name,
-                                    "model": chunk.get("model", self._provider_name),
-                                    "_full_text": full_text,
-                                }
-                                if chunk.get("usage"):
-                                    stream_end_evt["usage"] = chunk["usage"]
-                                self._emit(stream_end_evt)
-                                if turn_limit > 0 and not tool_calls_accum and round_num >= turn_limit:
-                                    if auto_title:
-                                        self._generate_title_async(session_id, text, full_text)
-                                    self._emit({"type": "notice",
-                                                "text": f"Round limit reached ({round_num}/{turn_limit})",
-                                                "icon": "bx-stop-circle"})
-                                    self._emit({"type": "complete"})
-                                    session.status = "idle"
-                                    self._emit({"type": "session_status", "id": session_id, "status": "idle"})
-                                    self._persist_session(session_id)
-                                    return
-                                break
-                        else:
-                            err = chunk.get("error", "Unknown error")
-                            self._emit({"type": "text", "tokens": f"Error: {err}"})
-                            self._emit({"type": "complete"})
-                            session.status = "idle"
-                            self._emit({"type": "session_status", "id": session_id, "status": "idle"})
-                            self._persist_session(session_id)
-                            return
-                else:
-                    self._emit({"type": "llm_response_start", "round": round_num})
-                    import time as _time
-                    t0 = _time.time()
-                    result = provider.send(
-                        api_messages,
-                        temperature=0.7,
-                        max_tokens=current_max_tokens,
-                        tools=api_tools,
-                    )
-                    latency = _time.time() - t0
-                    self._last_finish_reason = result.get("finish_reason", "")
-                    self._last_usage = result.get("usage", {})
-                    if result.get("ok"):
-                        full_text = result.get("text", "") or ""
-                        if result.get("tool_calls"):
-                            tool_calls_accum = result["tool_calls"]
-                    else:
-                        err = result.get("error", "Unknown error")
-                        self._emit({"type": "text", "tokens": f"Error: {err}"})
-                        self._emit({"type": "complete"})
-                        session.status = "idle"
-                        self._emit({"type": "session_status", "id": session_id, "status": "idle"})
-                        self._persist_session(session_id)
-                        return
+                    self._emit({"type": "text", "tokens": f"Error: {err}"})
+                    self._emit({"type": "complete"})
+                    session.status = "idle"
+                    self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                    self._persist_session(session_id)
+                    return
+
+                if not use_streaming and _llm_error is None:
                     resp_event = {
                         "type": "llm_response_end",
                         "round": round_num,
                         "latency_s": round(latency, 3),
                         "has_tool_calls": bool(tool_calls_accum),
-                        "provider": self._provider_name,
+                        "provider": getattr(provider, 'name', self._provider_name),
                         "model": result.get("model", self._provider_name),
                         "_full_text": full_text,
                     }
@@ -1838,13 +1916,20 @@ class ConversationManager:
                         self._emit({"type": "debug",
                                      "text": "Loop detected — nudging synthesis"})
 
+                if turn_limit > 0 and round_num == turn_limit - 1:
+                    session.context.add_user(
+                        "[SYSTEM] This is your LAST round with tool access. "
+                        "If you cannot finish in one more round, summarize your progress as text.")
+                    self._emit({"type": "debug",
+                                 "text": f"Warning: round {round_num} is second-to-last"})
+
                 if turn_limit > 0 and round_num >= turn_limit:
                     _force_no_tools = True
                     session.context.add_user(
                         "STOP making tool calls. You have reached the round limit. "
                         "Summarize everything you have found and respond NOW.")
-                    self._emit({"type": "text",
-                                 "tokens": f"[Hard ceiling at round {round_num} — forcing text-only response...]\n"})
+                    self._emit({"type": "debug",
+                                 "text": f"Hard ceiling at round {round_num} — forcing text-only response"})
 
             self._emit_file_summary()
             self._emit({"type": "complete"})
@@ -1964,7 +2049,7 @@ class ConversationManager:
 
     def _compress_context(self, session: Session):
         """Compress conversation context when it grows too large."""
-        self._emit({"type": "text", "tokens": "[Compressing context...]\n"})
+        self._emit({"type": "debug", "text": "Compressing context..."})
         try:
             from tool.LLM.logic.registry import get_provider
             provider = get_provider(self._provider_name)
@@ -1990,9 +2075,20 @@ class ConversationManager:
 
     def get_state(self) -> Dict[str, Any]:
         """Export full state for persistence or debugging."""
+        max_ctx = 0
+        try:
+            from tool.LLM.logic.registry import list_models
+            for m in list_models():
+                if any(self._provider_name.endswith(p) or p in self._provider_name
+                       for p in [m["model"]]):
+                    max_ctx = m.get("capabilities", {}).get("max_context_tokens", 0)
+                    break
+        except Exception:
+            pass
         return {
             "provider": self._provider_name,
             "active_session": self._active_session_id,
+            "max_context_tokens": max_ctx,
             "sessions": {
                 sid: {
                     "id": s.id, "title": s.title, "status": s.status,

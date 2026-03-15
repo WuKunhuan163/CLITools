@@ -1,0 +1,1753 @@
+{
+ "id": "c027f6ff",
+ "title": "Task 32b: Rate Limiter Audit (retry)",
+ "status": "idle",
+ "created_at": 1773466307.2853818,
+ "message_count": 1,
+ "codebase_root": ".",
+ "context": {
+  "system_prompt": "你是一个自主AI Agent。你可以独立规划、执行和验证任务。\n\n## 可用工具\n\n1. **exec(command=...)** — 执行shell命令。用于运行CLI工具、查看文件、安装依赖等。\n2. **write_file(path=..., content=...)** — 创建新文件或完全覆盖。content必须是完整文件。\n3. **edit_file(path=..., old_text=..., new_text=...)** — 修改已有文件中的某段文本。先用read_file查看，然后精确替换。推荐用于修复bug和小改动。\n4. **read_file(path=...)** — 读取一个文件的内容。path必须是具体的文件路径（如 \"tool/LLM/logic/utils/token_counter.py\"），不要传目录路径。读取前先用search定位目标范围。\n5. **search(pattern=..., path=...)** — 在文件内容中搜索文本（grep风格）。注意：这不是文件列表工具。要列出文件，请用 exec(command=\"find <dir> -name '*.py'\")。\n6. **todo(action=..., items=...)** — 管理任务列表。\n7. **ask_user(question=...)** — 向用户提问获取反馈。\n\n## Agent工作模式\n\n收到任务后，**立即使用工具执行**。不要先探索项目结构——直接创建/修改文件。\n\n1. **执行优先**: 如果任务明确（如\"创建X文件\"），直接write_file。不需要先search或read_file。\n2. **验证**: 写完文件后，可选用read_file验证关键内容\n3. **汇报**: 简短总结完成情况\n\n## 关键行为\n\n- **立即行动**: 收到\"创建文件\"任务时，第一个工具调用就应该是write_file。\n- **持续执行**: 创建完一个文件后，立即继续创建下一个文件。不要中途停下来解释。\n- **逐个调用**: 每次工具调用只传一个参数对象。要读取多个文件，分别调用read_file多次。\n- **完整输出**: write_file的content必须包含完整的、可运行的代码。不要用省略号或占位符。\n- **文件创建**: 一个网站需要HTML+CSS(+JS)文件。用write_file逐个创建所有必需文件。\n- **工具发现**: 如果任务需要使用外部工具（搜索视频、查数据等），先用 exec(command=\"TOOL --search tools-deep 'keywords'\") 发现工具。\n- **自主修复**: 如果命令报错，阅读源代码找出原因并修复。\n- **完整遵循指令**: 用户提出的每一条修改要求都必须在代码中体现。写文件前，逐条检查。\n\n## 质量标准\n\n创建网页或UI时：\n- 选用有辨识度的配色方案（禁用 #333/#f5f5f5/#fff 等灰白默认色作为主色）\n- 使用真实的示例内容（真实姓名、具体描述），不要写\"placeholder\"\n- CSS必须包含：padding、background-color、border-radius、transition 等完整属性\n- 卡片/区块需要背景色、内边距、适当间距\n- 使用Google Fonts或优质字体族\n\n## 文件修改规则\n- **修改已有文件**：优先使用edit_file(old_text, new_text)进行精确替换。先read_file查看内容，然后复制要修改的精确片段作为old_text。\n- **创建新文件**：使用write_file，content必须是完整的、可运行的代码。\n- write_file的content永远是完整文件，不要只写片段。\n- **大文件**：如果read_file被截断，使用start_line/end_line参数读取特定部分。不要反复重读同一个文件。\n\n### edit_file示例\n假设文件中有：\n```python\ndef hello():\n    print(\"hello\")\n```\n要添加参数，调用：edit_file(path=\"file.py\", old_text='def hello():\\n    print(\"hello\")', new_text='def hello(name):\\n    print(f\"hello {name}\")')\n要在函数后添加新函数：edit_file(path=\"file.py\", old_text='    print(\"hello\")', new_text='    print(\"hello\")\\n\\ndef goodbye():\\n    print(\"bye\")')\n\n## 调试规则\n- 测试失败时，先确定bug在测试还是实现中。选定一侧修改，不要两边同时改。\n- 修改前，用read_file查看当前文件内容和完整错误信息。\n- 修改后，立即重新运行测试验证。\n- assertIn(a, list)检查的是元素完全相等，不是子字符串匹配。\n\n## 用户反馈修正\n- 用户给出具体修改指令时（如\"修改X为Y\"），**立即执行**。不要重新分析整个项目。\n- 每一轮必须包含至少一个写入/编辑/执行操作。不要连续多轮只做read_file。\n- 如果用户说\"测试用例不合理\"，直接修改测试。不要尝试修改实现来匹配不合理的测试。\n\n## 禁止事项\n- 禁止编造执行结果\n- 禁止只说\"我将创建...\"而不实际调用write_file\n- 禁止用中文变量名写代码\n- 禁止声称做了某项修改但实际未在代码中体现\n\n## 回复规范（严格遵守）\n- 回复用中文。\n- **关键规则：每次回复必须包含文字。** 即使你要调用工具，也必须在工具调用之前写一段文字，说明你在做什么。绝不允许只有工具调用没有文字的回复。\n- 搜索未找到结果时，立即用文字总结结论。不要反复尝试相同搜索的不同变体。最多搜索两次。\n- 任务完成时，必须用文字写一段总结，描述你做了什么、发现了什么、结果如何。没有总结的任务视为未完成。\n- 在每轮结束前，确保所有计划的文件都已创建。\n\n\n[Working directory]\nYou are working in: .\nAll relative file paths resolve against this directory. Use relative paths (e.g. 'main.py', not './main.py').\nWhen you use exec, read_file, write_file, or search, they operate in this directory.\n\n[Previous lessons]\n- Command 'cd /Applications/AITerminalTools && python3 tool/TODO/test/t' failed: Traceback (most recent call last):\n  File \"/Applications/AITerminalTools/tool/TODO/test/test_02_validators.py\", line 6, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n\n- Command 'cd /Applications/AITerminalTools && python3 tool/TODO/test/t' failed: Traceback (most recent call last):\n  File \"/Applications/AITerminalTools/tool/TODO/test/test_02_validators.py\", line 7, in <module>\n    from tool.TODO.logic.validators import _trim, MAX_ITEMS\nModuleNo\n- Command 'python3 -B tmp/test_slug_utils.py' failed: ✓ test_empty_string passed\nTraceback (most recent call last):\n  File \"/Applications/AITerminalTools/tmp/test_slug_utils.py\", line 59, in <module>\n    test_unicode()\n  File \"/Applications/AITerminalToo\n- Command 'python3 -B tmp/test_slug_utils.py' failed: ✓ test_empty_string passed\nTraceback (most recent call last):\n  File \"/Applications/AITerminalTools/tmp/test_slug_utils.py\", line 59, in <module>\n    test_unicode()\n  File \"/Applications/AITerminalToo\n- Command 'python3 -B tmp/test_slug_utils.py' failed: ✓ test_empty_string passed\nTraceback (most recent call last):\n  File \"/Applications/AITerminalTools/tmp/test_slug_utils.py\", line 59, in <module>\n    test_unicode()\n  File \"/Applications/AITerminalToo",
+  "messages": [
+   {
+    "role": "system",
+    "content": "你是一个自主AI Agent。你可以独立规划、执行和验证任务。\n\n## 可用工具\n\n1. **exec(command=...)** — 执行shell命令。用于运行CLI工具、查看文件、安装依赖等。\n2. **write_file(path=..., content=...)** — 创建新文件或完全覆盖。content必须是完整文件。\n3. **edit_file(path=..., old_text=..., new_text=...)** — 修改已有文件中的某段文本。先用read_file查看，然后精确替换。推荐用于修复bug和小改动。\n4. **read_file(path=...)** — 读取一个文件的内容。path必须是具体的文件路径（如 \"tool/LLM/logic/utils/token_counter.py\"），不要传目录路径。读取前先用search定位目标范围。\n5. **search(pattern=..., path=...)** — 在文件内容中搜索文本（grep风格）。注意：这不是文件列表工具。要列出文件，请用 exec(command=\"find <dir> -name '*.py'\")。\n6. **todo(action=..., items=...)** — 管理任务列表。\n7. **ask_user(question=...)** — 向用户提问获取反馈。\n\n## Agent工作模式\n\n收到任务后，**立即使用工具执行**。不要先探索项目结构——直接创建/修改文件。\n\n1. **执行优先**: 如果任务明确（如\"创建X文件\"），直接write_file。不需要先search或read_file。\n2. **验证**: 写完文件后，可选用read_file验证关键内容\n3. **汇报**: 简短总结完成情况\n\n## 关键行为\n\n- **立即行动**: 收到\"创建文件\"任务时，第一个工具调用就应该是write_file。\n- **持续执行**: 创建完一个文件后，立即继续创建下一个文件。不要中途停下来解释。\n- **逐个调用**: 每次工具调用只传一个参数对象。要读取多个文件，分别调用read_file多次。\n- **完整输出**: write_file的content必须包含完整的、可运行的代码。不要用省略号或占位符。\n- **文件创建**: 一个网站需要HTML+CSS(+JS)文件。用write_file逐个创建所有必需文件。\n- **工具发现**: 如果任务需要使用外部工具（搜索视频、查数据等），先用 exec(command=\"TOOL --search tools-deep 'keywords'\") 发现工具。\n- **自主修复**: 如果命令报错，阅读源代码找出原因并修复。\n- **完整遵循指令**: 用户提出的每一条修改要求都必须在代码中体现。写文件前，逐条检查。\n\n## 质量标准\n\n创建网页或UI时：\n- 选用有辨识度的配色方案（禁用 #333/#f5f5f5/#fff 等灰白默认色作为主色）\n- 使用真实的示例内容（真实姓名、具体描述），不要写\"placeholder\"\n- CSS必须包含：padding、background-color、border-radius、transition 等完整属性\n- 卡片/区块需要背景色、内边距、适当间距\n- 使用Google Fonts或优质字体族\n\n## 文件修改规则\n- **修改已有文件**：优先使用edit_file(old_text, new_text)进行精确替换。先read_file查看内容，然后复制要修改的精确片段作为old_text。\n- **创建新文件**：使用write_file，content必须是完整的、可运行的代码。\n- write_file的content永远是完整文件，不要只写片段。\n- **大文件**：如果read_file被截断，使用start_line/end_line参数读取特定部分。不要反复重读同一个文件。\n\n### edit_file示例\n假设文件中有：\n```python\ndef hello():\n    print(\"hello\")\n```\n要添加参数，调用：edit_file(path=\"file.py\", old_text='def hello():\\n    print(\"hello\")', new_text='def hello(name):\\n    print(f\"hello {name}\")')\n要在函数后添加新函数：edit_file(path=\"file.py\", old_text='    print(\"hello\")', new_text='    print(\"hello\")\\n\\ndef goodbye():\\n    print(\"bye\")')\n\n## 调试规则\n- 测试失败时，先确定bug在测试还是实现中。选定一侧修改，不要两边同时改。\n- 修改前，用read_file查看当前文件内容和完整错误信息。\n- 修改后，立即重新运行测试验证。\n- assertIn(a, list)检查的是元素完全相等，不是子字符串匹配。\n\n## 用户反馈修正\n- 用户给出具体修改指令时（如\"修改X为Y\"），**立即执行**。不要重新分析整个项目。\n- 每一轮必须包含至少一个写入/编辑/执行操作。不要连续多轮只做read_file。\n- 如果用户说\"测试用例不合理\"，直接修改测试。不要尝试修改实现来匹配不合理的测试。\n\n## 禁止事项\n- 禁止编造执行结果\n- 禁止只说\"我将创建...\"而不实际调用write_file\n- 禁止用中文变量名写代码\n- 禁止声称做了某项修改但实际未在代码中体现\n\n## 回复规范（严格遵守）\n- 回复用中文。\n- **关键规则：每次回复必须包含文字。** 即使你要调用工具，也必须在工具调用之前写一段文字，说明你在做什么。绝不允许只有工具调用没有文字的回复。\n- 搜索未找到结果时，立即用文字总结结论。不要反复尝试相同搜索的不同变体。最多搜索两次。\n- 任务完成时，必须用文字写一段总结，描述你做了什么、发现了什么、结果如何。没有总结的任务视为未完成。\n- 在每轮结束前，确保所有计划的文件都已创建。\n\n\n[Working directory]\nYou are working in: .\nAll relative file paths resolve against this directory. Use relative paths (e.g. 'main.py', not './main.py').\nWhen you use exec, read_file, write_file, or search, they operate in this directory.\n\n[Previous lessons]\n- Command 'cd /Applications/AITerminalTools && python3 tool/TODO/test/t' failed: Traceback (most recent call last):\n  File \"/Applications/AITerminalTools/tool/TODO/test/test_02_validators.py\", line 6, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n\n- Command 'cd /Applications/AITerminalTools && python3 tool/TODO/test/t' failed: Traceback (most recent call last):\n  File \"/Applications/AITerminalTools/tool/TODO/test/test_02_validators.py\", line 7, in <module>\n    from tool.TODO.logic.validators import _trim, MAX_ITEMS\nModuleNo\n- Command 'python3 -B tmp/test_slug_utils.py' failed: ✓ test_empty_string passed\nTraceback (most recent call last):\n  File \"/Applications/AITerminalTools/tmp/test_slug_utils.py\", line 59, in <module>\n    test_unicode()\n  File \"/Applications/AITerminalToo\n- Command 'python3 -B tmp/test_slug_utils.py' failed: ✓ test_empty_string passed\nTraceback (most recent call last):\n  File \"/Applications/AITerminalTools/tmp/test_slug_utils.py\", line 59, in <module>\n    test_unicode()\n  File \"/Applications/AITerminalToo\n- Command 'python3 -B tmp/test_slug_utils.py' failed: ✓ test_empty_string passed\nTraceback (most recent call last):\n  File \"/Applications/AITerminalTools/tmp/test_slug_utils.py\", line 59, in <module>\n    test_unicode()\n  File \"/Applications/AITerminalToo"
+   },
+   {
+    "role": "user",
+    "content": "---\ntimestamp: 2026-03-14T13:31:56\nplatform: Darwin 24.0.0\nproject_root: /Applications/AITerminalTools\n---\n\n[Working directory] .\nAll relative paths resolve against this directory. Use relative paths.\n\n[Files in directory] .DS_Store, .cursor, .git, .gitattributes, .gitignore, .ruff_cache, README.md, __pycache__, bin, data, for_agent.md, hooks, interface, logic, main.py, report, research, resource, runtime, setup.py, skills, test, tmp, tool, tool.json\n\nAudit the LLM tool's rate limiter configuration. Do the following:\n1. Search for all files that import or use RateLimiter in tool/LLM/\n2. For each file found, read the relevant section to see how RateLimiter is configured\n3. Create a report at tmp/rate_limiter_audit.md with a table:\n   | Provider | RPM | Min Interval | Source File |\n4. Note any inconsistencies between providers\n\nYou should find at least 3 different providers using RateLimiter."
+   },
+   {
+    "role": "assistant",
+    "content": "我将审计LLM工具的rate limiter配置。首先搜索tool/LLM/目录下所有使用RateLimiter的文件。",
+    "tool_calls": [
+     {
+      "id": "call_3449328bdd824c70a6827b9f",
+      "type": "function",
+      "function": {
+       "name": "search",
+       "arguments": "{\"pattern\":\"RateLimiter\",\"path\":\"tool/LLM\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_3449328bdd824c70a6827b9f",
+    "content": "tool/LLM/interface/main.py:7:from tool.LLM.logic.rate_limiter import RateLimiter, retry_on_transient  # noqa: F401\ntool/LLM/logic/providers/nvidia_glm47/interface/__init__.py:15:from tool.LLM.logic.rate_limiter import RateLimiter\ntool/LLM/logic/providers/nvidia_glm47/interface/__init__.py:53:        self._rate_limiter = RateLimiter(\ntool/LLM/logic/providers/zhipu_glm4/interface/__init__.py:15:from tool.LLM.logic.rate_limiter import RateLimiter\ntool/LLM/logic/providers/zhipu_glm4/interface/__init__.py:71:            self._rate_limiter = RateLimiter.from_model_json(model_config, \"free\")\ntool/LLM/logic/providers/zhipu_glm4/interface/__init__.py:73:            self._rate_limiter = RateLimiter(\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:20:from tool.LLM.logic.rate_limiter import RateLimiter\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:85:            self._rate_limiter = RateLimiter.from_model_json(model_config, \"free\")\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:87:            self._rate_limiter = RateLimiter(\ntool/LLM/logic/providers/zhipu_glm47/interface/__init__.py:16:from tool.LLM.logic.rate_limiter import RateLimiter\ntool/LLM/logic/providers/zhipu_glm47/interface/__init__.py:72:        self._rate_limiter = RateLimiter(\ntool/LLM/logic/rate_limiter.py:13:class RateLimiter:\ntool/LLM/logic/rate_limiter.py:131:    def from_model_json(cls, model_json: dict, tier: str = \"free\") -> \"RateLimiter\":\ntool/LLM/logic/rate_limiter.py:132:        \"\"\"Create a RateLimiter from a model.json configuration.\"\"\"\ntool/LLM/logic/rate_limiter.py:147:                       rate_limiter: 'RateLimiter' = None) -> dict:\ntool/LLM/logic/models/glm_4_7_flash/providers/zhipu/interface/__init__.py:20:from tool.LLM.logic.rate_limiter import RateLimiter\ntool/LLM/logic/models/glm_4_7_flash/providers/zhipu/interface/__init__.py:86:            self._rate_limiter = RateLimiter.from_model_json(model_config, \"free\")\ntool/LLM/logic/models/glm_4_7_"
+   },
+   {
+    "role": "assistant",
+    "content": "现在读取相关文件来查看RateLimiter的具体配置：",
+    "tool_calls": [
+     {
+      "id": "call_04d0cc837ad7499685d9cbaf",
+      "type": "function",
+      "function": {
+       "name": "read_file",
+       "arguments": "{\"path\":\"tool/LLM/logic/rate_limiter.py\"}{\"path\":\"tool/LLM/logic/providers/nvidia_glm47/interface/__init__.py\"}{\"path\":\"tool/LLM/logic/providers/zhipu_glm4/interface/__init__.py\"}{\"path\":\"tool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py\"}{\"path\":\"tool/LLM/logic/providers/zhipu_glm47/interface/__init__.py\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_04d0cc837ad7499685d9cbaf",
+    "content": "\"\"\"Token-bucket rate limiter with concurrency control and context-aware delays.\n\nEnforces a hard RPM cap, max concurrency, and adds adaptive delays.\nWhen context exceeds a token threshold (e.g. 8K for free-tier GLM),\napplies extra delays to respect stricter rate limits.\n\"\"\"\nimport time\nimport random\nimport threading\nfrom typing import Callable, Optional\n\n\nclass RateLimiter:\n    \"\"\"Thread-safe rate limiter with jitter and concurrency control.\n\n    Parameters:\n        rpm: Maximum requests per minute (0 = unlimited).\n        min_interval_s: Minimum seconds between requests.\n        jitter_s: Random additional delay range [0, jitter_s].\n        max_concurrency: Max simultaneous in-flight requests (0 = unlimited).\n        context_threshold_tokens: Token count above which extra delays apply.\n        large_context_delay_s: Extra delay for requests exceeding the threshold.\n    \"\"\"\n\n    def __init__(self, rpm: int = 30, min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0, max_concurrency: int = 0,\n                 context_threshold_tokens: int = 0,\n                 large_context_delay_s: float = 10.0):\n        self.rpm = rpm\n        self.min_interval_s = min_interval_s\n        self.jitter_s = jitter_s\n        self.max_concurrency = max_concurrency\n        self.context_threshold_tokens = context_threshold_tokens\n        self.large_context_delay_s = large_context_delay_s\n        self._lock = threading.Lock()\n        self._last_request_time: float = 0.0\n        self._request_times: list = []\n        self._consecutive_429s: int = 0\n        self._in_flight = 0\n        self._concurrency_semaphore: Optional[threading.Semaphore] = None\n        if max_concurrency > 0:\n            self._concurrency_semaphore = threading.Semaphore(max_concurrency)\n\n    def wait(self, context_tokens: int = 0) -> float:\n        \"\"\"Block until the next request is permitted.\n\n        Args:\n            context_tokens: Estimated token count for this request.\n                If exceeding context_threshold_tokens, extra delay is applied.\n\n        Returns the actual wait time in seconds.\n        \"\"\"\n        if self._concurrency_semaphore:\n            self._concurrency_semaphore.acquire()\n\n        with self._lock:\n            now = time.time()\n            waited = 0.0\n\n            since_last = now - self._last_request_time\n            if since_last < self.min_interval_s:\n                gap = self.min_interval_s - since_last\n                waited += gap\n\n            if self.jitter_s > 0:\n                jitter = random.uniform(0, self.jitter_s)\n                waited += jitter\n\n            if self.rpm > 0:\n                cutoff = now - 60.0\n                self._request_times = [\n                    t for t in self._request_times if t > cutoff\n                ]\n                if len(self._request_times) >= self.rpm:\n                    earliest = self._request_times[0]\n                    rpm_wait = 60.0 - (now - earliest) + 0.1\n                    if rpm_wait > waited:\n  \n\n[WARNING] You tried to pass multiple JSON objects in one tool call. Only the first was used. Call each tool SEPARATELY for each file. Ignored: {\"path\":\"tool/LLM/logic/providers/nvidia_glm47/interface/__init__.py\"}{\"path\":\"tool/LLM/logic/provid"
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_720a76d89b144dceb5c6b283",
+      "type": "function",
+      "function": {
+       "name": "read_file",
+       "arguments": "{\"path\":\"tool/LLM/logic/rate_limiter.py\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_720a76d89b144dceb5c6b283",
+    "content": "\"\"\"Token-bucket rate limiter with concurrency control and context-aware delays.\n\nEnforces a hard RPM cap, max concurrency, and adds adaptive delays.\nWhen context exceeds a token threshold (e.g. 8K for free-tier GLM),\napplies extra delays to respect stricter rate limits.\n\"\"\"\nimport time\nimport random\nimport threading\nfrom typing import Callable, Optional\n\n\nclass RateLimiter:\n    \"\"\"Thread-safe rate limiter with jitter and concurrency control.\n\n    Parameters:\n        rpm: Maximum requests per minute (0 = unlimited).\n        min_interval_s: Minimum seconds between requests.\n        jitter_s: Random additional delay range [0, jitter_s].\n        max_concurrency: Max simultaneous in-flight requests (0 = unlimited).\n        context_threshold_tokens: Token count above which extra delays apply.\n        large_context_delay_s: Extra delay for requests exceeding the threshold.\n    \"\"\"\n\n    def __init__(self, rpm: int = 30, min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0, max_concurrency: int = 0,\n                 context_threshold_tokens: int = 0,\n                 large_context_delay_s: float = 10.0):\n        self.rpm = rpm\n        self.min_interval_s = min_interval_s\n        self.jitter_s = jitter_s\n        self.max_concurrency = max_concurrency\n        self.context_threshold_tokens = context_threshold_tokens\n        self.large_context_delay_s = large_context_delay_s\n        self._lock = threading.Lock()\n        self._last_request_time: float = 0.0\n        self._request_times: list = []\n        self._consecutive_429s: int = 0\n        self._in_flight = 0\n        self._concurrency_semaphore: Optional[threading.Semaphore] = None\n        if max_concurrency > 0:\n            self._concurrency_semaphore = threading.Semaphore(max_concurrency)\n\n    def wait(self, context_tokens: int = 0) -> float:\n        \"\"\"Block until the next request is permitted.\n\n        Args:\n            context_tokens: Estimated token count for this request.\n                If exceeding context_threshold_tokens, extra delay is applied.\n\n        Returns the actual wait time in seconds.\n        \"\"\"\n        if self._concurrency_semaphore:\n            self._concurrency_semaphore.acquire()\n\n        with self._lock:\n            now = time.time()\n            waited = 0.0\n\n            since_last = now - self._last_request_time\n            if since_last < self.min_interval_s:\n                gap = self.min_interval_s - since_last\n                waited += gap\n\n            if self.jitter_s > 0:\n                jitter = random.uniform(0, self.jitter_s)\n                waited += jitter\n\n            if self.rpm > 0:\n                cutoff = now - 60.0\n                self._request_times = [\n                    t for t in self._request_times if t > cutoff\n                ]\n                if len(self._request_times) >= self.rpm:\n                    earliest = self._request_times[0]\n                    rpm_wait = 60.0 - (now - earliest) + 0.1\n                    if rpm_wait > waited:\n  "
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_276d818b1c1b404c9244c418",
+      "type": "function",
+      "function": {
+       "name": "read_file",
+       "arguments": "{\"path\":\"tool/LLM/logic/rate_limiter.py\",\"start_line\":1,\"end_line\":200}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_276d818b1c1b404c9244c418",
+    "content": "\"\"\"Token-bucket rate limiter with concurrency control and context-aware delays.\n\nEnforces a hard RPM cap, max concurrency, and adds adaptive delays.\nWhen context exceeds a token threshold (e.g. 8K for free-tier GLM),\napplies extra delays to respect stricter rate limits.\n\"\"\"\nimport time\nimport random\nimport threading\nfrom typing import Callable, Optional\n\n\nclass RateLimiter:\n    \"\"\"Thread-safe rate limiter with jitter and concurrency control.\n\n    Parameters:\n        rpm: Maximum requests per minute (0 = unlimited).\n        min_interval_s: Minimum seconds between requests.\n        jitter_s: Random additional delay range [0, jitter_s].\n        max_concurrency: Max simultaneous in-flight requests (0 = unlimited).\n        context_threshold_tokens: Token count above which extra delays apply.\n        large_context_delay_s: Extra delay for requests exceeding the threshold.\n    \"\"\"\n\n    def __init__(self, rpm: int = 30, min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0, max_concurrency: int = 0,\n                 context_threshold_tokens: int = 0,\n                 large_context_delay_s: float = 10.0):\n        self.rpm = rpm\n        self.min_interval_s = min_interval_s\n        self.jitter_s = jitter_s\n        self.max_concurrency = max_concurrency\n        self.context_threshold_tokens = context_threshold_tokens\n        self.large_context_delay_s = large_context_delay_s\n        self._lock = threading.Lock()\n        self._last_request_time: float = 0.0\n        self._request_times: list = []\n        self._consecutive_429s: int = 0\n        self._in_flight = 0\n        self._concurrency_semaphore: Optional[threading.Semaphore] = None\n        if max_concurrency > 0:\n            self._concurrency_semaphore = threading.Semaphore(max_concurrency)\n\n    def wait(self, context_tokens: int = 0) -> float:\n        \"\"\"Block until the next request is permitted.\n\n        Args:\n            context_tokens: Estimated token count for this request.\n                If exceeding context_threshold_tokens, extra delay is applied.\n\n        Returns the actual wait time in seconds.\n        \"\"\"\n        if self._concurrency_semaphore:\n            self._concurrency_semaphore.acquire()\n\n        with self._lock:\n            now = time.time()\n            waited = 0.0\n\n            since_last = now - self._last_request_time\n            if since_last < self.min_interval_s:\n                gap = self.min_interval_s - since_last\n                waited += gap\n\n            if self.jitter_s > 0:\n                jitter = random.uniform(0, self.jitter_s)\n                waited += jitter\n\n            if self.rpm > 0:\n                cutoff = now - 60.0\n                self._request_times = [\n                    t for t in self._request_times if t > cutoff\n                ]\n                if len(self._request_times) >= self.rpm:\n                    earliest = self._request_times[0]\n                    rpm_wait = 60.0 - (now - earliest) + 0.1\n                    if rpm_wait > waited:\n  "
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_5c4f40dd81634f289fba6915",
+      "type": "function",
+      "function": {
+       "name": "read_file",
+       "arguments": "{\"path\":\"tool/LLM/logic/rate_limiter.py\",\"start_line\":1,\"end_line\":150}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_5c4f40dd81634f289fba6915",
+    "content": "\"\"\"Token-bucket rate limiter with concurrency control and context-aware delays.\n\nEnforces a hard RPM cap, max concurrency, and adds adaptive delays.\nWhen context exceeds a token threshold (e.g. 8K for free-tier GLM),\napplies extra delays to respect stricter rate limits.\n\"\"\"\nimport time\nimport random\nimport threading\nfrom typing import Callable, Optional\n\n\nclass RateLimiter:\n    \"\"\"Thread-safe rate limiter with jitter and concurrency control.\n\n    Parameters:\n        rpm: Maximum requests per minute (0 = unlimited).\n        min_interval_s: Minimum seconds between requests.\n        jitter_s: Random additional delay range [0, jitter_s].\n        max_concurrency: Max simultaneous in-flight requests (0 = unlimited).\n        context_threshold_tokens: Token count above which extra delays apply.\n        large_context_delay_s: Extra delay for requests exceeding the threshold.\n    \"\"\"\n\n    def __init__(self, rpm: int = 30, min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0, max_concurrency: int = 0,\n                 context_threshold_tokens: int = 0,\n                 large_context_delay_s: float = 10.0):\n        self.rpm = rpm\n        self.min_interval_s = min_interval_s\n        self.jitter_s = jitter_s\n        self.max_concurrency = max_concurrency\n        self.context_threshold_tokens = context_threshold_tokens\n        self.large_context_delay_s = large_context_delay_s\n        self._lock = threading.Lock()\n        self._last_request_time: float = 0.0\n        self._request_times: list = []\n        self._consecutive_429s: int = 0\n        self._in_flight = 0\n        self._concurrency_semaphore: Optional[threading.Semaphore] = None\n        if max_concurrency > 0:\n            self._concurrency_semaphore = threading.Semaphore(max_concurrency)\n\n    def wait(self, context_tokens: int = 0) -> float:\n        \"\"\"Block until the next request is permitted.\n\n        Args:\n            context_tokens: Estimated token count for this request.\n                If exceeding context_threshold_tokens, extra delay is applied.\n\n        Returns the actual wait time in seconds.\n        \"\"\"\n        if self._concurrency_semaphore:\n            self._concurrency_semaphore.acquire()\n\n        with self._lock:\n            now = time.time()\n            waited = 0.0\n\n            since_last = now - self._last_request_time\n            if since_last < self.min_interval_s:\n                gap = self.min_interval_s - since_last\n                waited += gap\n\n            if self.jitter_s > 0:\n                jitter = random.uniform(0, self.jitter_s)\n                waited += jitter\n\n            if self.rpm > 0:\n                cutoff = now - 60.0\n                self._request_times = [\n                    t for t in self._request_times if t > cutoff\n                ]\n                if len(self._request_times) >= self.rpm:\n                    earliest = self._request_times[0]\n                    rpm_wait = 60.0 - (now - earliest) + 0.1\n                    if rpm_wait > waited:\n  "
+   },
+   {
+    "role": "user",
+    "content": "[System] You made 3+ rounds of tool calls without any explanatory text. Write a text response describing what you've found so far. What is the current status?"
+   },
+   {
+    "role": "assistant",
+    "content": "我正在审计LLM工具的rate limiter配置。目前已搜索到4个provider使用RateLimiter：\n- nvidia_glm47\n- zhipu_glm4  \n- zhipu_glm47_flash\n- zhipu_glm47\n\n我已读取了rate_limiter.py的默认参数（rpm=30, min_interval_s=2.0, jitter_s=1.0, large_context_delay_s=10.0）。现在继续读取各个provider的具体配置。",
+    "tool_calls": [
+     {
+      "id": "call_c62314f7e10d49a2b0dae639",
+      "type": "function",
+      "function": {
+       "name": "read_file",
+       "arguments": "{\"path\":\"tool/LLM/logic/providers/nvidia_glm47/interface/__init__.py\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_c62314f7e10d49a2b0dae639",
+    "content": "\"\"\"GLM-4.7 provider via NVIDIA Build (OpenAI-compatible).\n\nEndpoint: https://integrate.api.nvidia.com/v1/chat/completions\nModel:    z-ai/glm4.7\nLimits:   40 RPM (free tier), 131K context window\nLicense:  MIT / NVIDIA Open Model License\n\"\"\"\nimport json\nimport os\nimport urllib.request\nimport urllib.error\nfrom typing import Dict, Any, List, Optional\n\nfrom tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities\nfrom tool.LLM.logic.rate_limiter import RateLimiter\nfrom tool.LLM.logic.config import get_config_value, set_config_value\n\nNVIDIA_API_URL = \"https://integrate.api.nvidia.com/v1/chat/completions\"\nMODEL_ID = \"z-ai/glm4.7\"\nDEFAULT_RPM = 30\nDEFAULT_MAX_CONTEXT = 131072\n\n\ndef get_api_key() -> Optional[str]:\n    \"\"\"Get NVIDIA API key from tool config or environment.\"\"\"\n    key = get_config_value(\"nvidia_api_key\") or os.environ.get(\"NVIDIA_API_KEY\")\n    return key if key else None\n\n\ndef save_api_key(key: str):\n    \"\"\"Store the NVIDIA API key in tool config.\"\"\"\n    set_config_value(\"nvidia_api_key\", key)\n\n\nclass NvidiaGLM47Provider(LLMProvider):\n    \"\"\"GLM-4.7 via NVIDIA Build free API.\"\"\"\n\n    name = \"nvidia-glm-4-7b\"\n    cost_model = CostModel(free_tier=True)\n    capabilities = ModelCapabilities(\n        supports_tool_calling=True,\n        supports_vision=False,\n        supports_streaming=True,\n        max_context_tokens=131072,\n        max_output_tokens=16384,\n    )\n\n    def __init__(self, api_key: Optional[str] = None,\n                 rpm: int = DEFAULT_RPM,\n                 min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0):\n        self._api_key = api_key or get_api_key()\n        self._rate_limiter = RateLimiter(\n            rpm=rpm, min_interval_s=min_interval_s, jitter_s=jitter_s\n        )\n        self._model = MODEL_ID\n\n    def is_available(self) -> bool:\n        return bool(self._api_key)\n\n    def get_info(self) -> Dict[str, Any]:\n        info = super().get_info()\n        info.update({\n            \"model\": self._model,\n            \"api_url\": NVIDIA_API_URL,\n            \"rpm_limit\": self._rate_limiter.rpm,\n            \"max_context\": DEFAULT_MAX_CONTEXT,\n        })\n        return info\n\n    def _send_request(self, messages: List[Dict[str, str]],\n                      temperature: float = 0.7,\n                      max_tokens: int = 16384,\n                      tools: List[Dict[str, Any]] = None) -> Dict[str, Any]:\n        if not self._api_key:\n            return {\"ok\": False, \"text\": \"\",\n                    \"error\": \"No NVIDIA API key. Run LLM setup.\"}\n\n        self._rate_limiter.wait()\n\n        payload = {\n            \"model\": self._model,\n            \"messages\": messages,\n            \"temperature\": temperature,\n            \"max_tokens\": max_tokens,\n            \"stream\": False,\n        }\n        if tools:\n            payload[\"tools\"] = tools\n\n        data = json.dumps(payload).encode(\"utf-8\")\n        headers = {\n            \"Authorization\": f\"Bearer {self._api_key}\",\n            \"Content-Type\": \"application/json\""
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_bd09f02e5e9046dc91920511",
+      "type": "function",
+      "function": {
+       "name": "read_file",
+       "arguments": "{\"path\":\"tool/LLM/logic/providers/nvidia_glm47/interface/__init__.py\",\"start_line\":45,\"end_line\":75}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_bd09f02e5e9046dc91920511",
+    "content": "\"\"\"GLM-4.7 provider via NVIDIA Build (OpenAI-compatible).\n\nEndpoint: https://integrate.api.nvidia.com/v1/chat/completions\nModel:    z-ai/glm4.7\nLimits:   40 RPM (free tier), 131K context window\nLicense:  MIT / NVIDIA Open Model License\n\"\"\"\nimport json\nimport os\nimport urllib.request\nimport urllib.error\nfrom typing import Dict, Any, List, Optional\n\nfrom tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities\nfrom tool.LLM.logic.rate_limiter import RateLimiter\nfrom tool.LLM.logic.config import get_config_value, set_config_value\n\nNVIDIA_API_URL = \"https://integrate.api.nvidia.com/v1/chat/completions\"\nMODEL_ID = \"z-ai/glm4.7\"\nDEFAULT_RPM = 30\nDEFAULT_MAX_CONTEXT = 131072\n\n\ndef get_api_key() -> Optional[str]:\n    \"\"\"Get NVIDIA API key from tool config or environment.\"\"\"\n    key = get_config_value(\"nvidia_api_key\") or os.environ.get(\"NVIDIA_API_KEY\")\n    return key if key else None\n\n\ndef save_api_key(key: str):\n    \"\"\"Store the NVIDIA API key in tool config.\"\"\"\n    set_config_value(\"nvidia_api_key\", key)\n\n\nclass NvidiaGLM47Provider(LLMProvider):\n    \"\"\"GLM-4.7 via NVIDIA Build free API.\"\"\"\n\n    name = \"nvidia-glm-4-7b\"\n    cost_model = CostModel(free_tier=True)\n    capabilities = ModelCapabilities(\n        supports_tool_calling=True,\n        supports_vision=False,\n        supports_streaming=True,\n        max_context_tokens=131072,\n        max_output_tokens=16384,\n    )\n\n    def __init__(self, api_key: Optional[str] = None,\n                 rpm: int = DEFAULT_RPM,\n                 min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0):\n        self._api_key = api_key or get_api_key()\n        self._rate_limiter = RateLimiter(\n            rpm=rpm, min_interval_s=min_interval_s, jitter_s=jitter_s\n        )\n        self._model = MODEL_ID\n\n    def is_available(self) -> bool:\n        return bool(self._api_key)\n\n    def get_info(self) -> Dict[str, Any]:\n        info = super().get_info()\n        info.update({\n            \"model\": self._model,\n            \"api_url\": NVIDIA_API_URL,\n            \"rpm_limit\": self._rate_limiter.rpm,\n            \"max_context\": DEFAULT_MAX_CONTEXT,\n        })\n        return info\n\n    def _send_request(self, messages: List[Dict[str, str]],\n                      temperature: float = 0.7,\n                      max_tokens: int = 16384,\n                      tools: List[Dict[str, Any]] = None) -> Dict[str, Any]:\n        if not self._api_key:\n            return {\"ok\": False, \"text\": \"\",\n                    \"error\": \"No NVIDIA API key. Run LLM setup.\"}\n\n        self._rate_limiter.wait()\n\n        payload = {\n            \"model\": self._model,\n            \"messages\": messages,\n            \"temperature\": temperature,\n            \"max_tokens\": max_tokens,\n            \"stream\": False,\n        }\n        if tools:\n            payload[\"tools\"] = tools\n\n        data = json.dumps(payload).encode(\"utf-8\")\n        headers = {\n            \"Authorization\": f\"Bearer {self._api_key}\",\n            \"Content-Type\": \"application/json\""
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_70cee5496c294a0782c7bf10",
+      "type": "function",
+      "function": {
+       "name": "read_file",
+       "arguments": "{\"path\":\"tool/LLM/logic/providers/nvidia_glm47/interface/__init__.py\",\"start_line\":45,\"end_line\":65}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_70cee5496c294a0782c7bf10",
+    "content": "\"\"\"GLM-4.7 provider via NVIDIA Build (OpenAI-compatible).\n\nEndpoint: https://integrate.api.nvidia.com/v1/chat/completions\nModel:    z-ai/glm4.7\nLimits:   40 RPM (free tier), 131K context window\nLicense:  MIT / NVIDIA Open Model License\n\"\"\"\nimport json\nimport os\nimport urllib.request\nimport urllib.error\nfrom typing import Dict, Any, List, Optional\n\nfrom tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities\nfrom tool.LLM.logic.rate_limiter import RateLimiter\nfrom tool.LLM.logic.config import get_config_value, set_config_value\n\nNVIDIA_API_URL = \"https://integrate.api.nvidia.com/v1/chat/completions\"\nMODEL_ID = \"z-ai/glm4.7\"\nDEFAULT_RPM = 30\nDEFAULT_MAX_CONTEXT = 131072\n\n\ndef get_api_key() -> Optional[str]:\n    \"\"\"Get NVIDIA API key from tool config or environment.\"\"\"\n    key = get_config_value(\"nvidia_api_key\") or os.environ.get(\"NVIDIA_API_KEY\")\n    return key if key else None\n\n\ndef save_api_key(key: str):\n    \"\"\"Store the NVIDIA API key in tool config.\"\"\"\n    set_config_value(\"nvidia_api_key\", key)\n\n\nclass NvidiaGLM47Provider(LLMProvider):\n    \"\"\"GLM-4.7 via NVIDIA Build free API.\"\"\"\n\n    name = \"nvidia-glm-4-7b\"\n    cost_model = CostModel(free_tier=True)\n    capabilities = ModelCapabilities(\n        supports_tool_calling=True,\n        supports_vision=False,\n        supports_streaming=True,\n        max_context_tokens=131072,\n        max_output_tokens=16384,\n    )\n\n    def __init__(self, api_key: Optional[str] = None,\n                 rpm: int = DEFAULT_RPM,\n                 min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0):\n        self._api_key = api_key or get_api_key()\n        self._rate_limiter = RateLimiter(\n            rpm=rpm, min_interval_s=min_interval_s, jitter_s=jitter_s\n        )\n        self._model = MODEL_ID\n\n    def is_available(self) -> bool:\n        return bool(self._api_key)\n\n    def get_info(self) -> Dict[str, Any]:\n        info = super().get_info()\n        info.update({\n            \"model\": self._model,\n            \"api_url\": NVIDIA_API_URL,\n            \"rpm_limit\": self._rate_limiter.rpm,\n            \"max_context\": DEFAULT_MAX_CONTEXT,\n        })\n        return info\n\n    def _send_request(self, messages: List[Dict[str, str]],\n                      temperature: float = 0.7,\n                      max_tokens: int = 16384,\n                      tools: List[Dict[str, Any]] = None) -> Dict[str, Any]:\n        if not self._api_key:\n            return {\"ok\": False, \"text\": \"\",\n                    \"error\": \"No NVIDIA API key. Run LLM setup.\"}\n\n        self._rate_limiter.wait()\n\n        payload = {\n            \"model\": self._model,\n            \"messages\": messages,\n            \"temperature\": temperature,\n            \"max_tokens\": max_tokens,\n            \"stream\": False,\n        }\n        if tools:\n            payload[\"tools\"] = tools\n\n        data = json.dumps(payload).encode(\"utf-8\")\n        headers = {\n            \"Authorization\": f\"Bearer {self._api_key}\",\n            \"Content-Type\": \"application/json\""
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_4152d95698244db399a26ae3",
+      "type": "function",
+      "function": {
+       "name": "search",
+       "arguments": "{\"path\":\"tool/LLM/logic/providers/nvidia_glm47/interface/__init__.py\",\"pattern\":\"self\\\\._rate_limiter\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_4152d95698244db399a26ae3",
+    "content": "tool/LLM/logic/providers/nvidia_glm47/interface/__init__.py:53:        self._rate_limiter = RateLimiter(\ntool/LLM/logic/providers/nvidia_glm47/interface/__init__.py:66:            \"rpm_limit\": self._rate_limiter.rpm,\ntool/LLM/logic/providers/nvidia_glm47/interface/__init__.py:79:        self._rate_limiter.wait()\ntool/LLM/logic/providers/nvidia_glm47/interface/__init__.py:148:        self._rate_limiter.wait()\n"
+   },
+   {
+    "role": "user",
+    "content": "[System] You made 3+ rounds of tool calls without any explanatory text. Write a text response describing what you've found so far. What is the current status?"
+   },
+   {
+    "role": "assistant",
+    "content": "我正在审计rate limiter配置。目前已找到4个使用RateLimiter的provider。已读取nvidia_glm47的配置（DEFAULT_RPM=30），现在继续读取zhipu_glm4的配置。",
+    "tool_calls": [
+     {
+      "id": "call_0426def462ce4f33b3c0d270",
+      "type": "function",
+      "function": {
+       "name": "read_file",
+       "arguments": "{\"path\":\"tool/LLM/logic/providers/zhipu_glm4/interface/__init__.py\",\"start_line\":60,\"end_line\":90}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_0426def462ce4f33b3c0d270",
+    "content": "\"\"\"GLM-4-Flash provider via Zhipu AI (OpenAI-compatible).\n\nEndpoint: https://open.bigmodel.cn/api/paas/v4/chat/completions\nModel:    glm-4-flash (free tier)\nLimits:   Free tier with rate limits, 128K context window\nDocs:     https://bigmodel.cn/dev/api/normal-model/glm-4\n\"\"\"\nimport json\nimport os\nimport urllib.request\nimport urllib.error\nfrom typing import Dict, Any, List, Optional\n\nfrom tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities\nfrom tool.LLM.logic.rate_limiter import RateLimiter\nfrom tool.LLM.logic.config import get_config_value, set_config_value, APIKeyRotator\n\nZHIPU_API_URL = \"https://open.bigmodel.cn/api/paas/v4/chat/completions\"\nMODEL_ID = \"glm-4-flash\"\nDEFAULT_RPM = 30\nDEFAULT_MAX_CONTEXT = 128000\n\n_zhipuai = None\n\n\ndef _try_import_sdk():\n    global _zhipuai\n    if _zhipuai is not None:\n        return _zhipuai\n    try:\n        import zhipuai\n        _zhipuai = zhipuai\n        return zhipuai\n    except ImportError:\n        _zhipuai = False\n        return False\n\n\ndef get_api_key() -> Optional[str]:\n    key = get_config_value(\"zhipu_api_key\") or os.environ.get(\"ZHIPU_API_KEY\")\n    return key if key else None\n\n\ndef save_api_key(key: str):\n    set_config_value(\"zhipu_api_key\", key)\n\n\nclass ZhipuGLM4Provider(LLMProvider):\n    \"\"\"GLM-4-Flash via Zhipu AI free API.\"\"\"\n\n    name = \"zhipu-glm-4-flash\"\n    cost_model = CostModel(free_tier=True)\n    capabilities = ModelCapabilities(\n        supports_tool_calling=True,\n        supports_vision=False,\n        supports_streaming=True,\n        max_context_tokens=128000,\n        max_output_tokens=4096,\n    )\n\n    def __init__(self, api_key: Optional[str] = None,\n                 rpm: int = DEFAULT_RPM,\n                 min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0):\n        self._key_rotator = APIKeyRotator(\"zhipu\")\n        self._api_key = api_key or self._key_rotator.current_key or get_api_key()\n        self._model = MODEL_ID\n\n        model_config = self._load_model_json()\n        if model_config:\n            self._rate_limiter = RateLimiter.from_model_json(model_config, \"free\")\n        else:\n            self._rate_limiter = RateLimiter(\n                rpm=rpm, min_interval_s=min_interval_s, jitter_s=jitter_s\n            )\n\n        self._client = None\n        self._sdk = _try_import_sdk()\n        self._init_client()\n\n    def _init_client(self):\n        self._client = None\n        if self._sdk and self._api_key:\n            try:\n                self._client = self._sdk.ZhipuAI(api_key=self._api_key)\n            except Exception:\n                pass\n\n    def _rotate_key_on_429(self):\n        \"\"\"On 429, try the next API key if available.\"\"\"\n        if self._key_rotator.key_count > 1:\n            self._key_rotator.advance()\n            new_key = self._key_rotator.current_key\n            if new_key and new_key != self._api_key:\n                self._api_key = new_key\n                self._init_client()\n                return True\n        return False\n\n    @stati"
+   },
+   {
+    "role": "user",
+    "content": "[System] You are approaching the turn limit. Complete ALL remaining sub-tasks now. If you have multiple parts to address, do them in this round. Summarize your findings concisely."
+   },
+   {
+    "role": "assistant",
+    "content": "我需要快速完成剩余的审计工作。继续读取zhipu_glm47和zhipu_glm47_flash的配置，然后创建报告。",
+    "tool_calls": [
+     {
+      "id": "call_77edf0673aed4bb292b70336",
+      "type": "function",
+      "function": {
+       "name": "read_file",
+       "arguments": "{\"path\":\"tool/LLM/logic/providers/zhipu_glm47/interface/__init__.py\",\"start_line\":60,\"end_line\":95}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_77edf0673aed4bb292b70336",
+    "content": "\"\"\"GLM-4.7 provider via Zhipu AI direct API.\n\nEndpoint: https://open.bigmodel.cn/api/paas/v4/chat/completions\nModel:    glm-4.7 (MoE, 200K context, 128K output)\nDocs:     https://docs.bigmodel.cn/cn/guide/models/text/glm-4.7\n\nUses the zhipuai SDK if available, otherwise falls back to urllib.\n\"\"\"\nimport json\nimport os\nimport urllib.request\nimport urllib.error\nfrom typing import Dict, Any, List, Optional\n\nfrom tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities\nfrom tool.LLM.logic.rate_limiter import RateLimiter\nfrom tool.LLM.logic.config import get_config_value, set_config_value\n\nZHIPU_API_URL = \"https://open.bigmodel.cn/api/paas/v4/chat/completions\"\nMODEL_ID = \"glm-4.7\"\nDEFAULT_RPM = 30\nDEFAULT_MAX_CONTEXT = 200000\nDEFAULT_MAX_OUTPUT = 16384\n\n_zhipuai = None\n\n\ndef _try_import_sdk():\n    global _zhipuai\n    if _zhipuai is not None:\n        return _zhipuai\n    try:\n        import zhipuai\n        _zhipuai = zhipuai\n        return zhipuai\n    except ImportError:\n        _zhipuai = False\n        return False\n\n\ndef get_api_key() -> Optional[str]:\n    key = get_config_value(\"zhipu_api_key\") or os.environ.get(\"ZHIPU_API_KEY\")\n    return key if key else None\n\n\ndef save_api_key(key: str):\n    set_config_value(\"zhipu_api_key\", key)\n\n\nclass ZhipuGLM47Provider(LLMProvider):\n    \"\"\"GLM-4.7 via Zhipu AI direct API.\n\n    Prefers the zhipuai SDK for richer error handling and SSE streaming.\n    Falls back to urllib if the SDK is not installed.\n    \"\"\"\n\n    name = \"zhipu-glm-4.7\"\n    cost_model = CostModel(free_tier=False)\n    capabilities = ModelCapabilities(\n        supports_tool_calling=True,\n        supports_vision=False,\n        supports_streaming=True,\n        max_context_tokens=DEFAULT_MAX_CONTEXT,\n        max_output_tokens=DEFAULT_MAX_OUTPUT,\n    )\n\n    def __init__(self, api_key: Optional[str] = None,\n                 rpm: int = DEFAULT_RPM,\n                 min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0):\n        self._api_key = api_key or get_api_key()\n        self._rate_limiter = RateLimiter(\n            rpm=rpm, min_interval_s=min_interval_s, jitter_s=jitter_s\n        )\n        self._model = MODEL_ID\n        self._client = None\n        sdk = _try_import_sdk()\n        if sdk and self._api_key:\n            try:\n                self._client = sdk.ZhipuAI(api_key=self._api_key)\n            except Exception:\n                self._client = None\n\n    def is_available(self) -> bool:\n        return bool(self._api_key)\n\n    def get_info(self) -> Dict[str, Any]:\n        info = super().get_info()\n        info.update({\n            \"model\": self._model,\n            \"api_url\": ZHIPU_API_URL,\n            \"rpm_limit\": self._rate_limiter.rpm,\n            \"max_context\": DEFAULT_MAX_CONTEXT,\n            \"sdk_available\": self._client is not None,\n        })\n        return info\n\n    def _send_request(self, messages: List[Dict[str, str]],\n                      temperature: float = 0.7,\n                      max_tokens: int = DEFAULT_MAX_"
+   },
+   {
+    "role": "user",
+    "content": "[SYSTEM] This is your LAST round with tool access. If you cannot finish in one more round, summarize your progress as text."
+   },
+   {
+    "role": "assistant",
+    "content": "快速读取最后一个provider的配置并创建报告。",
+    "tool_calls": [
+     {
+      "id": "call_fc01c78611ba4aa0b397d069",
+      "type": "function",
+      "function": {
+       "name": "search",
+       "arguments": "{\"path\":\"tool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py\",\"pattern\":\"self\\\\._rate_limiter\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_fc01c78611ba4aa0b397d069",
+    "content": "tool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:85:            self._rate_limiter = RateLimiter.from_model_json(model_config, \"free\")\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:87:            self._rate_limiter = RateLimiter(\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:116:            \"rpm_limit\": self._rate_limiter.rpm,\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:132:        self._rate_limiter.wait(context_tokens=ctx_tokens)\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:139:            self._rate_limiter.release()\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:294:        self._rate_limiter.wait()\n"
+   },
+   {
+    "role": "user",
+    "content": "STOP making tool calls. You have reached the round limit. Summarize everything you have found and respond NOW."
+   }
+  ],
+  "max_context_tokens": 32000
+ },
+ "events": [
+  {
+   "type": "session_status",
+   "id": "c027f6ff",
+   "status": "running"
+  },
+  {
+   "type": "user",
+   "prompt": "Audit the LLM tool's rate limiter configuration. Do the following:\n1. Search for all files that import or use RateLimiter in tool/LLM/\n2. For each file found, read the relevant section to see how RateLimiter is configured\n3. Create a report at tmp/rate_limiter_audit.md with a table:\n   | Provider | RPM | Min Interval | Source File |\n4. Note any inconsistencies between providers\n\nYou should find at least 3 different providers using RateLimiter.",
+   "ecosystem": {
+    "project_summary": "AITerminalTools: 58+ terminal tools for AI agents. Tool name = command (GIT, PYTHON, SEARCH). Architecture: tool/<NAME>/{{main.py, logic/, interface/}}. Shared: logic/ (internal), interface/ (facade). Docs: README.md (usage), for_agent.md (internals).",
+    "exploration": "Search anything: exec 'TOOL --search all \"query\"'. Search tools: exec 'TOOL --search tools \"keyword\"'. Load skill: exec 'SKILLS show <name>'. Read docs: read_file('tool/<NAME>/for_agent.md'). Installed: ASANA, ATLASSIAN, BACKGROUND, BILIBILI, BOARDMIX, CHARTCUBE, CLOUDFLARE, COGGLE +50 more.",
+    "rationale": {
+     "tools": "Tool = integrated workflow (tool/<NAME>/{main.py, logic/, interface/}). Name IS the command. Fix bugs directly, don't work around them.",
+     "docs": "README.md=usage, for_agent.md=architecture, SKILL.md=best practice. Import from interface.*, never logic.* directly.",
+     "memory": "Persistent lessons in runtime/experience/. Search: exec 'TOOL --search lessons \"keywords\"'. Record: experience(lesson=..., tool=...).",
+     "evolution": "Errors -> Lessons -> Skills -> Infrastructure -> Better Tools. Each fix makes the ecosystem permanently smarter."
+    },
+    "standard_tools": "exec (shell commands; tools=commands), read_file, write_file, edit_file, search, todo, ask_user, experience (record lesson to runtime/experience/)",
+    "skills_usage": "Load any skill: exec 'SKILLS show <name>'. Search: exec 'TOOL --search skills \"topic\"'.",
+    "skill_catalog": [
+     "turing-machine-development — Progress display system using TuringStage and ProgressTuringMachine. Covers sing",
+     "tmp-test-script — Conventions for the symmetric tmp/ directory in AITerminalTools. Covers temporar",
+     "openclaw — OpenClaw-inspired self-improvement loop. Error -> Lesson -> Rule -> Skill -> Hoo",
+     "unit-test-conventions — Naming conventions, structure, and best practices for unit tests in AITerminalTo",
+     "error-recovery-patterns — Systematic error recovery strategies for multi-step workflows. Covers retry patt",
+     "session-debug-log — Session logging and debug log system in AITerminalTools. Covers tool.log(), Sess",
+     "retention-rotation — Retention and rotation patterns for logs, caches, and file-based storage. Use wh",
+     "unified-gui-development — Guide for synchronized development of HTML GUI and CLI GUI features. Use when ad",
+     "naming-conventions — Naming conventions for the AITerminalTools project covering tools, commands, fil",
+     "tool-dependency-declaration — Declaring tool dependencies in tool.json when importing from other tools' interf",
+     "tool-interface — Create and use tool interfaces (interface/main.py) for cross-tool communication ",
+     "code-quality-review — Static analysis and quality auditing for AITerminalTools. Covers dead code detec",
+     "avoid-duplicate-implementations — Guide for avoiding duplicate implementations when adding new features or pattern",
+     "development-report — Writing development reports for AITerminalTools. Covers naming, content structur",
+     "task-orchestration — How to decompose user requests into multi-tool workflows. Teaches agents to plan",
+     "recipes — End-to-end workflow recipes showing how to compose multiple tools for real tasks",
+     "directory-audit-strategy — Systematic approach to auditing directory structures in symmetric root directori",
+     "tool-development-workflow — Complete guide for developing new tools in AITerminalTools, from template creati",
+     "skill-creation-guide — Guide for creating, managing, and organizing skills in the AITerminalTools proje",
+     "skills-index — Index of all available AITerminalTools skills organized by category. Use as a st"
+    ],
+    "recent_lessons": [
+     "[OPENCLAW] CDMCP open_tab() returns False on failure rather than raising an exception. Functions that call it m",
+     "[OPENCLAW] HTML GUI session items: click handlers must be on the parent row element (session-item), not inner c",
+     "[TOOL] tool.json.tmpl template: JSON braces ({}) must be doubled ({{ }}) to avoid KeyError with Python str.",
+     "[PYTHON] 在异常处理中使用 sys.exit() 时必须传入退出码参数。sys.exit() 无参数会使用当前线程的退出码，导致错误码不可预测。应始终使用 sys.exit(code) 明确指定退出码。",
+     "When creating new root-level directories (hooks/, .cursor/), always check .gitignore first. This pro"
+    ],
+    "agent_behaviors": [
+     "BEFORE any task: exec 'TOOL --search all \"task keywords\"' to find tools/lessons/skills. Never code blindly.",
+     "Search before creating: no duplicate tools, skills, or lessons. Improve existing ones.",
+     "Act immediately. Interleave actions with 1-line status: 'Reading config... Found 3 endpoints. Testing...'",
+     "If a tool errors: read source, fix bug directly, retry. Record: experience(lesson=..., tool=...).",
+     "Promote knowledge: 3+ lessons on same theme -> create skill. Accumulated skills -> infrastructure.",
+     "After changes: update tool's README.md + for_agent.md. Document new infrastructure.",
+     "Complete ALL tasks before stopping. User must confirm satisfaction.",
+     "Prefer tool calls over reading files. exec 'TOOL --search all X' finds anything.",
+     "You may be interrupted at any round. Proactively record key findings via experience() so progress is never lost."
+    ],
+    "guidelines": "### Conventions\n**Experience**\n- Record discoveries and gotchas via experience() or SKILLS learn after each non-obvious finding.\n- Update runtime/brain/tasks.md after completing tasks; mark done, add new ones.\n- Update runtime/brain/context.md with current work state so the next session can resume.\n- Runtime is a symmetric directory — each tool can have its own runtime/brain/ for tool-specific context.\n- Error → Lesson: every unexpected failure must be recorded with severity classification.\n- Lesson → Skill: after 3+ lessons on the same theme, synthesize into a reusable skill.\n- Skill → Tool: mechanical skills (repeatable, checklistable) should become automated tools.\n- Tool → Hook: new tools should expose hooks for pre/post event handling.\n**Exploration**\n- Before implementing: search for existing skills/tools via TOOL --search all 'query'.\n- Read for_agent.md for tool internals before extending or debugging a tool.\n- Use SKILLS show <name> to load relevant skills; check skills-index for the master list.\n- Prefer extending existing implementations over creating new ones (avoid-duplicate-implementations).\n**Quality**\n- Fix bugs directly in source — don't work around them.\n- Update README.md and for_agent.md after structural changes.\n- Run TOOL --audit code and TOOL --lang audit to verify quality.\n- Use tmp/ scripts for exploratory testing before committing changes.\n- Pre-commit hooks must pass before any commit (severity: BLOCK).\n- Lessons with severity=BLOCK must become automated checks within one session.\n**Infrastructure**\n- Repeated lessons (3+) on the same theme should become a skill.\n- Mechanical processes described in skills should become automated functions.\n- New root-level directories require .gitignore exceptions (deny-by-default pattern).\n- Imports from tool.X.interface → declare in tool.json dependencies.\n**Self Improvement**\n- Run self-audit after major changes: check for new lessons to capture.\n- Review skills-index periodically for outdated or redundant skills.\n- Propose infrastructure upgrades when manual patterns become repetitive.\n- Feed lessons back into guidelines layers to close the loop.\n\n### Ecosystem\n**Architecture**\n- Tool = tool/<NAME>/{main.py, logic/, interface/, hooks/, test/}.\n- Shared code: logic/ (internal), interface/ (facade). Import from interface.*, never logic.* directly.\n- Docs: README.md (usage), for_agent.md (agent internals), SKILL.md (best practices).\n- Symmetric root directories: logic/, interface/, hooks/, test/, skills/, runtime/, data/.\n**Discovery**\n- TOOL --search all 'query' — find anything (tools, skills, lessons).\n- TOOL --search tools 'keyword' — find tools by capability.\n- SKILLS show <name> — load a skill's full content.\n- SKILLS list — show all skills and sync status.\n- OPENCLAW --status — self-improvement dashboard.\n- OPENCLAW --audit — check for unprocessed lessons needing skill creation.\n**Patterns**\n- Turing machine: use ProgressTuringMachine for multi-stage progress display.\n- Localization: use _() helper + TOOL --lang audit for multi-language support.\n- Hooks: tool/<NAME>/hooks/{interface/, instance/, config.json} for event-driven extensions.\n- Preflight: validate conditions before risky operations (from interface.utils import preflight).\n- OpenClaw loop: Error → Lesson → Rule → Skill → Hook enforcement.\n- Lesson store: runtime/experience/lessons.jsonl — append-only, severity-classified.\n- Skill creation: SKILLS create <name> — generates SKILL.md in skills/core/.\n- Hook enforcement: hooks/instance/ — lifecycle hooks that enforce learned rules.\n**Commands**\n- Every tool name IS its command: GIT, PYTHON, SEARCH, LLM, SKILLS.\n- Symmetric commands: TOOL_NAME --ask (read-only), --plan (design), --agent (autonomous).\n- TOOL --dev create <NAME> — scaffold a new tool with full structure.\n- TOOL --audit code — static analysis; TOOL --audit imports — dependency check.\n",
+    "user_rationale": ""
+   },
+   "user_rationale": "",
+   "system_state": {
+    "nudge_triggered": false
+   },
+   "suggestions": {
+    "relevant_tools": [
+     "LLM — Unified LLM provider management with rate limiting and sessi",
+     "OPENCLAW — Agent autonomy framework with multi-backend LLM (GLM-4.7 API"
+    ],
+    "relevant_skills": [
+     "source-exploration",
+     "tool-dependency-declaration",
+     "code-quality-review"
+    ]
+   }
+  },
+  {
+   "type": "debug",
+   "text": "Round 1/12 (max_tool_rounds=12)"
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4.7-flash",
+   "round": 1
+  },
+  {
+   "type": "llm_response_start",
+   "round": 1
+  },
+  {
+   "type": "text",
+   "tokens": "我将"
+  },
+  {
+   "type": "text",
+   "tokens": "审计"
+  },
+  {
+   "type": "text",
+   "tokens": "LL"
+  },
+  {
+   "type": "text",
+   "tokens": "M"
+  },
+  {
+   "type": "text",
+   "tokens": "工具"
+  },
+  {
+   "type": "text",
+   "tokens": "的"
+  },
+  {
+   "type": "text",
+   "tokens": "rate"
+  },
+  {
+   "type": "text",
+   "tokens": " lim"
+  },
+  {
+   "type": "text",
+   "tokens": "iter"
+  },
+  {
+   "type": "text",
+   "tokens": "配置"
+  },
+  {
+   "type": "text",
+   "tokens": "。"
+  },
+  {
+   "type": "text",
+   "tokens": "首先"
+  },
+  {
+   "type": "text",
+   "tokens": "搜索"
+  },
+  {
+   "type": "text",
+   "tokens": "tool"
+  },
+  {
+   "type": "text",
+   "tokens": "/"
+  },
+  {
+   "type": "text",
+   "tokens": "LL"
+  },
+  {
+   "type": "text",
+   "tokens": "M"
+  },
+  {
+   "type": "text",
+   "tokens": "/"
+  },
+  {
+   "type": "text",
+   "tokens": "目录"
+  },
+  {
+   "type": "text",
+   "tokens": "下"
+  },
+  {
+   "type": "text",
+   "tokens": "所有"
+  },
+  {
+   "type": "text",
+   "tokens": "使用"
+  },
+  {
+   "type": "text",
+   "tokens": "Rate"
+  },
+  {
+   "type": "text",
+   "tokens": "L"
+  },
+  {
+   "type": "text",
+   "tokens": "imiter"
+  },
+  {
+   "type": "text",
+   "tokens": "的"
+  },
+  {
+   "type": "text",
+   "tokens": "文件"
+  },
+  {
+   "type": "text",
+   "tokens": "。"
+  },
+  {
+   "type": "llm_response_end",
+   "round": 1,
+   "latency_s": 16.965,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4.7-flash",
+   "model": "zhipu-glm-4.7-flash",
+   "_full_text": "我将审计LLM工具的rate limiter配置。首先搜索tool/LLM/目录下所有使用RateLimiter的文件。",
+   "usage": {
+    "prompt_tokens": 2961,
+    "completion_tokens": 150,
+    "total_tokens": 3111
+   }
+  },
+  {
+   "type": "tool",
+   "name": "search",
+   "desc": "Search for \"RateLimiter\" in LLM",
+   "cmd": "search 'RateLimiter' tool/LLM"
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "tool/LLM/interface/main.py:7:from tool.LLM.logic.rate_limiter import RateLimiter, retry_on_transient  # noqa: F401\ntool/LLM/logic/providers/nvidia_glm47/interface/__init__.py:15:from tool.LLM.logic.rate_limiter import RateLimiter\ntool/LLM/logic/providers/nvidia_glm47/interface/__init__.py:53:        self._rate_limiter = RateLimiter(\ntool/LLM/logic/providers/zhipu_glm4/interface/__init__.py:15:from tool.LLM.logic.rate_limiter import RateLimiter\ntool/LLM/logic/providers/zhipu_glm4/interface/__init__.py:71:            self._rate_limiter = RateLimiter.from_model_json(model_config, \"free\")\ntool/LLM/logic/providers/zhipu_glm4/interface/__init__.py:73:            self._rate_limiter = RateLimiter(\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:20:from tool.LLM.logic.rate_limiter import RateLimiter\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:85:            self._rate_limiter = RateLimiter.from_model_json(model_config, \"free\")\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:87:            self._rate_limiter = RateLimiter(\ntool/LLM/logic/providers/zhipu_glm47/interface/__init__.py:16:from tool.LLM.logic.rate_limiter import RateLimiter\ntool/LLM/logic/providers/zhipu_glm47/interface/__init__.py:72:        self._rate_limiter = RateLimiter(\ntool/LLM/logic/rate_limiter.py:13:class RateLimiter:\ntool/LLM/logic/rate_limiter.py:131:    def from_model_json(cls, model_json: dict, tier: str = \"free\") -> \"RateLimiter\":\ntool/LLM/logic/rate_limiter.py:132:        \"\"\"Create a RateLimiter from a model.json configuration.\"\"\"\ntool/LLM/logic/rate_limiter.py:147:                       rate_limiter: 'RateLimiter' = None) -> dict:\ntool/LLM/logic/models/glm_4_7_flash/providers/zhipu/interface/__init__.py:20:from tool.LLM.logic.rate_limiter import RateLimiter\ntool/LLM/logic/models/glm_4_7_flash/providers/zhipu/interface/__init__.py:86:            self._rate_limiter = RateLimiter.from_model_json(model_config, \"free\")\ntool/LLM/logic/models/glm_4_7_"
+  },
+  {
+   "type": "debug",
+   "text": "Round 2/12 (max_tool_rounds=12)"
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4.7-flash",
+   "round": 2
+  },
+  {
+   "type": "llm_response_start",
+   "round": 2
+  },
+  {
+   "type": "text",
+   "tokens": "现在"
+  },
+  {
+   "type": "text",
+   "tokens": "读取"
+  },
+  {
+   "type": "text",
+   "tokens": "相关"
+  },
+  {
+   "type": "text",
+   "tokens": "文件"
+  },
+  {
+   "type": "text",
+   "tokens": "来"
+  },
+  {
+   "type": "text",
+   "tokens": "查看"
+  },
+  {
+   "type": "text",
+   "tokens": "Rate"
+  },
+  {
+   "type": "text",
+   "tokens": "L"
+  },
+  {
+   "type": "text",
+   "tokens": "imiter"
+  },
+  {
+   "type": "text",
+   "tokens": "的具体"
+  },
+  {
+   "type": "text",
+   "tokens": "配置"
+  },
+  {
+   "type": "text",
+   "tokens": "："
+  },
+  {
+   "type": "llm_response_end",
+   "round": 2,
+   "latency_s": 27.254,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4.7-flash",
+   "model": "zhipu-glm-4.7-flash",
+   "_full_text": "现在读取相关文件来查看RateLimiter的具体配置：",
+   "usage": {
+    "prompt_tokens": 3471,
+    "completion_tokens": 332,
+    "total_tokens": 3803
+   }
+  },
+  {
+   "type": "tool",
+   "name": "read",
+   "desc": "Read rate_limiter.py",
+   "cmd": "./tool/LLM/logic/rate_limiter.py"
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "\"\"\"Token-bucket rate limiter with concurrency control and context-aware delays.\n\nEnforces a hard RPM cap, max concurrency, and adds adaptive delays.\nWhen context exceeds a token threshold (e.g. 8K for free-tier GLM),\napplies extra delays to respect stricter rate limits.\n\"\"\"\nimport time\nimport random\nimport threading\nfrom typing import Callable, Optional\n\n\nclass RateLimiter:\n    \"\"\"Thread-safe rate limiter with jitter and concurrency control.\n\n    Parameters:\n        rpm: Maximum requests per minute (0 = unlimited).\n        min_interval_s: Minimum seconds between requests.\n        jitter_s: Random additional delay range [0, jitter_s].\n        max_concurrency: Max simultaneous in-flight requests (0 = unlimited).\n        context_threshold_tokens: Token count above which extra delays apply.\n        large_context_delay_s: Extra delay for requests exceeding the threshold.\n    \"\"\"\n\n    def __init__(self, rpm: int = 30, min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0, max_concurrency: int = 0,\n                 context_threshold_tokens: int = 0,\n                 large_context_delay_s: float = 10.0):\n        self.rpm = rpm\n        self.min_interval_s = min_interval_s\n        self.jitter_s = jitter_s\n        self.max_concurrency = max_concurrency\n        self.context_threshold_tokens = context_threshold_tokens\n        self.large_context_delay_s = large_context_delay_s\n        self._lock = threading.Lock()\n        self._last_request_time: float = 0.0\n        self._request_times: list = []\n        self._consecutive_429s: int = 0\n        self._in_flight = 0\n        self._concurrency_semaphore: Optional[threading.Semaphore] = None\n        if max_concurrency > 0:\n            self._concurrency_semaphore = threading.Semaphore(max_concurrency)\n\n    def wait(self, context_tokens: int = 0) -> float:\n        \"\"\"Block until the next request is permitted.\n\n        Args:\n            context_tokens: Estimated token count for this request.\n                If exceeding context_threshold_tokens, extra delay is applied.\n\n        Returns the actual wait time in seconds.\n        \"\"\"\n        if self._concurrency_semaphore:\n            self._concurrency_semaphore.acquire()\n\n        with self._lock:\n            now = time.time()\n            waited = 0.0\n\n            since_last = now - self._last_request_time\n            if since_last < self.min_interval_s:\n                gap = self.min_interval_s - since_last\n                waited += gap\n\n            if self.jitter_s > 0:\n                jitter = random.uniform(0, self.jitter_s)\n                waited += jitter\n\n            if self.rpm > 0:\n                cutoff = now - 60.0\n                self._request_times = [\n                    t for t in self._request_times if t > cutoff\n                ]\n                if len(self._request_times) >= self.rpm:\n                    earliest = self._request_times[0]\n                    rpm_wait = 60.0 - (now - earliest) + 0.1\n                    if rpm_wait > waited:\n  "
+  },
+  {
+   "type": "debug",
+   "text": "Round 3/12 (max_tool_rounds=12)"
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4.7-flash",
+   "round": 3
+  },
+  {
+   "type": "llm_response_start",
+   "round": 3
+  },
+  {
+   "type": "llm_response_end",
+   "round": 3,
+   "latency_s": 32.224,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4.7-flash",
+   "model": "zhipu-glm-4.7-flash",
+   "_full_text": "",
+   "usage": {
+    "prompt_tokens": 3833,
+    "completion_tokens": 47,
+    "total_tokens": 3880
+   }
+  },
+  {
+   "type": "tool",
+   "name": "read",
+   "desc": "Read rate_limiter.py",
+   "cmd": "./tool/LLM/logic/rate_limiter.py"
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "\"\"\"Token-bucket rate limiter with concurrency control and context-aware delays.\n\nEnforces a hard RPM cap, max concurrency, and adds adaptive delays.\nWhen context exceeds a token threshold (e.g. 8K for free-tier GLM),\napplies extra delays to respect stricter rate limits.\n\"\"\"\nimport time\nimport random\nimport threading\nfrom typing import Callable, Optional\n\n\nclass RateLimiter:\n    \"\"\"Thread-safe rate limiter with jitter and concurrency control.\n\n    Parameters:\n        rpm: Maximum requests per minute (0 = unlimited).\n        min_interval_s: Minimum seconds between requests.\n        jitter_s: Random additional delay range [0, jitter_s].\n        max_concurrency: Max simultaneous in-flight requests (0 = unlimited).\n        context_threshold_tokens: Token count above which extra delays apply.\n        large_context_delay_s: Extra delay for requests exceeding the threshold.\n    \"\"\"\n\n    def __init__(self, rpm: int = 30, min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0, max_concurrency: int = 0,\n                 context_threshold_tokens: int = 0,\n                 large_context_delay_s: float = 10.0):\n        self.rpm = rpm\n        self.min_interval_s = min_interval_s\n        self.jitter_s = jitter_s\n        self.max_concurrency = max_concurrency\n        self.context_threshold_tokens = context_threshold_tokens\n        self.large_context_delay_s = large_context_delay_s\n        self._lock = threading.Lock()\n        self._last_request_time: float = 0.0\n        self._request_times: list = []\n        self._consecutive_429s: int = 0\n        self._in_flight = 0\n        self._concurrency_semaphore: Optional[threading.Semaphore] = None\n        if max_concurrency > 0:\n            self._concurrency_semaphore = threading.Semaphore(max_concurrency)\n\n    def wait(self, context_tokens: int = 0) -> float:\n        \"\"\"Block until the next request is permitted.\n\n        Args:\n            context_tokens: Estimated token count for this request.\n                If exceeding context_threshold_tokens, extra delay is applied.\n\n        Returns the actual wait time in seconds.\n        \"\"\"\n        if self._concurrency_semaphore:\n            self._concurrency_semaphore.acquire()\n\n        with self._lock:\n            now = time.time()\n            waited = 0.0\n\n            since_last = now - self._last_request_time\n            if since_last < self.min_interval_s:\n                gap = self.min_interval_s - since_last\n                waited += gap\n\n            if self.jitter_s > 0:\n                jitter = random.uniform(0, self.jitter_s)\n                waited += jitter\n\n            if self.rpm > 0:\n                cutoff = now - 60.0\n                self._request_times = [\n                    t for t in self._request_times if t > cutoff\n                ]\n                if len(self._request_times) >= self.rpm:\n                    earliest = self._request_times[0]\n                    rpm_wait = 60.0 - (now - earliest) + 0.1\n                    if rpm_wait > waited:\n  "
+  },
+  {
+   "type": "debug",
+   "text": "Round 4/12 (max_tool_rounds=12)"
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4.7-flash",
+   "round": 4
+  },
+  {
+   "type": "llm_response_start",
+   "round": 4
+  },
+  {
+   "type": "llm_response_end",
+   "round": 4,
+   "latency_s": 15.047,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4.7-flash",
+   "model": "zhipu-glm-4.7-flash",
+   "_full_text": "",
+   "usage": {
+    "prompt_tokens": 4198,
+    "completion_tokens": 65,
+    "total_tokens": 4263
+   }
+  },
+  {
+   "type": "tool",
+   "name": "read",
+   "desc": "Read rate_limiter.py",
+   "cmd": "./tool/LLM/logic/rate_limiter.py"
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "\"\"\"Token-bucket rate limiter with concurrency control and context-aware delays.\n\nEnforces a hard RPM cap, max concurrency, and adds adaptive delays.\nWhen context exceeds a token threshold (e.g. 8K for free-tier GLM),\napplies extra delays to respect stricter rate limits.\n\"\"\"\nimport time\nimport random\nimport threading\nfrom typing import Callable, Optional\n\n\nclass RateLimiter:\n    \"\"\"Thread-safe rate limiter with jitter and concurrency control.\n\n    Parameters:\n        rpm: Maximum requests per minute (0 = unlimited).\n        min_interval_s: Minimum seconds between requests.\n        jitter_s: Random additional delay range [0, jitter_s].\n        max_concurrency: Max simultaneous in-flight requests (0 = unlimited).\n        context_threshold_tokens: Token count above which extra delays apply.\n        large_context_delay_s: Extra delay for requests exceeding the threshold.\n    \"\"\"\n\n    def __init__(self, rpm: int = 30, min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0, max_concurrency: int = 0,\n                 context_threshold_tokens: int = 0,\n                 large_context_delay_s: float = 10.0):\n        self.rpm = rpm\n        self.min_interval_s = min_interval_s\n        self.jitter_s = jitter_s\n        self.max_concurrency = max_concurrency\n        self.context_threshold_tokens = context_threshold_tokens\n        self.large_context_delay_s = large_context_delay_s\n        self._lock = threading.Lock()\n        self._last_request_time: float = 0.0\n        self._request_times: list = []\n        self._consecutive_429s: int = 0\n        self._in_flight = 0\n        self._concurrency_semaphore: Optional[threading.Semaphore] = None\n        if max_concurrency > 0:\n            self._concurrency_semaphore = threading.Semaphore(max_concurrency)\n\n    def wait(self, context_tokens: int = 0) -> float:\n        \"\"\"Block until the next request is permitted.\n\n        Args:\n            context_tokens: Estimated token count for this request.\n                If exceeding context_threshold_tokens, extra delay is applied.\n\n        Returns the actual wait time in seconds.\n        \"\"\"\n        if self._concurrency_semaphore:\n            self._concurrency_semaphore.acquire()\n\n        with self._lock:\n            now = time.time()\n            waited = 0.0\n\n            since_last = now - self._last_request_time\n            if since_last < self.min_interval_s:\n                gap = self.min_interval_s - since_last\n                waited += gap\n\n            if self.jitter_s > 0:\n                jitter = random.uniform(0, self.jitter_s)\n                waited += jitter\n\n            if self.rpm > 0:\n                cutoff = now - 60.0\n                self._request_times = [\n                    t for t in self._request_times if t > cutoff\n                ]\n                if len(self._request_times) >= self.rpm:\n                    earliest = self._request_times[0]\n                    rpm_wait = 60.0 - (now - earliest) + 0.1\n                    if rpm_wait > waited:\n  "
+  },
+  {
+   "type": "debug",
+   "text": "Round 5/12 (max_tool_rounds=12)"
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4.7-flash",
+   "round": 5
+  },
+  {
+   "type": "llm_response_start",
+   "round": 5
+  },
+  {
+   "type": "llm_response_end",
+   "round": 5,
+   "latency_s": 2.486,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4.7-flash",
+   "model": "zhipu-glm-4.7-flash",
+   "_full_text": "",
+   "usage": {
+    "prompt_tokens": 4577,
+    "completion_tokens": 62,
+    "total_tokens": 4639
+   }
+  },
+  {
+   "type": "tool",
+   "name": "read",
+   "desc": "Read rate_limiter.py",
+   "cmd": "./tool/LLM/logic/rate_limiter.py"
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "\"\"\"Token-bucket rate limiter with concurrency control and context-aware delays.\n\nEnforces a hard RPM cap, max concurrency, and adds adaptive delays.\nWhen context exceeds a token threshold (e.g. 8K for free-tier GLM),\napplies extra delays to respect stricter rate limits.\n\"\"\"\nimport time\nimport random\nimport threading\nfrom typing import Callable, Optional\n\n\nclass RateLimiter:\n    \"\"\"Thread-safe rate limiter with jitter and concurrency control.\n\n    Parameters:\n        rpm: Maximum requests per minute (0 = unlimited).\n        min_interval_s: Minimum seconds between requests.\n        jitter_s: Random additional delay range [0, jitter_s].\n        max_concurrency: Max simultaneous in-flight requests (0 = unlimited).\n        context_threshold_tokens: Token count above which extra delays apply.\n        large_context_delay_s: Extra delay for requests exceeding the threshold.\n    \"\"\"\n\n    def __init__(self, rpm: int = 30, min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0, max_concurrency: int = 0,\n                 context_threshold_tokens: int = 0,\n                 large_context_delay_s: float = 10.0):\n        self.rpm = rpm\n        self.min_interval_s = min_interval_s\n        self.jitter_s = jitter_s\n        self.max_concurrency = max_concurrency\n        self.context_threshold_tokens = context_threshold_tokens\n        self.large_context_delay_s = large_context_delay_s\n        self._lock = threading.Lock()\n        self._last_request_time: float = 0.0\n        self._request_times: list = []\n        self._consecutive_429s: int = 0\n        self._in_flight = 0\n        self._concurrency_semaphore: Optional[threading.Semaphore] = None\n        if max_concurrency > 0:\n            self._concurrency_semaphore = threading.Semaphore(max_concurrency)\n\n    def wait(self, context_tokens: int = 0) -> float:\n        \"\"\"Block until the next request is permitted.\n\n        Args:\n            context_tokens: Estimated token count for this request.\n                If exceeding context_threshold_tokens, extra delay is applied.\n\n        Returns the actual wait time in seconds.\n        \"\"\"\n        if self._concurrency_semaphore:\n            self._concurrency_semaphore.acquire()\n\n        with self._lock:\n            now = time.time()\n            waited = 0.0\n\n            since_last = now - self._last_request_time\n            if since_last < self.min_interval_s:\n                gap = self.min_interval_s - since_last\n                waited += gap\n\n            if self.jitter_s > 0:\n                jitter = random.uniform(0, self.jitter_s)\n                waited += jitter\n\n            if self.rpm > 0:\n                cutoff = now - 60.0\n                self._request_times = [\n                    t for t in self._request_times if t > cutoff\n                ]\n                if len(self._request_times) >= self.rpm:\n                    earliest = self._request_times[0]\n                    rpm_wait = 60.0 - (now - earliest) + 0.1\n                    if rpm_wait > waited:\n  "
+  },
+  {
+   "type": "debug",
+   "text": "Nudging for text explanation"
+  },
+  {
+   "type": "debug",
+   "text": "Round 6/12 (max_tool_rounds=12)"
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4.7-flash",
+   "round": 6
+  },
+  {
+   "type": "llm_response_start",
+   "round": 6
+  },
+  {
+   "type": "text",
+   "tokens": "我"
+  },
+  {
+   "type": "text",
+   "tokens": "正在"
+  },
+  {
+   "type": "text",
+   "tokens": "审计"
+  },
+  {
+   "type": "text",
+   "tokens": "LL"
+  },
+  {
+   "type": "text",
+   "tokens": "M"
+  },
+  {
+   "type": "text",
+   "tokens": "工具"
+  },
+  {
+   "type": "text",
+   "tokens": "的"
+  },
+  {
+   "type": "text",
+   "tokens": "rate"
+  },
+  {
+   "type": "text",
+   "tokens": " lim"
+  },
+  {
+   "type": "text",
+   "tokens": "iter"
+  },
+  {
+   "type": "text",
+   "tokens": "配置"
+  },
+  {
+   "type": "text",
+   "tokens": "。"
+  },
+  {
+   "type": "text",
+   "tokens": "目前已"
+  },
+  {
+   "type": "text",
+   "tokens": "搜索"
+  },
+  {
+   "type": "text",
+   "tokens": "到"
+  },
+  {
+   "type": "text",
+   "tokens": "4"
+  },
+  {
+   "type": "text",
+   "tokens": "个"
+  },
+  {
+   "type": "text",
+   "tokens": "provider"
+  },
+  {
+   "type": "text",
+   "tokens": "使用"
+  },
+  {
+   "type": "text",
+   "tokens": "Rate"
+  },
+  {
+   "type": "text",
+   "tokens": "L"
+  },
+  {
+   "type": "text",
+   "tokens": "imiter"
+  },
+  {
+   "type": "text",
+   "tokens": "：\n"
+  },
+  {
+   "type": "text",
+   "tokens": "-"
+  },
+  {
+   "type": "text",
+   "tokens": " n"
+  },
+  {
+   "type": "text",
+   "tokens": "vidia"
+  },
+  {
+   "type": "text",
+   "tokens": "_g"
+  },
+  {
+   "type": "text",
+   "tokens": "lm"
+  },
+  {
+   "type": "text",
+   "tokens": "47"
+  },
+  {
+   "type": "text",
+   "tokens": "\n"
+  },
+  {
+   "type": "text",
+   "tokens": "-"
+  },
+  {
+   "type": "text",
+   "tokens": " z"
+  },
+  {
+   "type": "text",
+   "tokens": "hip"
+  },
+  {
+   "type": "text",
+   "tokens": "u"
+  },
+  {
+   "type": "text",
+   "tokens": "_g"
+  },
+  {
+   "type": "text",
+   "tokens": "lm"
+  },
+  {
+   "type": "text",
+   "tokens": "4"
+  },
+  {
+   "type": "text",
+   "tokens": "  \n"
+  },
+  {
+   "type": "text",
+   "tokens": "-"
+  },
+  {
+   "type": "text",
+   "tokens": " z"
+  },
+  {
+   "type": "text",
+   "tokens": "hip"
+  },
+  {
+   "type": "text",
+   "tokens": "u"
+  },
+  {
+   "type": "text",
+   "tokens": "_g"
+  },
+  {
+   "type": "text",
+   "tokens": "lm"
+  },
+  {
+   "type": "text",
+   "tokens": "47"
+  },
+  {
+   "type": "text",
+   "tokens": "_flash"
+  },
+  {
+   "type": "text",
+   "tokens": "\n"
+  },
+  {
+   "type": "text",
+   "tokens": "-"
+  },
+  {
+   "type": "text",
+   "tokens": " z"
+  },
+  {
+   "type": "text",
+   "tokens": "hip"
+  },
+  {
+   "type": "text",
+   "tokens": "u"
+  },
+  {
+   "type": "text",
+   "tokens": "_g"
+  },
+  {
+   "type": "text",
+   "tokens": "lm"
+  },
+  {
+   "type": "text",
+   "tokens": "47"
+  },
+  {
+   "type": "text",
+   "tokens": "\n\n"
+  },
+  {
+   "type": "text",
+   "tokens": "我"
+  },
+  {
+   "type": "text",
+   "tokens": "已"
+  },
+  {
+   "type": "text",
+   "tokens": "读取"
+  },
+  {
+   "type": "text",
+   "tokens": "了"
+  },
+  {
+   "type": "text",
+   "tokens": "rate"
+  },
+  {
+   "type": "text",
+   "tokens": "_l"
+  },
+  {
+   "type": "text",
+   "tokens": "imiter"
+  },
+  {
+   "type": "text",
+   "tokens": ".py"
+  },
+  {
+   "type": "text",
+   "tokens": "的"
+  },
+  {
+   "type": "text",
+   "tokens": "默认"
+  },
+  {
+   "type": "text",
+   "tokens": "参数"
+  },
+  {
+   "type": "text",
+   "tokens": "（"
+  },
+  {
+   "type": "text",
+   "tokens": "rpm"
+  },
+  {
+   "type": "text",
+   "tokens": "="
+  },
+  {
+   "type": "text",
+   "tokens": "30"
+  },
+  {
+   "type": "text",
+   "tokens": ","
+  },
+  {
+   "type": "text",
+   "tokens": " min"
+  },
+  {
+   "type": "text",
+   "tokens": "_interval"
+  },
+  {
+   "type": "text",
+   "tokens": "_s"
+  },
+  {
+   "type": "text",
+   "tokens": "="
+  },
+  {
+   "type": "text",
+   "tokens": "2"
+  },
+  {
+   "type": "text",
+   "tokens": "."
+  },
+  {
+   "type": "text",
+   "tokens": "0"
+  },
+  {
+   "type": "text",
+   "tokens": ","
+  },
+  {
+   "type": "text",
+   "tokens": " jitter"
+  },
+  {
+   "type": "text",
+   "tokens": "_s"
+  },
+  {
+   "type": "text",
+   "tokens": "="
+  },
+  {
+   "type": "text",
+   "tokens": "1"
+  },
+  {
+   "type": "text",
+   "tokens": "."
+  },
+  {
+   "type": "text",
+   "tokens": "0"
+  },
+  {
+   "type": "text",
+   "tokens": ","
+  },
+  {
+   "type": "text",
+   "tokens": " large"
+  },
+  {
+   "type": "text",
+   "tokens": "_context"
+  },
+  {
+   "type": "text",
+   "tokens": "_delay"
+  },
+  {
+   "type": "text",
+   "tokens": "_s"
+  },
+  {
+   "type": "text",
+   "tokens": "="
+  },
+  {
+   "type": "text",
+   "tokens": "10"
+  },
+  {
+   "type": "text",
+   "tokens": "."
+  },
+  {
+   "type": "text",
+   "tokens": "0"
+  },
+  {
+   "type": "text",
+   "tokens": "）。"
+  },
+  {
+   "type": "text",
+   "tokens": "现在"
+  },
+  {
+   "type": "text",
+   "tokens": "继续"
+  },
+  {
+   "type": "text",
+   "tokens": "读取"
+  },
+  {
+   "type": "text",
+   "tokens": "各个"
+  },
+  {
+   "type": "text",
+   "tokens": "provider"
+  },
+  {
+   "type": "text",
+   "tokens": "的具体"
+  },
+  {
+   "type": "text",
+   "tokens": "配置"
+  },
+  {
+   "type": "text",
+   "tokens": "。"
+  },
+  {
+   "type": "llm_response_end",
+   "round": 6,
+   "latency_s": 42.685,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4.7-flash",
+   "model": "zhipu-glm-4.7-flash",
+   "_full_text": "我正在审计LLM工具的rate limiter配置。目前已搜索到4个provider使用RateLimiter：\n- nvidia_glm47\n- zhipu_glm4  \n- zhipu_glm47_flash\n- zhipu_glm47\n\n我已读取了rate_limiter.py的默认参数（rpm=30, min_interval_s=2.0, jitter_s=1.0, large_context_delay_s=10.0）。现在继续读取各个provider的具体配置。",
+   "usage": {
+    "prompt_tokens": 4991,
+    "completion_tokens": 313,
+    "total_tokens": 5304
+   }
+  },
+  {
+   "type": "tool",
+   "name": "read",
+   "desc": "Read __init__.py",
+   "cmd": "./tool/LLM/logic/providers/nvidia_glm47/interface/__init__.py"
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "\"\"\"GLM-4.7 provider via NVIDIA Build (OpenAI-compatible).\n\nEndpoint: https://integrate.api.nvidia.com/v1/chat/completions\nModel:    z-ai/glm4.7\nLimits:   40 RPM (free tier), 131K context window\nLicense:  MIT / NVIDIA Open Model License\n\"\"\"\nimport json\nimport os\nimport urllib.request\nimport urllib.error\nfrom typing import Dict, Any, List, Optional\n\nfrom tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities\nfrom tool.LLM.logic.rate_limiter import RateLimiter\nfrom tool.LLM.logic.config import get_config_value, set_config_value\n\nNVIDIA_API_URL = \"https://integrate.api.nvidia.com/v1/chat/completions\"\nMODEL_ID = \"z-ai/glm4.7\"\nDEFAULT_RPM = 30\nDEFAULT_MAX_CONTEXT = 131072\n\n\ndef get_api_key() -> Optional[str]:\n    \"\"\"Get NVIDIA API key from tool config or environment.\"\"\"\n    key = get_config_value(\"nvidia_api_key\") or os.environ.get(\"NVIDIA_API_KEY\")\n    return key if key else None\n\n\ndef save_api_key(key: str):\n    \"\"\"Store the NVIDIA API key in tool config.\"\"\"\n    set_config_value(\"nvidia_api_key\", key)\n\n\nclass NvidiaGLM47Provider(LLMProvider):\n    \"\"\"GLM-4.7 via NVIDIA Build free API.\"\"\"\n\n    name = \"nvidia-glm-4-7b\"\n    cost_model = CostModel(free_tier=True)\n    capabilities = ModelCapabilities(\n        supports_tool_calling=True,\n        supports_vision=False,\n        supports_streaming=True,\n        max_context_tokens=131072,\n        max_output_tokens=16384,\n    )\n\n    def __init__(self, api_key: Optional[str] = None,\n                 rpm: int = DEFAULT_RPM,\n                 min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0):\n        self._api_key = api_key or get_api_key()\n        self._rate_limiter = RateLimiter(\n            rpm=rpm, min_interval_s=min_interval_s, jitter_s=jitter_s\n        )\n        self._model = MODEL_ID\n\n    def is_available(self) -> bool:\n        return bool(self._api_key)\n\n    def get_info(self) -> Dict[str, Any]:\n        info = super().get_info()\n        info.update({\n            \"model\": self._model,\n            \"api_url\": NVIDIA_API_URL,\n            \"rpm_limit\": self._rate_limiter.rpm,\n            \"max_context\": DEFAULT_MAX_CONTEXT,\n        })\n        return info\n\n    def _send_request(self, messages: List[Dict[str, str]],\n                      temperature: float = 0.7,\n                      max_tokens: int = 16384,\n                      tools: List[Dict[str, Any]] = None) -> Dict[str, Any]:\n        if not self._api_key:\n            return {\"ok\": False, \"text\": \"\",\n                    \"error\": \"No NVIDIA API key. Run LLM setup.\"}\n\n        self._rate_limiter.wait()\n\n        payload = {\n            \"model\": self._model,\n            \"messages\": messages,\n            \"temperature\": temperature,\n            \"max_tokens\": max_tokens,\n            \"stream\": False,\n        }\n        if tools:\n            payload[\"tools\"] = tools\n\n        data = json.dumps(payload).encode(\"utf-8\")\n        headers = {\n            \"Authorization\": f\"Bearer {self._api_key}\",\n            \"Content-Type\": \"application/json\""
+  },
+  {
+   "type": "debug",
+   "text": "Round 7/12 (max_tool_rounds=12)"
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4.7-flash",
+   "round": 7
+  },
+  {
+   "type": "llm_response_start",
+   "round": 7
+  },
+  {
+   "type": "llm_response_end",
+   "round": 7,
+   "latency_s": 2.466,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4.7-flash",
+   "model": "zhipu-glm-4.7-flash",
+   "_full_text": "",
+   "usage": {
+    "prompt_tokens": 5530,
+    "completion_tokens": 63,
+    "total_tokens": 5593
+   }
+  },
+  {
+   "type": "tool",
+   "name": "read",
+   "desc": "Read __init__.py",
+   "cmd": "./tool/LLM/logic/providers/nvidia_glm47/interface/__init__.py"
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "\"\"\"GLM-4.7 provider via NVIDIA Build (OpenAI-compatible).\n\nEndpoint: https://integrate.api.nvidia.com/v1/chat/completions\nModel:    z-ai/glm4.7\nLimits:   40 RPM (free tier), 131K context window\nLicense:  MIT / NVIDIA Open Model License\n\"\"\"\nimport json\nimport os\nimport urllib.request\nimport urllib.error\nfrom typing import Dict, Any, List, Optional\n\nfrom tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities\nfrom tool.LLM.logic.rate_limiter import RateLimiter\nfrom tool.LLM.logic.config import get_config_value, set_config_value\n\nNVIDIA_API_URL = \"https://integrate.api.nvidia.com/v1/chat/completions\"\nMODEL_ID = \"z-ai/glm4.7\"\nDEFAULT_RPM = 30\nDEFAULT_MAX_CONTEXT = 131072\n\n\ndef get_api_key() -> Optional[str]:\n    \"\"\"Get NVIDIA API key from tool config or environment.\"\"\"\n    key = get_config_value(\"nvidia_api_key\") or os.environ.get(\"NVIDIA_API_KEY\")\n    return key if key else None\n\n\ndef save_api_key(key: str):\n    \"\"\"Store the NVIDIA API key in tool config.\"\"\"\n    set_config_value(\"nvidia_api_key\", key)\n\n\nclass NvidiaGLM47Provider(LLMProvider):\n    \"\"\"GLM-4.7 via NVIDIA Build free API.\"\"\"\n\n    name = \"nvidia-glm-4-7b\"\n    cost_model = CostModel(free_tier=True)\n    capabilities = ModelCapabilities(\n        supports_tool_calling=True,\n        supports_vision=False,\n        supports_streaming=True,\n        max_context_tokens=131072,\n        max_output_tokens=16384,\n    )\n\n    def __init__(self, api_key: Optional[str] = None,\n                 rpm: int = DEFAULT_RPM,\n                 min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0):\n        self._api_key = api_key or get_api_key()\n        self._rate_limiter = RateLimiter(\n            rpm=rpm, min_interval_s=min_interval_s, jitter_s=jitter_s\n        )\n        self._model = MODEL_ID\n\n    def is_available(self) -> bool:\n        return bool(self._api_key)\n\n    def get_info(self) -> Dict[str, Any]:\n        info = super().get_info()\n        info.update({\n            \"model\": self._model,\n            \"api_url\": NVIDIA_API_URL,\n            \"rpm_limit\": self._rate_limiter.rpm,\n            \"max_context\": DEFAULT_MAX_CONTEXT,\n        })\n        return info\n\n    def _send_request(self, messages: List[Dict[str, str]],\n                      temperature: float = 0.7,\n                      max_tokens: int = 16384,\n                      tools: List[Dict[str, Any]] = None) -> Dict[str, Any]:\n        if not self._api_key:\n            return {\"ok\": False, \"text\": \"\",\n                    \"error\": \"No NVIDIA API key. Run LLM setup.\"}\n\n        self._rate_limiter.wait()\n\n        payload = {\n            \"model\": self._model,\n            \"messages\": messages,\n            \"temperature\": temperature,\n            \"max_tokens\": max_tokens,\n            \"stream\": False,\n        }\n        if tools:\n            payload[\"tools\"] = tools\n\n        data = json.dumps(payload).encode(\"utf-8\")\n        headers = {\n            \"Authorization\": f\"Bearer {self._api_key}\",\n            \"Content-Type\": \"application/json\""
+  },
+  {
+   "type": "debug",
+   "text": "Round 8/12 (max_tool_rounds=12)"
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4.7-flash",
+   "round": 8
+  },
+  {
+   "type": "llm_response_start",
+   "round": 8
+  },
+  {
+   "type": "llm_response_end",
+   "round": 8,
+   "latency_s": 3.54,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4.7-flash",
+   "model": "zhipu-glm-4.7-flash",
+   "_full_text": "",
+   "usage": {
+    "prompt_tokens": 5980,
+    "completion_tokens": 54,
+    "total_tokens": 6034
+   }
+  },
+  {
+   "type": "tool",
+   "name": "read",
+   "desc": "Read __init__.py",
+   "cmd": "./tool/LLM/logic/providers/nvidia_glm47/interface/__init__.py"
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "\"\"\"GLM-4.7 provider via NVIDIA Build (OpenAI-compatible).\n\nEndpoint: https://integrate.api.nvidia.com/v1/chat/completions\nModel:    z-ai/glm4.7\nLimits:   40 RPM (free tier), 131K context window\nLicense:  MIT / NVIDIA Open Model License\n\"\"\"\nimport json\nimport os\nimport urllib.request\nimport urllib.error\nfrom typing import Dict, Any, List, Optional\n\nfrom tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities\nfrom tool.LLM.logic.rate_limiter import RateLimiter\nfrom tool.LLM.logic.config import get_config_value, set_config_value\n\nNVIDIA_API_URL = \"https://integrate.api.nvidia.com/v1/chat/completions\"\nMODEL_ID = \"z-ai/glm4.7\"\nDEFAULT_RPM = 30\nDEFAULT_MAX_CONTEXT = 131072\n\n\ndef get_api_key() -> Optional[str]:\n    \"\"\"Get NVIDIA API key from tool config or environment.\"\"\"\n    key = get_config_value(\"nvidia_api_key\") or os.environ.get(\"NVIDIA_API_KEY\")\n    return key if key else None\n\n\ndef save_api_key(key: str):\n    \"\"\"Store the NVIDIA API key in tool config.\"\"\"\n    set_config_value(\"nvidia_api_key\", key)\n\n\nclass NvidiaGLM47Provider(LLMProvider):\n    \"\"\"GLM-4.7 via NVIDIA Build free API.\"\"\"\n\n    name = \"nvidia-glm-4-7b\"\n    cost_model = CostModel(free_tier=True)\n    capabilities = ModelCapabilities(\n        supports_tool_calling=True,\n        supports_vision=False,\n        supports_streaming=True,\n        max_context_tokens=131072,\n        max_output_tokens=16384,\n    )\n\n    def __init__(self, api_key: Optional[str] = None,\n                 rpm: int = DEFAULT_RPM,\n                 min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0):\n        self._api_key = api_key or get_api_key()\n        self._rate_limiter = RateLimiter(\n            rpm=rpm, min_interval_s=min_interval_s, jitter_s=jitter_s\n        )\n        self._model = MODEL_ID\n\n    def is_available(self) -> bool:\n        return bool(self._api_key)\n\n    def get_info(self) -> Dict[str, Any]:\n        info = super().get_info()\n        info.update({\n            \"model\": self._model,\n            \"api_url\": NVIDIA_API_URL,\n            \"rpm_limit\": self._rate_limiter.rpm,\n            \"max_context\": DEFAULT_MAX_CONTEXT,\n        })\n        return info\n\n    def _send_request(self, messages: List[Dict[str, str]],\n                      temperature: float = 0.7,\n                      max_tokens: int = 16384,\n                      tools: List[Dict[str, Any]] = None) -> Dict[str, Any]:\n        if not self._api_key:\n            return {\"ok\": False, \"text\": \"\",\n                    \"error\": \"No NVIDIA API key. Run LLM setup.\"}\n\n        self._rate_limiter.wait()\n\n        payload = {\n            \"model\": self._model,\n            \"messages\": messages,\n            \"temperature\": temperature,\n            \"max_tokens\": max_tokens,\n            \"stream\": False,\n        }\n        if tools:\n            payload[\"tools\"] = tools\n\n        data = json.dumps(payload).encode(\"utf-8\")\n        headers = {\n            \"Authorization\": f\"Bearer {self._api_key}\",\n            \"Content-Type\": \"application/json\""
+  },
+  {
+   "type": "debug",
+   "text": "Round 9/12 (max_tool_rounds=12)"
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4.7-flash",
+   "round": 9
+  },
+  {
+   "type": "llm_response_start",
+   "round": 9
+  },
+  {
+   "type": "llm_response_end",
+   "round": 9,
+   "latency_s": 3.219,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4.7-flash",
+   "model": "zhipu-glm-4.7-flash",
+   "_full_text": "",
+   "usage": {
+    "prompt_tokens": 6430,
+    "completion_tokens": 57,
+    "total_tokens": 6487
+   }
+  },
+  {
+   "type": "tool",
+   "name": "search",
+   "desc": "Search for \"self\\._rate_limiter\" in __init__.py",
+   "cmd": "search 'self\\._rate_limiter' tool/LLM/logic/providers/nvidia_glm47/interface/__init__.py"
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "tool/LLM/logic/providers/nvidia_glm47/interface/__init__.py:53:        self._rate_limiter = RateLimiter(\ntool/LLM/logic/providers/nvidia_glm47/interface/__init__.py:66:            \"rpm_limit\": self._rate_limiter.rpm,\ntool/LLM/logic/providers/nvidia_glm47/interface/__init__.py:79:        self._rate_limiter.wait()\ntool/LLM/logic/providers/nvidia_glm47/interface/__init__.py:148:        self._rate_limiter.wait()\n"
+  },
+  {
+   "type": "debug",
+   "text": "Nudging for text explanation"
+  },
+  {
+   "type": "debug",
+   "text": "Round 10/12 (max_tool_rounds=12)"
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4.7-flash",
+   "round": 10
+  },
+  {
+   "type": "llm_response_start",
+   "round": 10
+  },
+  {
+   "type": "text",
+   "tokens": "我"
+  },
+  {
+   "type": "text",
+   "tokens": "正在"
+  },
+  {
+   "type": "text",
+   "tokens": "审计"
+  },
+  {
+   "type": "text",
+   "tokens": "rate"
+  },
+  {
+   "type": "text",
+   "tokens": " lim"
+  },
+  {
+   "type": "text",
+   "tokens": "iter"
+  },
+  {
+   "type": "text",
+   "tokens": "配置"
+  },
+  {
+   "type": "text",
+   "tokens": "。"
+  },
+  {
+   "type": "text",
+   "tokens": "目前已"
+  },
+  {
+   "type": "text",
+   "tokens": "找到"
+  },
+  {
+   "type": "text",
+   "tokens": "4"
+  },
+  {
+   "type": "text",
+   "tokens": "个"
+  },
+  {
+   "type": "text",
+   "tokens": "使用"
+  },
+  {
+   "type": "text",
+   "tokens": "Rate"
+  },
+  {
+   "type": "text",
+   "tokens": "L"
+  },
+  {
+   "type": "text",
+   "tokens": "imiter"
+  },
+  {
+   "type": "text",
+   "tokens": "的"
+  },
+  {
+   "type": "text",
+   "tokens": "provider"
+  },
+  {
+   "type": "text",
+   "tokens": "。"
+  },
+  {
+   "type": "text",
+   "tokens": "已"
+  },
+  {
+   "type": "text",
+   "tokens": "读取"
+  },
+  {
+   "type": "text",
+   "tokens": "n"
+  },
+  {
+   "type": "text",
+   "tokens": "vidia"
+  },
+  {
+   "type": "text",
+   "tokens": "_g"
+  },
+  {
+   "type": "text",
+   "tokens": "lm"
+  },
+  {
+   "type": "text",
+   "tokens": "47"
+  },
+  {
+   "type": "text",
+   "tokens": "的"
+  },
+  {
+   "type": "text",
+   "tokens": "配置"
+  },
+  {
+   "type": "text",
+   "tokens": "（"
+  },
+  {
+   "type": "text",
+   "tokens": "DEFAULT"
+  },
+  {
+   "type": "text",
+   "tokens": "_R"
+  },
+  {
+   "type": "text",
+   "tokens": "PM"
+  },
+  {
+   "type": "text",
+   "tokens": "="
+  },
+  {
+   "type": "text",
+   "tokens": "30"
+  },
+  {
+   "type": "text",
+   "tokens": "），"
+  },
+  {
+   "type": "text",
+   "tokens": "现在"
+  },
+  {
+   "type": "text",
+   "tokens": "继续"
+  },
+  {
+   "type": "text",
+   "tokens": "读取"
+  },
+  {
+   "type": "text",
+   "tokens": "z"
+  },
+  {
+   "type": "text",
+   "tokens": "hip"
+  },
+  {
+   "type": "text",
+   "tokens": "u"
+  },
+  {
+   "type": "text",
+   "tokens": "_g"
+  },
+  {
+   "type": "text",
+   "tokens": "lm"
+  },
+  {
+   "type": "text",
+   "tokens": "4"
+  },
+  {
+   "type": "text",
+   "tokens": "的"
+  },
+  {
+   "type": "text",
+   "tokens": "配置"
+  },
+  {
+   "type": "text",
+   "tokens": "。"
+  },
+  {
+   "type": "llm_response_end",
+   "round": 10,
+   "latency_s": 7.832,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4.7-flash",
+   "model": "zhipu-glm-4.7-flash",
+   "_full_text": "我正在审计rate limiter配置。目前已找到4个使用RateLimiter的provider。已读取nvidia_glm47的配置（DEFAULT_RPM=30），现在继续读取zhipu_glm4的配置。",
+   "usage": {
+    "prompt_tokens": 6625,
+    "completion_tokens": 189,
+    "total_tokens": 6814
+   }
+  },
+  {
+   "type": "tool",
+   "name": "read",
+   "desc": "Read __init__.py",
+   "cmd": "./tool/LLM/logic/providers/zhipu_glm4/interface/__init__.py"
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "\"\"\"GLM-4-Flash provider via Zhipu AI (OpenAI-compatible).\n\nEndpoint: https://open.bigmodel.cn/api/paas/v4/chat/completions\nModel:    glm-4-flash (free tier)\nLimits:   Free tier with rate limits, 128K context window\nDocs:     https://bigmodel.cn/dev/api/normal-model/glm-4\n\"\"\"\nimport json\nimport os\nimport urllib.request\nimport urllib.error\nfrom typing import Dict, Any, List, Optional\n\nfrom tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities\nfrom tool.LLM.logic.rate_limiter import RateLimiter\nfrom tool.LLM.logic.config import get_config_value, set_config_value, APIKeyRotator\n\nZHIPU_API_URL = \"https://open.bigmodel.cn/api/paas/v4/chat/completions\"\nMODEL_ID = \"glm-4-flash\"\nDEFAULT_RPM = 30\nDEFAULT_MAX_CONTEXT = 128000\n\n_zhipuai = None\n\n\ndef _try_import_sdk():\n    global _zhipuai\n    if _zhipuai is not None:\n        return _zhipuai\n    try:\n        import zhipuai\n        _zhipuai = zhipuai\n        return zhipuai\n    except ImportError:\n        _zhipuai = False\n        return False\n\n\ndef get_api_key() -> Optional[str]:\n    key = get_config_value(\"zhipu_api_key\") or os.environ.get(\"ZHIPU_API_KEY\")\n    return key if key else None\n\n\ndef save_api_key(key: str):\n    set_config_value(\"zhipu_api_key\", key)\n\n\nclass ZhipuGLM4Provider(LLMProvider):\n    \"\"\"GLM-4-Flash via Zhipu AI free API.\"\"\"\n\n    name = \"zhipu-glm-4-flash\"\n    cost_model = CostModel(free_tier=True)\n    capabilities = ModelCapabilities(\n        supports_tool_calling=True,\n        supports_vision=False,\n        supports_streaming=True,\n        max_context_tokens=128000,\n        max_output_tokens=4096,\n    )\n\n    def __init__(self, api_key: Optional[str] = None,\n                 rpm: int = DEFAULT_RPM,\n                 min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0):\n        self._key_rotator = APIKeyRotator(\"zhipu\")\n        self._api_key = api_key or self._key_rotator.current_key or get_api_key()\n        self._model = MODEL_ID\n\n        model_config = self._load_model_json()\n        if model_config:\n            self._rate_limiter = RateLimiter.from_model_json(model_config, \"free\")\n        else:\n            self._rate_limiter = RateLimiter(\n                rpm=rpm, min_interval_s=min_interval_s, jitter_s=jitter_s\n            )\n\n        self._client = None\n        self._sdk = _try_import_sdk()\n        self._init_client()\n\n    def _init_client(self):\n        self._client = None\n        if self._sdk and self._api_key:\n            try:\n                self._client = self._sdk.ZhipuAI(api_key=self._api_key)\n            except Exception:\n                pass\n\n    def _rotate_key_on_429(self):\n        \"\"\"On 429, try the next API key if available.\"\"\"\n        if self._key_rotator.key_count > 1:\n            self._key_rotator.advance()\n            new_key = self._key_rotator.current_key\n            if new_key and new_key != self._api_key:\n                self._api_key = new_key\n                self._init_client()\n                return True\n        return False\n\n    @stati"
+  },
+  {
+   "type": "debug",
+   "text": "Round 11/12 (max_tool_rounds=12)"
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4.7-flash",
+   "round": 11
+  },
+  {
+   "type": "llm_response_start",
+   "round": 11
+  },
+  {
+   "type": "text",
+   "tokens": "我"
+  },
+  {
+   "type": "text",
+   "tokens": "需要"
+  },
+  {
+   "type": "text",
+   "tokens": "快速"
+  },
+  {
+   "type": "text",
+   "tokens": "完成"
+  },
+  {
+   "type": "text",
+   "tokens": "剩余"
+  },
+  {
+   "type": "text",
+   "tokens": "的"
+  },
+  {
+   "type": "text",
+   "tokens": "审计"
+  },
+  {
+   "type": "text",
+   "tokens": "工作"
+  },
+  {
+   "type": "text",
+   "tokens": "。"
+  },
+  {
+   "type": "text",
+   "tokens": "继续"
+  },
+  {
+   "type": "text",
+   "tokens": "读取"
+  },
+  {
+   "type": "text",
+   "tokens": "z"
+  },
+  {
+   "type": "text",
+   "tokens": "hip"
+  },
+  {
+   "type": "text",
+   "tokens": "u"
+  },
+  {
+   "type": "text",
+   "tokens": "_g"
+  },
+  {
+   "type": "text",
+   "tokens": "lm"
+  },
+  {
+   "type": "text",
+   "tokens": "47"
+  },
+  {
+   "type": "text",
+   "tokens": "和"
+  },
+  {
+   "type": "text",
+   "tokens": "z"
+  },
+  {
+   "type": "text",
+   "tokens": "hip"
+  },
+  {
+   "type": "text",
+   "tokens": "u"
+  },
+  {
+   "type": "text",
+   "tokens": "_g"
+  },
+  {
+   "type": "text",
+   "tokens": "lm"
+  },
+  {
+   "type": "text",
+   "tokens": "47"
+  },
+  {
+   "type": "text",
+   "tokens": "_flash"
+  },
+  {
+   "type": "text",
+   "tokens": "的"
+  },
+  {
+   "type": "text",
+   "tokens": "配置"
+  },
+  {
+   "type": "text",
+   "tokens": "，"
+  },
+  {
+   "type": "text",
+   "tokens": "然后"
+  },
+  {
+   "type": "text",
+   "tokens": "创建"
+  },
+  {
+   "type": "text",
+   "tokens": "报告"
+  },
+  {
+   "type": "text",
+   "tokens": "。"
+  },
+  {
+   "type": "llm_response_end",
+   "round": 11,
+   "latency_s": 6.347,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4.7-flash",
+   "model": "zhipu-glm-4.7-flash",
+   "_full_text": "我需要快速完成剩余的审计工作。继续读取zhipu_glm47和zhipu_glm47_flash的配置，然后创建报告。",
+   "usage": {
+    "prompt_tokens": 7187,
+    "completion_tokens": 224,
+    "total_tokens": 7411
+   }
+  },
+  {
+   "type": "tool",
+   "name": "read",
+   "desc": "Read __init__.py",
+   "cmd": "./tool/LLM/logic/providers/zhipu_glm47/interface/__init__.py"
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "\"\"\"GLM-4.7 provider via Zhipu AI direct API.\n\nEndpoint: https://open.bigmodel.cn/api/paas/v4/chat/completions\nModel:    glm-4.7 (MoE, 200K context, 128K output)\nDocs:     https://docs.bigmodel.cn/cn/guide/models/text/glm-4.7\n\nUses the zhipuai SDK if available, otherwise falls back to urllib.\n\"\"\"\nimport json\nimport os\nimport urllib.request\nimport urllib.error\nfrom typing import Dict, Any, List, Optional\n\nfrom tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities\nfrom tool.LLM.logic.rate_limiter import RateLimiter\nfrom tool.LLM.logic.config import get_config_value, set_config_value\n\nZHIPU_API_URL = \"https://open.bigmodel.cn/api/paas/v4/chat/completions\"\nMODEL_ID = \"glm-4.7\"\nDEFAULT_RPM = 30\nDEFAULT_MAX_CONTEXT = 200000\nDEFAULT_MAX_OUTPUT = 16384\n\n_zhipuai = None\n\n\ndef _try_import_sdk():\n    global _zhipuai\n    if _zhipuai is not None:\n        return _zhipuai\n    try:\n        import zhipuai\n        _zhipuai = zhipuai\n        return zhipuai\n    except ImportError:\n        _zhipuai = False\n        return False\n\n\ndef get_api_key() -> Optional[str]:\n    key = get_config_value(\"zhipu_api_key\") or os.environ.get(\"ZHIPU_API_KEY\")\n    return key if key else None\n\n\ndef save_api_key(key: str):\n    set_config_value(\"zhipu_api_key\", key)\n\n\nclass ZhipuGLM47Provider(LLMProvider):\n    \"\"\"GLM-4.7 via Zhipu AI direct API.\n\n    Prefers the zhipuai SDK for richer error handling and SSE streaming.\n    Falls back to urllib if the SDK is not installed.\n    \"\"\"\n\n    name = \"zhipu-glm-4.7\"\n    cost_model = CostModel(free_tier=False)\n    capabilities = ModelCapabilities(\n        supports_tool_calling=True,\n        supports_vision=False,\n        supports_streaming=True,\n        max_context_tokens=DEFAULT_MAX_CONTEXT,\n        max_output_tokens=DEFAULT_MAX_OUTPUT,\n    )\n\n    def __init__(self, api_key: Optional[str] = None,\n                 rpm: int = DEFAULT_RPM,\n                 min_interval_s: float = 2.0,\n                 jitter_s: float = 1.0):\n        self._api_key = api_key or get_api_key()\n        self._rate_limiter = RateLimiter(\n            rpm=rpm, min_interval_s=min_interval_s, jitter_s=jitter_s\n        )\n        self._model = MODEL_ID\n        self._client = None\n        sdk = _try_import_sdk()\n        if sdk and self._api_key:\n            try:\n                self._client = sdk.ZhipuAI(api_key=self._api_key)\n            except Exception:\n                self._client = None\n\n    def is_available(self) -> bool:\n        return bool(self._api_key)\n\n    def get_info(self) -> Dict[str, Any]:\n        info = super().get_info()\n        info.update({\n            \"model\": self._model,\n            \"api_url\": ZHIPU_API_URL,\n            \"rpm_limit\": self._rate_limiter.rpm,\n            \"max_context\": DEFAULT_MAX_CONTEXT,\n            \"sdk_available\": self._client is not None,\n        })\n        return info\n\n    def _send_request(self, messages: List[Dict[str, str]],\n                      temperature: float = 0.7,\n                      max_tokens: int = DEFAULT_MAX_"
+  },
+  {
+   "type": "debug",
+   "text": "Warning: round 11 is second-to-last"
+  },
+  {
+   "type": "debug",
+   "text": "Round 12/12 (max_tool_rounds=12)"
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4.7-flash",
+   "round": 12
+  },
+  {
+   "type": "llm_response_start",
+   "round": 12
+  },
+  {
+   "type": "text",
+   "tokens": "快速"
+  },
+  {
+   "type": "text",
+   "tokens": "读取"
+  },
+  {
+   "type": "text",
+   "tokens": "最后一个"
+  },
+  {
+   "type": "text",
+   "tokens": "provider"
+  },
+  {
+   "type": "text",
+   "tokens": "的"
+  },
+  {
+   "type": "text",
+   "tokens": "配置"
+  },
+  {
+   "type": "text",
+   "tokens": "并"
+  },
+  {
+   "type": "text",
+   "tokens": "创建"
+  },
+  {
+   "type": "text",
+   "tokens": "报告"
+  },
+  {
+   "type": "text",
+   "tokens": "。"
+  },
+  {
+   "type": "llm_response_end",
+   "round": 12,
+   "latency_s": 4.321,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4.7-flash",
+   "model": "zhipu-glm-4.7-flash",
+   "_full_text": "快速读取最后一个provider的配置并创建报告。",
+   "usage": {
+    "prompt_tokens": 7735,
+    "completion_tokens": 151,
+    "total_tokens": 7886
+   }
+  },
+  {
+   "type": "tool",
+   "name": "search",
+   "desc": "Search for \"self\\._rate_limiter\" in __init__.py",
+   "cmd": "search 'self\\._rate_limiter' tool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py"
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "tool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:85:            self._rate_limiter = RateLimiter.from_model_json(model_config, \"free\")\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:87:            self._rate_limiter = RateLimiter(\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:116:            \"rpm_limit\": self._rate_limiter.rpm,\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:132:        self._rate_limiter.wait(context_tokens=ctx_tokens)\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:139:            self._rate_limiter.release()\ntool/LLM/logic/providers/zhipu_glm47_flash/interface/__init__.py:294:        self._rate_limiter.wait()\n"
+  },
+  {
+   "type": "debug",
+   "text": "Hard ceiling at round 12 — forcing text-only response"
+  },
+  {
+   "type": "complete"
+  }
+ ]
+}

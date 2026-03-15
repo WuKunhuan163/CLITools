@@ -9,6 +9,14 @@
     "postToolUse": [
       {
         "command": "python3 hooks/instance/AI-IDE/Cursor/brain_remind.py"
+      },
+      {
+        "command": "python3 hooks/instance/AI-IDE/Cursor/file_search_fallback.py"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "python3 hooks/instance/AI-IDE/Cursor/brain_remind.py"
       }
     ],
     "afterShellExecution": [

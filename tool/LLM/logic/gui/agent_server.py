@@ -103,6 +103,11 @@ def hello():
 - 修改后，立即重新运行测试验证。
 - assertIn(a, list)检查的是元素完全相等，不是子字符串匹配。
 
+## 用户反馈修正
+- 用户给出具体修改指令时（如"修改X为Y"），**立即执行**。不要重新分析整个项目。
+- 每一轮必须包含至少一个写入/编辑/执行操作。不要连续多轮只做read_file。
+- 如果用户说"测试用例不合理"，直接修改测试。不要尝试修改实现来匹配不合理的测试。
+
 ## 禁止事项
 - 禁止编造执行结果
 - 禁止只说"我将创建..."而不实际调用write_file
@@ -182,6 +187,11 @@ To append a new function: edit_file(path="file.py", old_text='    print("hello")
 - Before editing, use read_file to check the current file content and the full error message.
 - After editing, immediately re-run tests to verify.
 - assertIn(a, list) checks for exact element equality, NOT substring matching.
+
+## Handling User Corrections
+- When the user gives specific fix instructions (e.g., "change X to Y"), **execute immediately**. Do NOT re-analyze the project.
+- Every round MUST include at least one write/edit/exec action. Do NOT spend multiple rounds only reading files.
+- If the user says "the test is unreasonable", fix the test directly. Do NOT try to fix the implementation to match unreasonable tests.
 
 ## Forbidden
 - Never fabricate execution results
@@ -506,6 +516,7 @@ class AgentServer:
                 "total_calls": 0, "input_tokens": 0, "output_tokens": 0, "total_cost": 0,
             }
 
+        available_providers = set()
         for p in list_reg_providers():
             pname = p.get("name", "")
             vendor = pname.split("-")[0] if pname else "unknown"
@@ -518,9 +529,38 @@ class AgentServer:
             if pname not in providers[vendor]["models"]:
                 providers[vendor]["models"].append(pname)
             try:
-                providers[vendor]["api_keys"] = get_api_keys(vendor)
+                keys = get_api_keys(vendor)
+                providers[vendor]["api_keys"] = keys
+                if keys:
+                    available_providers.add(pname)
+                    providers[vendor]["configured"] = True
             except Exception:
                 pass
+
+        for mid, mdata in models.items():
+            mdata["configured"] = any(p in available_providers for p in mdata.get("providers", []))
+            mdata["configured_providers"] = [p for p in mdata.get("providers", []) if p in available_providers]
+
+        try:
+            from tool.ARTIFICIAL_ANALYSIS.interface import get_rankings
+            model_slugs = list(models.keys())
+            aa_data = get_rankings(model_slugs)
+            for our_slug, aa in aa_data.items():
+                for mid in models:
+                    if our_slug.lower() in mid.lower() or mid.lower() in our_slug.lower():
+                        evals = aa.get("evaluations", {})
+                        rankings = aa.get("rankings", {})
+                        models[mid]["aa_benchmarks"] = {
+                            "intelligence": evals.get("artificial_analysis_intelligence_index"),
+                            "coding": evals.get("artificial_analysis_coding_index"),
+                            "math": evals.get("artificial_analysis_math_index"),
+                            "speed_tps": aa.get("speed"),
+                            "ttft_s": aa.get("ttft"),
+                        }
+                        models[mid]["aa_rankings"] = rankings
+                        break
+        except Exception:
+            pass
 
         for call in self._usage_calls:
             model_key = call.get("model", "")
@@ -545,6 +585,9 @@ class AgentServer:
 
     def _page_handler(self, path: str) -> Optional[str]:
         """Handle /session/<sid>/<type>/<round_id>/... page routes."""
+        qs = ""
+        if "?" in path:
+            path, qs = path.split("?", 1)
         parts = path.strip("/").split("/")
         if len(parts) < 4 or parts[0] != "session":
             return _not_found_page("Invalid path")
@@ -557,7 +600,17 @@ class AgentServer:
 
         if data_type in ("input", "output", "context"):
             content = self._round_store.get_token_data(sid, round_num, data_type)
-            return render_token_page(sid, round_num, data_type, content)
+            token_count = 0
+            cost = 0.0
+            for param in qs.split("&"):
+                if param.startswith("tokens="):
+                    try: token_count = int(param.split("=")[1])
+                    except ValueError: pass
+                elif param.startswith("cost="):
+                    try: cost = float(param.split("=")[1])
+                    except ValueError: pass
+            return render_token_page(sid, round_num, data_type, content,
+                                     token_count=token_count, cost=cost)
         elif data_type == "read":
             rel_path = "/".join(parts[4:-1]) if len(parts) > 5 else (parts[4] if len(parts) > 4 else "")
             op_id = 0
@@ -630,7 +683,7 @@ class AgentServer:
 
 
 def start_agent_server(
-    provider_name: str = "zhipu-glm-4.7",
+    provider_name: str = "zhipu-glm-4.7-flash",
     system_prompt: str = "",
     enable_tools: bool = True,
     port: int = 0,

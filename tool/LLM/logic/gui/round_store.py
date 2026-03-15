@@ -142,13 +142,15 @@ class RoundStore:
 
 
 def render_token_page(session_id: str, round_num: int,
-                      data_type: str, content: Optional[str]) -> str:
+                      data_type: str, content: Optional[str],
+                      token_count: int = 0, cost: float = 0.0) -> str:
     """Render an HTML page for token inspection."""
     if content is None:
         return _not_found_page(f"No {data_type} data for round {round_num}")
 
     title = f"{data_type.title()} Tokens - Round {round_num}"
-    lines = content.split("\n")
+    display = content.replace("\\n", "\n").replace("\\t", "\t")
+    lines = display.split("\n")
     numbered = []
     for i, line in enumerate(lines, 1):
         numbered.append(
@@ -156,8 +158,17 @@ def render_token_page(session_id: str, round_num: int,
         )
     body = "\n".join(numbered)
 
+    meta_parts = [f"Session: {_esc(session_id)}",
+                  f"Round {round_num}",
+                  data_type.title()]
+    if token_count:
+        meta_parts.append(f"{token_count:,} tokens")
+    if cost:
+        meta_parts.append(f"${cost:.6f}")
+    meta_line = " &middot; ".join(meta_parts)
+
     return _wrap_page(title, session_id, f"""
-    <div class="meta">Session: {_esc(session_id)} &middot; Round {round_num} &middot; {data_type.title()}</div>
+    <div class="meta">{meta_line}</div>
     <pre class="code">{body}</pre>
     """)
 

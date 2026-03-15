@@ -128,6 +128,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 /* ── Settings Section Styles ── */
 .settings-section-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
 .settings-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; }
+.settings-card.configured { background: color-mix(in srgb, var(--green) 6%, var(--surface-2)); border-color: color-mix(in srgb, var(--green) 20%, var(--border)); }
+.settings-card.unconfigured { opacity: 0.6; }
 .settings-card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
 .settings-card-title img { width: 18px; height: 18px; border-radius: 3px; }
 .settings-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
@@ -223,6 +225,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .messages > * { flex-shrink: 0; }
 .msg-group { display: flex; flex-direction: column; animation: fadeIn 0.3s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes shimmer { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 .msg-user { align-self: flex-end; max-width: 65%; background: var(--accent); color: white; padding: 10px 16px; border-radius: 18px 18px 4px 18px; font-size: 14px; line-height: 1.55; margin-bottom: 8px; word-break: break-word; overflow-wrap: break-word; }
 .msg-text { padding: 12px 0 4px 0; font-size: 14px; line-height: 1.7; color: var(--text); max-width: 90%; word-break: break-word; overflow-wrap: break-word; }
 .msg-text .md-h1 { font-size: 20px; font-weight: 600; margin: 16px 0 8px; color: var(--text); line-height: 1.3; }
@@ -231,6 +234,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .msg-text .md-list { margin: 4px 0 4px 20px; padding: 0; }
 .msg-text .md-list li { margin: 2px 0; }
 .msg-text .md-inline-code { background: var(--surface-3); padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 12px; }
+.msg-text .md-hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
 .msg-text .md-codeblock { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; margin: 8px 0; overflow-x: auto; }
 .msg-text .md-codeblock code { font-family: var(--mono); font-size: 12px; color: var(--text); white-space: pre; }
 .turn-spacer { height: 6px; }
@@ -276,6 +280,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .tool-icon.search { background: var(--orange-dim); color: var(--orange); }
 .tool-icon.think { background: var(--purple-dim); color: var(--purple); }
 .tool-desc { color: var(--text); font-size: 12.5px; font-weight: 500; overflow-wrap: anywhere; word-break: break-word; }
+.tool-file-link { cursor: pointer; }
+.tool-file-link:hover { color: var(--accent); }
 .tool-cmd-inline { color: var(--text-3); font-family: var(--mono); font-size: 11.5px; font-weight: 400; margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
 .tool-label { color: var(--text-3); font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.3px; flex-shrink: 0; }
 .diff-stats { font-family: var(--mono); font-size: 11.5px; font-weight: 500; margin-left: auto; flex-shrink: 0; display: flex; gap: 6px; }
@@ -444,8 +450,8 @@ body.debug-mode .debug-block { display: block; }
 .round-detail-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
 .round-detail-table td:first-child { color: var(--text-3); font-weight: 500; width: 40%; }
 .round-detail-table td:last-child { font-family: var(--mono); font-size: 11.5px; }
-.round-detail-table td.token-link { cursor: pointer; color: var(--accent); text-decoration: underline; text-decoration-style: dotted; }
-.round-detail-table td.token-link:hover { color: var(--text); }
+.round-detail-table td.token-link { cursor: pointer; color: var(--accent); }
+.round-detail-table td.token-link:hover { opacity: 0.7; }
 
 /* ── Mode/Model Selector ── */
 .input-selectors { display: flex; align-items: center; gap: 8px; padding-top: 8px; }
@@ -844,6 +850,11 @@ const engine = new AgentGUIEngine({
   sessionListEl: $('session-list'),
 });
 engine.setDebugMode(false, createDebugBlock);
+fetch('/api/state').then(r => r.json()).then(d => {
+  if (d.ok && d.state && d.state.max_context_tokens) {
+    engine._maxContextTokens = d.state.max_context_tokens;
+  }
+}).catch(() => {});
 { const saved = parseInt(localStorage.getItem('maxRoundHistory')); if (saved > 0) engine.setMaxRoundHistory(saved); }
 
 const modePill = buildPillSelect(
@@ -1081,11 +1092,21 @@ function renderGeneralView() {
   const themeOpts = Object.entries(THEMES).map(([k, v]) =>
     `<option value="${k}" ${k === currentTheme ? 'selected' : ''}>${v.label}</option>`
   ).join('');
+  const currentLang = localStorage.getItem('guiLang') || 'en';
+  const langOpts = [
+    { value: 'en', label: 'English' },
+    { value: 'zh', label: '中文' },
+    { value: 'ar', label: 'العربية' },
+  ].map(l => `<option value="${l.value}" ${l.value === currentLang ? 'selected' : ''}>${l.label}</option>`).join('');
   return `<div class="settings-section-title">Appearance</div>
     <div class="settings-card" style="padding:16px;">
-      <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+      <div style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:12px;">
         <span><strong>Color Mode</strong></span>
         <select onchange="applyTheme(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:120px;">${themeOpts}</select>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+        <span><strong>Language</strong></span>
+        <select onchange="localStorage.setItem('guiLang',this.value);location.reload();" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:120px;">${langOpts}</select>
       </div>
     </div>
     <div class="settings-section-title" style="margin-top:16px;">Debug</div>
@@ -1112,16 +1133,36 @@ function renderModelsView() {
     const logo = MODEL_LOGOS[name] || ZHIPU_LOGO || '';
     const displayName = MODEL_DISPLAY_NAMES[name] || name;
     const tierBadge = fmtPriceBadge(m, name);
-    const provChips = (m.providers || []).map(p =>
-      `<div class="settings-provider-chip" onclick="openProviderOrderOverlay('${esc(name)}',this)" style="cursor:pointer;">${PROVIDER_LOGOS[p.split('-')[0]] ? '<img src="' + PROVIDER_LOGOS[p.split('-')[0]] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : ''} ${esc(p)}</div>`
-    ).join('');
+    const configuredProvs = new Set(m.configured_providers || []);
+    const provChips = (m.providers || []).map(p => {
+      const isProvConfigured = configuredProvs.has(p);
+      const chipStyle = isProvConfigured ? 'background:color-mix(in srgb, var(--green) 15%, var(--surface-3));color:var(--green);' : '';
+      return `<div class="settings-provider-chip" onclick="settingsTab='providers';renderSettingsTab();setTimeout(()=>{const c=document.querySelector('[data-provider-id=\\'${esc(p.split('-')[0])}\\']');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})},100)" style="cursor:pointer;${chipStyle}">${PROVIDER_LOGOS[p.split('-')[0]] ? '<img src="' + PROVIDER_LOGOS[p.split('-')[0]] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : ''} ${esc(p)}</div>`;
+    }).join('');
     const modelCalls = calls.filter(c => c.model === name || c.provider === name);
-    const bench = m.benchmarks || {};
-    const benchTags = bench.arena_elo
-      ? `<span class="settings-badge" style="background:var(--purple-dim);color:var(--purple);cursor:pointer;margin-left:4px;" onclick="openBenchOverlay('${esc(name)}',event)" title="Click to compare">ELO ${bench.arena_elo}</span>` + (bench.arena_rank ? `<span class="settings-badge" style="background:${bench.arena_rank <= 10 ? 'var(--green-dim);color:var(--green)' : bench.arena_rank <= 30 ? 'var(--accent-dim);color:var(--accent)' : 'var(--surface-3);color:var(--text-2)'};margin-left:2px;cursor:pointer;" onclick="openBenchOverlay('${esc(name)}',event)" title="Click to compare">#${bench.arena_rank}</span>` : '')
-      : '';
-    html += `<div class="settings-card">
-      <div class="settings-card-title"><img src="${logo}" alt=""> ${esc(displayName)} ${tierBadge} ${benchTags}</div>
+    const aa = m.aa_benchmarks || {};
+    const aaRank = m.aa_rankings || {};
+    let benchTags = '';
+    const _rankColor = (r) => {
+      if (!r) return 'var(--surface-3);color:var(--text-3)';
+      if (r <= 3) return r === 1 ? 'linear-gradient(135deg,#FFD700,#FFA500);color:#000;background-size:200% 200%;animation:shimmer 2s ease infinite' : r === 2 ? 'linear-gradient(135deg,#C0C0C0,#E8E8E8);color:#333;background-size:200% 200%;animation:shimmer 2s ease infinite' : 'linear-gradient(135deg,#CD7F32,#E8A862);color:#fff;background-size:200% 200%;animation:shimmer 2s ease infinite';
+      if (r <= 5) return 'var(--purple-dim);color:var(--purple)';
+      if (r <= 10) return 'var(--accent-dim);color:var(--accent)';
+      if (r <= 20) return 'var(--green-dim);color:var(--green)';
+      return 'var(--surface-3);color:var(--text-3)';
+    };
+    const _benchTag = (label, val, rank) => {
+      if (!val) return '';
+      const rStr = rank ? ` (#${rank})` : '';
+      return `<span class="settings-badge" style="background:${_rankColor(rank)};margin-left:2px;cursor:pointer;" onclick="openBenchOverlay('${esc(name)}',event)" title="${label}">${label} ${typeof val === 'number' ? val.toFixed(1) : val}${rStr}</span>`;
+    };
+    if (aa.intelligence) benchTags += _benchTag('INT', aa.intelligence, aaRank['artificial_analysis_intelligence_index']);
+    if (aa.coding) benchTags += _benchTag('CODE', aa.coding, aaRank['artificial_analysis_coding_index']);
+    if (aa.math) benchTags += _benchTag('MATH', aa.math, aaRank['artificial_analysis_math_index']);
+    const isConfigured = m.configured;
+    const cardClass = isConfigured ? 'settings-card configured' : 'settings-card unconfigured';
+    html += `<div class="${cardClass}">
+      <div class="settings-card-title"><img src="${logo}" alt=""> ${esc(displayName)} ${tierBadge} ${benchTags}${isConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;">Configured</span>' : ''}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${m.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(m.input_tokens || 0)}</div><div class="settings-stat-label">Input Tokens</div></div>
@@ -1158,8 +1199,10 @@ function renderProvidersView() {
       `<div class="settings-key-row"><span class="settings-key-mask">${maskKey(k.key)}</span><span class="settings-key-label">${esc(k.label || 'default')}</span></div>`
     ).join('') || '<div style="font-size:11px;color:var(--text-3);padding:4px 0;">No API keys configured</div>';
     const provCalls = calls.filter(c => (c.provider || '').includes(name));
-    html += `<div class="settings-card">
-      <div class="settings-card-title">${PROVIDER_LOGOS[name] ? '<img src="' + PROVIDER_LOGOS[name] + '" alt="" style="width:16px;height:16px;border-radius:3px;">' : '<i class="bx bx-server" style="font-size:16px;color:var(--accent)"></i>'} ${esc(displayName)}</div>
+    const provConfigured = p.configured;
+    const provCardClass = provConfigured ? 'settings-card configured' : 'settings-card unconfigured';
+    html += `<div class="${provCardClass}" data-provider-id="${esc(name)}">
+      <div class="settings-card-title">${PROVIDER_LOGOS[name] ? '<img src="' + PROVIDER_LOGOS[name] + '" alt="" style="width:16px;height:16px;border-radius:3px;">' : '<i class="bx bx-server" style="font-size:16px;color:var(--accent)"></i>'} ${esc(displayName)}${provConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;">Configured</span>' : ''}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${p.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(p.input_tokens || 0)}</div><div class="settings-stat-label">Input Tokens</div></div>
@@ -1167,10 +1210,13 @@ function renderProvidersView() {
         <div class="settings-stat"><div class="settings-stat-value">${p.total_cost ? '$' + p.total_cost.toFixed(4) : '$0'}</div><div class="settings-stat-label">Cost</div></div>
       </div>
       ${modelChips ? '<div style="margin-top:8px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;">Models</div><div class="settings-provider-list">' + modelChips + '</div>' : ''}
-      <div style="margin-top:10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;">API Keys</div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">API Keys</span>
+        <button class="settings-add-key-btn" onclick="toggleKeyInput(this.closest('.settings-card').querySelector('.settings-key-form'))" style="margin-left:auto;font-size:10px;padding:2px 8px;background:var(--accent-dim);color:var(--accent);border:none;border-radius:4px;cursor:pointer;font-weight:600;"><i class="bx bx-plus" style="font-size:11px;vertical-align:middle;"></i> Add Key</button>
+        <button onclick="showProviderGuide('${esc(name)}')" style="font-size:10px;padding:2px 8px;background:var(--surface-3);color:var(--text-2);border:none;border-radius:4px;cursor:pointer;font-weight:600;"><i class="bx bx-book-open" style="font-size:11px;vertical-align:middle;"></i> Guide</button>
+      </div>
       ${keysHtml}
       <div class="settings-add-key" data-vendor="${esc(name)}">
-        <button class="settings-add-key-btn" onclick="toggleKeyInput(this)"><i class="bx bx-plus"></i> Add Key</button>
         <div class="settings-key-form" style="display:none;">
           <input type="password" placeholder="Paste API key..." class="settings-key-input">
           <button class="settings-validate-btn" onclick="validateAndSaveKey(this)">Validate & Save</button>
@@ -1385,10 +1431,82 @@ function closeProviderOrderOverlay() {
   }
 }
 
-function toggleKeyInput(btn) {
-  const form = btn.parentElement.querySelector('.settings-key-form');
+function toggleKeyInput(el) {
+  const form = el.classList?.contains('settings-key-form') ? el : el.parentElement.querySelector('.settings-key-form');
+  if (!form) return;
   form.style.display = form.style.display === 'none' ? 'flex' : 'none';
-  if (form.style.display === 'flex') form.querySelector('.settings-key-input').focus();
+  if (form.style.display === 'flex') form.querySelector('.settings-key-input')?.focus();
+}
+
+const _PROVIDER_GUIDES = {
+  zhipu: {
+    name: 'Zhipu AI',
+    url: 'https://open.bigmodel.cn/',
+    steps: [
+      'Visit <a href="https://open.bigmodel.cn/" target="_blank">Zhipu AI Open Platform</a>',
+      'Register or log in to your account',
+      'Go to <a href="https://open.bigmodel.cn/usercenter/apikeys" target="_blank">API Keys</a> page',
+      'Click "Create API Key" and copy the key',
+      'Paste it above and click "Validate & Save"',
+    ],
+  },
+  google: {
+    name: 'Google AI',
+    url: 'https://aistudio.google.com/',
+    steps: [
+      'Visit <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>',
+      'Sign in with your Google account',
+      'Click "Create API Key"',
+      'Copy the generated key',
+      'Paste it above and click "Validate & Save"',
+    ],
+  },
+  nvidia: {
+    name: 'NVIDIA',
+    url: 'https://build.nvidia.com/',
+    steps: [
+      'Visit <a href="https://build.nvidia.com/" target="_blank">NVIDIA Build</a>',
+      'Register for a free developer account',
+      'Navigate to API Keys section',
+      'Generate a new key and copy it',
+      'Paste it above and click "Validate & Save"',
+    ],
+  },
+  baidu: {
+    name: 'Baidu (Wenxin)',
+    url: 'https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application',
+    steps: [
+      'Visit <a href="https://console.bce.baidu.com/" target="_blank">Baidu Cloud Console</a>',
+      'Register or log in',
+      'Navigate to Qianfan Model Platform',
+      'Create an application to get API Key and Secret Key',
+      'Paste both keys (comma-separated) above',
+    ],
+  },
+};
+
+function showProviderGuide(vendor) {
+  const guide = _PROVIDER_GUIDES[vendor] || {
+    name: vendor,
+    url: '',
+    steps: ['Visit the provider\'s official website', 'Register for an account', 'Navigate to API Keys section', 'Generate and copy your API key', 'Paste it above'],
+  };
+  let overlay = document.getElementById('provider-guide-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'provider-guide-overlay';
+    overlay.className = 'sub-overlay';
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = `<div class="sub-panel" style="max-width:420px;">
+    <div class="sub-panel-header"><span>Setup Guide: ${esc(guide.name)}</span><button onclick="this.closest('.sub-overlay').remove()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;"><i class="bx bx-x"></i></button></div>
+    <div style="padding:12px 16px;">
+      <ol style="margin:0;padding-left:20px;font-size:12.5px;line-height:1.8;color:var(--text);">
+        ${guide.steps.map(s => '<li style="margin-bottom:4px;">' + s + '</li>').join('')}
+      </ol>
+    </div>
+  </div>`;
 }
 
 async function validateAndSaveKey(btn) {

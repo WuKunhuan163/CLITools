@@ -1,0 +1,14 @@
+{
+  "name": "ARTIFICIAL_ANALYSIS",
+  "display_name": "Artificial Analysis",
+  "version": "1.0.0",
+  "description": "Fetch LLM benchmarks, pricing, and performance data from Artificial Analysis API.",
+  "category": "data",
+  "dependencies": {
+    "python_packages": []
+  },
+  "config": {
+    "api_key": "",
+    "cache_ttl_hours": 24
+  }
+}

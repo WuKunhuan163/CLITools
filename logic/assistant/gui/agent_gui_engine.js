@@ -51,7 +51,11 @@ function md(text) {
     const h1 = line.match(/^# (.+)/);
     const li = line.match(/^[-*] (.+)/);
 
-    if (h1) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<h3 class="md-h1">${inlineMd(h1[1])}</h3>`); }
+    if (line.trim() === '---' || line.trim() === '***' || line.trim() === '___') {
+      if (inList) { out.push('</ul>'); inList = false; }
+      out.push('<hr class="md-hr">');
+    }
+    else if (h1) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<h3 class="md-h1">${inlineMd(h1[1])}</h3>`); }
     else if (h2) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<h4 class="md-h2">${inlineMd(h2[1])}</h4>`); }
     else if (h3) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<h5 class="md-h3">${inlineMd(h3[1])}</h5>`); }
     else if (li) { if (!inList) { out.push('<ul class="md-list">'); inList = true; } out.push(`<li>${inlineMd(li[1])}</li>`); }
@@ -192,6 +196,7 @@ class AgentGUIEngine {
     this._activeTextBuf = '';
     this._roundHistory = [];
     this._maxRoundHistory = 16;
+    this._maxContextTokens = 0;
 
     this._registerDefaults();
     this._initScrollToBottom();
@@ -649,6 +654,21 @@ class AgentGUIEngine {
     this.lastToolEl.dataset.toolName = evt.name || '';
     this.lastToolEl.dataset.toolCmd = evt.cmd || '';
 
+    const fileLink = this.lastToolEl.querySelector('.tool-file-link');
+    if (fileLink) {
+      const sid = this.activeSessionId;
+      const rd = this._currentRound;
+      const op = fileLink.dataset.op;
+      const rawPath = evt.cmd || evt.file || '';
+      fileLink.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (sid && rd && rawPath) {
+          const relPath = rawPath.replace(/^\/Applications\/AITerminalTools\//, '');
+          window.open(`/session/${sid}/${op}/${rd}/${relPath}/0`, '_blank');
+        }
+      });
+    }
+
     const isEditType = evt.name === 'edit' || evt.name === 'edit_file' || evt.name === 'write_file';
     if (evt.name === 'exec') {
       this._addExecTracker(tid, evt.cmd || evt.desc);
@@ -736,7 +756,15 @@ class AgentGUIEngine {
   async _renderComplete(evt) {
     await sleep(300);
     this._modifiedFiles = [];
-    this._appendAnimated('div', 'task-complete', CHECK_SVG + ' Task completed');
+    let timeLabel = '';
+    if (this._taskStartTime) {
+      const elapsed = Math.round((Date.now() - this._taskStartTime) / 1000);
+      const m = Math.floor(elapsed / 60);
+      const s = elapsed % 60;
+      timeLabel = m > 0 ? ` <span style="color:var(--text-3);font-size:12px;margin-left:8px;">Worked for ${m}m ${s}s</span>` : ` <span style="color:var(--text-3);font-size:12px;margin-left:8px;">${s}s</span>`;
+      this._taskStartTime = null;
+    }
+    this._appendAnimated('div', 'task-complete', CHECK_SVG + ' Task completed' + timeLabel);
   }
 
   /* ── LLM API Events ── */
@@ -746,6 +774,7 @@ class AgentGUIEngine {
     const round = evt.round || 1;
     this._currentProvider = provider;
     this._currentRound = round;
+    if (!this._taskStartTime) this._taskStartTime = Date.now();
     this._llmRequestEl = this._createModelInfoEl(provider, round);
     this.chatArea.appendChild(this._llmRequestEl);
     return sleep(100);
@@ -794,9 +823,16 @@ class AgentGUIEngine {
         ? (this._costCurrency || '$') + usage.cost.toFixed(4)
         : '$0.00';
       const latLabel = evt.latency_s ? evt.latency_s + 's' : '';
-      const ctxLabel = ctxTokens > 0
-        ? (ctxTokens >= 1000 ? (ctxTokens / 1000).toFixed(1) + 'k ctx' : ctxTokens + ' ctx')
-        : '';
+      let ctxLabel = '';
+      if (ctxTokens > 0) {
+        const ctxStr = ctxTokens >= 1000 ? (ctxTokens / 1000).toFixed(1) + 'k' : String(ctxTokens);
+        if (this._maxContextTokens && this._maxContextTokens > 0) {
+          const pct = ((ctxTokens / this._maxContextTokens) * 100).toFixed(1);
+          ctxLabel = ctxStr + '(' + pct + '%) ctx';
+        } else {
+          ctxLabel = ctxStr + ' ctx';
+        }
+      }
 
       const latency = this._llmRequestEl.querySelector('.model-latency');
       if (latency) {
@@ -867,7 +903,9 @@ class AgentGUIEngine {
         const round = td.dataset.round;
         const sid = this.activeSessionId;
         if (sid && type && round != null) {
-          window.open(`/session/${sid}/${type}/${round}`, '_blank');
+          const tc = type === 'input' ? data.context_tokens : (type === 'output' ? data.output_tokens : data.total_tokens);
+          const cost = data.cost || 0;
+          window.open(`/session/${sid}/${type}/${round}?tokens=${tc}&cost=${cost.toFixed(6)}`, '_blank');
         }
       });
     });
@@ -888,7 +926,6 @@ class AgentGUIEngine {
     let html = '';
     if (logo) html += '<img src="' + logo + '" alt="' + esc(name) + '">';
     html += '<span class="model-name">' + esc(name) + '</span>';
-    if (round > 1) html += '<span class="model-sep">·</span><span class="model-round">round ' + round + '</span>';
     html += '<span class="model-sep">·</span><div class="spinner spinner-sm model-spinner"></div><span class="model-latency"></span>';
     div.innerHTML = html;
     return div;
@@ -900,7 +937,15 @@ class AgentGUIEngine {
 
   _renderNotice(evt) {
     const icon = evt.icon ? '<i class="bx ' + evt.icon + '"></i> ' : '';
-    this.renderCenterNotice(icon + esc(evt.text || ''));
+    let timeLabel = '';
+    if (this._taskStartTime) {
+      const elapsed = Math.round((Date.now() - this._taskStartTime) / 1000);
+      const m = Math.floor(elapsed / 60);
+      const s = elapsed % 60;
+      timeLabel = m > 0 ? ` <span style="font-size:12px;opacity:0.6;margin-left:6px;">${m}m ${s}s</span>` : ` <span style="font-size:12px;opacity:0.6;">${s}s</span>`;
+      this._taskStartTime = null;
+    }
+    this.renderCenterNotice(icon + esc(evt.text || '') + timeLabel);
     return sleep(200);
   }
 
@@ -929,7 +974,8 @@ class AgentGUIEngine {
       const fname = file || cmd || desc || '';
       const short = fname.split('/').pop() || 'file';
       const cleanDesc = desc ? desc.replace(/^Read\s+/i, '') : '';
-      return { label: 'Read ' + (cleanDesc || short), icon: 'bx-file', expandable: false };
+      const displayLabel = cleanDesc || short;
+      return { label: 'Read ' + displayLabel, icon: 'bx-file', expandable: false, isRead: true, fname: fname, readLabel: displayLabel };
     }
     if (name === 'write_file' || name === 'edit_file' || name === 'edit') {
       const fname = file || cmd || '';
@@ -970,9 +1016,15 @@ class AgentGUIEngine {
       headerContent =
         '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
         + '<div class="tool-icon edit"><i class="bx ' + iconClass + '" style="font-size:13px"></i></div>'
-        + '<span class="tool-desc">' + escWbr(info.label) + '</span>'
+        + '<span class="tool-desc tool-file-link" data-op="edit">' + escWbr('Edited ' + short) + '</span>'
         + newTag
         + '<span class="diff-stats" data-tc="diffstats"></span>'
+        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+    } else if (info.isRead) {
+      headerContent =
+        '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
+        + '<i class="bx ' + info.icon + ' tool-natural-icon"></i>'
+        + '<span class="tool-desc tool-file-link" data-op="read">' + escWbr('Read ' + (info.readLabel || '')) + '</span>'
         + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
     } else {
       headerContent =
@@ -1015,7 +1067,6 @@ class AgentGUIEngine {
         const toolType = el.dataset.toolType;
         if (toolType === 'edit') {
           const diff = renderDiffOutput(output);
-          out.innerHTML = '<div class="diff-view">' + diff.html + '</div>';
           const stats = el.querySelector('[data-tc=diffstats]');
           if (stats) {
             let parts = [];
@@ -1023,7 +1074,6 @@ class AgentGUIEngine {
             if (diff.removeCount) parts.push('<span class="removed-count">-' + diff.removeCount + '</span>');
             stats.innerHTML = parts.join(' ');
           }
-          el.classList.add('expanded');
         } else if (toolType === 'write') {
           const lines = output.split('\n');
           const bytesMatch = (output || '').match(/Written (\d+) bytes/);

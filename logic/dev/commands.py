@@ -145,6 +145,11 @@ def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Ca
     RED = get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
 
+    if not tool_name.isidentifier():
+        print(f"  {BOLD}{RED}Error{RESET}: '{tool_name}' is not a valid Python identifier. "
+              f"Use only letters, digits, and underscores (e.g. MY_TOOL).")
+        return
+
     tool_dir = project_root / "tool" / tool_name
     
     # Get current branch

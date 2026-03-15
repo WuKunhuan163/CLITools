@@ -312,6 +312,10 @@ class ZhipuGLM4Provider(LLMProvider):
 
         try:
             resp = urllib.request.urlopen(req, timeout=120)
+        except urllib.error.HTTPError as e:
+            yield {"ok": False, "error": f"API error ({e.code}): {e.reason}",
+                   "error_code": e.code}
+            return
         except Exception as e:
             yield {"ok": False, "error": str(e)}
             return

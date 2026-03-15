@@ -137,7 +137,7 @@ class _SingleFileHandler(SimpleHTTPRequestHandler):
             result = self._api_handler("GET", path, None)
             self._json_response(result)
         elif path.startswith("/session/") and self._page_handler:
-            html = self._page_handler(path)
+            html = self._page_handler(self.path)
             if html:
                 self._html_response(html)
             else:

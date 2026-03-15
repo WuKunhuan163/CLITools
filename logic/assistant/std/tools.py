@@ -36,14 +36,14 @@ def handle_exec(args: dict, ctx: ToolContext) -> dict:
         )
         output = result.stdout + result.stderr
         ok = result.returncode == 0
-        ctx.emit({"type": "tool_result", "ok": ok, "output": output[:3000]})
+        ctx.emit({"type": "tool_result", "ok": ok, "output": output[:6000]})
         if ctx.env_obj:
             ctx.env_obj.record_result(cmd, ok, output[:300])
             if not ok:
                 ctx.env_obj.record_error(f"Command failed: {cmd}")
         if ctx.brain:
             ctx.brain.learn_from_result(cmd, ok, output[:500])
-        return {"ok": ok, "output": output[:3000]}
+        return {"ok": ok, "output": output[:6000]}
     except subprocess.TimeoutExpired:
         ctx.emit({"type": "tool_result", "ok": False, "output": "Command timed out (60s)"})
         if ctx.env_obj:
@@ -64,19 +64,43 @@ def handle_exec(args: dict, ctx: ToolContext) -> dict:
 
 @register_tool("read_file")
 def handle_read_file(args: dict, ctx: ToolContext) -> dict:
+    MAX_READ_CHARS = 12000
     path = args.get("path", "")
+    start_line = args.get("start_line")
+    end_line = args.get("end_line")
     if not os.path.isabs(path):
         path = os.path.join(ctx.cwd, path)
     ctx.turn_reads.append(path)
     basename = os.path.basename(path.rstrip("/"))
     read_desc = f"Read {basename}" if basename else "List directory"
+    if start_line or end_line:
+        read_desc += f" L{start_line or 1}-{end_line or 'end'}"
     ctx.emit({"type": "tool", "name": "read", "desc": read_desc, "cmd": path})
     try:
         if os.path.isdir(path):
             entries = sorted(os.listdir(path))[:50]
             content = f"Directory listing of {path}:\n" + "\n".join(entries)
         else:
-            content = open(path, encoding='utf-8', errors='replace').read()[:3000]
+            raw = open(path, encoding='utf-8', errors='replace').read()
+            lines = raw.splitlines(keepends=True)
+            total_lines = len(lines)
+            if start_line or end_line:
+                s = max(1, start_line or 1) - 1
+                e = min(total_lines, end_line or total_lines)
+                selected = lines[s:e]
+                numbered = [f"{s+i+1:>4}| {line}" for i, line in enumerate(selected)]
+                content = "".join(numbered)
+                if len(content) > 15000:
+                    content = content[:15000] + f"\n... (truncated, lines {s+1}-{e} of {total_lines})"
+                else:
+                    content += f"\n[Lines {s+1}-{e} of {total_lines} total]"
+            else:
+                content = raw[:MAX_READ_CHARS]
+                if len(raw) > MAX_READ_CHARS:
+                    content += (
+                        f"\n\n... (truncated at {MAX_READ_CHARS} chars, total "
+                        f"{len(raw)} chars, {total_lines} lines. Use "
+                        f"start_line/end_line to read specific sections.)")
         ctx.emit({"type": "tool_result", "ok": True, "output": content})
         if ctx.env_obj:
             ctx.env_obj.record_result(f"read:{path}", True, content[:200])

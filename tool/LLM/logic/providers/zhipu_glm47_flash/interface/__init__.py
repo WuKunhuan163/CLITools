@@ -335,7 +335,11 @@ class ZhipuGLM47FlashProvider(LLMProvider):
                 if reasoning:
                     yield {"ok": True, "reasoning": reasoning}
         except Exception as e:
-            yield {"ok": False, "error": str(e)}
+            err_msg = str(e)
+            chunk = {"ok": False, "error": err_msg}
+            if "429" in err_msg:
+                chunk["error_code"] = 429
+            yield chunk
 
     def _stream_via_urllib(self, messages, temperature, max_tokens, tools):
         """Fallback streaming via urllib."""
@@ -361,6 +365,11 @@ class ZhipuGLM47FlashProvider(LLMProvider):
 
         try:
             resp = urllib.request.urlopen(req, timeout=120)
+        except urllib.error.HTTPError as e:
+            chunk = {"ok": False, "error": f"API error ({e.code}): {e.reason}",
+                     "error_code": e.code}
+            yield chunk
+            return
         except Exception as e:
             yield {"ok": False, "error": str(e)}
             return

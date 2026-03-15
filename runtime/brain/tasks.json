@@ -274,9 +274,9 @@
   {
     "id": 35,
     "content": "Verify HTML GUI API key save works live for new providers",
-    "status": "pending",
+    "status": "done",
     "created": "2026-03-13T18:04:43",
-    "updated": "2026-03-13T18:04:43",
+    "updated": "2026-03-14T13:44:23",
     "notes": ""
   }
 ]
