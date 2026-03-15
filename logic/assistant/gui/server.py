@@ -346,6 +346,8 @@ class AgentServer:
             return self._api_key_states(body)
         if path in ("/api/key/reverify", "/api/reverify-key"):
             return self._api_reverify_key(body)
+        if path == "/api/provider/status":
+            return self._api_provider_status(body)
 
         # ── System ─────────────────────────────────────────────
         if path == "/api/state":
@@ -628,6 +630,23 @@ class AgentServer:
                             "action": "key_reverified", "vendor": vendor,
                             "key_id": key_id})
         return result
+
+    def _api_provider_status(self, body: dict) -> dict:
+        """Return unified provider status from ProviderManager.
+
+        Optional body params:
+        - provider: single provider name (returns that provider only)
+        - (no params): returns full snapshot of all providers
+        """
+        provider_name = body.get("provider", "").strip()
+        try:
+            from tool.LLM.logic.provider_manager import get_manager
+            mgr = get_manager()
+            if provider_name:
+                return {"ok": True, "status": mgr.get_provider_status(provider_name)}
+            return {"ok": True, "snapshot": mgr.get_full_snapshot()}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def _api_queue(self, sid: str, body: dict) -> dict:
         action = body.get("action", "list")

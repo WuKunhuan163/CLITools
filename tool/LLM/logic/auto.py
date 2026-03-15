@@ -196,23 +196,13 @@ def _load_model_meta(provider_name: str) -> Dict:
 
 
 def _get_available_models(model_list: List[str]) -> List[str]:
-    """Filter list to providers that are registered, configured, and healthy."""
-    from tool.LLM.logic.registry import _REGISTRY, _ensure_builtins
-    _ensure_builtins()
+    """Filter list to providers that are registered, configured, and healthy.
 
-    available = []
-    for name in model_list:
-        if name not in _REGISTRY:
-            continue
-        if not _health.is_available(name):
-            continue
-        try:
-            inst = _REGISTRY[name]()
-            if inst.is_available():
-                available.append(name)
-        except Exception:
-            continue
-    return available
+    Delegates to ProviderManager for unified availability that factors in
+    per-key state, rate-limiter backoff, and provider-level health.
+    """
+    from tool.LLM.logic.provider_manager import get_manager
+    return get_manager().get_available_from_list(model_list)
 
 
 def get_next_available(exclude: Optional[List[str]] = None) -> Optional[str]:
@@ -225,7 +215,14 @@ def get_next_available(exclude: Optional[List[str]] = None) -> Optional[str]:
 
 
 def _build_model_descriptions(available: List[str]) -> str:
-    """Build a concise model catalog for the decision prompt."""
+    """Build a concise model catalog for the decision prompt.
+
+    Includes real-time health state so the decision model can factor in
+    which providers are rate-limited or degraded.
+    """
+    from tool.LLM.logic.provider_manager import get_manager
+    mgr = get_manager()
+
     lines = []
     for name in available:
         meta = _load_model_meta(name)
@@ -259,6 +256,14 @@ def _build_model_descriptions(available: List[str]) -> str:
             parts.append(f"  ELO: {bench['arena_elo']} (rank #{bench.get('arena_rank', '?')})")
         if rate.get("rpm"):
             parts.append(f"  Rate: {rate['rpm']} RPM")
+
+        status = mgr.get_provider_status(name)
+        health_tag = status["status"].upper()
+        if health_tag != "AVAILABLE":
+            parts.append(f"  ⚠ Health: {health_tag}")
+            if status["estimated_wait_s"] > 0:
+                parts.append(f"  Est. wait: {status['estimated_wait_s']}s")
+
         lines.append("\n".join(parts))
     return "\n\n".join(lines)
 
@@ -275,9 +280,13 @@ Rules:
 - If the task involves images, pick a model with vision support.
 - For complex reasoning, prefer models with reasoning capability.
 - For simple tasks, prefer the fastest free model.
+- AVOID models with Health status RATE_LIMITED or DEGRADED when better alternatives exist.
+- Consider estimated wait times: lower wait = faster response for the user.
 
 Available models:
 {model_catalog}
+
+{health_summary}
 
 User task:
 {user_prompt}
@@ -323,8 +332,13 @@ def auto_decide(
 
     catalog = _build_model_descriptions(available_a)
     full_prompt = task_description + "\n" + user_prompt if task_description else user_prompt
+
+    from tool.LLM.logic.provider_manager import get_manager
+    health_summary = get_manager().get_status_summary_for_prompt(available_a)
+
     decision_prompt = _DECISION_PROMPT.format(
         model_catalog=catalog,
+        health_summary=("Current health:\n" + health_summary) if health_summary else "",
         user_prompt=full_prompt[:2000],
     )
 

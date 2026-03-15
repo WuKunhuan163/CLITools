@@ -531,13 +531,14 @@ class ConversationManager:
         Returns (provider, pipeline, provider_name) or None.
         """
         try:
-            from tool.LLM.logic.auto import AutoProvider, _health
-            _health.record_error(failed_provider_name)
+            from tool.LLM.logic.provider_manager import get_manager
+            from tool.LLM.logic.auto import PRIMARY_LIST
+            mgr = get_manager()
+            mgr.report_result(failed_provider_name, None,
+                              {"ok": False, "error_code": 429}, None)
 
-            auto = AutoProvider(preferred=None)
-            chain = auto._get_fallback_chain()
-
-            for name in chain:
+            available = mgr.get_available_from_list(PRIMARY_LIST)
+            for name in available:
                 if name == failed_provider_name:
                     continue
                 from tool.LLM.logic.registry import get_provider, get_pipeline
@@ -1507,8 +1508,10 @@ class ConversationManager:
 
                     if _llm_error is None:
                         try:
-                            from tool.LLM.logic.auto import get_health
-                            get_health().record_success(actual_provider_name)
+                            from tool.LLM.logic.provider_manager import get_manager
+                            get_manager().report_result(
+                                actual_provider_name, None,
+                                {"ok": True}, None)
                         except Exception:
                             pass
                         break
@@ -1520,8 +1523,11 @@ class ConversationManager:
                     failed_name = getattr(provider, 'name', actual_provider_name)
 
                     try:
-                        from tool.LLM.logic.auto import get_health
-                        get_health().record_error(failed_name, error_code)
+                        from tool.LLM.logic.provider_manager import get_manager
+                        get_manager().report_result(
+                            failed_name, None,
+                            {"ok": False, "error_code": error_code,
+                             "error": err}, None)
                     except Exception:
                         pass
 

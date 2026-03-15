@@ -22,6 +22,7 @@ from tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities
 from tool.LLM.logic.rate_limiter import RateLimiter
 from tool.LLM.logic.config import get_config_value, set_config_value, APIKeyRotator
 from tool.LLM.logic.key_state import get_selector, KeyStatus
+from tool.LLM.logic.provider_manager import get_manager
 
 
 class OpenAICompatProvider(LLMProvider):
@@ -61,6 +62,10 @@ class OpenAICompatProvider(LLMProvider):
         self._rate_limiter = RateLimiter(
             rpm=rpm or self.DEFAULT_RPM, min_interval_s=2.0, jitter_s=1.0
         )
+        try:
+            get_manager().register_rate_limiter(self.name, self._rate_limiter)
+        except Exception:
+            pass
 
     def _get_stored_key(self) -> Optional[str]:
         key = get_config_value(f"{self.CONFIG_VENDOR}_api_key")
@@ -192,13 +197,17 @@ class OpenAICompatProvider(LLMProvider):
 
     def _report_to_selector(self, result: Dict[str, Any],
                             headers: Dict[str, str] = None):
-        """Report result back to the adaptive key selector."""
+        """Report result to both key selector and unified ProviderManager."""
         if self._key_id and self.CONFIG_VENDOR:
             try:
                 selector = get_selector(self.CONFIG_VENDOR)
                 selector.report(self._key_id, result, headers=headers)
             except Exception:
                 pass
+        try:
+            get_manager().report_result(self.name, self._key_id, result, headers)
+        except Exception:
+            pass
 
     def send_streaming(self, messages: List[Dict[str, str]],
                        temperature: float = 0.7,
