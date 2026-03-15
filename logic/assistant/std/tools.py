@@ -163,9 +163,22 @@ def handle_read_file(args: dict, ctx: ToolContext) -> dict:
                         f"{len(raw)} chars, {total_lines} lines. Use "
                         f"start_line/end_line to read specific sections.)")
         ctx.emit({"type": "tool_result", "ok": True, "output": content})
+        if ctx.env_obj:
+            ctx.env_obj.record_result(f"read:{path}", True, content[:200])
+        rs = getattr(ctx, 'round_store', None)
+        if rs:
+            rel = os.path.relpath(path, ctx.cwd) if os.path.isabs(path) else path
+            rs.record_file_op(
+                getattr(ctx, 'session_id', ''),
+                getattr(ctx, 'round_num', 0),
+                "read", rel, content,
+                start_line=start_line or 0,
+                end_line=end_line or 0)
         return {"ok": True, "output": content}
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
+        if ctx.env_obj:
+            ctx.env_obj.record_result(f"read:{path}", False, str(e))
         return {"ok": False, "output": str(e)}
 
 
@@ -199,9 +212,13 @@ def handle_search(args: dict, ctx: ToolContext) -> dict:
                 for line in lines
             )
         ctx.emit({"type": "tool_result", "ok": True, "output": output})
+        if ctx.env_obj:
+            ctx.env_obj.record_result(f"search:{pattern}", True, output[:300])
         return {"ok": True, "output": output}
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
+        if ctx.env_obj:
+            ctx.env_obj.record_result(f"search:{pattern}", False, str(e))
         return {"ok": False, "output": str(e)}
 
 
@@ -281,6 +298,8 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
             gui_preview = content
         ctx.emit({"type": "tool_result", "ok": True,
                   "output": base_msg + warn_suffix + "\n" + gui_preview})
+        if ctx.env_obj:
+            ctx.env_obj.record_result(f"write:{path}", True, f"{size} bytes")
 
         agent_limit = 50
         if len(all_lines) > agent_limit + 10:
@@ -290,6 +309,8 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
         return {"ok": True, "output": base_msg + warn_suffix + "\n" + agent_preview}
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
+        if ctx.env_obj:
+            ctx.env_obj.record_result(f"write:{path}", False, str(e))
         return {"ok": False, "output": str(e)}
 
 
@@ -374,6 +395,8 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
             diff_lines.append(f"@@hide {remaining}")
         diff_preview = "\n".join(diff_lines)
         ctx.emit({"type": "tool_result", "ok": True, "output": diff_preview})
+        if ctx.env_obj:
+            ctx.env_obj.record_result(f"edit:{path}", True, diff_preview)
         rs = getattr(ctx, 'round_store', None)
         sid = getattr(ctx, 'session_id', '')
         rn = getattr(ctx, 'round_num', 0)
@@ -384,6 +407,8 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
         return {"ok": True, "output": f"Edit applied to {path}"}
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
+        if ctx.env_obj:
+            ctx.env_obj.record_result(f"edit:{path}", False, str(e))
         return {"ok": False, "output": str(e)}
 
 
