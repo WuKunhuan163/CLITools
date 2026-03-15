@@ -375,6 +375,30 @@ class AgentServer:
                 self._push_sse({"type": "settings_changed", "action": "key_deleted", "vendor": vendor})
                 return {"ok": True}
 
+            elif path == "/api/key-states":
+                vendor = body.get("vendor", "").strip()
+                if not vendor:
+                    return {"ok": False, "error": "Missing vendor"}
+                from tool.LLM.logic.key_state import get_selector
+                sel = get_selector(vendor)
+                return {"ok": True, "states": sel.get_all_states(),
+                        "has_usable": sel.has_usable_keys(),
+                        "active_count": sel.get_active_count()}
+
+            elif path == "/api/reverify-key":
+                vendor = body.get("vendor", "").strip()
+                key_id = body.get("key_id", "").strip()
+                if not vendor or not key_id:
+                    return {"ok": False, "error": "Missing vendor or key_id"}
+                from tool.LLM.logic.key_state import get_selector
+                sel = get_selector(vendor)
+                result = sel.reverify(key_id)
+                if result.get("ok"):
+                    self._push_sse({"type": "settings_changed",
+                                    "action": "key_reverified", "vendor": vendor,
+                                    "key_id": key_id})
+                return result
+
             elif path == "/api/revert-hunk":
                 return self._revert_hunk(body)
 
@@ -435,7 +459,11 @@ class AgentServer:
 
     @staticmethod
     def _validate_api_key(vendor: str, key: str) -> dict:
-        """Validate an API key by making a minimal test request."""
+        """Validate an API key by making a minimal test request.
+
+        On success, reactivates the key if it was previously stale.
+        On auth failure, marks the key as stale.
+        """
         VENDOR_PROVIDERS = {
             "zhipu": "zhipu-glm-4.7-flash",
             "google": "google-gemini-2.0-flash",
@@ -453,12 +481,29 @@ class AgentServer:
             result = provider._send_request(
                 [{"role": "user", "content": "hi"}],
                 temperature=0.1, max_tokens=5)
+
+            try:
+                from tool.LLM.logic.key_state import get_selector
+                from tool.LLM.logic.config import get_api_keys
+                sel = get_selector(vendor)
+                keys = get_api_keys(vendor)
+                key_id = next((k["id"] for k in keys if k["key"] == key), None)
+                if key_id:
+                    sel.report(key_id, result)
+                    if result.get("ok") or result.get("error_code") == 429:
+                        state = sel._states.get(key_id)
+                        if state and state.status == "stale":
+                            state.reactivate()
+                            sel._save()
+            except Exception:
+                pass
+
             if result.get("ok"):
                 return {"ok": True, "model": result.get("model", provider_name)}
             if result.get("error_code") == 429:
                 return {"ok": True, "model": result.get("model", provider_name),
                         "warning": "Key valid but rate limited (429). Quota may be exhausted."}
-            if result.get("error_code") == 401 or result.get("error_code") == 403:
+            if result.get("error_code") in (401, 403):
                 return {"ok": False, "error": "Invalid API key (authentication failed)"}
             return {"ok": False, "error": result.get("error", "Validation failed")}
         except Exception as e:

@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional
 from tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities
 from tool.LLM.logic.rate_limiter import RateLimiter
 from tool.LLM.logic.config import get_config_value, set_config_value, APIKeyRotator
+from tool.LLM.logic.key_state import get_selector, KeyStatus
 
 
 class OpenAICompatProvider(LLMProvider):
@@ -44,12 +45,17 @@ class OpenAICompatProvider(LLMProvider):
 
     def __init__(self, api_key: Optional[str] = None,
                  rpm: int = 0, **kwargs):
-        self._key_rotator = APIKeyRotator(self.CONFIG_VENDOR) if self.CONFIG_VENDOR else None
-        self._api_key = (
-            api_key
-            or (self._key_rotator.current_key if self._key_rotator else None)
-            or self._get_stored_key()
-        )
+        self._explicit_key = api_key
+        self._key_id: Optional[str] = None
+        if api_key:
+            self._api_key = api_key
+        elif self.CONFIG_VENDOR:
+            selector = get_selector(self.CONFIG_VENDOR)
+            kid, key = selector.select()
+            self._api_key = key
+            self._key_id = kid
+        else:
+            self._api_key = self._get_stored_key()
         self._model = self.MODEL_ID
         self._rate_limiter = RateLimiter(
             rpm=rpm or self.DEFAULT_RPM, min_interval_s=2.0, jitter_s=1.0
@@ -73,7 +79,13 @@ class OpenAICompatProvider(LLMProvider):
         return key if key else None
 
     def is_available(self) -> bool:
-        return bool(self._api_key)
+        if not self._api_key:
+            return False
+        if self.CONFIG_VENDOR:
+            selector = get_selector(self.CONFIG_VENDOR)
+            if not selector.has_usable_keys():
+                return False
+        return True
 
     def get_info(self) -> Dict[str, Any]:
         info = super().get_info()
@@ -119,32 +131,40 @@ class OpenAICompatProvider(LLMProvider):
         )
 
         t0 = time.time()
+        resp_headers = {}
         try:
             with urllib.request.urlopen(req, timeout=self.REQUEST_TIMEOUT) as resp:
+                resp_headers = {k.lower(): v for k, v in resp.getheaders()}
                 body = json.loads(resp.read().decode())
         except urllib.error.HTTPError as e:
             err_body = ""
+            err_headers = {}
             if e.fp:
                 try:
+                    err_headers = {k.lower(): v for k, v in e.headers.items()}
                     err_body = e.read().decode()
                 except Exception:
                     pass
             self._rate_limiter.release()
-            if e.code == 429:
-                return {"ok": False, "text": "", "error_code": 429,
-                        "error": f"Rate limited (429). {err_body}"}
-            return {"ok": False, "text": "", "error_code": e.code,
-                    "error": f"API error ({e.code}): {err_body}"}
+            result = {"ok": False, "text": "", "error_code": e.code,
+                      "error": f"Rate limited (429). {err_body}" if e.code == 429
+                      else f"API error ({e.code}): {err_body}"}
+            self._report_to_selector(result, err_headers)
+            return result
         except Exception as e:
             self._rate_limiter.release()
-            return {"ok": False, "text": "", "error": str(e)}
+            result = {"ok": False, "text": "", "error": str(e)}
+            self._report_to_selector(result)
+            return result
 
         self._rate_limiter.release()
         latency = time.time() - t0
 
         choices = body.get("choices", [])
         if not choices:
-            return {"ok": False, "text": "", "error": "No choices in response."}
+            result = {"ok": False, "text": "", "error": "No choices in response."}
+            self._report_to_selector(result, resp_headers)
+            return result
 
         msg = choices[0].get("message", {})
         text = msg.get("content", "") or ""
@@ -160,7 +180,19 @@ class OpenAICompatProvider(LLMProvider):
         }
         if msg.get("tool_calls"):
             result["tool_calls"] = msg["tool_calls"]
+
+        self._report_to_selector(result, resp_headers)
         return result
+
+    def _report_to_selector(self, result: Dict[str, Any],
+                            headers: Dict[str, str] = None):
+        """Report result back to the adaptive key selector."""
+        if self._key_id and self.CONFIG_VENDOR:
+            try:
+                selector = get_selector(self.CONFIG_VENDOR)
+                selector.report(self._key_id, result, headers=headers)
+            except Exception:
+                pass
 
     def send_streaming(self, messages: List[Dict[str, str]],
                        temperature: float = 0.7,
@@ -194,20 +226,28 @@ class OpenAICompatProvider(LLMProvider):
         except urllib.error.HTTPError as e:
             self._rate_limiter.release()
             err_body = ""
+            err_headers = {}
             if e.fp:
                 try:
+                    err_headers = {k.lower(): v for k, v in e.headers.items()}
                     err_body = e.read().decode()
                 except Exception:
                     pass
-            yield {"ok": False, "error_code": e.code,
-                   "error": f"HTTP {e.code}: {err_body}"}
+            result = {"ok": False, "error_code": e.code,
+                      "error": f"HTTP {e.code}: {err_body}"}
+            self._report_to_selector(result, err_headers)
+            yield result
             return
         except Exception as e:
             self._rate_limiter.release()
-            yield {"ok": False, "error": str(e)}
+            result = {"ok": False, "error": str(e)}
+            self._report_to_selector(result)
+            yield result
             return
 
+        resp_headers = {k.lower(): v for k, v in resp.getheaders()}
         last_usage = {}
+        stream_ok = True
         try:
             for raw_line in resp:
                 line = raw_line.decode("utf-8").strip()
@@ -234,9 +274,13 @@ class OpenAICompatProvider(LLMProvider):
                     continue
             if last_usage:
                 yield {"ok": True, "text": "", "usage": last_usage}
+        except Exception:
+            stream_ok = False
         finally:
             resp.close()
             self._rate_limiter.release()
+            self._report_to_selector(
+                {"ok": stream_ok, "latency_s": 0}, resp_headers)
 
     @classmethod
     def validate_key(cls, api_key: str) -> Dict[str, Any]:

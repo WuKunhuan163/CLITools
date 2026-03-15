@@ -25,6 +25,7 @@ from tool.LLM.logic.config import (
     get_api_keys, add_api_key, remove_api_key, reorder_api_keys,
     load_config,
 )
+from tool.LLM.logic.key_state import get_selector, KeyStatus
 
 BG = "#1e1e2e"
 FG = "#cdd6f4"
@@ -33,9 +34,17 @@ SURFACE = "#313244"
 BORDER = "#45475a"
 RED = "#f38ba8"
 GREEN = "#a6e3a1"
+YELLOW = "#f9e2af"
 DIM = "#6c7086"
 FONT = ("SF Mono", 12)
 FONT_SM = ("SF Mono", 10)
+
+_STATUS_COLORS = {
+    KeyStatus.ACTIVE: GREEN,
+    KeyStatus.DEGRADED: YELLOW,
+    KeyStatus.RATE_LIMITED: YELLOW,
+    KeyStatus.STALE: RED,
+}
 
 
 class KeyManagerWindow:
@@ -103,6 +112,12 @@ class KeyManagerWindow:
         )
         self.btn_down.pack(side="left", padx=4)
 
+        self.btn_reverify = tk.Button(
+            action_bar, text="Re-verify", font=FONT_SM, bg=YELLOW, fg=BG,
+            bd=0, padx=10, pady=3, command=self._reverify_key, cursor="hand2",
+        )
+        self.btn_reverify.pack(side="right", padx=4)
+
         self.btn_delete = tk.Button(
             action_bar, text="Delete", font=FONT_SM, bg=RED, fg=BG,
             bd=0, padx=10, pady=3, command=self._delete_key, cursor="hand2",
@@ -127,11 +142,21 @@ class KeyManagerWindow:
     def _refresh_keys(self):
         self.listbox.delete(0, tk.END)
         self.keys = get_api_keys(self.provider)
+        sel = get_selector(self.provider)
+        states = sel.get_all_states()
         for i, k in enumerate(self.keys):
             masked = k["key"][:8] + "..." + k["key"][-4:] if len(k["key"]) > 12 else k["key"]
             label = k.get("label", "")
-            self.listbox.insert(tk.END, f"  {i+1}. [{k['id']}] {masked}  ({label})")
-        self.status_var.set(f"{len(self.keys)} key(s)")
+            st = states.get(k["id"], {})
+            status = st.get("status", "active")
+            score = st.get("score", 1.0)
+            status_tag = f"[{status}]" if status != "active" else ""
+            line = f"  {i+1}. [{k['id']}] {masked}  ({label}) {status_tag}  score={score:.2f}"
+            self.listbox.insert(tk.END, line)
+            color = _STATUS_COLORS.get(status, FG)
+            self.listbox.itemconfig(i, fg=color)
+        active = sel.get_active_count()
+        self.status_var.set(f"{len(self.keys)} key(s), {active} active")
 
     def _add_key(self):
         key = simpledialog.askstring("Add API Key", "Enter API key:", parent=self.root)
@@ -176,6 +201,30 @@ class KeyManagerWindow:
         reorder_api_keys(self.provider, ids)
         self._refresh_keys()
         self.listbox.selection_set(idx + 1)
+
+    def _reverify_key(self):
+        sel_idx = self.listbox.curselection()
+        if not sel_idx:
+            self.status_var.set("Select a key to re-verify")
+            return
+        idx = sel_idx[0]
+        if idx >= len(self.keys):
+            return
+        k = self.keys[idx]
+        kid = k["id"]
+        selector = get_selector(self.provider)
+        st = selector.get_all_states().get(kid, {})
+        if st.get("status") != KeyStatus.STALE:
+            self.status_var.set("Key is not stale — no re-verification needed")
+            return
+        self.status_var.set(f"Re-verifying {kid}...")
+        self.root.update_idletasks()
+        result = selector.reverify(kid)
+        if result.get("ok"):
+            self.status_var.set(f"Key {kid} re-verified and reactivated")
+        else:
+            self.status_var.set(f"Re-verification failed: {result.get('error', '')[:60]}")
+        self._refresh_keys()
 
 
 def main():
