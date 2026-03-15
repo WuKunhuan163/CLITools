@@ -132,7 +132,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 /* ── Settings Section Styles ── */
 .settings-section-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
 .settings-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; }
-.settings-card.configured { background: color-mix(in srgb, var(--green) 8%, var(--surface-2)); border-color: color-mix(in srgb, var(--green) 30%, var(--border)); }
+.settings-card.configured { background: color-mix(in srgb, var(--green) 3%, var(--surface-2)); border-color: color-mix(in srgb, var(--green) 10%, var(--border)); }
 .settings-stepper { display:inline-flex; align-items:center; border:1px solid var(--border); border-radius:6px; background:var(--bg); overflow:hidden; user-select:none; }
 .settings-stepper .stepper-btn { width:28px; height:28px; border:none; background:transparent; color:var(--text-3); cursor:pointer; font-size:9px; line-height:1; padding:0; transition:background 0.15s,color 0.15s; }
 .settings-stepper .stepper-btn:hover { background:var(--surface-2); color:var(--text); }
@@ -665,9 +665,9 @@ body.debug-mode .debug-block { display: block; }
   <div class="settings-panel" style="position:relative">
     <div class="settings-sidebar">
       <div class="settings-sidebar-title"><button class="settings-close" onclick="closeSettings()"><i class="bx bx-x"></i></button> <span data-i18n="Settings">Settings</span></div>
-      <div class="settings-tab active" data-tab="general" onclick="switchSettingsTab('general')"><i class="bx bx-cog"></i> <span data-i18n="General">General</span></div>
-      <div class="settings-tab" data-tab="models" onclick="switchSettingsTab('models')"><i class="bx bx-chip"></i> <span data-i18n="Models">Models</span></div>
-      <div class="settings-tab" data-tab="providers" onclick="switchSettingsTab('providers')"><i class="bx bx-server"></i> <span data-i18n="Providers">Providers</span></div>
+      <div class="settings-tab active" role="button" tabindex="0" data-tab="general" onclick="switchSettingsTab('general')"><i class="bx bx-cog"></i> <span data-i18n="General">General</span></div>
+      <div class="settings-tab" role="button" tabindex="0" data-tab="models" onclick="switchSettingsTab('models')"><i class="bx bx-chip"></i> <span data-i18n="Models">Models</span></div>
+      <div class="settings-tab" role="button" tabindex="0" data-tab="providers" onclick="switchSettingsTab('providers')"><i class="bx bx-server"></i> <span data-i18n="Providers">Providers</span></div>
     </div>
     <div class="settings-content" id="settings-content"></div>
   </div>
@@ -1494,7 +1494,7 @@ function renderModelsView() {
     const configuredProvs = new Set(m.configured_providers || []);
     const provChips = (m.providers || []).map(p => {
       const isProvConfigured = configuredProvs.has(p);
-      const chipStyle = isProvConfigured ? 'background:color-mix(in srgb, var(--green) 15%, var(--surface-3));color:var(--green);' : '';
+      const chipStyle = isProvConfigured ? 'background:color-mix(in srgb, var(--green) 6%, var(--surface-3));color:color-mix(in srgb, var(--green) 60%, var(--text-3));' : '';
       return `<div class="settings-provider-chip" onclick="settingsTab='providers';renderSettingsTab();setTimeout(()=>{const c=document.querySelector('[data-provider-id=\\'${esc(p.split('-')[0])}\\']');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})},100)" style="cursor:pointer;${chipStyle}">${PROVIDER_LOGOS[p.split('-')[0]] ? '<img src="' + PROVIDER_LOGOS[p.split('-')[0]] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : ''} ${esc(p)}</div>`;
     }).join('');
     const modelCalls = calls.filter(c => c.model === name || c.provider === name);
@@ -1520,7 +1520,7 @@ function renderModelsView() {
     const isConfigured = m.configured;
     const cardClass = isConfigured ? 'settings-card configured' : 'settings-card unconfigured';
     html += `<div class="${cardClass}">
-      <div class="settings-card-title"><img src="${logo}" alt=""> ${esc(displayName)} ${tierBadge} ${benchTags}${isConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;">' + _('Configured') + '</span>' : ''}</div>
+      <div class="settings-card-title"><img src="${logo}" alt=""> ${esc(displayName)} ${tierBadge} ${benchTags}${isConfigured ? '<span class="settings-badge" style="background:color-mix(in srgb, var(--green) 6%, transparent);color:color-mix(in srgb, var(--green) 70%, var(--text-3));margin-left:auto;font-size:10px;">' + _('Configured') + '</span>' : ''}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${m.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(m.input_tokens || 0)}</div><div class="settings-stat-label">Input Tokens</div></div>
@@ -1560,7 +1560,7 @@ function renderProvidersView() {
     const provConfigured = p.configured;
     const provCardClass = provConfigured ? 'settings-card configured' : 'settings-card unconfigured';
     html += `<div class="${provCardClass}" data-provider-id="${esc(name)}">
-      <div class="settings-card-title">${PROVIDER_LOGOS[name] ? '<img src="' + PROVIDER_LOGOS[name] + '" alt="" style="width:16px;height:16px;border-radius:3px;">' : '<i class="bx bx-server" style="font-size:16px;color:var(--accent)"></i>'} ${esc(displayName)}${provConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;">' + _('Configured') + '</span>' : ''}</div>
+      <div class="settings-card-title">${PROVIDER_LOGOS[name] ? '<img src="' + PROVIDER_LOGOS[name] + '" alt="" style="width:16px;height:16px;border-radius:3px;">' : '<i class="bx bx-server" style="font-size:16px;color:var(--accent)"></i>'} ${esc(displayName)}${provConfigured ? '<span class="settings-badge" style="background:color-mix(in srgb, var(--green) 6%, transparent);color:color-mix(in srgb, var(--green) 70%, var(--text-3));margin-left:auto;font-size:10px;">' + _('Configured') + '</span>' : ''}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${p.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(p.input_tokens || 0)}</div><div class="settings-stat-label">Input Tokens</div></div>
