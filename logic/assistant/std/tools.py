@@ -267,19 +267,27 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
         size = len(content)
 
         warnings = check_write_quality(path, content)
-        result_msg = f"Written {size} bytes to {path}"
+        base_msg = f"Written {size} bytes to {path}"
+        warn_suffix = ""
         if warnings:
-            result_msg += "\n\nQUALITY WARNINGS (fix these now):\n" + "\n".join(
+            warn_suffix = "\n\nQUALITY WARNINGS (fix these now):\n" + "\n".join(
                 f"- {w}" for w in warnings)
-        preview_lines = content.split('\n')
-        if len(preview_lines) > 60:
-            preview = '\n'.join(preview_lines[:50]) + f'\n... ({len(preview_lines) - 50} more lines)'
-        else:
-            preview = content
-        result_msg += "\n" + preview
 
-        ctx.emit({"type": "tool_result", "ok": True, "output": result_msg})
-        return {"ok": True, "output": result_msg}
+        all_lines = content.split('\n')
+        gui_limit = 2000
+        if len(all_lines) > gui_limit + 10:
+            gui_preview = '\n'.join(all_lines[:gui_limit]) + f'\n... ({len(all_lines) - gui_limit} more lines)'
+        else:
+            gui_preview = content
+        ctx.emit({"type": "tool_result", "ok": True,
+                  "output": base_msg + warn_suffix + "\n" + gui_preview})
+
+        agent_limit = 50
+        if len(all_lines) > agent_limit + 10:
+            agent_preview = '\n'.join(all_lines[:agent_limit]) + f'\n... ({len(all_lines) - agent_limit} more lines)'
+        else:
+            agent_preview = content
+        return {"ok": True, "output": base_msg + warn_suffix + "\n" + agent_preview}
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
         return {"ok": False, "output": str(e)}

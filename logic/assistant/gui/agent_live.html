@@ -1289,7 +1289,7 @@ async function createNewSession() {
   }
 }
 
-const INITIAL_EVENTS = 30;
+const INITIAL_ROUNDS = 5;
 let _pendingOlderEvents = [];
 let _allSessionEvents = [];
 
@@ -1308,13 +1308,19 @@ async function apiActivateSession(sid) {
       const allEvents = data.events;
       _allSessionEvents = allEvents;
       let eventsToRender = allEvents;
-      if (allEvents.length > INITIAL_EVENTS) {
-        _pendingOlderEvents = allEvents.slice(0, allEvents.length - INITIAL_EVENTS);
-        eventsToRender = allEvents.slice(allEvents.length - INITIAL_EVENTS);
+      const roundStarts = [];
+      for (let i = 0; i < allEvents.length; i++) {
+        if (allEvents[i].type === 'llm_request') roundStarts.push(i);
+      }
+      if (roundStarts.length > INITIAL_ROUNDS) {
+        const cutIndex = roundStarts[roundStarts.length - INITIAL_ROUNDS];
+        _pendingOlderEvents = allEvents.slice(0, cutIndex);
+        eventsToRender = allEvents.slice(cutIndex);
+        const foldedRounds = roundStarts.length - INITIAL_ROUNDS;
         const loadMoreBtn = document.createElement('div');
         loadMoreBtn.className = 'load-more-btn';
         loadMoreBtn.id = 'load-more';
-        loadMoreBtn.textContent = `Load ${_pendingOlderEvents.length} earlier events`;
+        loadMoreBtn.textContent = `Load ${foldedRounds} earlier rounds`;
         loadMoreBtn.onclick = () => loadOlderEvents();
         chatArea.appendChild(loadMoreBtn);
       }

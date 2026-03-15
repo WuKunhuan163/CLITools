@@ -730,6 +730,31 @@ class AgentGUIEngine {
       if (isEditType) {
         this.lastToolEl.dataset.toolType = evt.name === 'write_file' ? 'write' : 'edit';
       }
+      const body = this.lastToolEl.querySelector('.tool-call-body');
+      if (body && !body.querySelector('[data-tc=output]')) {
+        const streamEl = this.lastToolEl.querySelector('.tool-stream-content');
+        if (streamEl) streamEl.style.display = 'none';
+        const outEl = document.createElement('div');
+        outEl.className = 'tool-terminal';
+        outEl.setAttribute('data-tc', 'output');
+        outEl.style.background = 'transparent';
+        outEl.style.maxHeight = '400px';
+        body.appendChild(outEl);
+      }
+      if (isEditType) {
+        const descEl = this.lastToolEl.querySelector('.tool-desc');
+        const info = this._naturalToolDesc(evt.name, evt.desc, evt.cmd, evt.file);
+        if (descEl) descEl.textContent = info.label || evt.desc || 'Applying...';
+        if (!this.lastToolEl.querySelector('[data-tc=diffstats]')) {
+          const hdr = this.lastToolEl.querySelector('.tool-call-header');
+          if (hdr) {
+            const statsSpan = document.createElement('span');
+            statsSpan.className = 'diff-stats';
+            statsSpan.setAttribute('data-tc', 'diffstats');
+            hdr.insertBefore(statsSpan, hdr.querySelector('[data-tc=status]'));
+          }
+        }
+      }
       return sleep(0);
     }
 
