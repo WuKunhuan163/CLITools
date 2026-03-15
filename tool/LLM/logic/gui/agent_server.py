@@ -339,6 +339,14 @@ class AgentServer:
                 set_config_value(f"{vendor}_api_key", key)
                 return {"ok": True}
 
+            elif path == "/api/delete-key":
+                vendor = body.get("vendor", "").strip()
+                if not vendor:
+                    return {"ok": False, "error": "Missing vendor"}
+                from tool.LLM.logic.config import set_config_value
+                set_config_value(f"{vendor}_api_key", "")
+                return {"ok": True}
+
             elif path == "/api/queue":
                 sid = body.get("session_id") or self._default_session_id
                 action = body.get("action", "list")
@@ -420,9 +428,9 @@ class AgentServer:
 
     def _on_mgr_event(self, evt: dict):
         """Forward ConversationManager events to SSE, track usage, and store history."""
-        # Store in session history for replay on page refresh
         sid = self._mgr._current_turn_session_id or self._default_session_id
         if sid:
+            evt["session_id"] = sid
             if sid not in self._event_history:
                 self._event_history[sid] = []
             self._event_history[sid].append(evt)

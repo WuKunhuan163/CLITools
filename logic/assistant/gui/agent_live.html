@@ -17,8 +17,8 @@
   --border: #2d3140;
   --border-active: #3d4255;
   --text: #e4e6ed;
-  --text-2: #8b8fa3;
-  --text-3: #555a6e;
+  --text-2: #9296ab;
+  --text-3: #6b7088;
   --accent: #5b8def;
   --accent-dim: rgba(91,141,239,0.12);
   --green: #4ade80;
@@ -128,8 +128,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 /* ── Settings Section Styles ── */
 .settings-section-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
 .settings-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; }
-.settings-card.configured { background: color-mix(in srgb, var(--green) 6%, var(--surface-2)); border-color: color-mix(in srgb, var(--green) 20%, var(--border)); }
-.settings-card.unconfigured { opacity: 0.6; }
+.settings-card.configured { background: color-mix(in srgb, var(--green) 3%, var(--surface-2)); border-color: color-mix(in srgb, var(--green) 15%, var(--border)); }
+.settings-card.unconfigured { }
 .settings-card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
 .settings-card-title img { width: 18px; height: 18px; border-radius: 3px; }
 .settings-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
@@ -150,6 +150,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .settings-provider-chip .drag-handle { color: var(--text-3); font-size: 10px; }
 .settings-key-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; font-family: var(--mono); color: var(--text-2); }
 .settings-key-mask { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-key-delete { background: none; border: none; color: var(--text-3); cursor: pointer; padding: 2px 4px; border-radius: 4px; font-size: 13px; line-height: 1; opacity: 0; transition: all var(--transition); }
+.settings-key-row:hover .settings-key-delete { opacity: 1; }
+.settings-key-delete:hover { color: var(--red); background: var(--red-dim); }
 .settings-key-label { font-size: 10px; color: var(--text-3); font-family: var(--font); }
 .settings-empty { text-align: center; padding: 30px; color: var(--text-3); font-size: 13px; }
 .settings-add-key { margin-top: 6px; }
@@ -167,13 +170,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .sub-panel-search { padding: 6px 12px; border-bottom: 1px solid var(--border); }
 .sub-panel-search input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; color: var(--text); font-size: 11px; font-family: var(--font); outline: none; }
 .sub-panel-search input:focus { border-color: var(--accent); }
-.settings-key-form { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.settings-key-form { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .settings-key-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-size: 12px; font-family: var(--mono); color: var(--text-1); outline: none; }
 .settings-key-input:focus { border-color: var(--accent); }
 .settings-validate-btn { background: var(--accent); color: #fff; border: none; border-radius: 4px; padding: 5px 12px; font-size: 11px; cursor: pointer; white-space: nowrap; }
 .settings-validate-btn:hover { opacity: 0.9; }
 .settings-validate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.settings-key-status { font-size: 11px; white-space: nowrap; }
+.settings-key-status { font-size: 11px; display: block; margin-top: 6px; word-break: break-word; max-width: 100%; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; max-height: 3.0em; }
 
 /* ── Pinned Panels ── */
 .pinned-panels { margin: 0 24px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0; }
@@ -592,13 +595,14 @@ body.debug-mode .debug-block { display: block; }
       <div class="pill-select" id="mode-pill"></div>
       <div class="pill-select" id="model-pill"></div>
       <select class="model-select" id="turn-limit-select" onchange="setTurnLimit(this.value)" title="Max rounds per message">
-        <option value="1">1 round</option>
         <option value="2">2 rounds</option>
-        <option value="3">3 rounds</option>
         <option value="5">5 rounds</option>
         <option value="10" selected>10 rounds</option>
         <option value="20">20 rounds</option>
         <option value="50">50 rounds</option>
+        <option value="100">100 rounds</option>
+        <option value="200">200 rounds</option>
+        <option value="500">500 rounds</option>
         <option value="0">&infin; unlimited</option>
       </select>
       <div class="selector-spacer"></div>
@@ -1316,7 +1320,7 @@ function renderProvidersView() {
       return `<div class="settings-provider-chip">${mLogo}${esc(MODEL_DISPLAY_NAMES[m] || m)}${badge}</div>`;
     }).join('');
     const keysHtml = (p.api_keys || []).map(k =>
-      `<div class="settings-key-row"><span class="settings-key-mask">${maskKey(k.key)}</span><span class="settings-key-label">${esc(k.label || 'default')}</span></div>`
+      `<div class="settings-key-row"><span class="settings-key-mask">${maskKey(k.key)}</span><span class="settings-key-label">${esc(k.label || 'default')}</span><button class="settings-key-delete" title="Delete key" onclick="deleteApiKey('${esc(name)}',this)"><i class="bx bx-trash"></i></button></div>`
     ).join('') || '<div style="font-size:11px;color:var(--text-3);padding:4px 0;">No API keys configured</div>';
     const provCalls = calls.filter(c => (c.provider || '').includes(name));
     const provConfigured = p.configured;
@@ -1585,10 +1589,10 @@ const _PROVIDER_GUIDES = {
     name: 'NVIDIA',
     url: 'https://build.nvidia.com/',
     steps: [
-      'Visit <a href="https://build.nvidia.com/" target="_blank">NVIDIA Build</a>',
-      'Register for a free developer account',
-      'Navigate to API Keys section',
-      'Generate a new key and copy it',
+      'Visit <a href="https://build.nvidia.com/" target="_blank">NVIDIA Build</a> (not NGC)',
+      'Sign in with your NVIDIA developer account',
+      'Click any model, then click "Get API Key"',
+      'The key starts with <code>nvapi-</code> (NGC keys do <strong>not</strong> work)',
       'Paste it above and click "Validate & Save"',
     ],
   },
@@ -1661,6 +1665,17 @@ async function validateAndSaveKey(btn) {
   btn.disabled = false;
 }
 
+async function deleteApiKey(vendor, btn) {
+  if (!confirm('Delete this API key?')) return;
+  try {
+    const res = await fetch('/api/delete-key', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor}) });
+    const data = await res.json();
+    if (data.ok) {
+      fetchUsageData().then(() => renderSettingsTab());
+    }
+  } catch (e) { console.warn('Delete key failed:', e); }
+}
+
 /* ── SSE Connection ── */
 function connectSSE() {
   const source = new EventSource('/api/events');
@@ -1689,6 +1704,7 @@ function _checkServerHealth() {
       location.reload();
     } else {
       _serverWasDown = false;
+      syncSessions();
       setTimeout(connectSSE, 2000);
     }
   }).catch(() => {
@@ -1696,6 +1712,27 @@ function _checkServerHealth() {
     setTimeout(_checkServerHealth, 3000);
   });
 }
+
+function syncSessions() {
+  fetch('/api/sessions').then(r => r.json()).then(data => {
+    if (!data.ok || !data.sessions) return;
+    const backendIds = new Set();
+    data.sessions.forEach(s => {
+      backendIds.add(s.id);
+      const existing = engine.getSession(s.id);
+      if (!existing) {
+        engine.addSession(s.id, s.title, s.status, s.mode || 'agent');
+      } else {
+        if (existing.status !== s.status) engine.setSessionStatus(s.id, s.status);
+        if (existing.title !== s.title) engine.renameSession(s.id, s.title);
+      }
+    });
+    Object.keys(engine.sessions).forEach(id => {
+      if (!backendIds.has(id)) engine.deleteSession(id);
+    });
+  }).catch(() => {});
+}
+setInterval(syncSessions, 10000);
 
 function handleSSEEvent(evt) {
   const welcome = $('welcome');
@@ -1731,9 +1768,6 @@ function handleSSEEvent(evt) {
 
     case 'session_status':
       engine.setSessionStatus(evt.id, evt.status);
-      if (evt.status === 'running' && evt.id !== activeSessionId) {
-        switchToSession(evt.id);
-      }
       if (evt.id === activeSessionId) {
         if (evt.status === 'done' || evt.status === 'idle') {
           sending = false;
@@ -1783,6 +1817,7 @@ function handleSSEEvent(evt) {
     }
 
     default:
+      if (evt.session_id && evt.session_id !== activeSessionId) break;
       engine.enqueueEvent(evt);
       break;
   }
