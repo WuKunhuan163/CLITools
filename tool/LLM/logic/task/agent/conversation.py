@@ -1688,9 +1688,13 @@ class ConversationManager:
             from tool.LLM.logic.registry import get_pipeline
             pipeline = get_pipeline(self._provider_name)
 
+            from tool.LLM.logic.config import get_config_value
+            cfg_turn_limit = get_config_value("default_turn_limit", 20)
+            cfg_max_output = get_config_value("max_output_tokens", 16384)
+
             if turn_limit <= 0:
-                turn_limit = 10
-            max_tool_rounds = turn_limit
+                turn_limit = int(cfg_turn_limit)
+            max_rounds = turn_limit
             round_num = 0
             empty_retries = 0
             max_empty_retries = pipeline.get_max_retries()
@@ -1698,16 +1702,15 @@ class ConversationManager:
             MAX_CONSECUTIVE_EMPTY = 3
             _tool_call_history: List[str] = []
 
-            default_max_tokens = min(
-                getattr(provider.capabilities, 'max_output_tokens', 4096) or 4096,
-                8192)
+            provider_max = getattr(provider.capabilities, 'max_output_tokens', 4096) or 4096
+            default_max_tokens = min(provider_max, int(cfg_max_output))
             current_max_tokens = default_max_tokens
 
             _wrapup_nudged = False
             _force_no_tools = False
-            _silent_tool_rounds = 0
+            _silent_rounds = 0
 
-            while round_num < max_tool_rounds:
+            while round_num < max_rounds:
                 if self._cancel_requested:
                     self._cancel_requested = False
                     self._emit({"type": "text", "tokens": "\n[Task cancelled by user]\n"})
@@ -1715,7 +1718,7 @@ class ConversationManager:
                 round_num += 1
                 self._current_round = round_num
                 self._emit({"type": "debug",
-                             "text": f"Round {round_num}/{turn_limit} (max_tool_rounds={max_tool_rounds})"})
+                             "text": f"Round {round_num}/{turn_limit} (max_rounds={max_rounds})"})
                 full_text = ""
                 tool_calls_accum = []
 
@@ -1806,8 +1809,8 @@ class ConversationManager:
                                             self._generate_title_async(session_id, text, full_text)
                                         self._emit({"type": "complete", "reason": "round_limit",
                                                     "round": round_num, "turn_limit": turn_limit})
-                                        session.status = "idle"
-                                        self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                                        session.status = "done"
+                                        self._emit({"type": "session_status", "id": session_id, "status": "done"})
                                         self._persist_session(session_id)
                                         return
                                     break
@@ -1910,8 +1913,8 @@ class ConversationManager:
                         self._generate_title_async(session_id, text, full_text)
                     self._emit({"type": "complete", "reason": "round_limit",
                                 "round": round_num, "turn_limit": turn_limit})
-                    session.status = "idle"
-                    self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                    session.status = "done"
+                    self._emit({"type": "session_status", "id": session_id, "status": "done"})
                     self._persist_session(session_id)
                     return
 
@@ -2071,17 +2074,17 @@ class ConversationManager:
                     _tool_call_history.append(call_sig)
 
                 if tool_calls_accum and not full_text:
-                    _silent_tool_rounds += 1
+                    _silent_rounds += 1
                 else:
-                    _silent_tool_rounds = 0
-                if _silent_tool_rounds >= 3:
+                    _silent_rounds = 0
+                if _silent_rounds >= 3:
                     session.context.add_user(
                         "[System] You made 3+ rounds of tool calls without "
                         "any explanatory text. Write a text response describing "
                         "what you've found so far. What is the current status?")
                     self._emit({"type": "debug",
                                  "text": "Nudging for text explanation"})
-                    _silent_tool_rounds = 0
+                    _silent_rounds = 0
 
                 if len(_tool_call_history) >= 4:
                     recent = _tool_call_history[-4:]
@@ -2104,7 +2107,7 @@ class ConversationManager:
 
                 if turn_limit > 0 and round_num >= turn_limit:
                     _force_no_tools = True
-                    max_tool_rounds = round_num + 1
+                    max_rounds = round_num + 1
                     session.context.add_user(
                         "STOP making tool calls. You have reached the round limit. "
                         "Summarize everything you have found and respond NOW.")

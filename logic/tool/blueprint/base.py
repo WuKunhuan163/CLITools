@@ -441,7 +441,16 @@ class ToolBase:
         """Handle tool-specific configuration settings.
 
         Invoked via ``TOOL --config [options]`` or ``TOOL config [options]``.
+
+        Sub-commands:
+            --config --session [KEY [VALUE]]  Manage agent session parameters
+            --config --show                   Show tool-specific config
+            --config --cpu-limit N            Set CPU load limit
         """
+        if args and args[0] == "--session":
+            self._handle_session_config(args[1:])
+            return
+
         import argparse
         config_path = self.get_data_dir() / "config.json"
         config = {}
@@ -494,6 +503,75 @@ class ToolBase:
             print(f"{BOLD}{GREEN}Successfully updated{RESET} {self.tool_name} configuration:")
             for k, v in sorted(config.items()):
                 print(f"  {k}: {v}")
+
+    def _handle_session_config(self, args):
+        """Manage agent session configuration.
+
+        Invoked via ``TOOL --config --session [KEY [VALUE]]``.
+        Reads/writes the LLM tool's config store.
+        """
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        DIM = get_color("DIM", "\033[2m")
+        GREEN = get_color("GREEN", "\033[32m")
+        RESET = get_color("RESET", "\033[0m")
+
+        try:
+            from tool.LLM.logic.config import load_config, save_config
+        except ImportError:
+            print(f"  {BOLD}LLM tool not available.{RESET}")
+            return
+
+        cfg = load_config()
+
+        SESSION_KEYS = {
+            "default_turn_limit": ("Default max rounds per task", 20),
+            "max_input_tokens": ("Max input tokens per API call", 65536),
+            "max_output_tokens": ("Max output tokens per API call", 16384),
+            "max_context_tokens": ("Max context window tokens before trimming", 1048576),
+            "max_read_chars": ("Max chars returned by read_file", 12000),
+            "max_exec_chars": ("Max chars returned by exec output", 6000),
+            "history_limit": ("Default events shown by --history", 20),
+            "active_backend": ("Active model/provider", "auto"),
+            "language": ("System prompt language (zh/en)", "en"),
+        }
+
+        if not args:
+            print(f"  {BOLD}Session Configuration{RESET}")
+            print()
+            for key, (desc, default) in SESSION_KEYS.items():
+                val = cfg.get(key)
+                display = f"{GREEN}{val}{RESET}" if val is not None else f"{DIM}(default: {default}){RESET}"
+                print(f"  {BOLD}{key}{RESET} = {display}")
+                print(f"    {DIM}{desc}{RESET}")
+            return
+
+        key = args[0]
+        if len(args) == 1:
+            val = cfg.get(key)
+            if val is not None:
+                print(f"  {BOLD}{key}{RESET} = {GREEN}{val}{RESET}")
+            elif key in SESSION_KEYS:
+                _, default = SESSION_KEYS[key]
+                print(f"  {BOLD}{key}{RESET} = {DIM}(default: {default}){RESET}")
+            else:
+                print(f"  {BOLD}{key}{RESET} = {DIM}(not set){RESET}")
+            if key in SESSION_KEYS:
+                print(f"  {DIM}{SESSION_KEYS[key][0]}{RESET}")
+            return
+
+        value = " ".join(args[1:])
+        int_keys = {k for k, (_, d) in SESSION_KEYS.items() if isinstance(d, int)}
+        if key in int_keys:
+            try:
+                value = int(value)
+            except ValueError:
+                print(f"  {BOLD}Invalid value.{RESET} {DIM}{key} requires an integer.{RESET}")
+                return
+
+        cfg[key] = value
+        save_config(cfg)
+        print(f"  {BOLD}Saved.{RESET} {DIM}{key} = {value}{RESET}")
 
     def _get_tool_skills(self):
         """Get skills relevant to this tool from tool.json and tool-level skills/ directory."""

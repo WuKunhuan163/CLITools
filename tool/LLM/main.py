@@ -305,7 +305,7 @@ def cmd_agent(args):
 
     port = getattr(args, "port", 0) or 0
     no_open = getattr(args, "no_open", False)
-    enable_tools = getattr(args, "tools", False)
+    enable_tools = not getattr(args, "no_tools", False)
 
     from tool.LLM.logic.gui.agent_server import start_agent_server
     from tool.LLM.logic.config import get_config_value
@@ -456,7 +456,7 @@ def main():
                          help="Provider for agent (auto-selects first available)")
     p_agent.add_argument("--port", type=int, default=0, help="Port (0=auto)")
     p_agent.add_argument("--no-open", action="store_true", help="Do not open browser")
-    p_agent.add_argument("--tools", action="store_true", help="Enable tool calling")
+    p_agent.add_argument("--no-tools", action="store_true", help="Disable tool calling (enabled by default)")
 
     p_keys = sub.add_parser("keys", help="Manage API keys (GUI or CLI)")
     p_keys.add_argument("key_provider", nargs="?", default="zhipu",
@@ -511,7 +511,7 @@ def main():
         print(f"    providers   List available providers with details")
         print(f"    test        Send a test message to verify connectivity")
         print(f"    send \"msg\"  Send a one-shot message")
-        print(f"    agent       Start live LLM Agent GUI (--tools for tool calling)")
+        print(f"    agent       Start live LLM Agent GUI (tools enabled by default)")
         print(f"    usage       Show API usage statistics (--period today|all)")
         print(f"    keys        Manage API keys (GUI or --list/--add/--remove)")
         print(f"    limits      View/set per-provider record limits")

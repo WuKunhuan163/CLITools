@@ -117,6 +117,16 @@ Usage:
 """.strip())
 
 
+def _get_session_config_default(key, fallback):
+    """Read a session config value from the LLM config, with fallback."""
+    try:
+        from tool.LLM.logic.config import get_config_value
+        val = get_config_value(key, fallback)
+        return int(val) if isinstance(fallback, int) else val
+    except Exception:
+        return fallback
+
+
 def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
                        tool_dir: str, mode: str = "agent"):
     """Start the HTML GUI server and optionally send an initial prompt."""
@@ -127,6 +137,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
 
     prompt = " ".join(args) if args else None
     provider = _get_provider_name()
+    default_turn_limit = _get_session_config_default("default_turn_limit", 20)
 
     existing_port = _find_running_gui_port()
     if existing_port:
@@ -135,7 +146,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         if prompt:
             try:
                 import urllib.request
-                data = json.dumps({"text": prompt, "turn_limit": 10}).encode()
+                data = json.dumps({"text": prompt, "turn_limit": default_turn_limit}).encode()
                 req = urllib.request.Request(
                     f"{base_url}/api/send",
                     data=data,
@@ -179,7 +190,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         time.sleep(0.5)
         try:
             import urllib.request
-            data = json.dumps({"text": prompt, "turn_limit": 10}).encode()
+            data = json.dumps({"text": prompt, "turn_limit": default_turn_limit}).encode()
             req = urllib.request.Request(
                 f"{agent.url}/api/send",
                 data=data,
@@ -768,8 +779,10 @@ def _handle_config(args: list, project_root: str):
 
     ASSISTANT_KEYS = {
         "active_backend": "Active model/provider (e.g. zhipu-glm-4.7-flash, auto)",
-        "default_turn_limit": "Default max rounds per task (int, default: 10)",
-        "max_context_tokens": "Max context window tokens (int, default: 32000)",
+        "default_turn_limit": "Default max rounds per task (int, default: 20)",
+        "max_input_tokens": "Max input tokens per API call (int, default: 65536)",
+        "max_output_tokens": "Max output tokens per API call (int, default: 16384)",
+        "max_context_tokens": "Max context window tokens before trimming (int, default: 1048576)",
         "max_read_chars": "Max chars returned by read_file (int, default: 12000)",
         "max_exec_chars": "Max chars returned by exec (int, default: 6000)",
         "language": "System prompt language (zh/en, default: zh)",
@@ -800,8 +813,9 @@ def _handle_config(args: list, project_root: str):
         return
 
     value = " ".join(args[1:])
-    int_keys = {"default_turn_limit", "max_context_tokens", "max_read_chars",
-                "max_exec_chars", "history_limit"}
+    int_keys = {"default_turn_limit", "max_input_tokens", "max_output_tokens",
+                "max_context_tokens", "max_read_chars", "max_exec_chars",
+                "history_limit"}
     if key in int_keys:
         try:
             value = int(value)

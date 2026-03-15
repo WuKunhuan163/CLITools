@@ -9,7 +9,7 @@ Usage:
     # → http://localhost:{port}/
 
 API Endpoints:
-    POST /api/send     {"session_id": "...", "text": "...", "turn_limit": 10}
+    POST /api/send     {"session_id": "...", "text": "...", "turn_limit": 20}
     POST /api/model    {"model": "zhipu-glm-4.7-flash"}
     POST /api/session  {"title": "..."}
     POST /api/rename   {"session_id": "...", "title": "..."}
@@ -229,12 +229,16 @@ class AgentServer:
                 return {"ok": True, "events": events}
             elif path == "/api/configured_models":
                 return self._get_configured_models()
+            elif path == "/api/session_config":
+                return self._get_session_config()
             return {"ok": False, "error": "Unknown endpoint"}
 
         if method == "POST":
             body = body or {}
 
             if path == "/api/send":
+                if body.get("_config"):
+                    return self._save_session_config(body.get("key"), body.get("value"))
                 sid = body.get("session_id") or self._default_session_id
                 text = body.get("text", "").strip()
                 if not sid:
@@ -478,6 +482,47 @@ class AgentServer:
                         "label": m.get("display_name", mid),
                     })
             return {"ok": True, "models": configured}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _save_session_config(self, key, value) -> dict:
+        """Save a single session config key from the frontend settings panel."""
+        if not key:
+            return {"ok": False, "error": "Missing key"}
+        try:
+            from tool.LLM.logic.config import load_config, save_config
+            cfg = load_config()
+            try:
+                value = int(value)
+            except (ValueError, TypeError):
+                pass
+            cfg[key] = value
+            save_config(cfg)
+            return {"ok": True, "key": key, "value": value}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _get_session_config(self) -> dict:
+        """Return session configuration defaults from the LLM config store."""
+        try:
+            from tool.LLM.logic.config import get_config_value
+            SESSION_DEFAULTS = {
+                "default_turn_limit": 20,
+                "max_input_tokens": 65536,
+                "max_output_tokens": 16384,
+                "max_context_tokens": 1048576,
+                "max_read_chars": 12000,
+                "max_exec_chars": 6000,
+                "history_limit": 20,
+            }
+            config = {}
+            for key, default in SESSION_DEFAULTS.items():
+                val = get_config_value(key, default)
+                try:
+                    config[key] = int(val)
+                except (ValueError, TypeError):
+                    config[key] = default
+            return {"ok": True, "config": config}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
