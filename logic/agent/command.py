@@ -418,12 +418,6 @@ def _handle_response(args: list, tool_name: str, project_root: str,
 
     events = data if isinstance(data, list) else [data]
 
-    try:
-        from tool.LLM.logic.gui.agent_server import AgentGUIEngine
-    except ImportError:
-        print(f"  {BOLD}LLM tool not available.{RESET}")
-        return
-
     import urllib.request
     port = _find_running_gui_port()
     if not port:
@@ -443,6 +437,15 @@ def _handle_response(args: list, tool_name: str, project_root: str,
         print(f"  {BOLD}Session not found.{RESET} {DIM}{session_id}{RESET}")
         return
 
+    def _inject(evt):
+        """Push a single event to the GUI SSE stream."""
+        req = urllib.request.Request(
+            f"{base_url}/api/inject_event",
+            data=json.dumps({"session_id": found, "event": evt}).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=5)
+
     full_text = ""
     tool_calls = []
     has_tool_calls = False
@@ -450,27 +453,43 @@ def _handle_response(args: list, tool_name: str, project_root: str,
     for evt in events:
         etype = evt.get("type", "")
 
-        if etype == "llm_response_start":
+        if etype == "llm_request":
+            _inject(evt)
+            provider = evt.get("provider", "LLM")
+            round_num = evt.get("round", 1)
+            print(f"  {CYAN}[R{round_num}]{RESET} {DIM}{provider}{RESET}")
+
+        elif etype == "llm_response_start":
+            _inject(evt)
             round_num = evt.get("round", "?")
             print(f"  {CYAN}[R{round_num}]{RESET} Response start")
 
         elif etype == "text":
             tokens = evt.get("tokens", "")
             full_text += tokens
+            _inject(evt)
             sys.stdout.write(tokens)
             sys.stdout.flush()
 
-        elif etype == "tool_call":
-            tc = evt
-            tool_calls.append(tc)
+        elif etype == "tool_call" or etype == "tool":
+            tool_calls.append(evt)
             has_tool_calls = True
-            name = tc.get("name", tc.get("function", {}).get("name", "?"))
+            name = evt.get("name", evt.get("function", {}).get("name", "?"))
+            _inject(evt)
             print(f"\n  {BOLD}> {name}{RESET}")
+
+        elif etype == "tool_result":
+            _inject(evt)
+            _print_event(evt)
+
+        elif etype == "thinking":
+            _inject(evt)
 
         elif etype == "llm_response_end":
             has_tool_calls = evt.get("has_tool_calls", has_tool_calls)
             latency = evt.get("latency_s", 0)
             provider = evt.get("provider", "?")
+            _inject(evt)
             print(f"\n  {DIM}[{latency}s via {provider}]{RESET}")
 
             if has_tool_calls and tool_calls:
@@ -484,20 +503,22 @@ def _handle_response(args: list, tool_name: str, project_root: str,
                         except json.JSONDecodeError:
                             pass
                     result = _execute_tool_via_api(base_url, found, name, tc_args)
+                    _inject(result)
                     _print_event(result)
 
             if full_text:
-                send_data = json.dumps({
-                    "session_id": found,
-                    "text": full_text,
-                    "turn_limit": 0,
-                }).encode()
-                # Don't actually send to LLM — instead show what would be sent
                 print(f"\n  {CYAN}{BOLD}═══ Context updated ═══{RESET}")
-                print(f"  {DIM}Full text ({len(full_text)} chars) added to session context.{RESET}")
+                print(f"  {DIM}Full text ({len(full_text)} chars) injected to session.{RESET}")
 
-        elif etype == "tool_result":
-            _print_event(evt)
+        elif etype == "complete":
+            _inject(evt)
+            print(f"\n  {BOLD}Complete.{RESET}")
+
+        elif etype == "user":
+            _inject(evt)
+
+        else:
+            _inject(evt)
 
     state_resp = json.loads(
         urllib.request.urlopen(f"{base_url}/api/state", timeout=5).read())
@@ -510,14 +531,15 @@ def _handle_response(args: list, tool_name: str, project_root: str,
 def _find_running_gui_port() -> int:
     """Find the port of a running LLM Agent GUI server."""
     import urllib.request
-    for port in range(9780, 9800):
-        try:
-            resp = urllib.request.urlopen(
-                f"http://localhost:{port}/api/state", timeout=1)
-            if resp.status == 200:
-                return port
-        except Exception:
-            continue
+    for port_range in [range(8100, 8200), range(9780, 9800)]:
+        for port in port_range:
+            try:
+                resp = urllib.request.urlopen(
+                    f"http://localhost:{port}/api/state", timeout=0.3)
+                if resp.status == 200:
+                    return port
+            except Exception:
+                continue
     return 0
 
 
@@ -578,8 +600,9 @@ def _execute_tool_via_api(base_url: str, session_id: str,
     DIM = get_color("DIM", "\033[2m")
     RESET = get_color("RESET", "\033[0m")
 
-    from logic.assistant.std.registry import ToolContext, TOOL_HANDLERS
-    handler = TOOL_HANDLERS.get(tool_name)
+    from logic.assistant.std.registry import ToolContext, STANDARD_TOOLS
+    import logic.assistant.std.tools  # noqa: F401 — ensure tools are registered
+    handler = STANDARD_TOOLS.get(tool_name)
     if not handler:
         return {"type": "tool_result", "ok": False,
                 "output": f"Unknown tool: {tool_name}"}

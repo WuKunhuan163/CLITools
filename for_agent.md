@@ -139,6 +139,10 @@ TOOL_NAME --session plan prompt "..."     ≡  TOOL_NAME --plan prompt "..."
 # Session checkout — switch active session or create new
 TOOL_NAME --session checkout              # Create new session
 TOOL_NAME --session checkout <SID>        # Switch to existing session
+
+# Session cleanup — delete sessions
+TOOL_NAME --session clean <SID1> [SID2 ...]  # Delete specific sessions
+TOOL_NAME --session clean --all              # Delete ALL sessions
 ```
 
 Session data is stored in `runtime/sessions/<session_id>/history.json`. Response data from AI IDE agents is stored in `runtime/sessions/<session_id>/data/<response_id>.json` (sequential: `000.json`, `001.json`, ..., `999.json`, `1000.json`).

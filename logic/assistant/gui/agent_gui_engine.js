@@ -890,10 +890,11 @@ class AgentGUIEngine {
   _renderLLMRequest(evt) {
     const provider = evt.provider || 'LLM';
     const round = evt.round || 1;
+    const model = evt.model || '';
     this._currentProvider = provider;
     this._currentRound = round;
     if (!this._taskStartTime) this._taskStartTime = Date.now();
-    this._llmRequestEl = this._createModelInfoEl(provider, round);
+    this._llmRequestEl = this._createModelInfoEl(provider, round, model);
     this.chatArea.appendChild(this._llmRequestEl);
     return sleep(100);
   }
@@ -1040,11 +1041,13 @@ class AgentGUIEngine {
     this._costCurrency = symbol;
   }
 
-  _createModelInfoEl(provider, round) {
+  _createModelInfoEl(provider, round, model) {
+    const resolveNameFn = typeof resolveDisplayName === 'function' ? resolveDisplayName : null;
+    const resolveLogoFn = typeof resolveModelLogo === 'function' ? resolveModelLogo : null;
     const logos = typeof MODEL_LOGOS !== 'undefined' ? MODEL_LOGOS : {};
     const names = typeof MODEL_DISPLAY_NAMES !== 'undefined' ? MODEL_DISPLAY_NAMES : {};
-    const name = names[provider] || provider;
-    const logo = logos[provider] || '';
+    const name = resolveNameFn ? resolveNameFn(provider, model) : (names[provider] || provider);
+    const logo = resolveLogoFn ? resolveLogoFn(provider) : (logos[provider] || '');
     const div = document.createElement('div');
     div.className = 'model-info';
     let html = '';

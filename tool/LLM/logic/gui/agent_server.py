@@ -21,6 +21,10 @@ API Endpoints:
                        Simulates typing into the input box then clicking send.
                        The browser receives an 'inject_input' SSE event to
                        animate the text appearing, then auto-submits.
+    POST /api/inject_event   {"session_id": "...", "event": {...}}
+                             Push a single event into the SSE stream + history.
+    POST /api/inject_events  {"session_id": "...", "events": [{...}, ...]}
+                             Push multiple events in order.
 """
 import json
 import os
@@ -332,6 +336,36 @@ class AgentServer:
                 set_config_value(f"{vendor}_api_key", key)
                 return {"ok": True}
 
+            elif path == "/api/inject_event":
+                sid = body.get("session_id") or self._default_session_id
+                event = body.get("event")
+                if not sid:
+                    return {"ok": False, "error": "No active session"}
+                if not event or not isinstance(event, dict):
+                    return {"ok": False, "error": "Missing or invalid event"}
+                event["session_id"] = sid
+                if sid not in self._event_history:
+                    self._event_history[sid] = []
+                self._event_history[sid].append(event)
+                self._push_sse(event)
+                return {"ok": True}
+
+            elif path == "/api/inject_events":
+                sid = body.get("session_id") or self._default_session_id
+                events = body.get("events", [])
+                if not sid:
+                    return {"ok": False, "error": "No active session"}
+                if not isinstance(events, list):
+                    return {"ok": False, "error": "events must be a list"}
+                if sid not in self._event_history:
+                    self._event_history[sid] = []
+                for evt in events:
+                    if isinstance(evt, dict):
+                        evt["session_id"] = sid
+                        self._event_history[sid].append(evt)
+                        self._push_sse(evt)
+                return {"ok": True, "count": len(events)}
+
             return {"ok": False, "error": "Unknown endpoint"}
 
         return {"ok": False, "error": "Method not allowed"}
@@ -604,6 +638,7 @@ class AgentServer:
             self._default_session_id = sid
 
         self._server.start()
+        self.port = self._server.port
 
         if open_browser:
             self._server.open_browser()

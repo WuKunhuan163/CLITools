@@ -1,9 +1,9 @@
 {
- "id": "d78cabd1",
- "title": "New Task",
+ "id": "6a2e1399",
+ "title": "Testing Cursor IDE role-play integration",
  "status": "idle",
- "mode": "agent",
- "created_at": 1773477292.952852,
+ "mode": "ask",
+ "created_at": 1773478381.237706,
  "message_count": 0,
  "codebase_root": ".",
  "context": {

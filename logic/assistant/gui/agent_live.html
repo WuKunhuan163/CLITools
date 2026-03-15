@@ -638,6 +638,10 @@ const BAIDU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/lat
 const TENCENT_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/hunyuan-color.svg';
 const SILICONFLOW_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/siliconcloud-color.svg';
 const _ICON = n => `https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/${n}-color.svg`;
+const _ICON_PLAIN = n => `https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/${n}.svg`;
+const CURSOR_LOGO = _ICON_PLAIN('cursor');
+const COPILOT_LOGO = _ICON('copilot');
+const WINDSURF_LOGO = _ICON_PLAIN('windsurf');
 const PROVIDER_LOGOS = {
   zhipu: _ICON('zhipu'),
   google: _ICON('google'),
@@ -647,6 +651,10 @@ const PROVIDER_LOGOS = {
   nvidia: _ICON('nvidia'),
   alibaba: _ICON('alibaba'),
   qwen: _ICON('qwen'),
+  cursor: CURSOR_LOGO,
+  copilot: COPILOT_LOGO,
+  windsurf: WINDSURF_LOGO,
+  'github-copilot': COPILOT_LOGO,
 };
 const MODEL_LOGOS = {
   'zhipu-glm-4.7-flash': ZHIPU_LOGO,
@@ -658,6 +666,9 @@ const MODEL_LOGOS = {
   'tencent-hunyuan-lite': TENCENT_LOGO,
   'siliconflow-qwen2.5-7b': SILICONFLOW_LOGO,
   'auto': ZHIPU_LOGO,
+  'cursor': CURSOR_LOGO,
+  'copilot': COPILOT_LOGO,
+  'windsurf': WINDSURF_LOGO,
 };
 
 const MODEL_DISPLAY_NAMES = {
@@ -669,7 +680,27 @@ const MODEL_DISPLAY_NAMES = {
   'baidu-ernie-speed-8k': 'ERNIE Speed 8K',
   'tencent-hunyuan-lite': 'Hunyuan Lite',
   'siliconflow-qwen2.5-7b': 'Qwen 2.5 7B',
+  'cursor': 'Cursor',
+  'copilot': 'Copilot',
+  'windsurf': 'Windsurf',
 };
+
+const AI_IDE_PROVIDERS = new Set(['cursor', 'copilot', 'windsurf', 'github-copilot']);
+
+function resolveDisplayName(provider, model) {
+  if (AI_IDE_PROVIDERS.has(provider) && model) {
+    const baseName = MODEL_DISPLAY_NAMES[provider] || provider;
+    return `${baseName} (${model})`;
+  }
+  return MODEL_DISPLAY_NAMES[provider] || provider;
+}
+
+function resolveModelLogo(provider) {
+  if (MODEL_LOGOS[provider]) return MODEL_LOGOS[provider];
+  const vendor = (provider || '').split('-')[0];
+  if (PROVIDER_LOGOS[vendor]) return PROVIDER_LOGOS[vendor];
+  return ZHIPU_LOGO;
+}
 
 const MODE_ICONS = { agent: 'bx-bot', plan: 'bx-edit', ask: 'bx-chat' };
 const MODE_LABELS = { agent: 'Agent', plan: 'Plan', ask: 'Ask' };
@@ -772,9 +803,9 @@ function setTurnLimit(val) {
   currentTurnLimit = parseInt(val, 10) || 0;
 }
 
-function createModelInfoLine(provider, round, latency) {
-  const name = MODEL_DISPLAY_NAMES[provider] || provider;
-  const logo = MODEL_LOGOS[provider] || ZHIPU_LOGO;
+function createModelInfoLine(provider, round, latency, model) {
+  const name = resolveDisplayName(provider, model);
+  const logo = resolveModelLogo(provider);
   const div = document.createElement('div');
   div.className = 'model-info';
   let html = `<img src="${logo}" alt="${name}">`;
@@ -1679,6 +1710,12 @@ function handleSSEEvent(evt) {
       }
       engine.setActiveSession(evt.id);
       activeSessionId = evt.id;
+      { const m = evt.mode || 'agent';
+        if (m !== currentMode) {
+          currentMode = m;
+          if (modePill && modePill.setValue) modePill.setValue(m);
+        }
+      }
       break;
 
     case 'session_renamed':

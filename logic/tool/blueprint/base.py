@@ -920,6 +920,8 @@ class ToolBase:
             self._handle_agent(rest, mode=subcmd)
         elif subcmd == "checkout":
             self._handle_session_checkout(rest)
+        elif subcmd in ("delete", "clean"):
+            self._handle_session_clean(rest)
         else:
             self._handle_agent(args, mode="agent")
 
@@ -953,6 +955,72 @@ class ToolBase:
             save_session(session, project_root)
             self._save_active_session_id(session.id)
             print(f"  {BOLD}New session created.{RESET} {DIM}{session.id}{RESET}")
+
+    def _handle_session_clean(self, args):
+        """Delete sessions: one, many, or all.
+
+        Usage:
+            --session clean <id1> [id2 ...]   Delete specific sessions
+            --session clean --all              Delete ALL sessions
+        """
+        import shutil
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        DIM = get_color("DIM", "\033[2m")
+        GREEN = get_color("GREEN", "\033[32m")
+        RESET = get_color("RESET", "\033[0m")
+
+        sessions_dir = self.project_root / "runtime" / "sessions"
+        data_sessions_dir = self.project_root / "data" / "agent_sessions"
+
+        if "--all" in args:
+            count = 0
+            for d in (sessions_dir, data_sessions_dir):
+                if d.is_dir():
+                    for item in list(d.iterdir()):
+                        try:
+                            if item.is_dir():
+                                shutil.rmtree(item)
+                            else:
+                                item.unlink()
+                            count += 1
+                        except OSError:
+                            pass
+            print(f"  {BOLD}{GREEN}Cleaned.{RESET} {DIM}{count} sessions removed.{RESET}")
+            return
+
+        if not args:
+            print(f"Usage: --session clean <id1> [id2 ...] | --session clean --all")
+            return
+
+        removed = 0
+        for sid in args:
+            found = False
+            if sessions_dir.is_dir():
+                for item in sessions_dir.iterdir():
+                    if item.name.startswith(sid):
+                        try:
+                            if item.is_dir():
+                                shutil.rmtree(item)
+                            else:
+                                item.unlink()
+                            found = True
+                            removed += 1
+                        except OSError:
+                            pass
+            if data_sessions_dir.is_dir():
+                for item in data_sessions_dir.iterdir():
+                    if item.name.startswith(sid):
+                        try:
+                            item.unlink()
+                            found = True
+                            removed += 1
+                        except OSError:
+                            pass
+            if not found:
+                print(f"  {DIM}Session {sid} not found.{RESET}")
+        if removed:
+            print(f"  {BOLD}{GREEN}Cleaned.{RESET} {DIM}{removed} session(s) removed.{RESET}")
 
     def _save_active_session_id(self, session_id: str):
         """Persist the active session ID for this tool."""
