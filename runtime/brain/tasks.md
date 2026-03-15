@@ -1,7 +1,7 @@
 # Active Tasks
 
 - [ ] #36: Rate queue manager: integrate with LLM providers
-  - Notes: Bug fixed: compute_next_safe_t time skew. All tests pass. Next: integrate with provider send() methods.
+  - Notes: Live test passed: 5/5 tests, parallel calls respect concurrency, 0 rate-limited, key state tracking works
 
 - [x] #31: Implement before-tool-call hook in base tool with skills matching
 - [x] #32: Organize logic/tool/template/ into subdirectories; add report/research/hooks templates

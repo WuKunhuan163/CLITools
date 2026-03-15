@@ -284,7 +284,7 @@
     "content": "Rate queue manager: integrate with LLM providers",
     "status": "pending",
     "created": "2026-03-15T11:15:30",
-    "updated": "2026-03-15T11:15:38",
-    "notes": "Bug fixed: compute_next_safe_t time skew. All tests pass. Next: integrate with provider send() methods."
+    "updated": "2026-03-15T11:31:41",
+    "notes": "Live test passed: 5/5 tests, parallel calls respect concurrency, 0 rate-limited, key state tracking works"
   }
 ]
