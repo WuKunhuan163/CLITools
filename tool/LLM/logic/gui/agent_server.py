@@ -547,9 +547,10 @@ class AgentServer:
         sid = self._mgr._current_turn_session_id or self._default_session_id
         if sid:
             evt["session_id"] = sid
-            if sid not in self._event_history:
-                self._event_history[sid] = []
-            self._event_history[sid].append(evt)
+            if evt.get("type") != "tool_stream_delta":
+                if sid not in self._event_history:
+                    self._event_history[sid] = []
+                self._event_history[sid].append(evt)
 
         if evt.get("type") == "llm_response_end":
             round_num = evt.get("round", 0)

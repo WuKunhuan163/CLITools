@@ -1757,6 +1757,9 @@ class ConversationManager:
 
                     _llm_error = None
 
+                    _STREAMABLE = {"write_file", "edit_file", "edit", "think"}
+                    _streaming_tc_map = {}
+
                     if use_streaming:
                         for chunk in provider.stream(
                             api_messages,
@@ -1785,8 +1788,40 @@ class ConversationManager:
                                     self._emit({"type": "text", "tokens": t})
                                 tc = chunk.get("tool_calls")
                                 if tc:
+                                    for delta in tc:
+                                        idx = delta.get("index", 0)
+                                        fn = delta.get("function", {})
+                                        fn_name = fn.get("name", "")
+                                        fn_args = fn.get("arguments", "")
+                                        if fn_name and fn_name in _STREAMABLE and idx not in _streaming_tc_map:
+                                            _streaming_tc_map[idx] = fn_name
+                                            self._emit({"type": "tool_stream_start",
+                                                        "index": idx, "name": fn_name,
+                                                        "round": round_num})
+                                            if fn_args:
+                                                self._emit({"type": "tool_stream_delta",
+                                                            "index": idx, "content": fn_args})
+                                        elif idx in _streaming_tc_map and fn_args:
+                                            self._emit({"type": "tool_stream_delta",
+                                                        "index": idx, "content": fn_args})
+                                        elif fn_name and fn_name in _STREAMABLE and idx in _streaming_tc_map:
+                                            pass
+                                        elif not fn_name and idx not in _streaming_tc_map:
+                                            if len(tool_calls_accum) > idx:
+                                                existing_name = tool_calls_accum[idx].get("function", {}).get("name", "")
+                                                if existing_name in _STREAMABLE:
+                                                    _streaming_tc_map[idx] = existing_name
+                                                    self._emit({"type": "tool_stream_start",
+                                                                "index": idx, "name": existing_name,
+                                                                "round": round_num})
+                                                    if fn_args:
+                                                        self._emit({"type": "tool_stream_delta",
+                                                                    "index": idx, "content": fn_args})
                                     self._merge_streaming_tool_calls(tool_calls_accum, tc)
                                 if chunk.get("done"):
+                                    for sidx in _streaming_tc_map:
+                                        self._emit({"type": "tool_stream_end",
+                                                    "index": sidx, "round": round_num})
                                     if chunk.get("tool_calls") and not tool_calls_accum:
                                         tool_calls_accum = chunk["tool_calls"]
                                     latency = chunk.get("latency_s")
@@ -1815,6 +1850,10 @@ class ConversationManager:
                                         return
                                     break
                             else:
+                                for sidx in _streaming_tc_map:
+                                    self._emit({"type": "tool_stream_end",
+                                                "index": sidx, "round": round_num})
+                                _streaming_tc_map.clear()
                                 _llm_error = chunk
                                 break
                     else:

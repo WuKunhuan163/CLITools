@@ -892,13 +892,50 @@ class AgentGUIEngine {
     if (contentEl) {
       const isEdit = st.name === 'edit_file' || st.name === 'write_file' || st.name === 'edit';
       if (isEdit) {
-        contentEl.textContent = st.buffer;
+        contentEl.textContent = this._extractEditContent(st);
+      } else if (st.name === 'think') {
+        contentEl.textContent = this._extractThinkContent(st);
       } else {
         contentEl.textContent = st.buffer;
       }
       this._scrollEnd();
     }
     return sleep(0);
+  }
+
+  _extractEditContent(st) {
+    if (st._contentStart != null) {
+      return st.buffer.slice(st._contentStart);
+    }
+    const markers = ['"content":"', '"content": "', '"new_string":"', '"new_string": "'];
+    for (const marker of markers) {
+      const pos = st.buffer.indexOf(marker);
+      if (pos !== -1) {
+        st._contentStart = pos + marker.length;
+        return st.buffer.slice(st._contentStart);
+      }
+    }
+    const pathMatch = st.buffer.match(/"path"\s*:\s*"([^"]*)"/);
+    if (pathMatch) {
+      const descEl = st.el && st.el.querySelector('.tool-desc');
+      if (descEl) descEl.textContent = 'Writing ' + pathMatch[1].split('/').pop() + '...';
+    }
+    return '';
+  }
+
+  _extractThinkContent(st) {
+    if (st._contentStart != null) {
+      return st.buffer.slice(st._contentStart);
+    }
+    const markers = ['"thought":"', '"thought": "', '"content":"', '"content": "'];
+    for (const marker of markers) {
+      const pos = st.buffer.indexOf(marker);
+      if (pos !== -1) {
+        st._contentStart = pos + marker.length;
+        return st.buffer.slice(st._contentStart);
+      }
+    }
+    return st.buffer;
   }
 
   _renderToolStreamEnd(evt) {
