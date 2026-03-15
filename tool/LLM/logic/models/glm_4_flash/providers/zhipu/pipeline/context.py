@@ -106,7 +106,7 @@ class ZhipuContextPipeline(ContextPipeline):
                             args = json.loads(fn.get("arguments", "{}"))
                         except (ValueError, TypeError):
                             args = {}
-                        if name == "write_file":
+                        if name in ("write_file", "edit_file") and not args.get("old_text"):
                             summary_parts.append(
                                 f"Wrote file: {args.get('path', '?')}")
                         elif name == "exec":

@@ -1496,7 +1496,18 @@ class AgentGUIEngine {
     const level = evt.level || '';
     const icon = evt.icon ? '<i class="bx ' + evt.icon + '"></i> '
       : (levelIcons[level] ? '<i class="bx ' + levelIcons[level] + '" style="color:' + levelColors[level] + '"></i> ' : '');
-    this.renderCenterNotice(icon + esc(text));
+    const html = icon + esc(text);
+
+    if (evt.replace && evt.id) {
+      const existing = this.chatArea.querySelector('[data-notice-id="' + evt.id + '"]');
+      if (existing) {
+        existing.querySelector('.center-notice-inner').innerHTML = html;
+        return sleep(100);
+      }
+    }
+
+    const el = this.renderCenterNotice(html);
+    if (evt.id && el) el.setAttribute('data-notice-id', evt.id);
     return sleep(200);
   }
 

@@ -145,22 +145,13 @@ def auto_acquire_tab(url: str, port: int = CDP_PORT,
     except Exception:
         pass
 
-    import subprocess, tempfile, os
-    profile_dir = os.path.join(tempfile.gettempdir(), "chrome-cdp-profile")
-    os.makedirs(profile_dir, exist_ok=True)
     try:
-        subprocess.Popen([
-            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-            f"--remote-debugging-port={port}",
-            f"--user-data-dir={profile_dir}",
-            "--remote-allow-origins=*",
-            "--no-first-run",
-            url,
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for _ in range(boot_timeout * 2):
-            time.sleep(0.5)
-            if is_chrome_cdp_available(port):
-                return True
+        from logic.utils.platform import launch_chrome_cdp
+        if launch_chrome_cdp(port=port, url=url):
+            for _ in range(boot_timeout * 2):
+                time.sleep(0.5)
+                if is_chrome_cdp_available(port):
+                    return True
         return False
     except Exception:
         return False

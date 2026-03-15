@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "dependencies": [
     "psutil",
-    "pynput"
+    "pynput", 
+    "websocket"
   ],
   "tool_dependencies": [
     "PYTHON",

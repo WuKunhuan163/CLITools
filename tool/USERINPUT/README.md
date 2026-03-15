@@ -89,6 +89,18 @@ USERINPUT --config --focus-interval 90
 USERINPUT --config --time-increment 60
 ```
 
+## Auto-Commit Message
+
+Append a custom message to the auto-commit that runs before collecting feedback:
+
+```bash
+USERINPUT --auto-commit-message "feat: add login validation"
+USERINPUT --hint "Review changes" --auto-commit-message "refactor: extract auth module"
+```
+
+The message is appended after the auto-generated commit tag. Useful for agents to
+leave meaningful commit history describing development progress.
+
 ## Remote Control
 
 - **Stop All**: `USERINPUT --gui-stop`

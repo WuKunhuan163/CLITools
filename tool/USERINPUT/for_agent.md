@@ -17,6 +17,7 @@
 | `USERINPUT --system-prompt --gui` | Manage system prompts via GUI. |
 | `USERINPUT --system-prompt --add "rule"` | Add a system prompt. |
 | `USERINPUT --system-prompt --delete <id>` | Remove a system prompt by index. |
+| `USERINPUT --auto-commit-message "msg"` | Append a custom message to the auto-commit. |
 | `USERINPUT --config` | Show current configuration values. |
 | `USERINPUT --config --focus-interval 90` | Set refocus interval. |
 | `USERINPUT --config --hook --start-after 500` | Set tool call threshold before reminders ramp up. |
@@ -150,12 +151,28 @@ USERINPUT --config --hook --min-interval 200 # Min tool calls between reminders
 USERINPUT --config --hook --max-interval 50  # Max frequency (tool calls between reminders)
 ```
 
+## Auto-Commit Message
+
+Use `--auto-commit-message` to append a development progress summary to the
+auto-commit that runs before collecting user feedback:
+
+```bash
+USERINPUT --auto-commit-message "feat: add login validation"
+USERINPUT --hint "Review please" --auto-commit-message "fix: resolve null pointer in auth"
+```
+
+The message is appended to the auto-generated commit message (existing format and
+tags are preserved). Use this to leave meaningful commit history that describes
+what was accomplished before each feedback checkpoint.
+
 ## Important Rules
 
-1. USERINPUT is a **blocking** command. NEVER use `block_until_ms: 0` or `&`.
-2. Set `block_until_ms: 310000` minimum (310 seconds).
-3. Execute USERINPUT at every workflow boundary.
-4. Use `--hint` to explain why you are requesting feedback.
-5. Use `--enquiry` when you need the user's real-time response, not a queued task.
-6. The git auto-save takes 30-120 seconds — do NOT assume failure if output is slow.
-7. If you see "Launching input GUI" or "等待 USERINPUT 反馈", keep waiting — the user is typing.
+1. USERINPUT is a **CLI tool** — invoke it directly from the terminal command line.
+2. USERINPUT is a **blocking** command. NEVER use `block_until_ms: 0` or `&`.
+3. Set `block_until_ms: 310000` minimum (310 seconds).
+4. Execute USERINPUT at every workflow boundary.
+5. Use `--hint` to explain why you are requesting feedback.
+6. Use `--enquiry` when you need the user's real-time response, not a queued task.
+7. Use `--auto-commit-message` to include development progress in auto-commits.
+8. The git auto-save takes 30-120 seconds — do NOT assume failure if output is slow.
+9. If you see "Launching input GUI" or "等待 USERINPUT 反馈", keep waiting — the user is typing.

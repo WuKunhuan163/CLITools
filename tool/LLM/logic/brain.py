@@ -207,7 +207,7 @@ class Brain:
                 f"You are working in: {codebase_root}\n"
                 f"All relative file paths resolve against this directory. "
                 f"Use relative paths (e.g. 'main.py', not '{codebase_root}/main.py').\n"
-                f"When you use exec, read_file, write_file, or search, they operate in this directory.")
+                f"When you use exec, read_file, edit_file, or search, they operate in this directory.")
 
         lessons = self._store.get_lessons(5)
         if lessons:

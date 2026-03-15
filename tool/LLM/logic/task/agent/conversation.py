@@ -308,7 +308,7 @@ BUILTIN_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read a range of lines from ONE file. Use search() first to find relevant line numbers, then read the specific range. For full file, use start_line=1, end_line=9999.",
+            "description": "Read a range of lines from a file. You MUST specify start_line and end_line. Best practice: first use search() to locate relevant line numbers, then read the precise range. NEVER blindly set start_line=1, end_line=9999 — read only what you need.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -368,25 +368,6 @@ BUILTIN_TOOLS = [
                     "new_text": {"type": "string", "description": "Replacement text, or full file content when old_text is empty."},
                 },
                 "required": ["path", "new_text"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_file",
-            "description": (
-                "Create a new file or fully overwrite an existing file. "
-                "The content parameter must contain the COMPLETE file contents. "
-                "Creates parent directories automatically."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string", "description": "File path to create or overwrite"},
-                    "content": {"type": "string", "description": "Complete file content to write"},
-                },
-                "required": ["path", "content"],
             },
         },
     },
@@ -504,7 +485,7 @@ class ConversationManager:
         """Return an error message if the tool is blocked in the given mode."""
         if mode == "agent":
             return None
-        if tool_name in ("write_file", "edit_file"):
+        if tool_name == "edit_file":
             return (f"BLOCKED: {tool_name} is not available in {mode} mode. "
                     f"Only read-only operations are permitted.")
         if tool_name == "exec" and mode in ("ask", "plan"):
@@ -684,7 +665,7 @@ class ConversationManager:
             self._std_tools = {}
             self._ToolContext = None
 
-        for name in ("exec", "read_file", "search", "write_file",
+        for name in ("exec", "read_file", "search",
                      "edit_file", "todo", "ask_user", "think", "experience"):
             if name in self._std_tools:
                 self._tool_handlers[name] = self._make_std_handler(name)
@@ -695,7 +676,7 @@ class ConversationManager:
 
     def _make_std_handler(self, name: str):
         def handler(args: dict) -> dict:
-            if name in ('write_file', 'edit_file'):
+            if name == 'edit_file':
                 self._snapshot_file(args.get('path', ''))
             ctx = self._ToolContext(
                 emit=self._emit,
@@ -978,6 +959,11 @@ class ConversationManager:
         except Exception:
             args = {}
 
+        if name == "write_file":
+            name = "edit_file"
+            args = {"path": args.get("path", ""), "old_text": "",
+                    "new_text": args.get("content", "")}
+
         sid = self._current_turn_session_id or ""
         session = self._sessions.get(sid)
         session_mode = getattr(session, 'mode', 'agent') if session else 'agent'
@@ -1255,7 +1241,7 @@ class ConversationManager:
             if self._enable_tools and provider.capabilities.supports_tool_calling:
                 tools = list(BUILTIN_TOOLS)
                 if session_mode in ("ask", "plan"):
-                    _write_tools = {"write_file", "edit_file", "todo"}
+                    _write_tools = {"edit_file", "todo"}
                     tools = [t for t in tools
                              if t.get("function", {}).get("name") not in _write_tools]
                 if hasattr(self, '_extra_tools'):
@@ -1340,7 +1326,7 @@ class ConversationManager:
 
                     _llm_error = None
 
-                    _STREAMABLE = {"write_file", "edit_file", "edit", "think"}
+                    _STREAMABLE = {"edit_file", "edit", "think"}
                     _streaming_tc_map = {}
 
                     if use_streaming:
@@ -1593,17 +1579,16 @@ class ConversationManager:
                             if has_read:
                                 nudge = (
                                     "You already read the file. Now use "
-                                    "write_file to apply your fix. The content "
-                                    "parameter must be the COMPLETE file with "
-                                    "ALL imports, functions, and your changes "
-                                    "merged in. Do NOT write just a fragment.")
+                                    "edit_file to apply your fix. Provide "
+                                    "old_text (the exact text to replace) and "
+                                    "new_text (the replacement). For surgical "
+                                    "edits, include only the changed portion.")
                             else:
                                 nudge = (
                                     "You described changes but didn't apply them. "
-                                    "First read_file to get the current content, "
-                                    "then use write_file with the COMPLETE file "
-                                    "(all imports, all functions, everything) with "
-                                    "your changes merged in.")
+                                    "First read_file to locate the exact text, "
+                                    "then use edit_file with old_text and new_text "
+                                    "to make a surgical edit.")
                             session.context.add_user(nudge)
                             self._emit({"type": "debug",
                                          "text": "Nudging agent to apply changes"})
@@ -1641,7 +1626,7 @@ class ConversationManager:
                         session.context.add_assistant(
                             "I understand. Let me take action now.")
                         retry_prompt = (
-                            "Your last response was empty. Use write_file "
+                            "Your last response was empty. Use edit_file "
                             "to create/update files, or exec to run commands. "
                             "Take action NOW — call a tool.")
                         session.context.add_user(retry_prompt)
@@ -1895,7 +1880,8 @@ class ConversationManager:
 
         before_pct = (before_tokens / effective_limit * 100) if effective_limit else 0
         self._emit({"type": "notice", "level": "info",
-                     "text": f"Summarizing context ({before_pct:.1f}% ctx)..."})
+                     "text": f"Summarizing context ({before_pct:.1f}%)...",
+                     "id": "ctx-compress"})
         try:
             from tool.LLM.logic.registry import get_provider
             provider = get_provider(self._provider_name)
@@ -1914,7 +1900,8 @@ class ConversationManager:
                 self._brain.on_session_end(session.id, summary)
                 after_pct = (after_tokens / effective_limit * 100) if effective_limit else 0
                 self._emit({"type": "notice", "level": "success",
-                             "text": f"Chat context summarized ({before_pct:.1f}% → {after_pct:.1f}% ctx)"})
+                             "text": f"Chat context summarized ({before_pct:.1f}% → {after_pct:.1f}%)",
+                             "id": "ctx-compress", "replace": True})
             else:
                 self._emit({"type": "notice", "level": "warning",
                              "text": "Context compression returned empty result."})

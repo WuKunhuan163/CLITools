@@ -132,6 +132,8 @@ class CDMCPTool(ToolBase):
         p_boot.add_argument("--url", default=None,
                             help="URL to open (default: welcome page)")
 
+        sub.add_parser("chrome-clean", help="Kill all Chrome processes and remove lock files for a clean restart")
+
         p_tabs = sub.add_parser("session-tabs", help="List tabs in a session")
         p_tabs.add_argument("name", nargs="?", default="default",
                             help="Session name")
@@ -185,6 +187,7 @@ class CDMCPTool(ToolBase):
         RED = get_color("RED")
         YELLOW = get_color("YELLOW")
         BLUE = get_color("BLUE")
+        DIM = get_color("DIM")
         RESET = get_color("RESET")
 
         api = _load_api()
@@ -495,6 +498,19 @@ class CDMCPTool(ToolBase):
                             print(f"    - {info['name']} ({info['session_id'][:8]}) idle={info['idle_sec']}s")
                 else:
                     raise
+
+        elif args.command == "chrome-clean":
+            from logic.utils.platform import cleanup_chrome
+            result = cleanup_chrome()
+            if result.get("killed"):
+                print(f"  {BOLD}{GREEN}Chrome processes terminated.{RESET}")
+            else:
+                print(f"  {DIM}No Chrome processes found.{RESET}")
+            if result.get("locks_removed"):
+                print(f"  {DIM}Removed {result['locks_removed']} lock file(s).{RESET}")
+            for err in result.get("errors", []):
+                print(f"  {BOLD}{RED}Error:{RESET} {err}")
+            print(f"  {BOLD}Clean state ready.{RESET} Use 'CDMCP boot' to restart Chrome with CDP.")
 
         elif args.command == "scan":
             r = _run_scan(api, args, BOLD, GREEN, RED, BLUE, RESET)

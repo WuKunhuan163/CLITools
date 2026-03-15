@@ -131,45 +131,51 @@ def handle_read_file(args: dict, ctx: ToolContext) -> dict:
     end_line = args.get("end_line")
     if not os.path.isabs(path):
         path = os.path.join(ctx.cwd, path)
+
+    if os.path.isfile(path) and (start_line is None or end_line is None):
+        ctx.emit({"type": "tool", "name": "read",
+                  "desc": f"Read {os.path.basename(path)}", "cmd": path})
+        msg = ("You must specify start_line and end_line. "
+               "Use search() first to find the relevant line range, "
+               "then read_file with precise line numbers.")
+        ctx.emit({"type": "tool_result", "ok": False, "output": msg})
+        return {"ok": False, "output": msg}
+
     ctx.turn_reads.append(path)
     basename = os.path.basename(path.rstrip("/"))
-    read_desc = f"Read {basename}" if basename else "List directory"
     is_full_read = False
     read_display = None
-    if start_line and end_line:
-        read_desc += f" L{start_line}-{end_line}"
-    ctx.emit({"type": "tool", "name": "read", "desc": read_desc, "cmd": path,
-              "start_line": start_line, "end_line": end_line})
     try:
         if os.path.isdir(path):
+            read_desc = f"List {basename}" if basename else "List directory"
+            ctx.emit({"type": "tool", "name": "read", "desc": read_desc, "cmd": path})
             entries = sorted(os.listdir(path))[:50]
             content = f"Directory listing of {path}:\n" + "\n".join(entries)
         else:
             raw = open(path, encoding='utf-8', errors='replace').read()
             lines = raw.splitlines(keepends=True)
             total_lines = len(lines)
-            if start_line and end_line:
-                s = max(1, start_line) - 1
-                e = min(total_lines, end_line)
-                is_full_read = (s == 0 and e >= total_lines)
-                selected = lines[s:e]
-                numbered = [f"{s+i+1:>4}| {line}" for i, line in enumerate(selected)]
-                content = "".join(numbered)
-                if len(content) > 15000:
-                    content = content[:15000] + f"\n... (truncated, lines {s+1}-{e} of {total_lines})"
-                else:
-                    content += f"\n[Lines {s+1}-{e} of {total_lines} total]"
-                if not is_full_read:
-                    read_display = _build_read_display(
-                        lines, s, e, total_lines, ctx_n=5)
+            s = max(1, start_line) - 1
+            e = min(total_lines, end_line)
+            is_full_read = (s == 0 and e >= total_lines)
+
+            read_desc = f"Read {basename}"
+            if not is_full_read:
+                read_desc += f" L{s+1}-{e}"
+            ctx.emit({"type": "tool", "name": "read", "desc": read_desc, "cmd": path,
+                      "start_line": start_line, "end_line": end_line,
+                      "_is_full_read": is_full_read})
+
+            selected = lines[s:e]
+            numbered = [f"{s+i+1:>4}| {line}" for i, line in enumerate(selected)]
+            content = "".join(numbered)
+            if len(content) > 15000:
+                content = content[:15000] + f"\n... (truncated, lines {s+1}-{e} of {total_lines})"
             else:
-                is_full_read = True
-                content = raw[:MAX_READ_CHARS]
-                if len(raw) > MAX_READ_CHARS:
-                    content += (
-                        f"\n\n... (truncated at {MAX_READ_CHARS} chars, total "
-                        f"{len(raw)} chars, {total_lines} lines. Use "
-                        f"start_line/end_line to read specific sections.)")
+                content += f"\n[Lines {s+1}-{e} of {total_lines} total]"
+            if not is_full_read:
+                read_display = _build_read_display(
+                    lines, s, e, total_lines, ctx_n=5)
         emit_data = {"type": "tool_result", "ok": True, "output": content,
                      "_is_full_read": is_full_read}
         if not is_full_read and not os.path.isdir(path) and read_display:
@@ -288,14 +294,17 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
     ctx.turn_writes.append(path)
 
     write_basename = os.path.basename(path)
+    is_new_file = not os.path.exists(path)
     old_content_for_diff = None
-    if os.path.exists(path):
+    if not is_new_file:
         try:
             old_content_for_diff = open(path, encoding='utf-8', errors='replace').read()
         except Exception:
             pass
 
-    ctx.emit({"type": "tool", "name": "write_file", "desc": f"Edited {write_basename}", "file": path})
+    desc = f"Created {write_basename} (New)" if is_new_file else f"Edited {write_basename}"
+    ctx.emit({"type": "tool", "name": "edit_file", "desc": desc, "file": path,
+              "_is_new": is_new_file})
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
@@ -313,7 +322,7 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
             gui_output = _compute_write_diff(old_content_for_diff, content)
             ctx.emit({"type": "tool_result", "ok": True,
                       "output": gui_output, "_is_diff": True,
-                      "name": "write_file", "_path": path,
+                      "name": "edit_file", "_path": path,
                       "_old_text": old_content_for_diff, "_new_text": content})
         else:
             all_lines = content.split('\n')
@@ -324,7 +333,8 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
                 gui_preview = content
             ctx.emit({"type": "tool_result", "ok": True,
                       "output": base_msg + warn_suffix + "\n" + gui_preview,
-                      "name": "write_file", "_path": path})
+                      "name": "edit_file", "_path": path,
+                      "_is_new": is_new_file})
         if ctx.env_obj:
             ctx.env_obj.record_result(f"write:{path}", True, f"{size} bytes")
 
@@ -345,11 +355,16 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
 def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
     path = args.get("path", "")
     old_text = args.get("old_text", "")
-    new_text = args.get("new_text", "")
+    new_text = args.get("new_text", args.get("content", ""))
     if not path:
         return {"ok": False, "output": "Missing path"}
     if not old_text:
-        return handle_write_file({"path": path, "content": new_text}, ctx)
+        abs_path = path if os.path.isabs(path) else os.path.join(ctx.cwd, path)
+        is_new = not os.path.exists(abs_path)
+        result = handle_write_file({"path": path, "content": new_text}, ctx)
+        if is_new and result.get("ok"):
+            result["_is_new_file"] = True
+        return result
 
     if not os.path.isabs(path):
         path = os.path.join(ctx.cwd, path)
