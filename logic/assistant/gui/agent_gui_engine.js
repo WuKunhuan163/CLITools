@@ -81,18 +81,39 @@ function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+const _DEVICON_BASE = 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons';
+const _DEVICON_MAP = {
+  py: 'python/python-original', js: 'javascript/javascript-original',
+  ts: 'typescript/typescript-original', jsx: 'react/react-original',
+  tsx: 'react/react-original', html: 'html5/html5-original',
+  css: 'css3/css3-original', scss: 'sass/sass-original',
+  json: 'json/json-original', md: 'markdown/markdown-original',
+  yaml: 'yaml/yaml-original', yml: 'yaml/yaml-original',
+  sh: 'bash/bash-original', bash: 'bash/bash-original',
+  go: 'go/go-original', rs: 'rust/rust-original',
+  java: 'java/java-original', rb: 'ruby/ruby-original',
+  php: 'php/php-original', c: 'c/c-original', cpp: 'cplusplus/cplusplus-original',
+  h: 'c/c-original', sql: 'postgresql/postgresql-original',
+  vue: 'vuejs/vuejs-original', svelte: 'svelte/svelte-original',
+  xml: 'xml/xml-original', swift: 'swift/swift-original',
+  kt: 'kotlin/kotlin-original', dart: 'dart/dart-original',
+  r: 'r/r-original', lua: 'lua/lua-original',
+};
+const _BOXICON_FALLBACK = {
+  toml: 'bx-file', svg: 'bx-image',
+};
 function fileExtIcon(filename) {
   const ext = (filename || '').split('.').pop().toLowerCase();
-  const map = {
-    js: 'bxl-javascript', ts: 'bxl-typescript', jsx: 'bxl-react', tsx: 'bxl-react',
-    py: 'bxl-python', html: 'bxl-html5', css: 'bxl-css3', scss: 'bxl-sass',
-    json: 'bx-code-curly', md: 'bx-file', yaml: 'bx-file', yml: 'bx-file',
-    sh: 'bx-terminal', bash: 'bx-terminal', go: 'bxl-go-lang', rs: 'bx-file',
-    java: 'bxl-java', rb: 'bx-diamond', php: 'bxl-php', c: 'bx-file',
-    cpp: 'bx-file', h: 'bx-file', sql: 'bx-data', vue: 'bxl-vuejs',
-    svelte: 'bx-file', toml: 'bx-file', xml: 'bx-code', svg: 'bx-image',
-  };
-  return map[ext] || 'bx-code-alt';
+  if (_DEVICON_MAP[ext]) return `_devicon_:${_DEVICON_BASE}/${_DEVICON_MAP[ext]}.svg`;
+  return _BOXICON_FALLBACK[ext] || 'bx-code-alt';
+}
+function renderFileIcon(filename) {
+  const icon = fileExtIcon(filename);
+  if (icon.startsWith('_devicon_:')) {
+    const url = icon.slice('_devicon_:'.length);
+    return '<img src="' + url + '" style="width:14px;height:14px;vertical-align:middle;margin-right:2px;" alt="">';
+  }
+  return '<i class="bx ' + icon + '"></i>';
 }
 
 function stripDiffPrefix(line) {
@@ -468,6 +489,7 @@ class AgentGUIEngine {
   setActiveSession(id) {
     if (!this.sessions[id]) return;
     this.activeSessionId = id;
+    this.clearAllTrackers();
     this._refreshSessions();
     if (this._onSessionChange) this._onSessionChange('activate', this.sessions[id]);
   }
@@ -747,7 +769,6 @@ class AgentGUIEngine {
 
     const count = files.length;
     let filesHtml = files.map(f => {
-      const icon = fileExtIcon(f.name);
       const tag = f.type === 'new' ? '<span class="file-tag-new">new</span>' : '';
       let stat = '';
       if (f.added || f.removed) {
@@ -756,7 +777,7 @@ class AgentGUIEngine {
         if (f.removed) parts.push('<span class="removed-count">-' + f.removed + '</span>');
         stat = '<span class="file-stat">' + parts.join(' ') + '</span>';
       }
-      return '<div class="file-summary-item"><i class="bx ' + icon + '"></i> ' + esc(f.name) + ' ' + tag + ' ' + stat + '</div>';
+      return '<div class="file-summary-item">' + renderFileIcon(f.name) + ' ' + esc(f.name) + ' ' + tag + ' ' + stat + '</div>';
     }).join('');
     this._appendAnimated('div', 'file-summary',
       '<div class="file-summary-header" onclick="this.parentElement.classList.toggle(\'expanded\')">'
@@ -771,6 +792,7 @@ class AgentGUIEngine {
   async _renderComplete(evt) {
     await sleep(300);
     this._modifiedFiles = [];
+    this.clearAllTrackers();
     const reason = evt.reason || 'done';
 
     let elapsed = 0;
@@ -830,13 +852,12 @@ class AgentGUIEngine {
 
     const count = files.length;
     const filesHtml = files.map(f => {
-      const icon = fileExtIcon(f.name);
       const tag = f.type === 'new' ? '<span class="file-tag-new">new</span>' : '';
       const parts = [];
       if (f.added) parts.push('<span class="added-count">+' + f.added + '</span>');
       if (f.removed) parts.push('<span class="removed-count">-' + f.removed + '</span>');
       const stat = parts.length ? '<span class="file-stat">' + parts.join(' ') + '</span>' : '';
-      return '<div class="file-summary-item"><i class="bx ' + icon + '"></i> ' + esc(f.name) + ' ' + tag + ' ' + stat + '</div>';
+      return '<div class="file-summary-item">' + renderFileIcon(f.name) + ' ' + esc(f.name) + ' ' + tag + ' ' + stat + '</div>';
     }).join('');
 
     const actionsHtml = showActions
@@ -1137,26 +1158,34 @@ class AgentGUIEngine {
     let headerContent;
 
     if (info.isEdit) {
-      const iconClass = info.icon;
       const short = (info.fname || '').split('/').pop() || info.fname;
       const newTag = info.isNew ? '<span class="tool-file-tag">new</span>' : '';
+      const iconHtml = info.icon && info.icon.startsWith('_devicon_:')
+        ? '<img src="' + info.icon.slice(10) + '" style="width:13px;height:13px;" alt="">'
+        : '<i class="bx ' + (info.icon || 'bx-code-alt') + '" style="font-size:13px"></i>';
       headerContent =
         '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
-        + '<div class="tool-icon edit"><i class="bx ' + iconClass + '" style="font-size:13px"></i></div>'
+        + '<div class="tool-icon edit">' + iconHtml + '</div>'
         + '<span class="tool-desc tool-file-link" data-op="edit">' + escWbr('Edited ' + short) + '</span>'
         + newTag
         + '<span class="diff-stats" data-tc="diffstats"></span>'
         + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
     } else if (info.isRead) {
+      const readIconHtml = info.icon && info.icon.startsWith('_devicon_:')
+        ? '<img src="' + info.icon.slice(10) + '" class="tool-natural-icon" style="width:14px;height:14px;" alt="">'
+        : '<i class="bx ' + (info.icon || 'bx-file') + ' tool-natural-icon"></i>';
       headerContent =
         '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
-        + '<i class="bx ' + info.icon + ' tool-natural-icon"></i>'
+        + readIconHtml
         + '<span class="tool-desc tool-file-link" data-op="read">' + escWbr('Read ' + (info.readLabel || '')) + '</span>'
         + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
     } else {
+      const otherIconHtml = info.icon && info.icon.startsWith('_devicon_:')
+        ? '<img src="' + info.icon.slice(10) + '" class="tool-natural-icon" style="width:14px;height:14px;" alt="">'
+        : '<i class="bx ' + (info.icon || 'bx-code-alt') + ' tool-natural-icon"></i>';
       headerContent =
         '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
-        + '<i class="bx ' + info.icon + ' tool-natural-icon"></i>'
+        + otherIconHtml
         + '<span class="tool-desc">' + escWbr(info.label) + '</span>'
         + (info.detail ? '<span class="tool-detail">' + esc(info.detail) + '</span>' : '')
         + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
@@ -1304,6 +1333,15 @@ class AgentGUIEngine {
       this._refreshCallTrackers();
       if (!Object.keys(this.callTrackers).length && this.callPanel) this.callPanel.style.display = 'none';
     }, 1500);
+  }
+
+  clearAllTrackers() {
+    this.execTrackers = {};
+    this.callTrackers = {};
+    if (this.execListEl) this.execListEl.innerHTML = '';
+    if (this.callListEl) this.callListEl.innerHTML = '';
+    if (this.execPanel) this.execPanel.style.display = 'none';
+    if (this.callPanel) this.callPanel.style.display = 'none';
   }
 
   _refreshCallTrackers() {

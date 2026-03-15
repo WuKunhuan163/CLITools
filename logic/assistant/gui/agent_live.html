@@ -597,8 +597,8 @@ body.debug-mode .debug-block { display: block; }
       <select class="model-select" id="turn-limit-select" onchange="setTurnLimit(this.value)" title="Max rounds per message">
         <option value="2">2 rounds</option>
         <option value="5">5 rounds</option>
-        <option value="10" selected>10 rounds</option>
-        <option value="20">20 rounds</option>
+        <option value="10">10 rounds</option>
+        <option value="20" selected>20 rounds</option>
         <option value="50">50 rounds</option>
         <option value="100">100 rounds</option>
         <option value="200">200 rounds</option>
@@ -634,7 +634,7 @@ let sending = false;
 let debugMode = false;
 let currentMode = 'agent';
 let currentModel = 'zhipu-glm-4.7-flash';
-let currentTurnLimit = 10;
+let currentTurnLimit = 20;
 
 const ZHIPU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/zhipu-color.svg';
 const GOOGLE_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/gemini-color.svg';
