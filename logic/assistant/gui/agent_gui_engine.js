@@ -802,7 +802,6 @@ class AgentGUIEngine {
     }
     const m = Math.floor(elapsed / 60);
     const s = elapsed % 60;
-    const timeStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
 
     let icon, label, cls;
     if (reason === 'error') {
@@ -811,7 +810,9 @@ class AgentGUIEngine {
       cls = 'task-complete task-failed';
     } else if (reason === 'round_limit') {
       icon = '<i class="bx bx-error-circle" style="font-size:14px;"></i>';
-      label = 'Round limit reached';
+      const rnd = evt.round || '?';
+      const lim = evt.turn_limit || '?';
+      label = `Round limit reached (${rnd}/${lim})`;
       cls = 'task-complete task-limit';
     } else {
       icon = CHECK_SVG;
@@ -819,8 +820,11 @@ class AgentGUIEngine {
       cls = 'task-complete';
     }
 
-    const timeEl = '<span class="task-time">' + timeStr + '</span>';
-    this._appendAnimated('div', cls, icon + ' ' + label + ' ' + timeEl);
+    if (elapsed > 0) {
+      const timeLabel = m > 0 ? `${m}m ${s}s` : `${s}s`;
+      this.renderCenterNotice('<i class="bx bx-time-five" style="font-size:13px;vertical-align:middle;"></i> ' + timeLabel);
+    }
+    this._appendAnimated('div', cls, icon + ' ' + label);
 
     this._taskActive = false;
     if (reason !== 'error') {
@@ -1085,15 +1089,7 @@ class AgentGUIEngine {
 
   _renderNotice(evt) {
     const icon = evt.icon ? '<i class="bx ' + evt.icon + '"></i> ' : '';
-    let timeLabel = '';
-    if (this._taskStartTime) {
-      const elapsed = Math.round((Date.now() - this._taskStartTime) / 1000);
-      const m = Math.floor(elapsed / 60);
-      const s = elapsed % 60;
-      timeLabel = m > 0 ? ` <span style="font-size:12px;opacity:0.6;margin-left:6px;">${m}m ${s}s</span>` : ` <span style="font-size:12px;opacity:0.6;">${s}s</span>`;
-      this._taskStartTime = null;
-    }
-    this.renderCenterNotice(icon + esc(evt.text || '') + timeLabel);
+    this.renderCenterNotice(icon + esc(evt.text || ''));
     return sleep(200);
   }
 

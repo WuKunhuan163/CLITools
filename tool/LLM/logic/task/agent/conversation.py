@@ -1804,10 +1804,8 @@ class ConversationManager:
                                     if turn_limit > 0 and not tool_calls_accum and round_num >= turn_limit:
                                         if auto_title:
                                             self._generate_title_async(session_id, text, full_text)
-                                        self._emit({"type": "notice",
-                                                    "text": f"Round limit reached ({round_num}/{turn_limit})",
-                                                    "icon": "bx-stop-circle"})
-                                        self._emit({"type": "complete", "reason": "round_limit"})
+                                        self._emit({"type": "complete", "reason": "round_limit",
+                                                    "round": round_num, "turn_limit": turn_limit})
                                         session.status = "idle"
                                         self._emit({"type": "session_status", "id": session_id, "status": "idle"})
                                         self._persist_session(session_id)
@@ -1910,10 +1908,8 @@ class ConversationManager:
                         session.context.add_assistant(full_text)
                     if auto_title:
                         self._generate_title_async(session_id, text, full_text)
-                    self._emit({"type": "notice",
-                                "text": f"Round limit reached ({round_num}/{turn_limit})",
-                                "icon": "bx-stop-circle"})
-                    self._emit({"type": "complete", "reason": "round_limit"})
+                    self._emit({"type": "complete", "reason": "round_limit",
+                                "round": round_num, "turn_limit": turn_limit})
                     session.status = "idle"
                     self._emit({"type": "session_status", "id": session_id, "status": "idle"})
                     self._persist_session(session_id)
@@ -2108,6 +2104,7 @@ class ConversationManager:
 
                 if turn_limit > 0 and round_num >= turn_limit:
                     _force_no_tools = True
+                    max_tool_rounds = round_num + 1
                     session.context.add_user(
                         "STOP making tool calls. You have reached the round limit. "
                         "Summarize everything you have found and respond NOW.")
@@ -2115,7 +2112,11 @@ class ConversationManager:
                                  "text": f"Hard ceiling at round {round_num} — forcing text-only response"})
 
             self._emit_file_summary()
-            self._emit({"type": "complete"})
+            if turn_limit > 0 and round_num >= turn_limit:
+                self._emit({"type": "complete", "reason": "round_limit",
+                            "round": round_num, "turn_limit": turn_limit})
+            else:
+                self._emit({"type": "complete"})
             self._fire_hook("on_turn_end",
                             session_id=session_id, round_count=round_num,
                             tool_calls_count=len(_tool_call_history),
