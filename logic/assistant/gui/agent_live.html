@@ -1304,16 +1304,24 @@ async function apiActivateSession(sid) {
         if (allEvents[i].type === 'llm_request') roundStarts.push(i);
       }
       if (roundStarts.length > INITIAL_ROUNDS) {
+        const firstRoundIdx = roundStarts[0];
         const cutIndex = roundStarts[roundStarts.length - INITIAL_ROUNDS];
-        _pendingOlderEvents = allEvents.slice(0, cutIndex);
-        eventsToRender = allEvents.slice(cutIndex);
+        const preRoundEvents = allEvents.slice(0, firstRoundIdx);
+        _pendingOlderEvents = allEvents.slice(firstRoundIdx, cutIndex);
+        eventsToRender = [...preRoundEvents, ...allEvents.slice(cutIndex)];
         const foldedRounds = roundStarts.length - INITIAL_ROUNDS;
+        engine.setReplayMode(true);
+        for (const evt of preRoundEvents) {
+          await engine.processEvent(evt);
+        }
+        engine.setReplayMode(false);
         const loadMoreBtn = document.createElement('div');
         loadMoreBtn.className = 'load-more-btn';
         loadMoreBtn.id = 'load-more';
         loadMoreBtn.textContent = `Load ${foldedRounds} earlier rounds`;
         loadMoreBtn.onclick = () => loadOlderEvents();
         chatArea.appendChild(loadMoreBtn);
+        eventsToRender = allEvents.slice(cutIndex);
       }
       engine.setReplayMode(true);
       for (const evt of eventsToRender) {
@@ -1332,19 +1340,31 @@ async function apiActivateSession(sid) {
 }
 
 async function loadOlderEvents() {
-  if (!_pendingOlderEvents.length || !_allSessionEvents.length) return;
+  if (!_pendingOlderEvents.length) return;
   const chatArea = $('chat-area');
   const scrollHeightBefore = chatArea.scrollHeight;
   const scrollTopBefore = chatArea.scrollTop;
 
+  const eventsToLoad = _pendingOlderEvents;
   _pendingOlderEvents = [];
-  chatArea.innerHTML = '';
 
+  const loadBtn = $('load-more');
+  const insertBefore = loadBtn || chatArea.firstChild;
+
+  const tempArea = document.createElement('div');
+  const savedChatArea = engine.chatArea;
+  engine.chatArea = tempArea;
   engine.setReplayMode(true);
-  for (const evt of _allSessionEvents) {
+  for (const evt of eventsToLoad) {
     await engine.processEvent(evt);
   }
   engine.setReplayMode(false);
+  engine.chatArea = savedChatArea;
+
+  while (tempArea.firstChild) {
+    chatArea.insertBefore(tempArea.firstChild, insertBefore);
+  }
+  if (loadBtn) loadBtn.remove();
 
   const scrollDelta = chatArea.scrollHeight - scrollHeightBefore;
   chatArea.scrollTop = scrollTopBefore + scrollDelta;
