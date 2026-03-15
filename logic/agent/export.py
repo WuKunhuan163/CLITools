@@ -100,6 +100,6 @@ def list_exports(project_root: str):
     if not export_dir.exists():
         return []
     return sorted(
-        {"name": f.stem, "path": str(f), "size": f.stat().st_size}
-        for f in export_dir.glob("*.tar.gz")
-    , key=lambda x: x["name"], reverse=True)
+        ({"name": f.stem, "path": str(f), "size": f.stat().st_size}
+         for f in export_dir.glob("*.tar.gz")),
+        key=lambda x: x["name"], reverse=True)

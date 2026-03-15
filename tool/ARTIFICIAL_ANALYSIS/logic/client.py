@@ -114,13 +114,14 @@ def get_rankings_for_our_models(our_model_slugs: List[str], force_refresh: bool 
                 slug_map[our_slug] = m
                 break
 
-    metrics = [
-        "artificial_analysis_intelligence_index",
-        "artificial_analysis_coding_index",
-        "artificial_analysis_math_index",
-    ]
+    all_eval_keys = set()
+    for mdata in slug_map.values():
+        for k, v in mdata.get("evaluations", {}).items():
+            if v is not None:
+                all_eval_keys.add(k)
+
     result = {}
-    for metric in metrics:
+    for metric in sorted(all_eval_keys):
         ranked = sorted(slug_map.items(),
                         key=lambda x: (x[1].get("evaluations", {}).get(metric) or 0),
                         reverse=True)
@@ -135,6 +136,7 @@ def get_rankings_for_our_models(our_model_slugs: List[str], force_refresh: bool 
                     "ttft": mdata.get("median_time_to_first_token_seconds"),
                     "rankings": {},
                 }
-            result[slug]["rankings"][metric] = rank
+            if (mdata.get("evaluations", {}).get(metric) or 0) > 0:
+                result[slug]["rankings"][metric] = rank
 
     return result

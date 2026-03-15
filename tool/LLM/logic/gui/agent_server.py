@@ -736,13 +736,10 @@ class AgentServer:
                     if our_slug.lower() in mid.lower() or mid.lower() in our_slug.lower():
                         evals = aa.get("evaluations", {})
                         rankings = aa.get("rankings", {})
-                        models[mid]["aa_benchmarks"] = {
-                            "intelligence": evals.get("artificial_analysis_intelligence_index"),
-                            "coding": evals.get("artificial_analysis_coding_index"),
-                            "math": evals.get("artificial_analysis_math_index"),
-                            "speed_tps": aa.get("speed"),
-                            "ttft_s": aa.get("ttft"),
-                        }
+                        non_null_evals = {k: v for k, v in evals.items() if v is not None}
+                        models[mid]["aa_benchmarks"] = non_null_evals
+                        models[mid]["aa_benchmarks"]["_speed_tps"] = aa.get("speed")
+                        models[mid]["aa_benchmarks"]["_ttft_s"] = aa.get("ttft")
                         models[mid]["aa_rankings"] = rankings
                         break
         except Exception:

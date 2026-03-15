@@ -145,9 +145,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .settings-stepper .stepper-btn:active { background:var(--border); }
 .settings-stepper .stepper-value { min-width:60px; text-align:center; font-family:var(--mono); font-size:13px; color:var(--text); padding:0 4px; border-left:1px solid var(--border); border-right:1px solid var(--border); }
 .settings-card.unconfigured { }
-.settings-card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.settings-card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .settings-card-title img { width: 18px; height: 18px; border-radius: 3px; }
-.settings-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+.settings-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
 .settings-badge.free { background: var(--green-dim); color: var(--green); }
 .settings-badge.paid { background: var(--orange-dim); color: var(--orange); }
 .settings-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0; }
@@ -1482,6 +1482,118 @@ function renderGeneralView() {
     </div>`;
 }
 
+const BENCH_SHORT = {
+  'artificial_analysis_intelligence_index': 'INT',
+  'artificial_analysis_coding_index': 'CODE',
+  'artificial_analysis_math_index': 'MATH',
+  'gpqa': 'GPQA', 'hle': 'HLE', 'mmlu_pro': 'MMLU-P',
+  'math_500': 'MATH500', 'aime': 'AIME', 'aime_25': 'AIME25',
+  'livecodebench': 'LCB', 'scicode': 'SCI', 'lcr': 'LCR',
+  'ifbench': 'IF', 'tau2': 'TAU2', 'terminalbench_hard': 'TERM',
+};
+const BENCH_LABELS = {
+  'artificial_analysis_intelligence_index': 'AA Intelligence Index',
+  'artificial_analysis_coding_index': 'AA Coding Index',
+  'artificial_analysis_math_index': 'AA Math Index',
+  'gpqa': 'GPQA Diamond', 'hle': "Humanity's Last Exam",
+  'mmlu_pro': 'MMLU Pro', 'math_500': 'MATH 500',
+  'aime': 'AIME 2024', 'aime_25': 'AIME 2025',
+  'livecodebench': 'LiveCodeBench', 'scicode': 'SciCode',
+  'lcr': 'LCR', 'ifbench': 'IFBench',
+  'tau2': 'TAU-2', 'terminalbench_hard': 'TerminalBench Hard',
+};
+
+function openBenchOverlay(modelName, event) {
+  if (event) event.stopPropagation();
+  const models = usageData.models || {};
+  const m = models[modelName];
+  if (!m) return;
+  const aa = m.aa_benchmarks || {};
+  const aaRank = m.aa_rankings || {};
+  const entries = Object.entries(aaRank)
+    .filter(([k]) => !k.startsWith('_') && aa[k] != null)
+    .sort((a, b) => a[1] - b[1]);
+  if (!entries.length) return;
+
+  const _rankColor = (r) => {
+    if (!r) return 'var(--surface-3);color:var(--text-3)';
+    if (r <= 3) return r === 1 ? 'linear-gradient(135deg,#FFD700,#FFA500);color:#000' : r === 2 ? 'linear-gradient(135deg,#C0C0C0,#E8E8E8);color:#333' : 'linear-gradient(135deg,#CD7F32,#E8A862);color:#fff';
+    if (r <= 5) return 'var(--purple-dim);color:var(--purple)';
+    if (r <= 10) return 'var(--accent-dim);color:var(--accent)';
+    return 'var(--surface-3);color:var(--text-3)';
+  };
+
+  let html = `<div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+  for (const [benchKey, rank] of entries) {
+    const val = aa[benchKey];
+    const fVal = typeof val === 'number' ? (val >= 10 ? val.toFixed(1) : val.toFixed(3)) : val;
+    const label = BENCH_LABELS[benchKey] || benchKey;
+    const short = BENCH_SHORT[benchKey] || benchKey;
+    html += `<span class="settings-badge" style="background:${_rankColor(rank)};cursor:pointer;font-size:11px;padding:4px 10px;" onclick="openBenchChart('${esc(benchKey)}',event)" title="${label}: ${fVal} (rank #${rank})">${short} ${fVal} (#${rank})</span>`;
+  }
+  html += `</div>`;
+
+  const displayName = modelName.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  showSubPanel('bench_' + modelName, displayName + ' — Benchmarks', html);
+}
+
+function openBenchChart(benchKey, event) {
+  if (event) event.stopPropagation();
+  const models = usageData.models || {};
+  const label = BENCH_LABELS[benchKey] || benchKey;
+  const entries = [];
+  for (const [mid, m] of Object.entries(models)) {
+    const val = (m.aa_benchmarks || {})[benchKey];
+    const rank = (m.aa_rankings || {})[benchKey];
+    if (val != null) {
+      const dname = mid.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      entries.push({ name: dname, value: val, rank: rank || 999 });
+    }
+  }
+  if (!entries.length) return;
+  entries.sort((a, b) => b.value - a.value);
+
+  const cId = 'bench_chart_' + benchKey.replace(/[^a-z0-9]/gi, '_');
+  let html = `<canvas id="${cId}" style="width:100%;max-height:300px;"></canvas>`;
+  showSubPanel('chart_' + benchKey, label, html, () => {
+    const canvas = document.getElementById(cId);
+    if (!canvas) return;
+    const colors = entries.map(e =>
+      e.rank === 1 ? '#FFD700' : e.rank === 2 ? '#C0C0C0' : e.rank === 3 ? '#CD7F32' : 'var(--accent)');
+    new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: entries.map(e => e.name),
+        datasets: [{ data: entries.map(e => e.value), backgroundColor: colors, borderWidth: 0 }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, title: { display: true, text: label, color: getComputedStyle(document.body).getPropertyValue('--text').trim() } },
+        scales: {
+          x: { grid: { color: 'rgba(128,128,128,0.1)' }, ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-2').trim() } },
+          y: { grid: { display: false }, ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-2').trim(), font: { size: 10 } } }
+        }
+      }
+    });
+  });
+}
+
+function showSubPanel(id, title, bodyHtml, afterRender) {
+  const existing = document.querySelector(`.sub-overlay[data-panel-id="${id}"]`);
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'sub-overlay';
+  overlay.dataset.panelId = id;
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div class="sub-panel" style="width:440px;max-height:500px;">
+      <div class="sub-panel-header"><span>${title}</span><button onclick="this.closest('.sub-overlay').remove()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;"><i class="bx bx-x"></i></button></div>
+      <div style="padding:14px;overflow-y:auto;flex:1;">${bodyHtml}</div>
+    </div>`;
+  document.body.appendChild(overlay);
+  if (afterRender) setTimeout(afterRender, 50);
+}
+
 function renderModelsView() {
   const models = usageData.models || {};
   const calls = usageData.calls || [];
@@ -1515,14 +1627,23 @@ function renderModelsView() {
       if (r <= 20) return 'var(--green-dim);color:var(--green)';
       return 'var(--surface-3);color:var(--text-3)';
     };
-    const _benchTag = (label, val, rank) => {
+    const _benchTag = (label, val, rank, benchKey) => {
       if (!val) return '';
       const rStr = rank ? ` (#${rank})` : '';
-      return `<span class="settings-badge" style="background:${_rankColor(rank)};margin-left:2px;cursor:pointer;" onclick="openBenchOverlay('${esc(name)}',event)" title="${label}">${label} ${typeof val === 'number' ? val.toFixed(1) : val}${rStr}</span>`;
+      const fVal = typeof val === 'number' ? (val >= 10 ? val.toFixed(1) : val.toFixed(3)) : val;
+      return `<span class="settings-badge" style="background:${_rankColor(rank)};margin-left:2px;cursor:pointer;" onclick="openBenchOverlay('${esc(name)}',event)" title="${BENCH_LABELS[benchKey] || benchKey}: ${fVal}">${BENCH_SHORT[benchKey] || benchKey} ${fVal}${rStr}</span>`;
     };
-    if (aa.intelligence) benchTags += _benchTag('INT', aa.intelligence, aaRank['artificial_analysis_intelligence_index']);
-    if (aa.coding) benchTags += _benchTag('CODE', aa.coding, aaRank['artificial_analysis_coding_index']);
-    if (aa.math) benchTags += _benchTag('MATH', aa.math, aaRank['artificial_analysis_math_index']);
+    const rankedBenches = Object.entries(aaRank)
+      .filter(([k]) => !k.startsWith('_') && aa[k] != null)
+      .sort((a, b) => a[1] - b[1]);
+    const MAX_CHIPS = 3;
+    for (let i = 0; i < Math.min(MAX_CHIPS, rankedBenches.length); i++) {
+      const [benchKey, rank] = rankedBenches[i];
+      benchTags += _benchTag(BENCH_SHORT[benchKey] || benchKey, aa[benchKey], rank, benchKey);
+    }
+    if (rankedBenches.length > MAX_CHIPS) {
+      benchTags += `<span class="settings-badge" style="background:var(--surface-3);color:var(--text-2);margin-left:2px;cursor:pointer;font-size:9px;" onclick="openBenchOverlay('${esc(name)}',event)" title="Show all ${rankedBenches.length} benchmarks">+${rankedBenches.length - MAX_CHIPS}</span>`;
+    }
     const isConfigured = m.configured;
     const cardClass = isConfigured ? 'settings-card configured' : 'settings-card unconfigured';
     html += `<div class="${cardClass}">
@@ -1697,43 +1818,7 @@ function _moveProvider(dir) {
   _renderProvOrderOverlay();
 }
 
-function openBenchOverlay(modelName, e) {
-  if (e) e.stopPropagation();
-  const models = usageData.models || {};
-  const allModels = Object.entries(models).filter(([, m]) => m.benchmarks?.arena_elo).sort((a, b) => (b[1].benchmarks.arena_elo || 0) - (a[1].benchmarks.arena_elo || 0));
-  if (!allModels.length) return;
-
-  const overlay = document.createElement('div');
-  overlay.className = 'sub-overlay';
-  overlay.id = 'bench-overlay';
-  overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); } };
-
-  const labels = allModels.map(([k, m]) => MODEL_DISPLAY_NAMES[k] || k);
-  const elos = allModels.map(([, m]) => m.benchmarks.arena_elo);
-  const colors = allModels.map(([k]) => k === modelName ? 'rgba(91,141,239,0.9)' : 'rgba(139,143,163,0.4)');
-
-  overlay.innerHTML = `<div class="sub-panel" style="width:500px;max-height:500px;">
-    <div class="sub-panel-header"><span>Arena ELO Comparison</span><button onclick="this.closest('.sub-overlay').remove()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;"><i class="bx bx-x"></i></button></div>
-    <div style="padding:16px;flex:1;"><canvas id="bench-chart"></canvas></div>
-  </div>`;
-  document.body.appendChild(overlay);
-
-  const ctx = document.getElementById('bench-chart').getContext('2d');
-  new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets: [{ label: 'Arena ELO', data: elos, backgroundColor: colors, borderRadius: 4 }] },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { min: Math.min(...elos) - 50, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-3)', font: { size: 11 } } },
-        y: { grid: { display: false }, ticks: { color: 'var(--text-2)', font: { size: 11, family: 'Inter' } } }
-      }
-    }
-  });
-}
+/* openBenchOverlay is defined above near BENCH_SHORT/BENCH_LABELS */
 
 function openPriceOverlay(modelName, e) {
   if (e) e.stopPropagation();
