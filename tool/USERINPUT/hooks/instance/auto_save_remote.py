@@ -79,6 +79,9 @@ class AutoSaveRemote(HookInstance):
             "USERINPUT auto-commit {tag} at {ts}",
             tag=tag_str, ts=ts
         )
+        extra_msg = kwargs.get("auto_commit_message", "")
+        if extra_msg and extra_msg.strip():
+            commit_msg = f"{commit_msg}\n\n{extra_msg.strip()}"
 
         # Stage 1: commit
         def do_save(stage=None):

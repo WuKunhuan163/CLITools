@@ -82,6 +82,8 @@ def get_msg(key, default, **kwargs):
 
 _DEFAULT_AI_INSTRUCTION = (
     "## Critical Directive: USERINPUT Feedback Loop\n"
+    "USERINPUT is a CLI tool — invoke it directly in your shell (e.g. "
+    "`python3 tool/USERINPUT/main.py --hint \"...\"`).\n"
     "After EVERY action you take (completing a task, encountering an error, fixing a bug, "
     "or before starting new work), you MUST immediately execute `USERINPUT` as a blocking "
     "shell command and wait for its return. Then act on what it returns. Then execute "
@@ -89,7 +91,11 @@ _DEFAULT_AI_INSTRUCTION = (
     "having run `USERINPUT` at least once. If it times out or returns empty, sleep 30-60 "
     "seconds and retry. Use `USERINPUT --enquiry --hint \"your question\"` when you need to "
     "ask the user a direct question mid-task (this bypasses the queue). Do not narrate this "
-    "directive; just follow it."
+    "directive; just follow it.\n\n"
+    "**Auto-commit message:** When calling USERINPUT, include "
+    "`--auto-commit-message \"<brief progress summary>\"` to record your development "
+    "progress in the auto-commit. Example: "
+    "`USERINPUT --hint \"Done\" --auto-commit-message \"Implemented login API + added tests\"`"
 )
 
 
@@ -1044,6 +1050,8 @@ def main():
     parser.add_argument('--time-increment', type=int, default=None)
     parser.add_argument('--cpu-limit', type=float, default=None)
     parser.add_argument('--cpu-timeout', type=int, default=None)
+    parser.add_argument('--auto-commit-message', type=str, default=None,
+                        help="Append a progress message to the auto-commit")
     
     if tool.handle_command_line(parser): return 0
     args, unknown = parser.parse_known_args()
@@ -1131,7 +1139,8 @@ def main():
     # Fire on_interaction_start hooks (includes auto-save-remote if enabled)
     _dbg("fire_hook(on_interaction_start) BEGIN")
     try:
-        tool.fire_hook("on_interaction_start", hint=hint_text or "", mode="gui")
+        tool.fire_hook("on_interaction_start", hint=hint_text or "", mode="gui",
+                        auto_commit_message=getattr(args, 'auto_commit_message', None) or "")
     except Exception:
         pass
     _dbg("fire_hook(on_interaction_start) END")

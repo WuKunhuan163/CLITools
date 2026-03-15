@@ -2534,6 +2534,14 @@ function syncSessions() {
     Object.keys(engine.sessions).forEach(id => {
       if (!backendIds.has(id)) engine.deleteSession(id);
     });
+    if (!activeSessionId && data.sessions.length > 0) {
+      const first = data.sessions[0];
+      activeSessionId = first.id;
+      engine.activeSessionId = first.id;
+      engine._refreshSessions();
+      $('main-title').textContent = first.title || 'New Task';
+      apiActivateSession(first.id);
+    }
   }).catch(() => {});
 }
 setInterval(syncSessions, 10000);
@@ -2581,6 +2589,16 @@ function handleSSEEvent(evt) {
 
     case 'session_deleted':
       engine.deleteSession(evt.id);
+      if (!engine.activeSessionId) {
+        activeSessionId = null;
+        $('main-title').textContent = 'New Task';
+        $('chat-area').innerHTML = '<div id="welcome" class="welcome"><p>Type a message to start</p></div>';
+        $('input').disabled = false;
+        $('input').placeholder = 'Type a message...';
+        _autoResizeInput();
+        $('btn-send').disabled = false;
+        setStopMode(false);
+      }
       break;
 
     case 'settings_changed':
@@ -2716,6 +2734,9 @@ async function init() {
     engine._refreshSessions();
     $('main-title').textContent = engine.sessions[initialSessionId]?.title || 'New Task';
     await apiActivateSession(initialSessionId);
+  } else {
+    $('main-title').textContent = 'New Task';
+    $('chat-area').innerHTML = '<div id="welcome" class="welcome"><p>Type a message to start</p></div>';
   }
 
   connectSSE();
