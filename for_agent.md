@@ -141,6 +141,8 @@ TOOL_NAME --session checkout              # Create new session
 TOOL_NAME --session checkout <SID>        # Switch to existing session
 ```
 
+Session data is stored in `runtime/sessions/<session_id>/history.json`. Response data from AI IDE agents is stored in `runtime/sessions/<session_id>/data/<response_id>.json` (sequential: `000.json`, `001.json`, ..., `999.json`, `1000.json`).
+
 Agent infrastructure lives in `logic/agent/` (core) and `interface/agent.py` (facade). Each tool can extend agent behavior via `tool/<NAME>/logic/agent/`. Three assistance tiers: 0 (minimal, for AI IDEs), 1 (standard), 2 (full with nudges and quality checks).
 
 Default LLM provider: `zhipu-glm-4.7` (GLM-4.7 via Zhipu AI). Configure via `--agent setup`.
@@ -149,23 +151,85 @@ Default LLM provider: `zhipu-glm-4.7` (GLM-4.7 via Zhipu AI). Configure via `--a
 
 ### Exec Timeout & Background Execution
 
-The agent's `exec` tool has a configurable foreground timeout (default: 30s). When a command exceeds this timeout, it automatically moves to background execution:
-- The agent receives the PID and log file path immediately (not blocked)
+The agent's `exec` tool supports `block_until_ms` (default: 30000ms). When a command exceeds this timeout, it automatically moves to background execution:
+- The agent receives the PID immediately (not blocked)
 - The command continues running in the background
-- Output is written to `tmp/bg_exec/bg_<pid>_<id>.log`
-- The agent can check the log file later with `read_file`
-
-Set `exec_timeout` when constructing `ToolHandlers` to adjust the threshold.
+- Set `block_until_ms=0` to run immediately in background (for dev servers, watchers)
+- Use `timeout_policy="error"` to report failure on timeout instead of ok
 
 ### Read-Only Sandbox
 
-Ask and Plan modes enforce a read-only sandbox at the tool handler level:
-- `write_file` and `edit_file` are removed from the tool definitions entirely
+Ask and Plan modes enforce a read-only sandbox at **two levels**:
+
+1. **Tool definitions** (`logic/agent/tools.py`): `write_file` and `edit_file` are removed from the tool list
+2. **Runtime enforcement** (`conversation.py`): `_check_mode_restriction()` blocks write/edit tool calls and unsafe exec commands even if the LLM tries to call them
+
 - `exec` only allows read-only commands; write/modify commands are blocked
 - Plan mode additionally blocks all script execution (python3 script.py, etc.)
 - The sandbox is enforced in `logic/agent/tools.py` via `_is_readonly_safe()` and `_is_plan_safe()`
 
 Session IDs use the format `YYYYMMDD-HHMMSS-<6hex>` for chronological sorting.
+
+### AI IDE Integration Workflow
+
+**If you are an AI IDE agent** (e.g., Cursor, Copilot, Windsurf, or any IDE that provides built-in file/terminal tools), this project offers its own equivalent tools that integrate with the project's progress tracking, nudge system, and session management. Follow this workflow to leverage the project ecosystem instead of relying solely on the IDE's built-in tools.
+
+**Why use project tools instead of IDE tools?** Our tools automatically track file modifications, trigger quality checks, emit UI events to the HTML GUI, and feed session context to the nudge/hint system. IDE tools bypass all of this.
+
+**When to fallback to IDE tools:** If the project's equivalent tool has a bug that you cannot fix, or if the IDE provides a capability not yet developed in the project, continue using the IDE tool. Fix the project tool's bug first if possible.
+
+#### Step-by-step workflow
+
+**i. Detection**: If you discover you are running inside an AI IDE (you have access to IDE-provided read/write/exec tools), read this section. Otherwise, skip.
+
+**ii. Tool substitution**: Use the AI IDE's `exec` tool to call our standard tool commands instead of using the IDE's built-in file operations directly:
+
+```bash
+# Instead of IDE read_file → use our exec:
+exec("TOOL_NAME --ask --dry-run prompt 'read file X'")
+
+# Instead of IDE write_file → use our response injection:
+exec("TOOL_NAME --agent --response <session_id> <path.json>")
+```
+
+**iii. Starting a task**: When you receive user input `<prompt>`, first run:
+
+```bash
+TOOL_NAME --agent --dry-run prompt "<prompt>"
+```
+
+Choose `--ask`, `--plan`, or `--agent` based on the task type (`--debug` and other modes map to `--agent`). The `--dry-run` flag:
+- Creates a new session in the GUI (opens the browser tab)
+- Shows the system prompt, user message, and available tools
+- Does NOT send to the remote LLM provider — YOU are the provider
+
+**iv. Providing responses**: Write your response as JSON following the OpenAI response protocol, save it to `runtime/sessions/<session_id>/data/<response_id>.json`, then inject:
+
+```bash
+TOOL_NAME --agent --response <session_id> runtime/sessions/<session_id>/data/000.json
+```
+
+Response IDs are sequential: `000.json`, `001.json`, ..., `999.json`, `1000.json`.
+
+The terminal will show no output on success. Warnings indicate protocol violations (e.g., invalid JSON, schema mismatch).
+
+**v. Checking state**: At any time:
+
+```bash
+# View recent conversation events
+TOOL_NAME --agent history <session_id> --limit 20
+
+# View current session state (what a new agent would see if resuming)
+TOOL_NAME --agent feed <session_id>
+```
+
+`--feed` provides the same ecosystem information as `--prompt` (system prompt, context, tools). It supports `--dry-run` to preview without executing.
+
+**vi. Receiving tool results**: After you inject a response containing tool calls, the system executes them and returns results via the feed. Check `--history` or `--feed` to see tool execution results.
+
+**vii. Task completion**: When your session task is complete, the system emits a `complete` event. Continue to the next step.
+
+**viii. USERINPUT loop**: After completing all session tasks, call `USERINPUT` to get user feedback. If feedback arrives, return to step iii with the new prompt. If no feedback, perform related development/testing tasks and retry `USERINPUT`.
 
 ### USERINPUT Feedback Loop
 

@@ -41,7 +41,8 @@ def main():
                 "Glob/Grep may silently fail with spaces. "
                 "ALWAYS use: ls -la <directory> | grep <keyword> "
                 "or: find <directory> -name '*keyword*' "
-                "to discover files with spaces, then Read them with the FULL quoted path."
+                "to discover files with spaces, then Read them with the FULL quoted path. "
+                "NEVER pipe through head — it silently truncates results and you will miss files."
             )
             _log(f"TRIGGERED: empty result from {tool_name}")
             print(json.dumps({
@@ -57,7 +58,8 @@ def main():
                 "[File Not Found Fallback] The Read failed. "
                 "The user's @-reference path may be missing .png extension or have spaces. "
                 "Run: ls -la /Applications/AITerminalTools/tmp/ | grep <keyword> "
-                "to find the actual filename, then Read with the correct full path."
+                "to find the actual filename, then Read with the correct full path. "
+                "NEVER pipe through head — it silently truncates results."
             )
         if parts:
             _log(f"TRIGGERED: file not found for {tool_name}")

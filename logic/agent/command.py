@@ -137,12 +137,19 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
     label = MODE_LABELS.get(mode, "Agent")
     print(f"  {BOLD}Starting{RESET} {label} GUI (provider: {provider})...")
 
+    try:
+        from tool.LLM.logic.config import get_config_value
+        lang = get_config_value("lang", "en")
+    except Exception:
+        lang = "en"
+
     agent = start_agent_server(
         provider_name=provider,
         port=0,
         open_browser=True,
         enable_tools=True,
         default_codebase=tool_dir or None,
+        lang=lang,
     )
 
     print(f"  {BOLD}{GREEN}Live{RESET} at {agent.url}")
@@ -188,31 +195,9 @@ def _get_provider_name() -> str:
     return "zhipu-glm-4.7"
 
 
-def _get_system_prompt(tool_name: str, lang: str = "en",
-                       mode: str = "agent") -> str:
+def _get_system_prompt(tool_name: str, mode: str = "agent") -> str:
     """Build a system prompt for the agent/ask/plan mode."""
     if mode == "agent":
-        if lang == "zh":
-            return (
-                f"你是一个自主AI Agent，工作在 {tool_name} 工具目录中。\n"
-                f"你可以独立规划、执行和验证任务。\n\n"
-                f"## 可用工具\n\n"
-                f"1. **exec(command=...)** — 执行shell命令。\n"
-                f"2. **write_file(path=..., content=...)** — 创建/覆盖文件。\n"
-                f"3. **edit_file(path=..., old_text=..., new_text=...)** — 修改文件。\n"
-                f"4. **read_file(path=...)** — 读取文件内容。\n"
-                f"5. **search(pattern=...)** — 搜索文本/代码。\n"
-                f"6. **ask_user(question=...)** — 向用户提问。\n\n"
-                f"## 关键行为\n\n"
-                f"- 必须使用工具，不要只描述变更——要行动。\n"
-                f"- **在写之前，读取所有相关文件。** 如果看到2个以上文件，全部读取。\n"
-                f"- write_file的content必须是完整文件，不能是片段。\n"
-                f"- **直接原地修改已有文件** — 不要在不同路径创建新文件。\n"
-                f"  如果用户说'编辑 /path/file.html'，就写入那个确切路径。\n"
-                f"- 使用edit_file进行精确修改，而不是重写整个文件。\n"
-                f"- 命令失败时尝试不同方法。\n"
-                f"- 验证你的工作：写入后重新读取文件确认。\n"
-            )
         return (
             f"You are an autonomous AI Agent working in the {tool_name} tool directory. "
             f"You can independently plan, execute, and verify tasks.\n\n"
@@ -236,21 +221,6 @@ def _get_system_prompt(tool_name: str, lang: str = "en",
 
     mode_label = MODE_LABELS.get(mode, mode)
     if mode == "ask":
-        if lang == "zh":
-            return (
-                f"你是一个AI助手，工作在 {tool_name} 工具目录中，处于 **Ask模式**（只读）。\n"
-                f"你可以探索代码库并回答问题，但**不能修改任何文件**。\n\n"
-                f"## 可用工具\n\n"
-                f"1. **exec(command=...)** — 执行只读shell命令（ls, cat, grep, find, git log等）。\n"
-                f"   禁止: rm, mv, cp, mkdir, touch, chmod, tee, 重定向(>), pip/npm install。\n"
-                f"2. **read_file(path=...)** — 读取文件内容。\n"
-                f"3. **search(pattern=...)** — 搜索文本/代码。\n"
-                f"4. **ask_user(question=...)** — 向用户提问。\n\n"
-                f"## 关键行为\n\n"
-                f"- 使用工具探索代码，回答问题。\n"
-                f"- 不能创建、修改或删除任何文件。\n"
-                f"- 如果用户要求修改，解释你处于只读模式。\n"
-            )
         return (
             f"You are an AI assistant in {mode_label} Mode (read-only) for {tool_name}.\n"
             f"You can explore the codebase and answer questions but **cannot modify any files**.\n\n"
@@ -266,22 +236,6 @@ def _get_system_prompt(tool_name: str, lang: str = "en",
             f"- If the user asks for modifications, explain you are in read-only mode.\n"
         )
 
-    if lang == "zh":
-        return (
-            f"你是一个AI助手，工作在 {tool_name} 工具目录中，处于 **Plan模式**（只读规划）。\n"
-            f"你可以分析代码库并设计实施方案，但**不能修改任何文件或执行脚本**。\n\n"
-            f"## 可用工具\n\n"
-            f"1. **exec(command=...)** — 执行只读shell命令（ls, cat, grep, find, git log等）。\n"
-            f"   禁止: 所有写入操作、脚本执行（python3 xxx.py等）。\n"
-            f"2. **read_file(path=...)** — 读取文件内容。\n"
-            f"3. **search(pattern=...)** — 搜索文本/代码。\n"
-            f"4. **ask_user(question=...)** — 向用户提问。\n\n"
-            f"## 关键行为\n\n"
-            f"- 分析代码结构，设计方案，给出具体的实施步骤。\n"
-            f"- 不能创建、修改或删除任何文件。\n"
-            f"- 不能执行任何脚本。\n"
-            f"- 输出清晰的计划和建议。\n"
-        )
     return (
         f"You are an AI assistant in {mode_label} Mode (read-only planning) for {tool_name}.\n"
         f"You can analyze the codebase and design implementation plans but **cannot modify "
@@ -331,8 +285,13 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
     label = MODE_LABELS.get(mode, "Agent")
 
     if dry_run:
-        return _print_dry_run(
+        gui_url = _ensure_gui_and_create_session(
+            session, provider, tool_dir, mode)
+        _print_dry_run(
             session, prompt, tool_name, project_root, mode, provider)
+        if gui_url:
+            print(f"\n  {BOLD}GUI session opened.{RESET} {DIM}{gui_url}{RESET}")
+        return
 
     print(f"  {BOLD}{label} session started.{RESET} {DIM}{session.id}{RESET}")
     if mode in ("ask", "plan"):
@@ -559,6 +518,51 @@ def _find_running_gui_port() -> int:
         except Exception:
             continue
     return 0
+
+
+def _ensure_gui_and_create_session(session, provider_name: str,
+                                    tool_dir: str, mode: str) -> str:
+    """Ensure the GUI server is running and create a session tab.
+
+    Returns the GUI URL for the session, or empty string on failure.
+    """
+    import urllib.request
+
+    port = _find_running_gui_port()
+    if not port:
+        try:
+            from tool.LLM.logic.gui.agent_server import start_agent_server
+            from tool.LLM.logic.config import get_config_value
+            lang = get_config_value("lang", "en")
+            agent = start_agent_server(
+                provider_name=provider_name,
+                port=0,
+                open_browser=True,
+                enable_tools=True,
+                default_codebase=tool_dir or None,
+                lang=lang,
+            )
+            port = agent.port
+        except Exception:
+            return ""
+
+    base_url = f"http://localhost:{port}"
+    try:
+        data = json.dumps({
+            "title": getattr(session, 'initial_prompt', 'New Task')[:60],
+            "mode": mode,
+        }).encode()
+        req = urllib.request.Request(
+            f"{base_url}/api/session",
+            data=data,
+            headers={"Content-Type": "application/json"},
+        )
+        resp = json.loads(urllib.request.urlopen(req, timeout=5).read())
+        if resp.get("ok"):
+            return f"{base_url}/#session={resp['session_id']}"
+    except Exception:
+        pass
+    return base_url
 
 
 def _execute_tool_via_api(base_url: str, session_id: str,

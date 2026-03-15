@@ -296,6 +296,12 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
     if not os.path.isabs(path):
         path = os.path.join(ctx.cwd, path)
 
+    if old_text == new_text:
+        ctx.emit({"type": "tool", "name": "edit_file",
+                  "desc": f"Edit {os.path.basename(path)}", "cmd": f"edit {path}"})
+        ctx.emit({"type": "tool_result", "ok": True, "output": "(no change)"})
+        return {"ok": True, "output": "No change — old_text and new_text are identical."}
+
     ctx.emit({"type": "tool", "name": "edit_file",
               "desc": f"Edit {os.path.basename(path)}", "cmd": f"edit {path}"})
     try:

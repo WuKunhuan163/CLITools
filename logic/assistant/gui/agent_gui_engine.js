@@ -360,21 +360,10 @@ class AgentGUIEngine {
 
   _initScrollToBottom() {
     if (!this.chatArea) return;
-    const btn = document.createElement('button');
-    btn.className = 'scroll-to-bottom';
-    btn.innerHTML = '<i class="bx bx-chevron-down"></i>';
-    btn.title = 'Scroll to bottom';
-    btn.onclick = () => {
-      this.chatArea.scrollTo({ top: this.chatArea.scrollHeight, behavior: 'smooth' });
-    };
-    this.chatArea.parentElement.style.position = 'relative';
-    this.chatArea.parentElement.appendChild(btn);
-    this._scrollBtn = btn;
+    this._scrollBtn = null;
 
     this.chatArea.addEventListener('scroll', () => {
-      if (this._scrollBtn) {
-        this._scrollBtn.classList.toggle('visible', !this._isNearBottom());
-      }
+      if (typeof _updateFloatPanel === 'function') _updateFloatPanel();
     });
   }
 
@@ -782,17 +771,39 @@ class AgentGUIEngine {
   async _renderComplete(evt) {
     await sleep(300);
     this._modifiedFiles = [];
-    let timeLabel = '';
+    const reason = evt.reason || 'done';
+
+    let elapsed = 0;
     if (this._taskStartTime) {
-      const elapsed = Math.round((Date.now() - this._taskStartTime) / 1000);
-      const m = Math.floor(elapsed / 60);
-      const s = elapsed % 60;
-      timeLabel = m > 0 ? ` <span style="color:var(--text-3);font-size:12px;margin-left:8px;">Worked for ${m}m ${s}s</span>` : ` <span style="color:var(--text-3);font-size:12px;margin-left:8px;">${s}s</span>`;
+      elapsed = Math.round((Date.now() - this._taskStartTime) / 1000);
       this._taskStartTime = null;
     }
-    this._appendAnimated('div', 'task-complete', CHECK_SVG + ' Task completed' + timeLabel);
+    const m = Math.floor(elapsed / 60);
+    const s = elapsed % 60;
+    const timeStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
+
+    let icon, label, cls;
+    if (reason === 'error') {
+      icon = '<i class="bx bx-x-circle" style="font-size:14px;"></i>';
+      label = 'Task failed, please try again';
+      cls = 'task-complete task-failed';
+    } else if (reason === 'round_limit') {
+      icon = '<i class="bx bx-error-circle" style="font-size:14px;"></i>';
+      label = 'Round limit reached';
+      cls = 'task-complete task-limit';
+    } else {
+      icon = CHECK_SVG;
+      label = 'Task completed';
+      cls = 'task-complete';
+    }
+
+    const timeEl = '<span class="task-time">' + timeStr + '</span>';
+    this._appendAnimated('div', cls, icon + ' ' + label + ' ' + timeEl);
+
     this._taskActive = false;
-    this._updateTaskFileBar(true);
+    if (reason !== 'error') {
+      this._updateTaskFileBar(true);
+    }
   }
 
   /* ── Persistent File Bar ── */
@@ -830,18 +841,41 @@ class AgentGUIEngine {
 
     const actionsHtml = showActions
       ? '<div class="task-file-actions">'
-        + '<button class="task-file-btn task-file-revert" onclick="window._taskFileRevert && window._taskFileRevert()">Revert all</button>'
-        + '<button class="task-file-btn task-file-save" onclick="window._taskFileSave && window._taskFileSave()">Save all</button>'
+        + '<button class="task-file-btn task-file-revert" data-action="revert">Revert all</button>'
+        + '<button class="task-file-btn task-file-save" data-action="save">Save all</button>'
         + '</div>'
       : '';
 
     this._taskFileBarEl.innerHTML =
-      '<div class="file-summary-header" onclick="this.parentElement.classList.toggle(\'expanded\')">'
+      '<div class="file-summary-header">'
       + '<i class="bx bx-chevron-right file-summary-chevron"></i>'
       + '<span>' + count + ' File' + (count > 1 ? 's' : '') + '</span>'
       + actionsHtml
       + '</div>'
       + '<div class="file-summary-list">' + filesHtml + '</div>';
+
+    const header = this._taskFileBarEl.querySelector('.file-summary-header');
+    header.addEventListener('click', (e) => {
+      if (e.target.closest('.task-file-btn')) return;
+      this._taskFileBarEl.classList.toggle('expanded');
+    });
+
+    if (showActions) {
+      const revertBtn = this._taskFileBarEl.querySelector('[data-action=revert]');
+      const saveBtn = this._taskFileBarEl.querySelector('[data-action=save]');
+      if (revertBtn) {
+        revertBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this._removeTaskFileBar();
+        });
+      }
+      if (saveBtn) {
+        saveBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this._removeTaskFileBar();
+        });
+      }
+    }
   }
 
   _removeTaskFileBar() {
@@ -1156,6 +1190,10 @@ class AgentGUIEngine {
       if (out) {
         const toolType = el.dataset.toolType;
         if (toolType === 'edit') {
+          if (output === '(no change)') {
+            const stats = el.querySelector('[data-tc=diffstats]');
+            if (stats) stats.innerHTML = '<span style="color:var(--text-3);font-style:italic;">(The assistant made no edit)</span>';
+          } else {
           const diff = renderDiffOutput(output);
           const stats = el.querySelector('[data-tc=diffstats]');
           if (stats) {
@@ -1163,6 +1201,7 @@ class AgentGUIEngine {
             if (diff.addCount) parts.push('<span class="added-count">+' + diff.addCount + '</span>');
             if (diff.removeCount) parts.push('<span class="removed-count">-' + diff.removeCount + '</span>');
             stats.innerHTML = parts.join(' ');
+          }
           }
         } else if (toolType === 'write') {
           const lines = output.split('\n');

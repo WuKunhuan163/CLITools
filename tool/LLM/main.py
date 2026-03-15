@@ -308,6 +308,9 @@ def cmd_agent(args):
     enable_tools = getattr(args, "tools", False)
 
     from tool.LLM.logic.gui.agent_server import start_agent_server
+    from tool.LLM.logic.config import get_config_value
+
+    lang = get_config_value("lang", "en")
 
     print(f"  {BOLD}{BLUE}Starting{RESET} LLM Agent (provider: {provider_name})...")
 
@@ -316,6 +319,7 @@ def cmd_agent(args):
         port=port,
         open_browser=not no_open,
         enable_tools=enable_tools,
+        lang=lang,
     )
 
     print(f"  {BOLD}{GREEN}Live{RESET} at {agent.url}")

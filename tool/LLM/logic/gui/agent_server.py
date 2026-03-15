@@ -40,94 +40,7 @@ from tool.LLM.logic.gui.round_store import (
 from tool.LLM.logic.task.agent.conversation import ConversationManager
 
 
-_SYSTEM_PROMPTS = {
-    "zh": """\
-你是一个自主AI Agent。你可以独立规划、执行和验证任务。
-
-## 可用工具
-
-1. **exec(command=...)** — 执行shell命令。用于运行CLI工具、查看文件、安装依赖等。
-2. **write_file(path=..., content=...)** — 创建新文件或完全覆盖。content必须是完整文件。
-3. **edit_file(path=..., old_text=..., new_text=...)** — 修改已有文件中的某段文本。先用read_file查看，然后精确替换。推荐用于修复bug和小改动。
-4. **read_file(path=...)** — 读取一个文件的内容。path必须是具体的文件路径（如 "tool/LLM/logic/utils/token_counter.py"），不要传目录路径。读取前先用search定位目标范围。
-5. **search(pattern=..., path=...)** — 在文件内容中搜索文本（grep风格）。注意：这不是文件列表工具。要列出文件，请用 exec(command="find <dir> -name '*.py'")。
-6. **todo(action=..., items=...)** — 管理任务列表。
-7. **ask_user(question=...)** — 向用户提问获取反馈。
-
-## Agent工作模式
-
-收到任务后，**立即使用工具执行**。不要先探索项目结构——直接创建/修改文件。
-
-1. **执行优先**: 如果任务明确（如"创建X文件"），直接write_file。不需要先search或read_file。
-2. **验证**: 写完文件后，可选用read_file验证关键内容
-3. **汇报**: 简短总结完成情况
-
-## 关键行为
-
-- **立即行动**: 收到"创建文件"任务时，第一个工具调用就应该是write_file。
-- **持续执行**: 创建完一个文件后，立即继续创建下一个文件。不要中途停下来解释。
-- **逐个调用**: 每次工具调用只传一个参数对象。要读取多个文件，分别调用read_file多次。
-- **完整输出**: write_file的content必须包含完整的、可运行的代码。不要用省略号或占位符。
-- **文件创建**: 一个网站需要HTML+CSS(+JS)文件。用write_file逐个创建所有必需文件。
-- **工具发现**: 如果任务需要使用外部工具（搜索视频、查数据等），先用 exec(command="TOOL --search tools-deep 'keywords'") 发现工具。
-- **自主修复**: 如果命令报错，阅读源代码找出原因并修复。
-- **完整遵循指令**: 用户提出的每一条修改要求都必须在代码中体现。写文件前，逐条检查。
-
-## 质量标准
-
-创建网页或UI时：
-- 选用有辨识度的配色方案（禁用 #333/#f5f5f5/#fff 等灰白默认色作为主色）
-- 使用真实的示例内容（真实姓名、具体描述），不要写"placeholder"
-- CSS必须包含：padding、background-color、border-radius、transition 等完整属性
-- 卡片/区块需要背景色、内边距、适当间距
-- 使用Google Fonts或优质字体族
-
-## 文件修改规则
-- **修改已有文件**：优先使用edit_file(old_text, new_text)进行精确替换。先read_file查看内容，然后复制要修改的精确片段作为old_text。
-- **创建新文件**：使用write_file，content必须是完整的、可运行的代码。
-- write_file的content永远是完整文件，不要只写片段。
-- **大文件**：如果read_file被截断，使用start_line/end_line参数读取特定部分。不要反复重读同一个文件。
-
-### edit_file示例
-假设文件中有：
-```python
-def hello():
-    print("hello")
-```
-要添加参数，调用：edit_file(path="file.py", old_text='def hello():\\n    print("hello")', new_text='def hello(name):\\n    print(f"hello {name}")')
-要在函数后添加新函数：edit_file(path="file.py", old_text='    print("hello")', new_text='    print("hello")\\n\\ndef goodbye():\\n    print("bye")')
-
-## 调试规则
-- 测试失败时，先确定bug在测试还是实现中。选定一侧修改，不要两边同时改。
-- 修改前，用read_file查看当前文件内容和完整错误信息。
-- 修改后，立即重新运行测试验证。
-- assertIn(a, list)检查的是元素完全相等，不是子字符串匹配。
-
-## 测试编写规则
-- 测试的预期值必须与实现的文档行为完全匹配。例如：如果工具默认区分大小写，测试的预期输出也必须区分大小写。
-- 空字符串 `"".split("\n")` 结果是 `[""]`（长度1），不是 `[]`。检查空输出时用 `stdout.strip() == ""` 而不是 `len(lines) == 0`。
-- 编写测试前，先在脑中模拟工具对测试输入的精确输出，逐字验证。不要假设。
-- 测试失败2轮以上时，先检查测试的预期值是否合理，再检查实现。
-
-## 用户反馈修正
-- 用户给出具体修改指令时（如"修改X为Y"），**立即执行**。不要重新分析整个项目。
-- 每一轮必须包含至少一个写入/编辑/执行操作。不要连续多轮只做read_file。
-- 如果用户说"测试用例不合理"，直接修改测试。不要尝试修改实现来匹配不合理的测试。
-
-## 禁止事项
-- 禁止编造执行结果
-- 禁止只说"我将创建..."而不实际调用write_file
-- 禁止用中文变量名写代码
-- 禁止声称做了某项修改但实际未在代码中体现
-
-## 回复规范（严格遵守）
-- 回复用中文。
-- **关键规则：每次回复必须包含文字。** 即使你要调用工具，也必须在工具调用之前写一段文字，说明你在做什么。绝不允许只有工具调用没有文字的回复。
-- 搜索未找到结果时，立即用文字总结结论。不要反复尝试相同搜索的不同变体。最多搜索两次。
-- 任务完成时，必须用文字写一段总结，描述你做了什么、发现了什么、结果如何。没有总结的任务视为未完成。
-- 在每轮结束前，确保所有计划的文件都已创建。
-""",
-    "en": """\
+_SYSTEM_PROMPT = """\
 You are an autonomous AI Agent. You can independently plan, execute, and verify tasks.
 
 ## Available Tools
@@ -217,16 +130,15 @@ To append a new function: edit_file(path="file.py", old_text='    print("hello")
 - If a search finds no results, immediately state your conclusion in text. Do NOT keep trying different variations. Maximum 2 search attempts.
 - When your task is complete, you MUST write a text summary describing what you did, what you found, and the outcome. A task without a summary is considered incomplete.
 - Before ending your turn, ensure ALL planned files have been created.
-""",
-}
+"""
 
 
-def get_system_prompt(lang: str = "zh") -> str:
-    """Return the agent system prompt for the specified language."""
-    return _SYSTEM_PROMPTS.get(lang, _SYSTEM_PROMPTS["en"])
+def get_system_prompt(lang: str = "en") -> str:
+    """Return the agent system prompt."""
+    return _SYSTEM_PROMPT
 
 
-AGENT_SYSTEM_PROMPT = _SYSTEM_PROMPTS["zh"]
+AGENT_SYSTEM_PROMPT = _SYSTEM_PROMPT
 
 
 class AgentServer:
@@ -238,7 +150,7 @@ class AgentServer:
         system_prompt: str = "",
         enable_tools: bool = True,
         port: int = 0,
-        lang: str = "zh",
+        lang: str = "en",
         default_codebase: str = None,
         brain=None,
     ):
@@ -357,12 +269,15 @@ class AgentServer:
             elif path == "/api/session":
                 title = body.get("title", "New Task")
                 codebase = body.get("codebase_root")
-                sid = self._mgr.new_session(title=title, codebase_root=codebase)
+                mode = body.get("mode", "agent")
+                sid = self._mgr.new_session(
+                    title=title, codebase_root=codebase, mode=mode)
                 self._default_session_id = sid
                 self._push_sse({
                     "type": "session_created",
                     "id": sid,
                     "title": title,
+                    "mode": mode,
                 })
                 return {"ok": True, "session_id": sid}
 
@@ -700,7 +615,7 @@ def start_agent_server(
     enable_tools: bool = True,
     port: int = 0,
     open_browser: bool = True,
-    lang: str = "zh",
+    lang: str = "en",
     default_codebase: str = None,
     brain=None,
 ) -> AgentServer:

@@ -303,6 +303,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 
 /* ── Task Complete ── */
 .task-complete { text-align: center; padding: 14px; margin: 12px 0; font-size: 12.5px; font-weight: 600; color: var(--green); display: flex; align-items: center; justify-content: center; gap: 8px; }
+.task-complete .task-time { font-weight: 400; color: var(--text-3); font-size: 12px; margin-left: 4px; }
+.task-complete.task-limit { color: var(--orange); }
+.task-complete.task-limit .task-time { color: var(--text-3); }
+.task-complete.task-failed { color: var(--red); }
+.task-complete.task-failed .task-time { color: var(--text-3); }
 
 .file-summary { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 8px 0; overflow: hidden; }
 .file-summary-header { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 12.5px; font-weight: 500; color: var(--text-2); cursor: pointer; user-select: none; }
@@ -368,21 +373,21 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .btn-send:hover { filter: brightness(1.15); }
 .btn-send:disabled { opacity: 0.35; cursor: default; }
 .queue-badge { position: absolute; top: -4px; right: -4px; background: var(--red); color: white; font-size: 10px; font-weight: 600; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
-/* ── Floating Stop Bar ── */
-.stop-bar { display: none; justify-content: center; padding: 8px 28px 0; flex-shrink: 0; }
-.stop-bar.visible { display: flex; }
-.stop-bar-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 18px; border-radius: 20px; border: 1px solid var(--red); background: var(--red-dim); color: var(--red); font-size: 12px; font-weight: 500; font-family: var(--font); cursor: pointer; transition: all 0.2s; }
-.stop-bar-btn:hover { background: var(--red); color: white; }
-.stop-bar-btn i { font-size: 14px; }
+/* ── Floating Action Panel (Stop + Scroll) ── */
+.float-actions { display: none; justify-content: center; gap: 8px; padding: 8px 28px 0; flex-shrink: 0; }
+.float-actions.visible { display: flex; }
+.float-action-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font-size: 12px; font-weight: 500; font-family: var(--font); cursor: pointer; transition: all 0.2s; }
+.float-action-btn:hover { background: var(--surface-3); color: var(--text); border-color: var(--border-active); }
+.float-action-btn i { font-size: 14px; }
+.float-action-btn.stop-btn { border-color: var(--red); background: var(--red-dim); color: var(--red); }
+.float-action-btn.stop-btn:hover { background: var(--red); color: white; }
 .shortcut-hint { font-size: 10px; color: var(--text-3); text-align: center; padding-top: 6px; }
 .shortcut-hint kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 3px; padding: 1px 4px; font-family: var(--mono); font-size: 9px; color: var(--text-2); }
 .shortcut-hint kbd::selection { color: white; background: var(--accent); }
 .shortcut-hint::selection { color: white; background: var(--accent); }
 
-/* ── Scroll-to-Bottom ── */
-.scroll-to-bottom { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%) scale(0.8); opacity: 0; pointer-events: none; width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface-2); color: var(--text-2); font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: opacity 0.2s ease, transform 0.2s ease; z-index: 10; }
-.scroll-to-bottom.visible { opacity: 1; pointer-events: auto; transform: translateX(-50%) scale(1); }
-.scroll-to-bottom:hover { background: var(--surface-3); color: var(--text); border-color: var(--border-active); }
+/* legacy: hidden, replaced by float-actions panel */
+.scroll-to-bottom { display: none !important; }
 
 /* ── Session Actions ── */
 .session-title-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -573,8 +578,9 @@ body.debug-mode .debug-block { display: block; }
     </div>
   </div>
 
-  <div class="stop-bar" id="stop-bar">
-    <button class="stop-bar-btn" onclick="cancelTask()"><i class="bx bx-stop-circle"></i> Stop</button>
+  <div class="float-actions" id="float-actions">
+    <button class="float-action-btn" id="btn-scroll-bottom" onclick="document.getElementById('chat').scrollTo({top:document.getElementById('chat').scrollHeight,behavior:'smooth'})"><i class="bx bx-chevron-down"></i></button>
+    <button class="float-action-btn stop-btn" id="btn-stop" onclick="cancelTask()"><i class="bx bx-stop-circle"></i> Stop</button>
   </div>
 
   <div class="input-area">
@@ -939,9 +945,23 @@ function _updateQueueBadge() {
   }
 }
 
+function _updateFloatPanel() {
+  const panel = $('float-actions');
+  const stopBtn = $('btn-stop');
+  const scrollBtn = $('btn-scroll-bottom');
+  const chat = $('chat');
+  const atBottom = chat ? (chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80) : true;
+
+  stopBtn.style.display = taskRunning ? '' : 'none';
+  scrollBtn.style.display = atBottom ? 'none' : '';
+
+  const anyVisible = taskRunning || !atBottom;
+  panel.classList.toggle('visible', anyVisible);
+}
+
 function setStopMode(on) {
   taskRunning = on;
-  $('stop-bar').classList.toggle('visible', on);
+  _updateFloatPanel();
   _updateQueueBadge();
   if (!on && _messageQueue.length > 0) {
     const queued = _messageQueue.shift();

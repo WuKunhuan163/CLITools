@@ -178,19 +178,26 @@ class Session:
     id: str
     title: str = "New Task"
     status: str = "idle"
+    mode: str = "agent"
     context: SessionContext = field(default_factory=SessionContext)
     environment: AgentEnvironment = field(default_factory=AgentEnvironment)
     created_at: float = field(default_factory=time.time)
     message_count: int = 0
     codebase_root: Optional[str] = None
 
+    @property
+    def _dir(self) -> str:
+        return os.path.join(_SESSIONS_DIR, self.id)
+
     def save(self, events: Optional[list] = None):
         """Persist session metadata, context, and UI events to disk."""
-        os.makedirs(_SESSIONS_DIR, exist_ok=True)
+        session_dir = self._dir
+        os.makedirs(session_dir, exist_ok=True)
         data = {
             "id": self.id,
             "title": self.title,
             "status": "idle" if self.status == "running" else self.status,
+            "mode": self.mode,
             "created_at": self.created_at,
             "message_count": self.message_count,
             "codebase_root": self.codebase_root,
@@ -198,28 +205,41 @@ class Session:
         }
         if events is not None:
             data["events"] = events
-        path = os.path.join(_SESSIONS_DIR, f"{self.id}.json")
+        path = os.path.join(session_dir, "history.json")
         import json as _json
         with open(path, "w", encoding="utf-8") as f:
             _json.dump(data, f, ensure_ascii=False, indent=1)
 
     @classmethod
     def load(cls, path: str) -> Optional["Session"]:
-        """Load a session from disk."""
+        """Load a session from disk.
+
+        ``path`` may be:
+        - ``runtime/sessions/<id>/history.json`` (new layout)
+        - ``runtime/sessions/<id>.json`` (legacy flat file — auto-migrated)
+        """
         import json as _json
         try:
             with open(path, encoding="utf-8") as f:
                 data = _json.load(f)
             ctx = SessionContext.from_dict(data.get("context", {}))
-            return cls(
+            session = cls(
                 id=data["id"],
                 title=data.get("title", "New Task"),
                 status=data.get("status", "idle"),
+                mode=data.get("mode", "agent"),
                 context=ctx,
                 created_at=data.get("created_at", time.time()),
                 message_count=data.get("message_count", 0),
                 codebase_root=data.get("codebase_root"),
             )
+            if path.endswith(".json") and not path.endswith("history.json"):
+                session.save(events=data.get("events"))
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+            return session
         except Exception:
             return None
 
@@ -426,6 +446,24 @@ class ConversationManager:
     def brain(self):
         return self._brain
 
+    @staticmethod
+    def _check_mode_restriction(mode: str, tool_name: str,
+                                 args: dict) -> Optional[str]:
+        """Return an error message if the tool is blocked in the given mode."""
+        if mode == "agent":
+            return None
+        if tool_name in ("write_file", "edit_file"):
+            return (f"BLOCKED: {tool_name} is not available in {mode} mode. "
+                    f"Only read-only operations are permitted.")
+        if tool_name == "exec" and mode in ("ask", "plan"):
+            from logic.agent.tools import _is_readonly_safe, _is_plan_safe
+            cmd = args.get("command", "")
+            checker = _is_plan_safe if mode == "plan" else _is_readonly_safe
+            if not checker(cmd):
+                return (f"BLOCKED: '{cmd}' is not allowed in {mode} mode. "
+                        f"Only read-only commands are permitted.")
+        return None
+
     def _fire_hook(self, event_name: str, **kwargs):
         """Fire a hook event if hooks engine is available."""
         if self._hooks_engine:
@@ -474,10 +512,19 @@ class ConversationManager:
         self._extra_tools.append(tool_def)
 
     def _load_persisted_sessions(self):
-        """Load sessions from disk on startup."""
+        """Load sessions from disk on startup.
+
+        Supports both:
+        - New layout: ``runtime/sessions/<id>/history.json``
+        - Legacy layout: ``runtime/sessions/<id>.json`` (auto-migrates)
+        """
         if not os.path.isdir(_SESSIONS_DIR):
             return
         import glob
+        for path in glob.glob(os.path.join(_SESSIONS_DIR, "*/history.json")):
+            session = Session.load(path)
+            if session and session.id not in self._sessions:
+                self._sessions[session.id] = session
         for path in glob.glob(os.path.join(_SESSIONS_DIR, "*.json")):
             session = Session.load(path)
             if session and session.id not in self._sessions:
@@ -1353,6 +1400,15 @@ class ConversationManager:
             args = {}
 
         sid = self._current_turn_session_id or ""
+        session = self._sessions.get(sid)
+        session_mode = getattr(session, 'mode', 'agent') if session else 'agent'
+        blocked = self._check_mode_restriction(session_mode, name, args)
+        if blocked:
+            self._emit({"type": "tool", "name": name,
+                         "desc": args.get("command", args.get("path", ""))[:80]})
+            self._emit({"type": "tool_result", "ok": False, "output": blocked})
+            return {"ok": False, "output": blocked}
+
         self._fire_hook("on_pre_tool_use",
                         session_id=sid, tool_name=name, tool_args=args,
                         round_num=getattr(self, '_current_round', 0))
@@ -1385,7 +1441,8 @@ class ConversationManager:
     # ── Session Management ──
 
     def new_session(self, session_id: str = None, title: str = "New Task",
-                    codebase_root: Optional[str] = None) -> str:
+                    codebase_root: Optional[str] = None,
+                    mode: str = "agent") -> str:
         sid = session_id or str(uuid.uuid4())[:8]
         codebase = codebase_root or self._default_codebase
 
@@ -1397,7 +1454,8 @@ class ConversationManager:
         ctx = SessionContext(system_prompt=prompt)
         with self._lock:
             self._sessions[sid] = Session(
-                id=sid, title=title, context=ctx, codebase_root=codebase)
+                id=sid, title=title, context=ctx,
+                codebase_root=codebase, mode=mode)
             if self._active_session_id is None:
                 self._active_session_id = sid
         self._emit({"type": "session_created", "id": sid, "title": title,
@@ -1421,10 +1479,11 @@ class ConversationManager:
             if self._active_session_id == session_id:
                 remaining = list(self._sessions.keys())
                 self._active_session_id = remaining[-1] if remaining else None
-        persist_path = os.path.join(_SESSIONS_DIR, f"{session_id}.json")
-        if os.path.exists(persist_path):
+        session_dir = os.path.join(_SESSIONS_DIR, session_id)
+        if os.path.isdir(session_dir):
             try:
-                os.remove(persist_path)
+                import shutil
+                shutil.rmtree(session_dir)
             except OSError:
                 pass
         self._emit({"type": "session_deleted", "id": session_id})
@@ -1443,7 +1502,8 @@ class ConversationManager:
     def list_sessions(self) -> List[Dict[str, Any]]:
         return [
             {"id": s.id, "title": s.title, "status": s.status,
-             "message_count": s.message_count, "created_at": s.created_at}
+             "mode": s.mode, "message_count": s.message_count,
+             "created_at": s.created_at}
             for s in self._sessions.values()
         ]
 
@@ -1553,7 +1613,7 @@ class ConversationManager:
 
             if not provider.is_available():
                 self._emit({"type": "text", "tokens": f"Error: Provider {self._provider_name} is not available."})
-                self._emit({"type": "complete"})
+                self._emit({"type": "complete", "reason": "error"})
                 session.status = "idle"
                 self._emit({"type": "session_status", "id": session_id, "status": "idle"})
                 self._persist_session(session_id)
@@ -1686,7 +1746,7 @@ class ConversationManager:
                                         self._emit({"type": "notice",
                                                     "text": f"Round limit reached ({round_num}/{turn_limit})",
                                                     "icon": "bx-stop-circle"})
-                                        self._emit({"type": "complete"})
+                                        self._emit({"type": "complete", "reason": "round_limit"})
                                         session.status = "idle"
                                         self._emit({"type": "session_status", "id": session_id, "status": "idle"})
                                         self._persist_session(session_id)
@@ -1751,7 +1811,7 @@ class ConversationManager:
                         "provider": failed_name,
                     })
                     self._emit({"type": "text", "tokens": f"Error: {err}"})
-                    self._emit({"type": "complete"})
+                    self._emit({"type": "complete", "reason": "error"})
                     session.status = "idle"
                     self._emit({"type": "session_status", "id": session_id, "status": "idle"})
                     self._persist_session(session_id)
@@ -1792,7 +1852,7 @@ class ConversationManager:
                     self._emit({"type": "notice",
                                 "text": f"Round limit reached ({round_num}/{turn_limit})",
                                 "icon": "bx-stop-circle"})
-                    self._emit({"type": "complete"})
+                    self._emit({"type": "complete", "reason": "round_limit"})
                     session.status = "idle"
                     self._emit({"type": "session_status", "id": session_id, "status": "idle"})
                     self._persist_session(session_id)
@@ -2007,7 +2067,7 @@ class ConversationManager:
         except Exception as e:
             self._emit({"type": "text", "tokens": f"Exception: {e}"})
             self._emit_file_summary()
-            self._emit({"type": "complete"})
+            self._emit({"type": "complete", "reason": "error"})
             self._fire_hook("on_turn_end",
                             session_id=session_id,
                             round_count=getattr(self, '_current_round', 0),
