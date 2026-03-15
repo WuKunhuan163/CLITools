@@ -278,5 +278,13 @@
     "created": "2026-03-13T18:04:43",
     "updated": "2026-03-14T13:44:23",
     "notes": ""
+  },
+  {
+    "id": 36,
+    "content": "Rate queue manager: integrate with LLM providers",
+    "status": "pending",
+    "created": "2026-03-15T11:15:30",
+    "updated": "2026-03-15T11:15:38",
+    "notes": "Bug fixed: compute_next_safe_t time skew. All tests pass. Next: integrate with provider send() methods."
   }
 ]
