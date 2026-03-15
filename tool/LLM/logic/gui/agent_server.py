@@ -14,6 +14,7 @@ API Endpoints:
     POST /api/session  {"title": "..."}
     POST /api/rename   {"session_id": "...", "title": "..."}
     POST /api/delete   {"session_id": "..."}
+    POST /api/clear_all  Delete all sessions & create a fresh one
     POST /api/activate/<sid>  Set active session
     GET  /api/sessions
     GET  /api/state
@@ -414,6 +415,23 @@ class AgentServer:
                     self._push_sse({"type": "session_deleted", "id": sid})
                     return {"ok": True}
                 return {"ok": False, "error": "Missing session_id"}
+
+            elif path == "/api/clear_all":
+                sessions = self._mgr.list_sessions()
+                deleted = 0
+                for s in sessions:
+                    sid = s["id"]
+                    self._mgr.delete_session(sid)
+                    if sid in self._event_history:
+                        del self._event_history[sid]
+                    self._push_sse({"type": "session_deleted", "id": sid})
+                    deleted += 1
+                self._default_session_id = None
+                new_sid = self._mgr.new_session(title="New Task")
+                self._default_session_id = new_sid
+                self._push_sse({"type": "session_created", "id": new_sid,
+                                "title": "New Task"})
+                return {"ok": True, "deleted": deleted, "new_session": new_sid}
 
             elif path.startswith("/api/activate/"):
                 sid = path.split("/api/activate/")[1].strip("/")
