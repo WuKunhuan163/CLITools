@@ -132,31 +132,38 @@ def auto_acquire_tab(url: str, port: int = CDP_PORT,
         return open_tab(url, port)
 
     try:
-        from tool.GOOGLE.interface.main import boot_chrome
-        boot_chrome(cdp_port=port)
+        from interface.cdmcp import load_cdmcp_sessions
+        sessions = load_cdmcp_sessions()
+        if hasattr(sessions, 'ensure_chrome'):
+            result = sessions.ensure_chrome(port)
+            if result.get("ok"):
+                for _ in range(boot_timeout * 2):
+                    time.sleep(0.5)
+                    if is_chrome_cdp_available(port):
+                        return open_tab(url, port)
+                return False
     except Exception:
-        import subprocess
-        try:
-            subprocess.Popen([
-                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-                f"--remote-debugging-port={port}",
-                "--remote-allow-origins=*",
-                "--no-first-run",
-                url,
-            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            for _ in range(boot_timeout * 2):
-                time.sleep(0.5)
-                if is_chrome_cdp_available(port):
-                    return True
-            return False
-        except Exception:
-            return False
+        pass
 
-    for _ in range(boot_timeout * 2):
-        time.sleep(0.5)
-        if is_chrome_cdp_available(port):
-            return open_tab(url, port)
-    return False
+    import subprocess, tempfile, os
+    profile_dir = os.path.join(tempfile.gettempdir(), "chrome-cdp-profile")
+    os.makedirs(profile_dir, exist_ok=True)
+    try:
+        subprocess.Popen([
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            f"--remote-debugging-port={port}",
+            f"--user-data-dir={profile_dir}",
+            "--remote-allow-origins=*",
+            "--no-first-run",
+            url,
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for _ in range(boot_timeout * 2):
+            time.sleep(0.5)
+            if is_chrome_cdp_available(port):
+                return True
+        return False
+    except Exception:
+        return False
 
 
 # ---------------------------------------------------------------------------
