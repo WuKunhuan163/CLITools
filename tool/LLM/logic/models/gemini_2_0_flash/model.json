@@ -15,8 +15,14 @@
     "free": {
       "rpm": 15,
       "tpm": 1000000,
-      "rpd": 1500
+      "rpd": 1500,
+      "max_concurrency": 2
     }
+  },
+  "recommended_settings": {
+    "min_interval_s": 4.0,
+    "jitter_s": 1.0,
+    "large_context_delay_s": 5.0
   },
   "cost": {
     "free_tier": true

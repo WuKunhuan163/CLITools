@@ -167,7 +167,10 @@ class KeyState:
             self.status = KeyStatus.RATE_LIMITED
             if headers:
                 self._parse_rate_headers(headers)
-            if self.rate_limit_reset_t <= now:
+            retry_after = self._parse_retry_delay(headers, error)
+            if retry_after and retry_after > 0:
+                self.rate_limit_reset_t = now + retry_after
+            elif self.rate_limit_reset_t <= now:
                 self.rate_limit_reset_t = now + min(2 ** self.consecutive_failures, 120)
         elif self.consecutive_failures >= _STALE_CONSECUTIVE_FAILURES:
             self.status = KeyStatus.STALE
@@ -180,6 +183,29 @@ class KeyState:
             self._parse_rate_headers(headers)
 
         self._score_t = 0
+
+    @staticmethod
+    def _parse_retry_delay(headers: Dict[str, str] = None,
+                           error: str = "") -> Optional[float]:
+        """Extract retry delay from headers or error body.
+
+        Checks Retry-After header first, then retryDelay in error text.
+        Returns seconds to wait, or None if not found.
+        """
+        if headers:
+            retry = headers.get("retry-after")
+            if retry:
+                try:
+                    return float(retry)
+                except ValueError:
+                    pass
+
+        if error and "retryDelay" in error:
+            import re
+            m = re.search(r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s?"', error)
+            if m:
+                return float(m.group(1))
+        return None
 
     def _parse_rate_headers(self, headers: Dict[str, str]):
         """Extract rate limit info from response headers."""

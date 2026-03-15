@@ -314,6 +314,9 @@ class ProviderQueue:
             self.consecutive_429s += 1
             self.last_429_t = time.time()
             self.state = ProviderState.COOLDOWN
+            retry_after = result.get("retry_after_s")
+            if retry_after and retry_after > 0:
+                self.next_safe_t = max(self.next_safe_t, time.time() + retry_after)
             self._pushback_all()
         elif 500 <= error_code < 600:
             self.state = ProviderState.THROTTLED
