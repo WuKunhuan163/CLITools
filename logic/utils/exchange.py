@@ -129,3 +129,115 @@ def get_rate(currency: str, rates: Optional[Dict] = None) -> float:
     if rates is None:
         rates = get_rates()
     return rates.get(currency, 1.0)
+
+
+def convert(amount: float, from_currency: str, to_currency: str,
+            rates: Optional[Dict] = None) -> float:
+    """Convert *amount* from one currency to another."""
+    from_currency = from_currency.upper()
+    to_currency = to_currency.upper()
+    if from_currency == to_currency:
+        return amount
+    if rates is None:
+        rates = get_rates()
+    usd = to_usd(amount, from_currency, rates)
+    to_rate = rates.get(to_currency, 1.0)
+    return usd * to_rate
+
+
+_CURRENCY_PRECISION: Dict[str, int] = {
+    "BTC": 8, "ETH": 6,
+    "USD": 2, "EUR": 2, "GBP": 2, "CNY": 2, "AUD": 2, "CAD": 2,
+    "CHF": 2, "SGD": 2, "NZD": 2, "HKD": 2, "SEK": 2, "NOK": 2,
+    "DKK": 2, "MXN": 2, "BRL": 2, "ZAR": 2, "INR": 2, "THB": 2,
+    "MYR": 2, "PHP": 2, "PLN": 2, "CZK": 2, "HUF": 0,
+    "JPY": 0, "KRW": 0, "TWD": 0, "CLP": 0, "ISK": 0,
+    "IDR": -1, "VND": -1, "IRR": -1, "LAK": -1, "UGX": -1,
+    "MMK": -1, "GNF": -1, "PYG": -1,
+}
+
+_CURRENCY_SYMBOLS: Dict[str, str] = {
+    "USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "JPY": "\u00a5",
+    "CNY": "\u00a5", "KRW": "\u20a9", "INR": "\u20b9", "RUB": "\u20bd",
+    "THB": "\u0e3f", "BRL": "R$", "TRY": "\u20ba", "PLN": "z\u0142",
+    "CZK": "K\u010d", "SEK": "kr", "NOK": "kr", "DKK": "kr",
+    "HKD": "HK$", "SGD": "S$", "AUD": "A$", "CAD": "C$", "NZD": "NZ$",
+    "CHF": "CHF", "ZAR": "R", "MXN": "MX$", "MYR": "RM",
+    "IDR": "Rp", "PHP": "\u20b1", "VND": "\u20ab", "TWD": "NT$",
+    "BTC": "\u20bf", "ETH": "\u039e",
+}
+
+_CURRENCY_NAMES: Dict[str, str] = {
+    "USD": "US Dollar", "EUR": "Euro", "GBP": "British Pound",
+    "JPY": "Japanese Yen", "CNY": "Chinese Yuan", "KRW": "Korean Won",
+    "INR": "Indian Rupee", "RUB": "Russian Ruble", "BRL": "Brazilian Real",
+    "CAD": "Canadian Dollar", "AUD": "Australian Dollar", "CHF": "Swiss Franc",
+    "HKD": "Hong Kong Dollar", "SGD": "Singapore Dollar", "TWD": "Taiwan Dollar",
+    "THB": "Thai Baht", "MXN": "Mexican Peso", "SEK": "Swedish Krona",
+    "NOK": "Norwegian Krone", "DKK": "Danish Krone", "PLN": "Polish Zloty",
+    "CZK": "Czech Koruna", "HUF": "Hungarian Forint", "TRY": "Turkish Lira",
+    "ZAR": "South African Rand", "NZD": "New Zealand Dollar",
+    "MYR": "Malaysian Ringgit", "PHP": "Philippine Peso",
+    "IDR": "Indonesian Rupiah", "VND": "Vietnamese Dong",
+    "BTC": "Bitcoin", "ETH": "Ethereum",
+}
+
+
+def get_precision(currency: str) -> int:
+    """Return the display decimal precision for a currency.
+
+    Positive: digits after decimal point (e.g. 2 → ``$1.23``).
+    Zero: no decimals (e.g. ``¥123``).
+    Negative: round to powers of 10 (e.g. −1 → ``Rp 12,340``).
+    """
+    return _CURRENCY_PRECISION.get(currency.upper(), 2)
+
+
+def get_symbol(currency: str) -> str:
+    """Return the symbol for a currency (e.g. ``"$"``, ``"¥"``)."""
+    return _CURRENCY_SYMBOLS.get(currency.upper(), currency.upper())
+
+
+def get_currency_name(currency: str) -> str:
+    """Return the English name for a currency code."""
+    return _CURRENCY_NAMES.get(currency.upper(), currency.upper())
+
+
+def format_price(amount: float, currency: str) -> str:
+    """Format a monetary amount with appropriate precision and symbol.
+
+    Examples::
+
+        >>> format_price(1.2345, "USD")
+        '$1.23'
+        >>> format_price(149.5, "JPY")
+        '¥150'
+        >>> format_price(15600, "IDR")
+        'Rp15,600'
+    """
+    currency = currency.upper()
+    sym = get_symbol(currency)
+    prec = get_precision(currency)
+    if prec < 0:
+        factor = 10 ** (-prec)
+        rounded = round(amount / factor) * factor
+        return f"{sym}{rounded:,.0f}"
+    return f"{sym}{amount:,.{prec}f}"
+
+
+def list_currencies(rates: Optional[Dict] = None) -> list:
+    """Return a list of available currency info dicts, sorted by code.
+
+    Each dict: ``{"code": "USD", "name": "US Dollar", "symbol": "$", "precision": 2}``
+    """
+    if rates is None:
+        rates = get_rates()
+    result = []
+    for code in sorted(rates.keys()):
+        result.append({
+            "code": code,
+            "name": get_currency_name(code),
+            "symbol": get_symbol(code),
+            "precision": get_precision(code),
+        })
+    return result

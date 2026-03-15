@@ -231,6 +231,8 @@ class AgentServer:
                 return self._get_configured_models()
             elif path == "/api/session_config":
                 return self._get_session_config()
+            elif path == "/api/currencies":
+                return self._get_currencies()
             return {"ok": False, "error": "Unknown endpoint"}
 
         if method == "POST":
@@ -671,6 +673,20 @@ class AgentServer:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    @staticmethod
+    def _get_currencies() -> dict:
+        try:
+            from interface.utils import list_currencies
+            currencies = list_currencies()
+            top_codes = ["USD", "EUR", "GBP", "CNY", "JPY", "KRW", "INR",
+                         "CAD", "AUD", "CHF", "HKD", "SGD", "TWD", "BRL"]
+            top = [c for c in currencies if c["code"] in top_codes]
+            top.sort(key=lambda c: top_codes.index(c["code"]))
+            rest = [c for c in currencies if c["code"] not in top_codes]
+            return {"ok": True, "currencies": top + rest, "top_codes": top_codes}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def _get_usage_data(self) -> dict:
         """Aggregate usage data for Settings panel."""
         models = {}
@@ -781,7 +797,11 @@ class AgentServer:
                 providers[vendor]["input_tokens"] += inp
                 providers[vendor]["output_tokens"] += outp
 
-        return {"models": models, "providers": providers, "calls": self._usage_calls[-100:]}
+        from interface.utils import get_precision, get_symbol
+        rate_info = {}
+        for code in rates:
+            rate_info[code] = {"rate": rates[code], "precision": get_precision(code), "symbol": get_symbol(code)}
+        return {"models": models, "providers": providers, "calls": self._usage_calls[-100:], "rates": rate_info}
 
     def _page_handler(self, path: str) -> Optional[str]:
         """Handle /session/<sid>/<type>/<round_id>/... page routes."""

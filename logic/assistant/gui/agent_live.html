@@ -906,7 +906,7 @@ const _I18N = {
     'Settings': '设置', 'General': '通用', 'Models': '模型', 'Providers': '供应商',
     'Debug': '调试', 'Stop': '停止', 'New session': '新会话',
     'Agent': '代理', 'Plan': '计划', 'Ask': '问答', 'Auto': '自动',
-    'Color Mode': '颜色模式', 'Language': '语言', 'Appearance': '外观',
+    'Color Mode': '颜色模式', 'Language': '语言', 'Currency': '货币', 'Appearance': '外观',
     'Runtime Limits': '运行时限制', 'Configured': '已配置', 'Not configured': '未配置',
     'Validate & Save': '验证并保存', 'Guide': '指南', 'Delete': '删除',
     'Usage': '用量', 'Benchmarks': '基准测试',
@@ -1353,7 +1353,9 @@ async function loadOlderEvents() {
 
 /* ── Settings Panel ── */
 let settingsTab = 'general';
-let usageData = { models: {}, providers: {}, calls: [] };
+let usageData = { models: {}, providers: {}, calls: [], rates: {} };
+let displayCurrency = localStorage.getItem('displayCurrency') || 'USD';
+let currencyList = [];
 
 function openSettings() {
   $('settings-overlay').classList.add('open');
@@ -1445,6 +1447,27 @@ async function _saveAssistantConfig(key, value) {
   } catch(e) {}
 }
 
+function _currencyOpts() {
+  if (!currencyList.length) {
+    const info = usageData.rates || {};
+    const codes = Object.keys(info).sort();
+    const top = ['USD','EUR','GBP','CNY','JPY','KRW','INR','CAD','AUD','CHF','HKD','SGD','TWD','BRL'];
+    const topCodes = top.filter(c => info[c]);
+    const restCodes = codes.filter(c => !top.includes(c));
+    currencyList = [...topCodes, ...restCodes];
+  }
+  return currencyList.map(c => {
+    const info = (usageData.rates || {})[c];
+    const sym = info ? info.symbol : c;
+    const label = sym !== c ? `${c} (${sym})` : c;
+    return `<option value="${c}" ${c === displayCurrency ? 'selected' : ''}>${label}</option>`;
+  }).join('');
+}
+function _setCurrency(code) {
+  displayCurrency = code;
+  localStorage.setItem('displayCurrency', code);
+  renderSettingsTab();
+}
 function renderGeneralView() {
   const themeOpts = Object.entries(THEMES).map(([k, v]) =>
     `<option value="${k}" ${k === currentTheme ? 'selected' : ''}>${v.label}</option>`
@@ -1461,9 +1484,13 @@ function renderGeneralView() {
         <span><strong>${_('Color Mode')}</strong></span>
         <select onchange="applyTheme(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:120px;">${themeOpts}</select>
       </div>
-      <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+      <div style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:12px;">
         <span><strong>${_('Language')}</strong></span>
         <select onchange="_guiLang=this.value;localStorage.setItem('guiLang',this.value);_applyLang();" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:120px;">${langOpts}</select>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+        <span><strong>${_('Currency')}</strong></span>
+        <select id="currency-select" onchange="_setCurrency(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:180px;">${_currencyOpts()}</select>
       </div>
     </div>
     <div class="settings-section-title" style="margin-top:16px;">${_('Runtime Limits')}</div>
@@ -1647,7 +1674,7 @@ function renderModelsView() {
         <div class="settings-stat"><div class="settings-stat-value">${m.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(m.input_tokens || 0)}</div><div class="settings-stat-label">Input<br>Tokens</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(m.output_tokens || 0)}</div><div class="settings-stat-label">Output<br>Tokens</div></div>
-        <div class="settings-stat"><div class="settings-stat-value">${m.total_cost ? '$' + m.total_cost.toFixed(4) : '$0'}</div><div class="settings-stat-label">Cost</div></div>
+        <div class="settings-stat"><div class="settings-stat-value">${m.total_cost ? _priceStr(m.total_cost) : _priceStr(0)}</div><div class="settings-stat-label">Cost</div></div>
       </div>
       ${_renderModelCaps(name, m)}
       ${provChips ? '<div style="margin-top:16px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:6px;">Providers</div><div class="settings-provider-list">' + provChips + '</div>' : ''}
@@ -1732,7 +1759,7 @@ function renderProvidersView() {
         <div class="settings-stat"><div class="settings-stat-value">${p.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(p.input_tokens || 0)}</div><div class="settings-stat-label">Input<br>Tokens</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(p.output_tokens || 0)}</div><div class="settings-stat-label">Output<br>Tokens</div></div>
-        <div class="settings-stat"><div class="settings-stat-value">${p.total_cost ? '$' + p.total_cost.toFixed(4) : '$0'}</div><div class="settings-stat-label">Cost</div></div>
+        <div class="settings-stat"><div class="settings-stat-value">${p.total_cost ? _priceStr(p.total_cost) : _priceStr(0)}</div><div class="settings-stat-label">Cost</div></div>
       </div>
       ${modelChips ? '<div style="margin-top:8px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;">Models</div><div class="settings-provider-list">' + modelChips + '</div>' : ''}
       <div style="margin-top:10px;display:flex;align-items:center;gap:8px;margin-bottom:4px;">
@@ -1797,16 +1824,37 @@ function fmtPriceBadge(m, modelKey) {
   const onclick = modelKey ? ` onclick="openPriceOverlay('${modelKey}',event)" style="cursor:pointer;"` : '';
   if (m.free_tier) return `<span class="settings-badge free"${onclick}>Free</span>`;
   if (m.input_price > 0 || m.output_price > 0) {
-    return `<span class="settings-badge paid"${onclick}>$${m.input_price.toFixed(2)},$${m.output_price.toFixed(2)}/M</span>`;
+    return `<span class="settings-badge paid"${onclick}>${_pricePairStr(m.input_price, m.output_price)}</span>`;
   }
   return `<span class="settings-badge paid"${onclick}>Paid</span>`;
 }
 function fmtProviderPriceInner(m) {
   if (m.free_tier) return '<span class="price-inner free">Free</span>';
   if (m.input_price > 0 || m.output_price > 0) {
-    return `<span class="price-inner paid">$${m.input_price.toFixed(2)},$${m.output_price.toFixed(2)}/M</span>`;
+    return `<span class="price-inner paid">${_pricePairStr(m.input_price, m.output_price)}</span>`;
   }
   return '';
+}
+function _convertPrice(usdAmount) {
+  if (displayCurrency === 'USD') return usdAmount;
+  const info = (usageData.rates || {})[displayCurrency];
+  if (!info) return usdAmount;
+  return usdAmount * info.rate;
+}
+function _priceStr(usdAmount) {
+  const converted = _convertPrice(usdAmount);
+  const info = (usageData.rates || {})[displayCurrency];
+  const sym = info ? info.symbol : '$';
+  const prec = info ? Math.max(info.precision, 0) : 2;
+  return sym + converted.toFixed(prec);
+}
+function _pricePairStr(usdIn, usdOut) {
+  const ci = _convertPrice(usdIn);
+  const co = _convertPrice(usdOut);
+  const info = (usageData.rates || {})[displayCurrency];
+  const sym = info ? info.symbol : '$';
+  const prec = info ? Math.max(info.precision, 0) : 2;
+  return sym + ci.toFixed(prec) + ',' + sym + co.toFixed(prec) + '/M';
 }
 function fmtProviderName(raw) {
   if (!raw) return '';
@@ -1887,12 +1935,12 @@ function openPriceOverlay(modelName, e) {
   overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); } };
 
   const labels = allModels.map(([k, m]) => MODEL_DISPLAY_NAMES[k] || k);
-  const inputPrices = allModels.map(([, m]) => m.free_tier ? 0 : (m.input_price || 0));
-  const outputPrices = allModels.map(([, m]) => m.free_tier ? 0 : (m.output_price || 0));
+  const inputPrices = allModels.map(([, m]) => m.free_tier ? 0 : _convertPrice(m.input_price || 0));
+  const outputPrices = allModels.map(([, m]) => m.free_tier ? 0 : _convertPrice(m.output_price || 0));
   const hlColors = allModels.map(([k]) => k === modelName ? 0.9 : 0.4);
 
   overlay.innerHTML = `<div class="sub-panel" style="width:500px;max-height:500px;">
-    <div class="sub-panel-header"><span>Price Comparison (per 1M tokens)</span><button onclick="this.closest('.sub-overlay').remove()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;"><i class="bx bx-x"></i></button></div>
+    <div class="sub-panel-header"><span>Price Comparison (${displayCurrency}/1M tokens)</span><button onclick="this.closest('.sub-overlay').remove()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;"><i class="bx bx-x"></i></button></div>
     <div style="padding:16px;flex:1;"><canvas id="price-chart"></canvas></div>
   </div>`;
   document.body.appendChild(overlay);
