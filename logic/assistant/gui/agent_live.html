@@ -137,7 +137,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 
 /* ── Settings Section Styles ── */
 .settings-section-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
-.settings-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; }
+.settings-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; min-width: 420px; }
 .settings-card.configured { background: var(--green-card-bg); border-color: var(--green-card-border); }
 .settings-stepper { display:inline-flex; align-items:center; border:1px solid var(--border); border-radius:6px; background:var(--bg); overflow:hidden; user-select:none; }
 .settings-stepper .stepper-btn { width:28px; height:28px; border:none; background:transparent; color:var(--text-3); cursor:pointer; font-size:9px; line-height:1; padding:0; transition:background 0.15s,color 0.15s; }
@@ -145,9 +145,10 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .settings-stepper .stepper-btn:active { background:var(--border); }
 .settings-stepper .stepper-value { min-width:60px; text-align:center; font-family:var(--mono); font-size:13px; color:var(--text); padding:0 4px; border-left:1px solid var(--border); border-right:1px solid var(--border); }
 .settings-card.unconfigured { }
-.settings-card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.settings-card-title img { width: 18px; height: 18px; border-radius: 3px; }
-.settings-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+.settings-card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; overflow: hidden; }
+.settings-card-title img { width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0; }
+.settings-card-title .model-name-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; flex-shrink: 1; }
+.settings-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
 .settings-badge.free { background: var(--green-dim); color: var(--green); }
 .settings-badge.paid { background: var(--orange-dim); color: var(--orange); }
 .settings-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0; }
@@ -163,6 +164,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .settings-provider-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .settings-provider-chip { font-size: 11px; padding: 3px 10px; border-radius: 12px; background: var(--surface-3); color: var(--text-2); display: flex; align-items: center; gap: 4px; cursor: grab; }
 .settings-provider-chip .drag-handle { color: var(--text-3); font-size: 10px; }
+.settings-provider-chip .price-inner { font-size: 9px; padding: 1px 6px; border-radius: 8px; font-weight: 600; white-space: nowrap; margin-left: 3px; }
+.settings-provider-chip .price-inner.free { background: var(--green-dim); color: var(--green); }
+.settings-provider-chip .price-inner.paid { background: var(--orange-dim); color: var(--orange); }
 .settings-key-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; font-family: var(--mono); color: var(--text-2); }
 .settings-key-mask { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-key-delete { background: none; border: none; color: var(--text-3); cursor: pointer; padding: 2px 4px; border-radius: 4px; font-size: 13px; line-height: 1; opacity: 0; transition: all var(--transition); }
@@ -1608,12 +1612,11 @@ function renderModelsView() {
     if (modelSearch && !(MODEL_DISPLAY_NAMES[name] || name).toLowerCase().includes(modelSearch)) continue;
     const logo = MODEL_LOGOS[name] || ZHIPU_LOGO || '';
     const displayName = MODEL_DISPLAY_NAMES[name] || name;
-    const tierBadge = fmtPriceBadge(m, name);
     const configuredProvs = new Set(m.configured_providers || []);
     const provChips = (m.providers || []).map(p => {
       const isProvConfigured = configuredProvs.has(p);
       const chipStyle = isProvConfigured ? 'background:var(--green-dim);color:var(--green);' : '';
-      return `<div class="settings-provider-chip" onclick="settingsTab='providers';renderSettingsTab();setTimeout(()=>{const c=document.querySelector('[data-provider-id=\\'${esc(p.split('-')[0])}\\']');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})},100)" style="cursor:pointer;${chipStyle}">${PROVIDER_LOGOS[p.split('-')[0]] ? '<img src="' + PROVIDER_LOGOS[p.split('-')[0]] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : ''} ${esc(p)}</div>`;
+      return `<div class="settings-provider-chip" onclick="settingsTab='providers';renderSettingsTab();setTimeout(()=>{const c=document.querySelector('[data-provider-id=\\'${esc(p.split('-')[0])}\\']');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})},100)" style="cursor:pointer;${chipStyle}">${PROVIDER_LOGOS[p.split('-')[0]] ? '<img src="' + PROVIDER_LOGOS[p.split('-')[0]] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : ''} ${esc(p)}${fmtProviderPriceInner(m)}</div>`;
     }).join('');
     const modelCalls = calls.filter(c => c.model === name || c.provider === name);
     const aa = m.aa_benchmarks || {};
@@ -1647,14 +1650,14 @@ function renderModelsView() {
     const isConfigured = m.configured;
     const cardClass = isConfigured ? 'settings-card configured' : 'settings-card unconfigured';
     html += `<div class="${cardClass}">
-      <div class="settings-card-title"><img src="${logo}" alt=""> ${esc(displayName)} ${tierBadge} ${benchTags}${isConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;">' + _('Configured') + '</span>' : ''}</div>
+      <div class="settings-card-title"><img src="${logo}" alt=""><span class="model-name-text" title="${esc(displayName)}">${esc(displayName)}</span>${benchTags}${isConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;flex-shrink:0;">' + _('Configured') + '</span>' : ''}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${m.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
-        <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(m.input_tokens || 0)}</div><div class="settings-stat-label">Input Tokens</div></div>
-        <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(m.output_tokens || 0)}</div><div class="settings-stat-label">Output Tokens</div></div>
+        <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(m.input_tokens || 0)}</div><div class="settings-stat-label">Input<br>Tokens</div></div>
+        <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(m.output_tokens || 0)}</div><div class="settings-stat-label">Output<br>Tokens</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${m.total_cost ? '$' + m.total_cost.toFixed(4) : '$0'}</div><div class="settings-stat-label">Cost</div></div>
       </div>
-      ${provChips ? '<div style="margin-top:8px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;">Providers</div><div class="settings-provider-list">' + provChips + '</div>' : ''}
+      ${provChips ? '<div style="margin-top:16px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:6px;">Providers</div><div class="settings-provider-list">' + provChips + '</div>' : ''}
       ${renderCallsTable(modelCalls, 'model_' + name)}
     </div>`;
   }
@@ -1690,8 +1693,8 @@ function renderProvidersView() {
       <div class="settings-card-title">${PROVIDER_LOGOS[name] ? '<img src="' + PROVIDER_LOGOS[name] + '" alt="" style="width:16px;height:16px;border-radius:3px;">' : '<i class="bx bx-server" style="font-size:16px;color:var(--accent)"></i>'} ${esc(displayName)}${provConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;">' + _('Configured') + '</span>' : ''}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${p.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
-        <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(p.input_tokens || 0)}</div><div class="settings-stat-label">Input Tokens</div></div>
-        <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(p.output_tokens || 0)}</div><div class="settings-stat-label">Output Tokens</div></div>
+        <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(p.input_tokens || 0)}</div><div class="settings-stat-label">Input<br>Tokens</div></div>
+        <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(p.output_tokens || 0)}</div><div class="settings-stat-label">Output<br>Tokens</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${p.total_cost ? '$' + p.total_cost.toFixed(4) : '$0'}</div><div class="settings-stat-label">Cost</div></div>
       </div>
       ${modelChips ? '<div style="margin-top:8px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;">Models</div><div class="settings-provider-list">' + modelChips + '</div>' : ''}
@@ -1761,6 +1764,14 @@ function fmtPriceBadge(m, modelKey) {
     return `<span class="settings-badge paid"${onclick}>${sym}${m.input_price.toFixed(2)},${m.output_price.toFixed(2)}/M</span>`;
   }
   return `<span class="settings-badge paid"${onclick}>Paid</span>`;
+}
+function fmtProviderPriceInner(m) {
+  if (m.free_tier) return '<span class="price-inner free">Free</span>';
+  if (m.input_price > 0 || m.output_price > 0) {
+    const sym = (m.currency || 'USD') === 'CNY' ? '¥' : '$';
+    return `<span class="price-inner paid">${sym}${m.input_price.toFixed(2)},${m.output_price.toFixed(2)}/M</span>`;
+  }
+  return '';
 }
 function fmtTokens(n) { return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n); }
 function fmtTime(ts) { if (!ts) return '-'; const d = new Date(ts * 1000); return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
