@@ -115,6 +115,7 @@ class _SingleFileHandler(SimpleHTTPRequestHandler):
 
     _html_path: Optional[Path] = None
     _api_handler: Optional[Callable] = None
+    _page_handler: Optional[Callable] = None
     _sse_broker: Optional[_SSEBroker] = None
 
     def __init__(self, *args, **kwargs):
@@ -135,6 +136,12 @@ class _SingleFileHandler(SimpleHTTPRequestHandler):
         elif path.startswith("/api/") and self._api_handler:
             result = self._api_handler("GET", path, None)
             self._json_response(result)
+        elif path.startswith("/session/") and self._page_handler:
+            html = self._page_handler(path)
+            if html:
+                self._html_response(html)
+            else:
+                self.send_error(404)
         else:
             super().do_GET()
 
@@ -190,6 +197,15 @@ class _SingleFileHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _html_response(self, html: str, status=200):
+        body = html.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
+
     def _read_body(self) -> dict:
         length = int(self.headers.get("Content-Length", 0))
         if length:
@@ -221,6 +237,7 @@ class LocalHTMLServer:
         port: int = 0,
         title: str = "HTML Server",
         api_handler: Optional[Callable] = None,
+        page_handler: Optional[Callable] = None,
         on_generate: Optional[Callable] = None,
         enable_sse: bool = False,
     ):
@@ -228,6 +245,7 @@ class LocalHTMLServer:
         self.port = port or find_free_port()
         self.title = title
         self.api_handler = api_handler
+        self.page_handler = page_handler
         self.on_generate = on_generate
         self._sse_broker = _SSEBroker() if enable_sse else None
         self._httpd: Optional[HTTPServer] = None
@@ -269,9 +287,10 @@ class LocalHTMLServer:
             "_Handler", (_SingleFileHandler,),
             {"_html_path": self.html_path,
              "_api_handler": staticmethod(self.api_handler) if self.api_handler else None,
+             "_page_handler": staticmethod(self.page_handler) if self.page_handler else None,
              "_sse_broker": self._sse_broker},
         )
-        threaded_server = type("_ThreadedHTTPServer", (ThreadingMixIn, HTTPServer), {"daemon_threads": True})
+        threaded_server = type("_ThreadedHTTPServer", (ThreadingMixIn, HTTPServer), {"daemon_threads": True, "allow_reuse_address": True})
         self._httpd = threaded_server(("127.0.0.1", self.port), handler_class)
         self._running = True
         self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)

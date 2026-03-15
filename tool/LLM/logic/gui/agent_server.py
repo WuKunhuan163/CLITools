@@ -32,6 +32,11 @@ _dir = Path(__file__).resolve().parent
 _root = _dir.parent.parent.parent.parent
 sys.path.insert(0, str(_root))
 
+from tool.LLM.logic.gui.round_store import (
+    RoundStore, render_token_page, render_read_page,
+    render_edit_page, _not_found_page
+)
+
 from tool.LLM.logic.task.agent.conversation import ConversationManager
 
 
@@ -44,7 +49,7 @@ _SYSTEM_PROMPTS = {
 1. **exec(command=...)** — 执行shell命令。用于运行CLI工具、查看文件、安装依赖等。
 2. **write_file(path=..., content=...)** — 创建新文件或完全覆盖。content必须是完整文件。
 3. **edit_file(path=..., old_text=..., new_text=...)** — 修改已有文件中的某段文本。先用read_file查看，然后精确替换。推荐用于修复bug和小改动。
-4. **read_file(path=...)** — 读取文件内容。
+4. **read_file(path=...)** — 读取一个文件的内容。path必须是具体的文件路径（如 "tool/LLM/logic/utils/token_counter.py"），不要传目录路径。读取前先用search定位目标范围。
 5. **search(pattern=..., path=...)** — 在文件内容中搜索文本（grep风格）。注意：这不是文件列表工具。要列出文件，请用 exec(command="find <dir> -name '*.py'")。
 6. **todo(action=..., items=...)** — 管理任务列表。
 7. **ask_user(question=...)** — 向用户提问获取反馈。
@@ -61,7 +66,7 @@ _SYSTEM_PROMPTS = {
 
 - **立即行动**: 收到"创建文件"任务时，第一个工具调用就应该是write_file。
 - **持续执行**: 创建完一个文件后，立即继续创建下一个文件。不要中途停下来解释。
-- **并行调用**: 如果多个工具调用互不依赖（如读取多个文件、搜索多个关键词），在同一轮中并行调用它们。
+- **逐个调用**: 每次工具调用只传一个参数对象。要读取多个文件，分别调用read_file多次。
 - **完整输出**: write_file的content必须包含完整的、可运行的代码。不要用省略号或占位符。
 - **文件创建**: 一个网站需要HTML+CSS(+JS)文件。用write_file逐个创建所有必需文件。
 - **工具发现**: 如果任务需要使用外部工具（搜索视频、查数据等），先用 exec(command="TOOL --search tools-deep 'keywords'") 发现工具。
@@ -119,7 +124,7 @@ You are an autonomous AI Agent. You can independently plan, execute, and verify 
 1. **exec(command=...)** — Run shell commands. For CLI tools, viewing files, installing deps.
 2. **write_file(path=..., content=...)** — Create new files or fully overwrite. Content must be the complete file.
 3. **edit_file(path=..., old_text=..., new_text=...)** — Modify a specific part of an existing file. First read_file to see current content, then replace the exact text. Recommended for bug fixes and small modifications.
-4. **read_file(path=...)** — Read file contents.
+4. **read_file(path=...)** — Read ONE file's contents. Path must be a specific file path (e.g. "tool/LLM/logic/utils/token_counter.py"), NOT a directory. Use search() first to locate relevant code ranges.
 5. **search(pattern=..., path=...)** — Search for text INSIDE files (grep-style). NOT for listing files. To list files, use exec(command="find <dir> -name '*.py'").
 6. **todo(action=..., items=...)** — Manage a task list.
 7. **ask_user(question=...)** — Ask the user a question for feedback.
@@ -136,7 +141,7 @@ When receiving a task, **use tools immediately**. Do NOT explore the project fir
 
 - **Act immediately**: When asked to "create a file", your FIRST tool call should be write_file.
 - **Continuous execution**: After creating one file, immediately create the next. Don't stop to explain mid-way.
-- **Parallel calls**: When multiple tool calls are independent (e.g., reading multiple files, searching multiple patterns), call them in parallel in the same turn.
+- **One call at a time**: Each tool call takes exactly ONE set of arguments. To read multiple files, call read_file separately for each file.
 - **Complete output**: write_file content must contain complete, runnable code. No ellipsis or placeholders.
 - **File creation**: A website needs HTML+CSS(+JS) files. Use write_file to create all required files.
 - **Tool discovery**: If the task requires external tools (search videos, fetch data), first use exec(command="TOOL --search tools-deep 'keywords'") to discover tools.
@@ -233,6 +238,27 @@ class AgentServer:
         self._default_session_id = None
         self._usage_calls = []
         self._event_history: Dict[str, list] = {}  # session_id -> [events]
+        self._round_store = RoundStore()
+        self._mgr._event_provider = lambda sid: self._event_history.get(sid, [])
+        self._mgr._round_store = self._round_store
+        self._load_persisted_events()
+
+    def _load_persisted_events(self):
+        """Load event history from persisted session files."""
+        import glob
+        sessions_dir = os.path.join(str(_root), "runtime", "sessions")
+        if not os.path.isdir(sessions_dir):
+            return
+        for path in glob.glob(os.path.join(sessions_dir, "*.json")):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                sid = data.get("id")
+                events = data.get("events", [])
+                if sid and events:
+                    self._event_history[sid] = events
+            except Exception:
+                continue
 
     def _api_handler(self, method: str, path: str, body: Optional[dict]) -> dict:
         """Route API requests to ConversationManager methods."""
@@ -399,6 +425,17 @@ class AgentServer:
             self._event_history[sid].append(evt)
 
         if evt.get("type") == "llm_response_end":
+            round_num = evt.get("round", 0)
+            if sid and round_num:
+                session = self._mgr.get_session(sid)
+                ctx_msgs = session.context.messages if session else []
+                self._round_store.record_round(
+                    sid, round_num,
+                    input_tokens=json.dumps(ctx_msgs[-20:], ensure_ascii=False, indent=1) if ctx_msgs else "",
+                    output_tokens=evt.get("_full_text", ""),
+                    context_messages=ctx_msgs,
+                )
+
             import time
             self._usage_calls.append({
                 "timestamp": time.time(),
@@ -506,6 +543,48 @@ class AgentServer:
 
         return {"models": models, "providers": providers, "calls": self._usage_calls[-100:]}
 
+    def _page_handler(self, path: str) -> Optional[str]:
+        """Handle /session/<sid>/<type>/<round_id>/... page routes."""
+        parts = path.strip("/").split("/")
+        if len(parts) < 4 or parts[0] != "session":
+            return _not_found_page("Invalid path")
+        sid = parts[1]
+        data_type = parts[2]
+        try:
+            round_num = int(parts[3])
+        except (ValueError, IndexError):
+            return _not_found_page("Invalid round number")
+
+        if data_type in ("input", "output", "context"):
+            content = self._round_store.get_token_data(sid, round_num, data_type)
+            return render_token_page(sid, round_num, data_type, content)
+        elif data_type == "read":
+            rel_path = "/".join(parts[4:-1]) if len(parts) > 5 else (parts[4] if len(parts) > 4 else "")
+            op_id = 0
+            if len(parts) > 5:
+                try:
+                    op_id = int(parts[-1])
+                except ValueError:
+                    rel_path = "/".join(parts[4:])
+            op = self._round_store.get_file_op(sid, round_num, "read", rel_path, op_id)
+            if not op:
+                return _not_found_page(f"No read data for {rel_path} in round {round_num}")
+            return render_read_page(sid, round_num, op)
+        elif data_type == "edit":
+            rel_path = "/".join(parts[4:-1]) if len(parts) > 5 else (parts[4] if len(parts) > 4 else "")
+            op_id = 0
+            if len(parts) > 5:
+                try:
+                    op_id = int(parts[-1])
+                except ValueError:
+                    rel_path = "/".join(parts[4:])
+            op = self._round_store.get_file_op(sid, round_num, "edit", rel_path, op_id)
+            if not op:
+                return _not_found_page(f"No edit data for {rel_path} in round {round_num}")
+            return render_edit_page(sid, round_num, op)
+        else:
+            return _not_found_page(f"Unknown data type: {data_type}")
+
     def start(self, open_browser: bool = True):
         """Start the live agent server."""
         from logic.serve.html_server import LocalHTMLServer
@@ -517,13 +596,18 @@ class AgentServer:
             port=self.port,
             title="LLM Agent Live",
             api_handler=self._api_handler,
+            page_handler=self._page_handler,
             enable_sse=True,
         )
 
         self._mgr.on_event(self._on_mgr_event)
 
-        sid = self._mgr.new_session(title="New Task")
-        self._default_session_id = sid
+        existing = self._mgr.list_sessions()
+        if existing:
+            self._default_session_id = existing[0]["id"]
+        else:
+            sid = self._mgr.new_session(title="New Task")
+            self._default_session_id = sid
 
         self._server.start()
 

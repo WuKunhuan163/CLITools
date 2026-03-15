@@ -170,6 +170,9 @@ def build_runtime_state() -> str:
     return "\n".join(lines)
 
 
+_SESSIONS_DIR = os.path.join(_PROJECT_ROOT, "runtime", "sessions")
+
+
 @dataclass
 class Session:
     id: str
@@ -180,6 +183,45 @@ class Session:
     created_at: float = field(default_factory=time.time)
     message_count: int = 0
     codebase_root: Optional[str] = None
+
+    def save(self, events: Optional[list] = None):
+        """Persist session metadata, context, and UI events to disk."""
+        os.makedirs(_SESSIONS_DIR, exist_ok=True)
+        data = {
+            "id": self.id,
+            "title": self.title,
+            "status": "idle" if self.status == "running" else self.status,
+            "created_at": self.created_at,
+            "message_count": self.message_count,
+            "codebase_root": self.codebase_root,
+            "context": self.context.to_dict(),
+        }
+        if events is not None:
+            data["events"] = events
+        path = os.path.join(_SESSIONS_DIR, f"{self.id}.json")
+        import json as _json
+        with open(path, "w", encoding="utf-8") as f:
+            _json.dump(data, f, ensure_ascii=False, indent=1)
+
+    @classmethod
+    def load(cls, path: str) -> Optional["Session"]:
+        """Load a session from disk."""
+        import json as _json
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = _json.load(f)
+            ctx = SessionContext.from_dict(data.get("context", {}))
+            return cls(
+                id=data["id"],
+                title=data.get("title", "New Task"),
+                status=data.get("status", "idle"),
+                context=ctx,
+                created_at=data.get("created_at", time.time()),
+                message_count=data.get("message_count", 0),
+                codebase_root=data.get("codebase_root"),
+            )
+        except Exception:
+            return None
 
 
 BUILTIN_TOOLS = [
@@ -201,7 +243,7 @@ BUILTIN_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read a file and return its contents. For large files, use start_line/end_line to read specific sections.",
+            "description": "Read ONE file and return its contents. To read multiple files, call read_file separately for each. For large files, use start_line/end_line.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -331,6 +373,7 @@ class ConversationManager:
         self._active_session_id: Optional[str] = None
         self._current_turn_session_id: Optional[str] = None
         self._event_cb: Optional[Callable] = None
+        self._load_persisted_sessions()
         self._lock = threading.Lock()
         self._cancel_requested = False
 
@@ -378,6 +421,28 @@ class ConversationManager:
         if not hasattr(self, '_extra_tools'):
             self._extra_tools: list = []
         self._extra_tools.append(tool_def)
+
+    def _load_persisted_sessions(self):
+        """Load sessions from disk on startup."""
+        if not os.path.isdir(_SESSIONS_DIR):
+            return
+        import glob
+        for path in glob.glob(os.path.join(_SESSIONS_DIR, "*.json")):
+            session = Session.load(path)
+            if session and session.id not in self._sessions:
+                self._sessions[session.id] = session
+
+    def _persist_session(self, session_id: str):
+        """Save a session to disk. If _event_provider is set, include events."""
+        session = self._sessions.get(session_id)
+        if session:
+            try:
+                events = None
+                if hasattr(self, '_event_provider') and self._event_provider:
+                    events = self._event_provider(session_id)
+                session.save(events=events)
+            except Exception:
+                pass
 
     def _emit(self, evt: dict):
         if self._event_cb:
@@ -609,6 +674,8 @@ class ConversationManager:
         path = args.get("path", "")
         start_line = args.get("start_line")
         end_line = args.get("end_line")
+        if not path:
+            return {"ok": False, "output": "Error: path is required for read_file. Example: read_file(path=\"tool/LLM/logic/utils/token_counter.py\")"}
         if not os.path.isabs(path):
             path = os.path.join(self._get_cwd(), path)
         if hasattr(self, '_turn_reads'):
@@ -616,7 +683,9 @@ class ConversationManager:
         basename = os.path.basename(path.rstrip("/"))
         read_desc = f"Read {basename}" if basename else "List directory"
         if start_line or end_line:
-            read_desc += f" (lines {start_line or 1}-{end_line or 'end'})"
+            s_str = str(start_line or 1)
+            e_str = str(end_line) if end_line else "end"
+            read_desc += f" L{s_str}-{e_str}"
         self._emit({"type": "tool", "name": "read", "desc": read_desc, "cmd": path})
         env_obj = self._get_current_environment()
         try:
@@ -644,6 +713,15 @@ class ConversationManager:
             self._emit({"type": "tool_result", "ok": True, "output": content})
             if env_obj:
                 env_obj.record_result(f"read:{path}", True, content[:200])
+            if hasattr(self, '_round_store') and self._round_store:
+                cwd = self._get_cwd()
+                rel = os.path.relpath(path, cwd) if os.path.isabs(path) else path
+                self._round_store.record_file_op(
+                    self._current_turn_session_id or "",
+                    getattr(self, '_current_round', 0),
+                    "read", rel, content,
+                    start_line=start_line or 0,
+                    end_line=end_line or 0)
             return {"ok": True, "output": content}
         except Exception as e:
             self._emit({"type": "tool_result", "ok": False, "output": str(e)})
@@ -671,7 +749,9 @@ class ConversationManager:
         if not pattern:
             return {"ok": False, "output": "Error: search pattern cannot be empty. Provide a specific search term."}
         cwd = self._get_cwd()
-        search_desc = f"Search for \"{pattern}\"" + (f" in {os.path.basename(path)}" if path != "." else "")
+        is_single_file = os.path.isfile(os.path.join(cwd, path)) if not os.path.isabs(path) else os.path.isfile(path)
+        search_target = os.path.basename(path) if path != "." else ""
+        search_desc = f"Searched \"{pattern}\"" + (f" in {search_target}" if search_target else "")
         self._emit({"type": "tool", "name": "search", "desc": search_desc, "cmd": f"search '{pattern}' {path}"})
         env_obj = self._get_current_environment()
         try:
@@ -691,6 +771,19 @@ class ConversationManager:
                 cmd, capture_output=True, timeout=15, cwd=cwd,
             )
             output = result.stdout.decode("utf-8", errors="replace")[:2000] or "(no matches)"
+            if is_single_file and output != "(no matches)":
+                cleaned_lines = []
+                prefixes = [path + ":", os.path.basename(path) + ":"]
+                for line in output.splitlines():
+                    stripped = False
+                    for pfx in prefixes:
+                        if line.startswith(pfx):
+                            cleaned_lines.append(line[len(pfx):])
+                            stripped = True
+                            break
+                    if not stripped:
+                        cleaned_lines.append(line)
+                output = "\n".join(cleaned_lines)
             self._emit({"type": "tool_result", "ok": True, "output": output})
             if env_obj:
                 env_obj.record_result(f"search:{pattern}", True, output[:300])
@@ -924,6 +1017,14 @@ class ConversationManager:
                          "output": diff_preview})
             if env_obj:
                 env_obj.record_result(f"edit:{path}", True, diff_preview)
+            if hasattr(self, '_round_store') and self._round_store:
+                cwd = self._get_cwd()
+                rel = os.path.relpath(path, cwd) if os.path.isabs(path) else path
+                self._round_store.record_file_op(
+                    self._current_turn_session_id or "",
+                    getattr(self, '_current_round', 0),
+                    "edit", rel, new_content,
+                    old_content=old_text, new_content=new_text)
             return {"ok": True, "output": f"Edit applied to {path}"}
         except Exception as e:
             self._emit({"type": "tool_result", "ok": False, "output": str(e)})
@@ -971,6 +1072,87 @@ class ConversationManager:
         return {"ok": True, "output": f"Lesson recorded: {lesson}"}
 
     @staticmethod
+    def _truncate_tool_output(tool_name: str, output: str, max_chars: int = 2000) -> str:
+        """Truncate tool output for context, keeping the most useful parts.
+
+        Implements progressive context disclosure: full output is emitted to
+        the UI via events, but only a compressed version enters the LLM context.
+        """
+        if not output or len(output) <= max_chars:
+            return output
+
+        lines = output.split("\n")
+        total_lines = len(lines)
+
+        if tool_name in ("read_file", "read"):
+            head = "\n".join(lines[:30])
+            tail = "\n".join(lines[-10:])
+            return (
+                f"{head}\n\n... [{total_lines - 40} lines omitted] ...\n\n{tail}"
+                f"\n[Total: {total_lines} lines, {len(output)} chars. "
+                f"Use start_line/end_line to read specific sections.]"
+            )[:max_chars]
+
+        if tool_name == "exec":
+            tail = "\n".join(lines[-20:])
+            return (
+                f"[Output: {total_lines} lines, {len(output)} chars. Last 20 lines:]\n"
+                f"{tail}"
+            )[:max_chars]
+
+        if tool_name == "search":
+            head = "\n".join(lines[:15])
+            return (
+                f"{head}\n\n... [{total_lines - 15} more matches omitted]"
+            )[:max_chars]
+
+        head = "\n".join(lines[:20])
+        return f"{head}\n\n... [truncated, {total_lines} total lines]"[:max_chars]
+
+    @staticmethod
+    def _merge_streaming_tool_calls(accumulated: list, deltas: list) -> list:
+        """Merge streaming tool call deltas into accumulated tool calls.
+
+        Streaming APIs send tool calls incrementally — the function name and
+        arguments arrive across multiple chunks. This method merges them by
+        matching on `index` (preferred) or `id`.
+        """
+        for delta in deltas:
+            idx = delta.get("index")
+            did = delta.get("id")
+            func = delta.get("function", {})
+            matched = None
+
+            if idx is not None:
+                while len(accumulated) <= idx:
+                    accumulated.append({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+                matched = accumulated[idx]
+            elif did:
+                for existing in accumulated:
+                    if existing.get("id") == did:
+                        matched = existing
+                        break
+
+            if matched is None:
+                accumulated.append({
+                    "id": did or delta.get("id", ""),
+                    "type": "function",
+                    "function": {
+                        "name": func.get("name") or "",
+                        "arguments": func.get("arguments") or "",
+                    },
+                })
+            else:
+                if did and not matched.get("id"):
+                    matched["id"] = did
+                if func.get("name"):
+                    matched["function"]["name"] = func["name"]
+                if func.get("arguments"):
+                    matched["function"]["arguments"] += func["arguments"]
+
+        return accumulated
+
+    @staticmethod
     def _parse_text_tool_calls(text: str):
         """Parse tool calls embedded in text (e.g. <tool_call>func(args)</tool_call>).
 
@@ -979,7 +1161,7 @@ class ConversationManager:
         """
         import re, json as _json, uuid as _uuid
 
-        patterns = [
+        paren_patterns = [
             re.compile(
                 r'<tool_call>\s*(\w+)\s*\(\s*(.*?)\s*\)\s*</tool_call>',
                 re.DOTALL),
@@ -988,21 +1170,44 @@ class ConversationManager:
                 re.DOTALL),
         ]
 
+        xml_kv_pattern = re.compile(
+            r'<tool_call>\s*(\w+)\s*((?:<arg_key>.*?</arg_value>)+)\s*(?:</tool_call>)?',
+            re.DOTALL)
+        xml_pair_pattern = re.compile(
+            r'<arg_key>\s*(.*?)\s*</arg_key>\s*<arg_value>\s*(.*?)\s*</arg_value>',
+            re.DOTALL)
+
         tool_calls = []
         cleaned = text
 
-        for pattern in patterns:
-            for match in pattern.finditer(text):
+        for match in xml_kv_pattern.finditer(text):
+            func_name = match.group(1)
+            args_dict = {}
+            for kv in xml_pair_pattern.finditer(match.group(2)):
+                args_dict[kv.group(1)] = kv.group(2)
+            if func_name and args_dict:
+                tool_calls.append({
+                    "id": f"text_tc_{_uuid.uuid4().hex[:8]}",
+                    "type": "function",
+                    "function": {
+                        "name": func_name,
+                        "arguments": _json.dumps(args_dict),
+                    },
+                })
+                cleaned = cleaned.replace(match.group(0), "")
+
+        for pattern in paren_patterns:
+            for match in pattern.finditer(cleaned):
                 func_name = match.group(1)
                 args_raw = match.group(2)
                 args_dict = {}
                 try:
                     args_dict = _json.loads("{" + args_raw + "}")
                 except Exception:
-                    kv_pattern = re.compile(
+                    kv_re = re.compile(
                         r'(\w+)\s*=\s*("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\')',
                         re.DOTALL)
-                    for kv in kv_pattern.finditer(args_raw):
+                    for kv in kv_re.finditer(args_raw):
                         key = kv.group(1)
                         val = kv.group(2)
                         try:
@@ -1029,8 +1234,22 @@ class ConversationManager:
         import json as _json
         func = tool_call.get("function", {})
         name = func.get("name", "")
+        raw_args = func.get("arguments", "{}")
         try:
-            args = _json.loads(func.get("arguments", "{}"))
+            if isinstance(raw_args, dict):
+                args = raw_args
+            elif isinstance(raw_args, str):
+                raw_args = raw_args.strip()
+                try:
+                    args = _json.loads(raw_args)
+                except _json.JSONDecodeError:
+                    decoder = _json.JSONDecoder()
+                    args, idx = decoder.raw_decode(raw_args)
+                    remainder = raw_args[idx:].strip()
+                    if remainder:
+                        self._concat_json_remainder = remainder
+            else:
+                args = {}
         except Exception:
             args = {}
 
@@ -1046,6 +1265,16 @@ class ConversationManager:
         else:
             self._emit({"type": "text", "tokens": f"Unknown tool: {name}"})
             result = {"ok": False, "output": f"Unknown tool: {name}"}
+
+        remainder = getattr(self, '_concat_json_remainder', None)
+        if remainder:
+            self._concat_json_remainder = None
+            result["output"] = (
+                result.get("output", "") +
+                "\n\n[WARNING] You tried to pass multiple JSON objects in one tool call. "
+                "Only the first was used. Call each tool SEPARATELY for each file. "
+                f"Ignored: {remainder[:100]}"
+            )
 
         duration_ms = (time.time() - t0) * 1000
         self._fire_hook("on_post_tool_use",
@@ -1076,6 +1305,7 @@ class ConversationManager:
                      "codebase_root": codebase})
         self._fire_hook("on_session_start",
                         session_id=sid, codebase_root=codebase, title=title)
+        self._persist_session(sid)
         return sid
 
     def rename_session(self, session_id: str, new_title: str):
@@ -1084,6 +1314,7 @@ class ConversationManager:
             if s:
                 s.title = new_title
         self._emit({"type": "session_renamed", "id": session_id, "title": new_title})
+        self._persist_session(session_id)
 
     def delete_session(self, session_id: str):
         with self._lock:
@@ -1091,6 +1322,12 @@ class ConversationManager:
             if self._active_session_id == session_id:
                 remaining = list(self._sessions.keys())
                 self._active_session_id = remaining[-1] if remaining else None
+        persist_path = os.path.join(_SESSIONS_DIR, f"{session_id}.json")
+        if os.path.exists(persist_path):
+            try:
+                os.remove(persist_path)
+            except OSError:
+                pass
         self._emit({"type": "session_deleted", "id": session_id})
 
     def set_active(self, session_id: str):
@@ -1220,6 +1457,7 @@ class ConversationManager:
                 self._emit({"type": "complete"})
                 session.status = "idle"
                 self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                self._persist_session(session_id)
                 return
 
             tools = None
@@ -1230,7 +1468,7 @@ class ConversationManager:
             from tool.LLM.logic.registry import get_pipeline
             pipeline = get_pipeline(self._provider_name)
 
-            max_tool_rounds = (turn_limit + 2) if turn_limit > 0 else 30
+            max_tool_rounds = (turn_limit + 1) if turn_limit > 0 else 30
             round_num = 0
             empty_retries = 0
             max_empty_retries = pipeline.get_max_retries()
@@ -1316,9 +1554,9 @@ class ConversationManager:
                                 self._emit({"type": "text", "tokens": t})
                             tc = chunk.get("tool_calls")
                             if tc:
-                                tool_calls_accum.extend(tc)
+                                self._merge_streaming_tool_calls(tool_calls_accum, tc)
                             if chunk.get("done"):
-                                if chunk.get("tool_calls"):
+                                if chunk.get("tool_calls") and not tool_calls_accum:
                                     tool_calls_accum = chunk["tool_calls"]
                                 latency = chunk.get("latency_s")
                                 self._last_finish_reason = chunk.get("finish_reason", "")
@@ -1330,17 +1568,21 @@ class ConversationManager:
                                     "has_tool_calls": bool(tool_calls_accum),
                                     "provider": self._provider_name,
                                     "model": chunk.get("model", self._provider_name),
+                                    "_full_text": full_text,
                                 }
                                 if chunk.get("usage"):
                                     stream_end_evt["usage"] = chunk["usage"]
                                 self._emit(stream_end_evt)
                                 if turn_limit > 0 and not tool_calls_accum and round_num >= turn_limit:
+                                    if auto_title:
+                                        self._generate_title_async(session_id, text, full_text)
                                     self._emit({"type": "notice",
-                                                "text": f"Turn limit reached ({round_num}/{turn_limit})",
+                                                "text": f"Round limit reached ({round_num}/{turn_limit})",
                                                 "icon": "bx-stop-circle"})
                                     self._emit({"type": "complete"})
                                     session.status = "idle"
                                     self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                                    self._persist_session(session_id)
                                     return
                                 break
                         else:
@@ -1349,6 +1591,7 @@ class ConversationManager:
                             self._emit({"type": "complete"})
                             session.status = "idle"
                             self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                            self._persist_session(session_id)
                             return
                 else:
                     self._emit({"type": "llm_response_start", "round": round_num})
@@ -1373,6 +1616,7 @@ class ConversationManager:
                         self._emit({"type": "complete"})
                         session.status = "idle"
                         self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                        self._persist_session(session_id)
                         return
                     resp_event = {
                         "type": "llm_response_end",
@@ -1381,6 +1625,7 @@ class ConversationManager:
                         "has_tool_calls": bool(tool_calls_accum),
                         "provider": self._provider_name,
                         "model": result.get("model", self._provider_name),
+                        "_full_text": full_text,
                     }
                     if result.get("usage"):
                         resp_event["usage"] = result["usage"]
@@ -1402,12 +1647,15 @@ class ConversationManager:
                 if turn_limit > 0 and not tool_calls_accum and round_num >= turn_limit:
                     if full_text:
                         session.context.add_assistant(full_text)
+                    if auto_title:
+                        self._generate_title_async(session_id, text, full_text)
                     self._emit({"type": "notice",
-                                "text": f"Turn limit reached ({round_num}/{turn_limit})",
+                                "text": f"Round limit reached ({round_num}/{turn_limit})",
                                 "icon": "bx-stop-circle"})
                     self._emit({"type": "complete"})
                     session.status = "idle"
                     self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                    self._persist_session(session_id)
                     return
 
                 if not full_text and not tool_calls_accum:
@@ -1551,10 +1799,13 @@ class ConversationManager:
                 for tc in tool_calls_accum:
                     tool_id = tc.get("id", "")
                     result = tool_results_map.get(tool_id, {"output": "[skipped]"})
+                    fn_name = tc.get("function", {}).get("name", "")
+                    full_output = result.get("output", "")
+                    context_output = self._truncate_tool_output(fn_name, full_output)
                     tool_msg = {
                         "role": "tool",
                         "tool_call_id": tool_id,
-                        "content": result.get("output", ""),
+                        "content": context_output,
                     }
                     session.context.add_raw_message(tool_msg)
 
@@ -1587,10 +1838,10 @@ class ConversationManager:
                         self._emit({"type": "debug",
                                      "text": "Loop detected — nudging synthesis"})
 
-                if turn_limit > 0 and round_num >= turn_limit + 1:
+                if turn_limit > 0 and round_num >= turn_limit:
                     _force_no_tools = True
                     session.context.add_user(
-                        "STOP making tool calls. You have exceeded the turn limit. "
+                        "STOP making tool calls. You have reached the round limit. "
                         "Summarize everything you have found and respond NOW.")
                     self._emit({"type": "text",
                                  "tokens": f"[Hard ceiling at round {round_num} — forcing text-only response...]\n"})
@@ -1601,6 +1852,7 @@ class ConversationManager:
                             session_id=session_id, round_count=round_num,
                             tool_calls_count=len(_tool_call_history),
                             status="completed")
+            self._persist_session(session_id)
 
             if auto_title:
                 self._generate_title_async(session_id, text, full_text)
@@ -1613,6 +1865,7 @@ class ConversationManager:
                             session_id=session_id,
                             round_count=getattr(self, '_current_round', 0),
                             tool_calls_count=0, status="error")
+            self._persist_session(session_id)
 
         session.status = "done"
         self._emit({"type": "session_status", "id": session_id, "status": "done"})

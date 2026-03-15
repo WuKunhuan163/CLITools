@@ -95,6 +95,30 @@ function stripDiffPrefix(line) {
   return line.replace(/^[+\- ]\s*\d+\s*\|\s?/, '');
 }
 
+function _renderSearchOutput(raw) {
+  if (!raw || raw === '(no matches)') return '<span style="color:var(--text-3);font-size:11px">(no matches)</span>';
+  const lines = raw.split('\n').filter(l => l.trim());
+  return lines.map(line => {
+    const m = line.match(/^(\d+):(.*)$/);
+    if (m) {
+      return '<div style="font-family:var(--mono);font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word">'
+        + '<span style="color:var(--accent);font-weight:600">' + esc(m[1]) + '</span>'
+        + '<span style="color:var(--text-3)">:</span> '
+        + '<span style="color:var(--text)">' + esc(m[2]) + '</span></div>';
+    }
+    const fm = line.match(/^(.+?):(\d+):(.*)$/);
+    if (fm) {
+      return '<div style="font-family:var(--mono);font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word">'
+        + '<span style="color:var(--text-3)">' + esc(fm[1]) + '</span>'
+        + '<span style="color:var(--text-3)">:</span>'
+        + '<span style="color:var(--accent);font-weight:600">' + esc(fm[2]) + '</span>'
+        + '<span style="color:var(--text-3)">:</span>'
+        + '<span style="color:var(--text)">' + esc(fm[3]) + '</span></div>';
+    }
+    return '<div style="font-family:var(--mono);font-size:11px;color:var(--text-2)">' + esc(line) + '</div>';
+  }).join('');
+}
+
 function renderDiffOutput(raw) {
   const lines = raw.split('\n');
   let html = '';
@@ -167,7 +191,7 @@ class AgentGUIEngine {
     this._activeTextGrp = null;
     this._activeTextBuf = '';
     this._roundHistory = [];
-    this._maxRoundHistory = 10;
+    this._maxRoundHistory = 16;
 
     this._registerDefaults();
     this._initScrollToBottom();
@@ -620,6 +644,10 @@ class AgentGUIEngine {
     this.lastToolEl = this._makeToolCall(evt.name, evt.desc, evt.cmd, evt.file);
     this.lastToolEl._trackerId = tid;
     this._lastToolEvt = evt;
+    this.lastToolEl.dataset.sid = this.activeSessionId || '';
+    this.lastToolEl.dataset.round = this._currentRound || 0;
+    this.lastToolEl.dataset.toolName = evt.name || '';
+    this.lastToolEl.dataset.toolCmd = evt.cmd || '';
 
     const isEditType = evt.name === 'edit' || evt.name === 'edit_file' || evt.name === 'write_file';
     if (evt.name === 'exec') {
@@ -820,9 +848,9 @@ class AgentGUIEngine {
       <table class="round-detail-table">
         <tr><td>Provider</td><td>${esc(data.provider)}</td></tr>
         <tr><td>Model</td><td>${esc(data.model)}</td></tr>
-        <tr><td>Output Tokens</td><td>${data.output_tokens.toLocaleString()}</td></tr>
-        <tr><td>Context Tokens</td><td>${data.context_tokens.toLocaleString()}</td></tr>
-        <tr><td>Total Tokens</td><td>${data.total_tokens.toLocaleString()}</td></tr>
+        <tr><td>Input Tokens</td><td class="token-link" data-type="input" data-round="${data.round}">${data.context_tokens.toLocaleString()}</td></tr>
+        <tr><td>Output Tokens</td><td class="token-link" data-type="output" data-round="${data.round}">${data.output_tokens.toLocaleString()}</td></tr>
+        <tr><td>Total Tokens</td><td class="token-link" data-type="context" data-round="${data.round}">${data.total_tokens.toLocaleString()}</td></tr>
         <tr><td>Latency</td><td>${data.latency_s}s</td></tr>
         <tr><td>Cost</td><td>${(this._costCurrency || '$') + data.cost.toFixed(6)}</td></tr>
         <tr><td>Time</td><td>${new Date(data.timestamp).toLocaleTimeString()}</td></tr>
@@ -833,6 +861,16 @@ class AgentGUIEngine {
         History: ${this._roundHistory.length} / ${this._maxRoundHistory} rounds retained
       </div>
     </div>`;
+    overlay.querySelectorAll('.token-link').forEach(td => {
+      td.addEventListener('click', () => {
+        const type = td.dataset.type;
+        const round = td.dataset.round;
+        const sid = this.activeSessionId;
+        if (sid && type && round != null) {
+          window.open(`/session/${sid}/${type}/${round}`, '_blank');
+        }
+      });
+    });
     overlay.classList.add('open');
   }
 
@@ -957,6 +995,10 @@ class AgentGUIEngine {
 
     if (info.isEdit) {
       el.dataset.toolType = info.isNew ? 'write' : 'edit';
+    } else if (name === 'search') {
+      el.dataset.toolType = 'search';
+    } else if (name === 'read') {
+      el.dataset.toolType = 'read';
     }
     return el;
   }
@@ -1000,6 +1042,8 @@ class AgentGUIEngine {
           } else {
             out.textContent = output;
           }
+        } else if (el.dataset.toolType === 'search' && output) {
+          out.innerHTML = _renderSearchOutput(output);
         } else {
           out.textContent = output;
         }

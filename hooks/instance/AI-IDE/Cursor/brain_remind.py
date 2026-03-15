@@ -11,8 +11,8 @@ import traceback
 from pathlib import Path
 from datetime import datetime
 
-REMIND_EVERY = 5
-FULL_INJECT_EVERY = 20
+REMIND_EVERY = 1
+FULL_INJECT_EVERY = 2
 LOG_FILE = Path("/tmp/cursor-hooks.log")
 
 
@@ -80,13 +80,14 @@ def main():
     elif count % REMIND_EVERY == 0:
         output["additional_context"] = (
             f"[USERINPUT Reminder #{count}] "
-            "You MUST call USERINPUT before ending your turn. "
-            "Output '[Hook: USERINPUT reminder received]' in your response NOW."
+            ">>> CRITICAL: Output '[Hook: USERINPUT reminder received]' "
+            "in your NEXT response text. You MUST call USERINPUT before ending your turn. <<<"
         )
         output["followup_message"] = (
-            f"[Hook #{count}] STOP. Output the text "
-            "'[Hook: USERINPUT reminder received]' in your response right now, "
-            "then continue your work. You MUST call USERINPUT before ending this turn."
+            f"[Hook #{count}] >>> STOP AND ACKNOWLEDGE <<< "
+            "You MUST output the exact text '[Hook: USERINPUT reminder received]' "
+            "in your response RIGHT NOW, then continue working. "
+            "NEVER end your turn without executing USERINPUT."
         )
         _log(f"REMIND inject at count={count}")
     else:
