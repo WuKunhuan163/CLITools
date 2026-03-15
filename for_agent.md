@@ -241,7 +241,17 @@ TOOL_NAME --agent feed <session_id>
 
 ### USERINPUT Feedback Loop
 
-When calling USERINPUT, **never** set `--timeout` below the default (300s). See the `userinput-feedback-loop` skill for details.
+`USERINPUT` is a **standalone terminal command** (not a `main.py` subcommand). Execute it directly:
+
+```bash
+# Direct execution (preferred):
+./bin/USERINPUT/USERINPUT --hint "Task completed, awaiting feedback"
+
+# With PATH configured (after setup.py):
+USERINPUT --hint "Task completed"
+```
+
+**Important**: Do NOT redirect stderr (`2>&1`) when calling USERINPUT — it uses real-time terminal output for progress display. Never set `--timeout` below the default (300s). See the `userinput-feedback-loop` skill for details.
 
 **IMPORTANT for skills discoverability**: If a user asks you to locate a skill and you cannot find it, you should create a new skill and adjust relevant README.md / for_agent.md files to improve discoverability for future agents.
 

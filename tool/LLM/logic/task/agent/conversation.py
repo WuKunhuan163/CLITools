@@ -1164,9 +1164,9 @@ class ConversationManager:
             old_lines = old_text.splitlines()
             new_lines = new_text.splitlines()
             diff_lines = []
-            for ol in old_lines[:10]:
+            for ol in old_lines:
                 diff_lines.append(f"-{ol}")
-            for nl in new_lines[:10]:
+            for nl in new_lines:
                 diff_lines.append(f"+{nl}")
             diff_preview = "\n".join(diff_lines)
             self._emit({"type": "tool_result", "ok": True,

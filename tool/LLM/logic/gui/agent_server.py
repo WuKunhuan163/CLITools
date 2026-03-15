@@ -341,6 +341,7 @@ class AgentServer:
                     return {"ok": False, "error": "Missing vendor or key"}
                 from tool.LLM.logic.config import set_config_value
                 set_config_value(f"{vendor}_api_key", key)
+                self._push_sse({"type": "settings_changed", "action": "key_saved", "vendor": vendor})
                 return {"ok": True}
 
             elif path == "/api/delete-key":
@@ -349,6 +350,7 @@ class AgentServer:
                     return {"ok": False, "error": "Missing vendor"}
                 from tool.LLM.logic.config import set_config_value
                 set_config_value(f"{vendor}_api_key", "")
+                self._push_sse({"type": "settings_changed", "action": "key_deleted", "vendor": vendor})
                 return {"ok": True}
 
             elif path == "/api/queue":

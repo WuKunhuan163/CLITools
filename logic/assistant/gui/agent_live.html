@@ -128,7 +128,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 /* ── Settings Section Styles ── */
 .settings-section-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
 .settings-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; }
-.settings-card.configured { background: color-mix(in srgb, var(--green) 3%, var(--surface-2)); border-color: color-mix(in srgb, var(--green) 15%, var(--border)); }
+.settings-card.configured { background: color-mix(in srgb, var(--green) 8%, var(--surface-2)); border-color: color-mix(in srgb, var(--green) 30%, var(--border)); }
 .settings-card.unconfigured { }
 .settings-card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
 .settings-card-title img { width: 18px; height: 18px; border-radius: 3px; }
@@ -170,13 +170,14 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .sub-panel-search { padding: 6px 12px; border-bottom: 1px solid var(--border); }
 .sub-panel-search input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; color: var(--text); font-size: 11px; font-family: var(--font); outline: none; }
 .sub-panel-search input:focus { border-color: var(--accent); }
-.settings-key-form { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
-.settings-key-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-size: 12px; font-family: var(--mono); color: var(--text-1); outline: none; }
+.settings-key-form { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.settings-key-form-row { display: flex; align-items: center; gap: 6px; }
+.settings-key-input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-size: 12px; font-family: var(--mono); color: var(--text-1); outline: none; }
 .settings-key-input:focus { border-color: var(--accent); }
-.settings-validate-btn { background: var(--accent); color: #fff; border: none; border-radius: 4px; padding: 5px 12px; font-size: 11px; cursor: pointer; white-space: nowrap; }
+.settings-validate-btn { background: color-mix(in srgb, var(--green) 85%, #000); color: #fff; border: none; border-radius: 4px; padding: 5px 12px; font-size: 11px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
 .settings-validate-btn:hover { opacity: 0.9; }
 .settings-validate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.settings-key-status { font-size: 11px; display: block; margin-top: 6px; word-break: break-word; max-width: 100%; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; max-height: 3.0em; }
+.settings-key-status { font-size: 11px; display: none; word-break: break-word; max-width: 100%; line-height: 1.5; padding: 4px 0; }
 
 /* ── Pinned Panels ── */
 .pinned-panels { margin: 0 24px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0; }
@@ -1356,9 +1357,11 @@ function renderProvidersView() {
       ${keysHtml}
       <div class="settings-add-key" data-vendor="${esc(name)}">
         <div class="settings-key-form" style="display:none;">
-          <input type="password" placeholder="Paste API key..." class="settings-key-input">
-          <button class="settings-validate-btn" onclick="validateAndSaveKey(this)">Validate & Save</button>
-          <span class="settings-key-status"></span>
+          <div class="settings-key-form-row">
+            <input type="password" placeholder="Paste API key..." class="settings-key-input">
+            <button class="settings-validate-btn" onclick="validateAndSaveKey(this)">Validate & Save</button>
+          </div>
+          <div class="settings-key-status"></div>
         </div>
       </div>
       ${renderCallsTable(provCalls, 'prov_' + name)}
@@ -1572,8 +1575,9 @@ function closeProviderOrderOverlay() {
 function toggleKeyInput(el) {
   const form = el.classList?.contains('settings-key-form') ? el : el.parentElement.querySelector('.settings-key-form');
   if (!form) return;
-  form.style.display = form.style.display === 'none' ? 'flex' : 'none';
-  if (form.style.display === 'flex') form.querySelector('.settings-key-input')?.focus();
+  const hidden = form.style.display === 'none';
+  form.style.display = hidden ? '' : 'none';
+  if (hidden) form.querySelector('.settings-key-input')?.focus();
 }
 
 const _PROVIDER_GUIDES = {
@@ -1647,6 +1651,11 @@ function showProviderGuide(vendor) {
   </div>`;
 }
 
+function _setKeyStatus(status, html) {
+  status.innerHTML = html;
+  status.style.display = html ? 'block' : 'none';
+}
+
 async function validateAndSaveKey(btn) {
   const form = btn.closest('.settings-key-form');
   const container = btn.closest('.settings-add-key');
@@ -1654,9 +1663,9 @@ async function validateAndSaveKey(btn) {
   const input = form.querySelector('.settings-key-input');
   const status = form.querySelector('.settings-key-status');
   const key = input.value.trim();
-  if (!key) { status.innerHTML = '<span style="color:var(--red)">Enter a key</span>'; return; }
+  if (!key) { _setKeyStatus(status, '<span style="color:var(--red)">Enter a key</span>'); return; }
   btn.disabled = true;
-  status.innerHTML = '<span style="color:var(--text-3)">Validating...</span>';
+  _setKeyStatus(status, '<span style="color:var(--text-3)">Validating...</span>');
   try {
     const res = await fetch('/api/validate-key', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor, key}) });
     const data = await res.json();
@@ -1664,17 +1673,17 @@ async function validateAndSaveKey(btn) {
       const saveRes = await fetch('/api/save-key', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor, key}) });
       const saveData = await saveRes.json();
       if (saveData.ok) {
-        status.innerHTML = '<span style="color:var(--green)"><i class="bx bx-check"></i> Saved</span>';
+        _setKeyStatus(status, '<span style="color:var(--green)"><i class="bx bx-check"></i> Saved</span>');
         input.value = '';
-        setTimeout(() => { form.style.display = 'none'; status.innerHTML = ''; }, 1500);
+        setTimeout(() => { form.style.display = 'none'; _setKeyStatus(status, ''); fetchUsageData().then(() => renderSettingsTab()); }, 1200);
       } else {
-        status.innerHTML = `<span style="color:var(--red)">Save failed: ${esc(saveData.error)}</span>`;
+        _setKeyStatus(status, `<span style="color:var(--red)">Save failed: ${esc(saveData.error)}</span>`);
       }
     } else {
-      status.innerHTML = `<span style="color:var(--red)"><i class="bx bx-x"></i> ${esc(data.error)}</span>`;
+      _setKeyStatus(status, `<span style="color:var(--red)"><i class="bx bx-x"></i> ${esc(data.error)}</span>`);
     }
   } catch (e) {
-    status.innerHTML = `<span style="color:var(--red)">Network error</span>`;
+    _setKeyStatus(status, `<span style="color:var(--red)">Network error</span>`);
   }
   btn.disabled = false;
 }
@@ -1778,6 +1787,10 @@ function handleSSEEvent(evt) {
 
     case 'session_deleted':
       engine.deleteSession(evt.id);
+      break;
+
+    case 'settings_changed':
+      fetchUsageData().then(() => { if (settingsTab) renderSettingsTab(); });
       break;
 
     case 'session_status':
