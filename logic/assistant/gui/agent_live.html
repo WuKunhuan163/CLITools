@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Assistant - Live</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%236366f1%22><path d=%22M21 10.5h-1V10c0-2.206-1.794-4-4-4h-2V4.723C14.889 4.34 15.5 3.493 15.5 2.5 15.5 1.121 14.379 0 13 0s-2.5 1.121-2.5 2.5c0 .993.611 1.84 1.5 2.223V6H8c-2.206 0-4 1.794-4 4v.5H3c-.553 0-1 .447-1 1v3c0 .553.447 1 1 1h1V16c0 2.206 1.794 4 4 4h2v2c0 .553.447 1 1 1h4c.553 0 1-.447 1-1v-2h2c2.206 0 4-1.794 4-4v-.5h1c.553 0 1-.447 1-1v-3c0-.553-.447-1-1-1zM10 14c-.828 0-1.5-.672-1.5-1.5S9.172 11 10 11s1.5.672 1.5 1.5S10.828 14 10 14zm6 0c-.828 0-1.5-.672-1.5-1.5s.672-1.5 1.5-1.5 1.5.672 1.5 1.5S16.828 14 16 14z%22/></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -728,7 +728,7 @@ const MODEL_LOGOS = {
   'baidu-ernie-speed-8k': BAIDU_LOGO,
   'tencent-hunyuan-lite': TENCENT_LOGO,
   'siliconflow-qwen2.5-7b': SILICONFLOW_LOGO,
-  'auto': ZHIPU_LOGO,
+  'auto': null,
   'cursor': CURSOR_LOGO,
   'copilot': COPILOT_LOGO,
   'windsurf': WINDSURF_LOGO,
@@ -774,20 +774,9 @@ function resolveModelLogo(provider) {
 const MODE_ICONS = { agent: 'bx-bot', plan: 'bx-edit', ask: 'bx-chat' };
 const MODE_LABELS = { agent: 'Agent', plan: 'Plan', ask: 'Ask' };
 
-const MODEL_OPTIONS = [
+let MODEL_OPTIONS = [
   { value: 'auto', label: 'Auto' },
-  { value: 'zhipu-glm-4.7-flash', label: 'GLM-4.7-Flash' },
-  { value: 'zhipu-glm-4-flash', label: 'GLM-4-Flash' },
-  { value: 'zhipu-glm-4.7', label: 'GLM-4.7' },
-  { value: 'google-gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-  { value: 'baidu-ernie-speed-8k', label: 'ERNIE Speed 8K' },
-  { value: 'tencent-hunyuan-lite', label: 'Hunyuan Lite' },
-  { value: 'siliconflow-qwen2.5-7b', label: 'Qwen 2.5 7B' },
-].sort((a, b) => {
-  if (a.value === 'auto') return -1;
-  if (b.value === 'auto') return 1;
-  return a.label.localeCompare(b.label);
-});
+];
 
 function buildPillSelect(container, options, currentValue, onChange, opts = {}) {
   const searchable = opts.searchable !== false && options.length > 5;
@@ -948,7 +937,7 @@ function _refreshPillLabels() {
     modePill.setOptions(Object.keys(MODE_ICONS).map(k => ({ value: k, label: _(MODE_LABELS[k]), icon: MODE_ICONS[k] })));
   }
   if (typeof modelPill !== 'undefined' && modelPill) {
-    modelPill.setOptions(MODEL_OPTIONS.map(o => ({ value: o.value, label: _(o.label), logo: MODEL_LOGOS[o.value] || ZHIPU_LOGO })));
+    modelPill.setOptions(MODEL_OPTIONS.map(o => o.value === 'auto' ? { value: 'auto', label: _('Auto'), icon: 'bx-bot' } : { value: o.value, label: _(o.label), logo: MODEL_LOGOS[o.value] || ZHIPU_LOGO }));
   }
   const turnSel = $('turn-limit-select');
   if (turnSel) {
@@ -1118,7 +1107,7 @@ const modePill = buildPillSelect(
 );
 const modelPill = buildPillSelect(
   $('model-pill'),
-  MODEL_OPTIONS.map(o => ({ value: o.value, label: o.label, logo: MODEL_LOGOS[o.value] || ZHIPU_LOGO })),
+  MODEL_OPTIONS.map(o => o.value === 'auto' ? { value: 'auto', label: 'Auto', icon: 'bx-bot' } : { value: o.value, label: o.label, logo: MODEL_LOGOS[o.value] || ZHIPU_LOGO }),
   currentModel,
   (v) => setModel(v)
 );
@@ -2551,9 +2540,8 @@ async function init() {
     const cfgResp = await fetch('/api/configured_models');
     const cfgData = await cfgResp.json();
     if (cfgData.ok && cfgData.models && cfgData.models.length > 1) {
-      const newOpts = cfgData.models.map(m => ({
-        value: m.value, label: m.label, logo: MODEL_LOGOS[m.value] || ZHIPU_LOGO
-      }));
+      MODEL_OPTIONS = cfgData.models.map(m => ({ value: m.value, label: m.label }));
+      const newOpts = MODEL_OPTIONS.map(m => m.value === 'auto' ? { value: 'auto', label: _('Auto'), icon: 'bx-bot' } : { value: m.value, label: m.label, logo: MODEL_LOGOS[m.value] || ZHIPU_LOGO });
       modelPill.setOptions(newOpts);
     }
   } catch (e) { console.warn('Failed to load configured models:', e); }
