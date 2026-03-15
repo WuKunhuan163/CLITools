@@ -1431,17 +1431,12 @@ class AgentGUIEngine {
     if (this._llmRequestEl && !this._llmConnected) {
       this._llmConnected = true;
       this._streamingInputTokens = evt.prompt_tokens || 0;
-      const nameEl = this._llmRequestEl.querySelector('.model-name');
-      if (nameEl) {
-        const waitSuffix = nameEl.querySelector('.model-waiting');
-        if (waitSuffix) waitSuffix.remove();
-      }
     }
     if (this._llmRequestEl) {
       const spinner = this._llmRequestEl.querySelector('.model-spinner');
       if (spinner) spinner.style.display = '';
       const latency = this._llmRequestEl.querySelector('.model-latency');
-      if (latency) latency.textContent = '';
+      if (latency) latency.innerHTML = '';
       this._startStreamingBannerUpdates();
     }
     return sleep(50);
@@ -1479,6 +1474,8 @@ class AgentGUIEngine {
     latencyEl.innerHTML = '';
     const isSelfOperate = this._selfOperate;
 
+    latencyEl.appendChild(sep());
+
     const fmtT = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
     const tokenStr = inputTokens > 0
       ? fmtT(inputTokens) + ' + ' + fmtT(estOutputTokens) + ' tokens'
@@ -1504,6 +1501,13 @@ class AgentGUIEngine {
     const timeSpan = document.createElement('span');
     timeSpan.textContent = elapsed + 's';
     latencyEl.appendChild(timeSpan);
+
+    latencyEl.appendChild(sep());
+    const mode = (typeof window !== 'undefined' && window.currentMode) || 'agent';
+    const actLabel = document.createElement('span');
+    actLabel.className = 'model-activity';
+    actLabel.textContent = mode === 'agent' ? 'Working' : 'Responding';
+    latencyEl.appendChild(actLabel);
   }
 
   _getModelPricing(provider) {
@@ -1585,6 +1589,7 @@ class AgentGUIEngine {
           return a;
         };
         const sep = () => { const s = document.createElement('span'); s.textContent = ' \u00b7 '; s.className = 'model-sep'; return s; };
+        latency.appendChild(sep());
         latency.appendChild(makeLink(tokenLabel, ridx));
         if (costLabel) { latency.appendChild(sep()); latency.appendChild(document.createTextNode(costLabel)); }
         if (latLabel) { latency.appendChild(sep()); latency.appendChild(document.createTextNode(latLabel)); }
@@ -1602,8 +1607,7 @@ class AgentGUIEngine {
     div.className = 'model-info model-decision';
     div.innerHTML =
       '<i class="bx bx-bot model-info-icon" style="color:var(--accent);font-size:16px;"></i>'
-      + '<span class="model-name" style="color:var(--text-2);">Choosing model\u2026</span>'
-      + '<span class="model-sep">\u00b7</span>'
+      + '<span class="model-name" style="color:var(--text-2);">Choosing the model provider</span>'
       + '<div class="spinner spinner-sm model-spinner"></div>';
     this._modelDecisionEl = div;
     this.chatArea.appendChild(div);
@@ -1635,7 +1639,7 @@ class AgentGUIEngine {
 
   _renderModelDecisionProposed(evt) {
     if (!this._modelDecisionEl) {
-      this._renderModelDecisionStart({text: 'Choosing model\u2026'});
+      this._renderModelDecisionStart({text: 'Choosing the model provider'});
     }
     if (this._modelDecisionEl) {
       const proposed = evt.proposed;
@@ -1643,7 +1647,7 @@ class AgentGUIEngine {
       const names = typeof MODEL_DISPLAY_NAMES !== 'undefined' ? MODEL_DISPLAY_NAMES : {};
       const displayName = resolveNameFn ? resolveNameFn(proposed) : (names[proposed] || proposed);
       const nameEl = this._modelDecisionEl.querySelector('.model-name');
-      nameEl.textContent = `Choosing model (${displayName})\u2026`;
+      nameEl.textContent = `Choosing the model provider (${displayName})`;
     }
     return sleep(100);
   }
@@ -1744,12 +1748,14 @@ class AgentGUIEngine {
     } else {
       html += '<i class="bx bx-bot model-info-icon"></i>';
     }
-    html += '<span class="model-name">' + esc(name);
+    html += '<span class="model-name">' + esc(name) + '</span>';
+    html += '<span class="model-latency">';
     if (opts.waiting) {
-      html += ' <span class="model-waiting" style="color:var(--text-3);font-weight:400;font-size:12px;">\u00b7 Waiting for the model provider\u2026</span>';
+      html += '<span class="model-sep"> \u00b7 </span>';
+      html += '<span class="model-waiting">Connecting</span>';
     }
     html += '</span>';
-    html += '<span class="model-sep">\u00b7</span><div class="spinner spinner-sm model-spinner"></div><span class="model-latency"></span>';
+    html += '<div class="spinner spinner-sm model-spinner"></div>';
     div.innerHTML = html;
     return div;
   }
