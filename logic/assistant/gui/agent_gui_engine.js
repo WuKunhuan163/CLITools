@@ -932,7 +932,7 @@ class AgentGUIEngine {
           + '<button class="file-item-btn accept" title="Accept" data-path="' + esc(f.path) + '" onclick="event.stopPropagation();window._acceptFile(this)"><i class="bx bx-check"></i></button>'
           + '</span>'
         : '';
-      return '<div class="file-summary-item">' + renderFileIcon(f.name) + ' ' + esc(f.name) + ' ' + tag + ' ' + stat + fileActions + '</div>';
+      return '<div class="file-summary-item" data-path="' + esc(f.path) + '">' + renderFileIcon(f.name) + ' ' + esc(f.name) + ' ' + tag + ' ' + stat + fileActions + '</div>';
     }).join('');
 
     const actionsHtml = showActions
@@ -974,9 +974,11 @@ class AgentGUIEngine {
       if (revertBtn) {
         revertBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          const rejectBtns = this._taskFileBarEl.querySelectorAll('.file-item-btn.reject');
+          revertBtn.disabled = true;
+          this._taskFileBarEl.classList.add('expanded');
+          const rejectBtns = [...this._taskFileBarEl.querySelectorAll('.file-item-btn.reject')];
           for (const b of rejectBtns) {
-            if (!b.closest('.file-summary-item.rejected')) {
+            if (!b.closest('.file-summary-item.rejected') && !b.closest('.file-summary-item.accepted')) {
               await window._revertFile(b);
             }
           }
@@ -985,8 +987,14 @@ class AgentGUIEngine {
       if (saveBtn) {
         saveBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          const acceptBtns = this._taskFileBarEl.querySelectorAll('.file-item-btn.accept');
-          acceptBtns.forEach(b => { if (!b.closest('.file-summary-item.accepted')) window._acceptFile(b); });
+          saveBtn.disabled = true;
+          this._taskFileBarEl.classList.add('expanded');
+          const acceptBtns = [...this._taskFileBarEl.querySelectorAll('.file-item-btn.accept')];
+          acceptBtns.forEach(b => {
+            if (!b.closest('.file-summary-item.accepted') && !b.closest('.file-summary-item.rejected')) {
+              window._acceptFile(b);
+            }
+          });
         });
       }
     }
@@ -1007,8 +1015,13 @@ class AgentGUIEngine {
     const model = evt.model || '';
     this._currentProvider = provider;
     this._currentRound = round;
+    if (evt.self_operate) this._selfOperate = true;
     if (!this._taskStartTime) this._taskStartTime = Date.now();
-    this._llmRequestEl = this._createModelInfoEl(provider, round, model);
+    this._llmRequestEl = this._createModelInfoEl(provider, round, model, {
+      self_operate: evt.self_operate,
+      env: evt.env,
+      self_name: evt.self_name,
+    });
     this.chatArea.appendChild(this._llmRequestEl);
     return sleep(100);
   }
@@ -1155,19 +1168,37 @@ class AgentGUIEngine {
     this._costCurrency = symbol;
   }
 
-  _createModelInfoEl(provider, round, model) {
+  _createModelInfoEl(provider, round, model, opts) {
+    opts = opts || {};
     const resolveNameFn = typeof resolveDisplayName === 'function' ? resolveDisplayName : null;
     const resolveLogoFn = typeof resolveModelLogo === 'function' ? resolveModelLogo : null;
     const logos = typeof MODEL_LOGOS !== 'undefined' ? MODEL_LOGOS : {};
     const names = typeof MODEL_DISPLAY_NAMES !== 'undefined' ? MODEL_DISPLAY_NAMES : {};
-    const name = resolveNameFn ? resolveNameFn(provider, model) : (names[provider] || provider);
-    const logo = resolveLogoFn ? resolveLogoFn(provider) : (logos[provider] || '');
+    const envLogos = typeof ENV_LOGOS !== 'undefined' ? ENV_LOGOS : {};
+
+    let name, logo;
+    if (opts.self_operate && opts.env) {
+      const envParts = (opts.env || '').split('/');
+      const envKey = envParts[envParts.length - 1] || '';
+      const envLabel = envKey.charAt(0).toUpperCase() + envKey.slice(1);
+      name = opts.self_name ? envLabel + ' (' + opts.self_name + ')' : envLabel;
+      logo = envLogos[envKey.toLowerCase()] || envLogos[opts.env] || '';
+    } else {
+      name = resolveNameFn ? resolveNameFn(provider, model) : (names[provider] || provider);
+      logo = resolveLogoFn ? resolveLogoFn(provider) : (logos[provider] || '');
+    }
+
     const div = document.createElement('div');
     div.className = 'model-info';
     let html = '';
-    if (logo) html += '<img src="' + logo + '" alt="' + esc(name) + '">';
+    if (logo) {
+      html += '<img src="' + logo + '" alt="' + esc(name) + '">';
+    } else if (opts.self_operate) {
+      html += '<i class="bx bx-bot model-info-icon"></i>';
+    }
     html += '<span class="model-name">' + esc(name) + '</span>';
-    html += '<span class="model-sep">·</span><div class="spinner spinner-sm model-spinner"></div><span class="model-latency"></span>';
+    if (round) html += '<span class="model-round">Round ' + round + '</span>';
+    html += '<span class="model-sep">\u00b7</span><div class="spinner spinner-sm model-spinner"></div><span class="model-latency"></span>';
     div.innerHTML = html;
     return div;
   }

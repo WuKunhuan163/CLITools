@@ -295,6 +295,18 @@ class AgentServer:
                 sid = self._mgr.new_session(
                     title=title, codebase_root=codebase, mode=mode)
                 self._default_session_id = sid
+
+                pre_events = body.get("events", [])
+                if pre_events:
+                    if sid not in self._event_history:
+                        self._event_history[sid] = []
+                    for evt in pre_events:
+                        evt["session_id"] = sid
+                        for k, v in list(evt.items()):
+                            if v == "__SID__":
+                                evt[k] = sid
+                        self._event_history[sid].append(evt)
+
                 self._push_sse({
                     "type": "session_created",
                     "id": sid,

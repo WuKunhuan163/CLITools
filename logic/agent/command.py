@@ -41,16 +41,42 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
 
     gui_mode = "--gui" in args or "--live" in args
     dry_run = "--dry-run" in args
-    filtered_args = [a for a in args if a not in ("--gui", "--live", "--dry-run")]
+    self_operate = "--self-operate" in args
+
+    self_name = ""
+    env_spec = ""
+    filtered_args = []
+    i = 0
+    skip_flags = {"--gui", "--live", "--dry-run", "--self-operate"}
+    while i < len(args):
+        if args[i] == "--self-name" and i + 1 < len(args):
+            self_name = args[i + 1]
+            i += 2
+        elif args[i] == "--env" and i + 1 < len(args):
+            env_spec = args[i + 1]
+            i += 2
+        elif args[i] in skip_flags:
+            i += 1
+        else:
+            filtered_args.append(args[i])
+            i += 1
+
+    self_operate_opts = {
+        "self_operate": self_operate,
+        "self_name": self_name,
+        "env": env_spec,
+    } if self_operate else {}
 
     subcmd = filtered_args[0] if filtered_args else ""
     rest = filtered_args[1:]
 
-    if gui_mode and subcmd == "prompt":
-        _handle_prompt_gui(rest, tool_name, project_root, tool_dir, mode=mode)
+    if (gui_mode or self_operate) and subcmd == "prompt":
+        _handle_prompt_gui(rest, tool_name, project_root, tool_dir, mode=mode,
+                           **self_operate_opts)
         return
-    elif gui_mode and not subcmd:
-        _handle_prompt_gui([], tool_name, project_root, tool_dir, mode=mode)
+    elif (gui_mode or self_operate) and not subcmd:
+        _handle_prompt_gui([], tool_name, project_root, tool_dir, mode=mode,
+                           **self_operate_opts)
         return
 
     if subcmd == "prompt":
@@ -128,11 +154,20 @@ def _get_session_config_default(key, fallback):
 
 
 def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
-                       tool_dir: str, mode: str = "agent"):
-    """Start the HTML GUI server and optionally send an initial prompt."""
+                       tool_dir: str, mode: str = "agent",
+                       self_operate: bool = False, self_name: str = "",
+                       env: str = ""):
+    """Start the HTML GUI server and optionally send an initial prompt.
+
+    When self_operate is True, the prompt is displayed in the GUI but NOT
+    sent to the LLM provider. Instead, the system waits for an external
+    ``--response`` command (typically from the calling AI IDE agent).
+    """
     from logic.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
     GREEN = get_color("GREEN", "\033[32m")
+    CYAN = get_color("CYAN", "\033[36m")
+    DIM = get_color("DIM", "\033[2m")
     RESET = get_color("RESET", "\033[0m")
 
     prompt = " ".join(args) if args else None
@@ -143,7 +178,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
     if existing_port:
         base_url = f"http://localhost:{existing_port}"
         print(f"  {BOLD}Reusing{RESET} GUI at {base_url}")
-        if prompt:
+        if prompt and not self_operate:
             try:
                 import urllib.request
                 data = json.dumps({"text": prompt, "turn_limit": default_turn_limit}).encode()
@@ -157,6 +192,9 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
                 print(f"  {BOLD}Sent{RESET} initial prompt.")
             except Exception:
                 print(f"  Prompt queued — type it in the browser.")
+        elif prompt and self_operate:
+            _inject_self_operate_prompt(base_url, prompt, self_name, env,
+                                        default_turn_limit)
         return
 
     try:
@@ -166,7 +204,11 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         return
 
     label = MODE_LABELS.get(mode, "Agent")
-    print(f"  {BOLD}Starting{RESET} {label} GUI (provider: {provider})...")
+    if self_operate:
+        label_display = f"{label} (self-operate)"
+    else:
+        label_display = label
+    print(f"  {BOLD}Starting{RESET} {label_display} GUI (provider: {provider})...")
 
     try:
         from tool.LLM.logic.config import get_config_value
@@ -183,31 +225,92 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         lang=lang,
     )
 
+    port = agent._server.port if hasattr(agent._server, 'port') else 0
     print(f"  {BOLD}{GREEN}Live{RESET} at {agent.url}")
+    print(f"  Port: {port}")
 
     if prompt:
-        import time
-        time.sleep(0.5)
-        try:
-            import urllib.request
-            data = json.dumps({"text": prompt, "turn_limit": default_turn_limit}).encode()
-            req = urllib.request.Request(
-                f"{agent.url}/api/send",
-                data=data,
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
-            urllib.request.urlopen(req, timeout=5)
-            print(f"  {BOLD}Sent{RESET} initial prompt.")
-        except Exception:
-            print(f"  Prompt queued — type it in the browser.")
+        import time as _t
+        _t.sleep(0.5)
+        if self_operate:
+            _inject_self_operate_prompt(agent.url, prompt, self_name, env,
+                                        default_turn_limit)
+        else:
+            try:
+                import urllib.request
+                data = json.dumps({"text": prompt, "turn_limit": default_turn_limit}).encode()
+                req = urllib.request.Request(
+                    f"{agent.url}/api/send",
+                    data=data,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=5)
+                print(f"  {BOLD}Sent{RESET} initial prompt.")
+            except Exception:
+                print(f"  Prompt queued — type it in the browser.")
+
+    if self_operate:
+        print(f"  {CYAN}{BOLD}Self-operate mode.{RESET} {DIM}Awaiting --response.{RESET}")
 
     print(f"  Press Ctrl+C to stop.")
     try:
         agent._server.wait()
     except KeyboardInterrupt:
         agent.stop()
-        print(f"\n  {BOLD}Stopped.{RESET}")
+
+
+def _inject_self_operate_prompt(base_url: str, prompt: str, self_name: str,
+                                env: str, turn_limit: int):
+    """Inject a self-operate prompt into the GUI without calling LLM."""
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    CYAN = get_color("CYAN", "\033[36m")
+    DIM = get_color("DIM", "\033[2m")
+    RESET = get_color("RESET", "\033[0m")
+
+    import urllib.request
+
+    title = prompt[:50] if prompt else "Self-operate"
+
+    env_label = ""
+    if env:
+        parts = env.split("/")
+        env_label = parts[-1] if parts else env
+
+    display_name = f"{env_label} ({self_name})" if env_label and self_name else self_name or env_label or "Self"
+
+    events = [
+        {"type": "user", "prompt": prompt},
+        {"type": "session_status", "id": "__SID__", "status": "running"},
+        {
+            "type": "llm_request",
+            "provider": display_name,
+            "round": 1,
+            "model": self_name or "self",
+            "self_operate": True,
+            "env": env,
+            "self_name": self_name,
+        },
+    ]
+
+    payload = json.dumps({
+        "title": title,
+        "events": events,
+        "self_operate": True,
+    }).encode()
+    req = urllib.request.Request(
+        f"{base_url}/api/session",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    resp = json.loads(urllib.request.urlopen(req, timeout=5).read())
+    sid = resp.get("session_id", "")
+
+    print(f"  {BOLD}Self-operate prompt sent.{RESET} {DIM}Session: {sid}{RESET}")
+    print(f"  {CYAN}Awaiting response:{RESET} --agent response {sid[:8]} <json>")
+    print(f"  {DIM}Display name: {display_name}{RESET}")
 
 
 def _get_provider_name() -> str:

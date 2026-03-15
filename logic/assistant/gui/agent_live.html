@@ -346,7 +346,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .file-stat .removed-count { color: var(--red); }
 
 /* ── Persistent Task File Bar ── */
-.task-file-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 0 28px 8px; overflow: hidden; }
+.task-file-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 0 28px 8px; overflow: hidden; transition: opacity 0.3s ease; }
+.task-file-bar.removing { opacity: 0; }
 .task-file-bar .file-summary-header { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 12.5px; font-weight: 500; color: var(--text-2); cursor: pointer; user-select: none; }
 .task-file-bar .file-summary-header:hover { background: rgba(255,255,255,0.03); }
 .task-file-bar .file-summary-chevron { font-size: 14px; color: var(--text-3); transition: transform 0.2s; }
@@ -354,7 +355,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .task-file-bar .file-summary-list { display: none; padding: 4px 12px 8px; }
 .task-file-bar.expanded .file-summary-list { display: block; }
 .task-file-actions { display: flex; gap: 6px; margin-left: auto; }
-.task-file-btn { border: none; border-radius: 4px; padding: 3px 10px; font-size: 11px; cursor: pointer; font-weight: 500; }
+.task-file-btn { border: none; border-radius: 4px; padding: 3px 10px; font-size: 11px; cursor: pointer; font-weight: 500; transition: opacity 0.2s; }
+.task-file-btn:disabled { opacity: 0.4; cursor: default; }
 .task-file-revert { background: rgba(255,100,100,0.15); color: var(--red); }
 .task-file-revert:hover { background: rgba(255,100,100,0.25); }
 .task-file-save { background: rgba(100,255,100,0.15); color: var(--green); }
@@ -364,10 +366,12 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .file-item-btn:hover { background: rgba(255,255,255,0.08); }
 .file-item-btn.reject:hover { color: var(--red); background: rgba(255,100,100,0.12); }
 .file-item-btn.accept:hover { color: var(--green); background: rgba(100,255,100,0.12); }
-.file-summary-item.accepted { opacity: 0.7; }
+.file-summary-item { transition: opacity 0.3s ease, max-height 0.3s ease; max-height: 40px; overflow: hidden; }
+.file-summary-item.accepted { opacity: 0.6; }
 .file-summary-item.accepted .file-item-btn { display: none; }
 .file-summary-item.rejected { opacity: 0.5; text-decoration: line-through; }
 .file-summary-item.rejected .file-item-btn { display: none; }
+.file-summary-item.removing { opacity: 0; max-height: 0; padding: 0; margin: 0; }
 .file-result-icon { font-size: 14px; margin-left: 4px; flex-shrink: 0; }
 .file-result-icon.accept-icon { color: var(--green); }
 .file-result-icon.reject-icon { color: var(--red); }
@@ -500,6 +504,7 @@ body.debug-mode .debug-block { display: block; }
 .model-info .model-round { font-family: var(--mono); font-size: 10px; color: var(--text-3); }
 .model-info .model-sep { color: var(--border-active); }
 .model-info .model-spinner { display: inline-block; vertical-align: middle; }
+.model-info .model-info-icon { font-size: 16px; color: var(--accent); }
 .debug-link { cursor: pointer; transition: color 0.15s; }
 .debug-link:hover { color: var(--accent); }
 .round-detail-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
@@ -724,6 +729,12 @@ const MODEL_DISPLAY_NAMES = {
 };
 
 const AI_IDE_PROVIDERS = new Set(['cursor', 'copilot', 'windsurf', 'github-copilot']);
+
+const ENV_LOGOS = {
+  'cursor': CURSOR_LOGO,
+  'copilot': COPILOT_LOGO,
+  'windsurf': WINDSURF_LOGO,
+};
 
 function resolveDisplayName(provider, model) {
   if (AI_IDE_PROVIDERS.has(provider) && model) {
@@ -1876,11 +1887,39 @@ window._diffHunkAction = async function(btn, action) {
 
 window._acceptFile = function(btn) {
   const item = btn.closest('.file-summary-item');
-  if (!item) return;
+  if (!item || item.classList.contains('accepted') || item.classList.contains('rejected')) return;
   item.classList.add('accepted');
   const actions = item.querySelector('.file-item-actions');
   if (actions && !actions.querySelector('.file-result-icon')) {
     actions.insertAdjacentHTML('beforeend', '<i class="bx bx-check file-result-icon accept-icon"></i>');
+  }
+  window._scheduleFileRemoval(item);
+};
+
+window._scheduleFileRemoval = function(item) {
+  setTimeout(() => {
+    item.classList.add('removing');
+    setTimeout(() => {
+      const path = item.dataset.path || '';
+      item.remove();
+      if (path && typeof engine !== 'undefined') {
+        delete engine._taskFiles[path];
+      }
+      window._checkFileBarEmpty();
+    }, 300);
+  }, 2000);
+};
+
+window._checkFileBarEmpty = function() {
+  if (typeof engine === 'undefined' || !engine._taskFileBarEl) return;
+  const remaining = engine._taskFileBarEl.querySelectorAll('.file-summary-item:not(.removing)');
+  if (!remaining.length) {
+    engine._taskFileBarEl.classList.add('removing');
+    setTimeout(() => engine._removeTaskFileBar(), 300);
+  } else {
+    const count = remaining.length;
+    const header = engine._taskFileBarEl.querySelector('.file-summary-header span');
+    if (header) header.textContent = count + ' File' + (count > 1 ? 's' : '');
   }
 };
 
@@ -1931,6 +1970,7 @@ window._revertFile = async function(btn) {
     if (actions && !actions.querySelector('.file-result-icon')) {
       actions.insertAdjacentHTML('beforeend', '<i class="bx bx-x file-result-icon reject-icon"></i>');
     }
+    window._scheduleFileRemoval(item);
   }
 };
 
@@ -2081,9 +2121,15 @@ function handleSSEEvent(evt) {
     default:
       if (evt.session_id && evt.session_id !== activeSessionId) break;
       if (evt.type === 'user' && evt.session_id) break;
+      if (evt.type === 'llm_request' && evt.self_operate) {
+        $('input').disabled = true;
+        $('input').placeholder = 'Self-operate mode — awaiting response via CLI...';
+        $('btn-send').disabled = true;
+      }
       if (evt.type === 'complete') {
         sending = false;
         $('input').disabled = false;
+        $('input').placeholder = _('Type a message. Ctrl+Enter to send.');
         $('btn-send').disabled = false;
         setStopMode(false);
         const reason = evt.reason || 'done';
