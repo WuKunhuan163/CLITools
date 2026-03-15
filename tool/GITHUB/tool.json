@@ -1,0 +1,13 @@
+{
+  "name": "GITHUB",
+  "version": "1.0.0",
+  "description": "GitHub integration via GitHub MCP",
+  "purpose": "Manage repositories, issues, pull requests, and code through GitHub API.",
+  "dependencies": [
+    "PYTHON",
+    "GIT"
+  ],
+  "npm_dependencies": [
+    "@modelcontextprotocol/server-github"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "label_error": "错误",
+  "label_success": "成功",
+  "cdp_available": "CDP 可用",
+  "cdp_unavailable": "CDP 不可用",
+  "colab_tab_found": "Colab 标签已找到",
+  "colab_tab_not_found": "未找到 Colab 标签",
+  "inject_success": "注入成功",
+  "inject_failed": "注入失败",
+  "oauth_result": "OAuth 结果"
+}

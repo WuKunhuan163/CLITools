@@ -1,0 +1,13 @@
+{
+  "name": "ASANA",
+  "version": "1.0.0",
+  "description": "Asana project management via Chrome DevTools Protocol",
+  "purpose": "Manage Asana workspaces, projects, and tasks via CDP using the authenticated app session.",
+  "dependencies": [
+    "PYTHON",
+    "GOOGLE.CDMCP"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
+  ]
+}

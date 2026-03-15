@@ -1,0 +1,13 @@
+{
+  "name": "PAYPAL",
+  "version": "1.0.0",
+  "description": "PayPal payment integration via Chrome DevTools Protocol",
+  "purpose": "Access PayPal account info, balance, and recent activity via CDP using the authenticated session.",
+  "dependencies": [
+    "PYTHON",
+    "GOOGLE.CDMCP"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
+  ]
+}

@@ -1,0 +1,8 @@
+[
+  "test_00_help.py",
+  "test_01_non_blocking.py",
+  "test_02_logging.py",
+  "test_03_wait.py",
+  "test_04_stop.py",
+  "test_05_run.py"
+]

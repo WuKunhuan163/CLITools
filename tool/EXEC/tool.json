@@ -1,0 +1,7 @@
+{
+  "name": "EXEC",
+  "version": "1.1.0",
+  "description": "Shell command execution with sandbox policy engine",
+  "purpose": "Execute shell commands with timeout, output capture, and sandbox-based access control (allow/deny policies, protected paths, command classification).",
+  "dependencies": []
+}
