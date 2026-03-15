@@ -54,6 +54,24 @@
   --badge-text: var(--text-2);
   --glow-color: transparent;
   --scanline-opacity: 0;
+  --configured-bg: var(--green-dim);
+  --configured-text: var(--green);
+  --configured-card-bg: var(--green-card-bg);
+  --configured-card-border: var(--green-card-border);
+  --unconfigured-bg: var(--surface-3);
+  --unconfigured-text: var(--text-3);
+  --status-ok: var(--green);
+  --status-ok-dim: var(--green-dim);
+  --status-error: var(--red);
+  --status-error-dim: var(--red-dim);
+  --spinner-color: var(--accent);
+  --bench-gold: linear-gradient(135deg,#FFD700,#FFA500);
+  --bench-silver: linear-gradient(135deg,#C0C0C0,#E8E8E8);
+  --bench-bronze: linear-gradient(135deg,#CD7F32,#E8A862);
+  --chip-provider-bg: var(--surface-3);
+  --chip-provider-text: var(--text-2);
+  --chip-free-bg: var(--green-dim);
+  --chip-free-text: var(--green);
 }
 body.light-mode {
   --bg: #f5f6f8;
@@ -100,6 +118,15 @@ body.brilliant-mode, body.brilliant-mode.palette-strawberry {
   --red-dim: rgba(239,68,68,0.10);
   --purple: #a855f7;
   --purple-dim: rgba(168,85,247,0.10);
+  --configured-bg: rgba(232,93,117,0.12);
+  --configured-text: #e85d75;
+  --configured-card-bg: #fff0f3;
+  --configured-card-border: #f5b8c4;
+  --status-ok: #e85d75;
+  --status-ok-dim: rgba(232,93,117,0.10);
+  --spinner-color: #e85d75;
+  --chip-free-bg: rgba(232,93,117,0.08);
+  --chip-free-text: #e85d75;
 }
 body.brilliant-mode.palette-mango {
   --bg: #fefcf0;
@@ -123,6 +150,15 @@ body.brilliant-mode.palette-mango {
   --red-dim: rgba(232,80,80,0.10);
   --purple: #c060e0;
   --purple-dim: rgba(192,96,224,0.10);
+  --configured-bg: rgba(232,146,11,0.12);
+  --configured-text: #e8920b;
+  --configured-card-bg: #fdf8e8;
+  --configured-card-border: #f0d888;
+  --status-ok: #e8920b;
+  --status-ok-dim: rgba(232,146,11,0.10);
+  --spinner-color: #e8920b;
+  --chip-free-bg: rgba(232,146,11,0.08);
+  --chip-free-text: #e8920b;
 }
 body.brilliant-mode.palette-blueberry {
   --bg: #f0f4fe;
@@ -146,6 +182,15 @@ body.brilliant-mode.palette-blueberry {
   --red-dim: rgba(224,80,80,0.10);
   --purple: #8050e0;
   --purple-dim: rgba(128,80,224,0.10);
+  --configured-bg: rgba(80,112,224,0.12);
+  --configured-text: #5070e0;
+  --configured-card-bg: #eef2ff;
+  --configured-card-border: #a0b8f0;
+  --status-ok: #5070e0;
+  --status-ok-dim: rgba(80,112,224,0.10);
+  --spinner-color: #5070e0;
+  --chip-free-bg: rgba(80,112,224,0.08);
+  --chip-free-text: #5070e0;
 }
 body.hacker-mode {
   --bg: #0a0e0a;
@@ -189,6 +234,20 @@ body.hacker-mode {
   --badge-text: #22aa22;
   --glow-color: rgba(0,255,65,0.15);
   --scanline-opacity: 0.03;
+  --configured-bg: rgba(0,255,65,0.08);
+  --configured-text: #00ff41;
+  --configured-card-bg: rgba(0,255,65,0.04);
+  --configured-card-border: rgba(0,255,65,0.15);
+  --status-ok: #00ff41;
+  --status-ok-dim: rgba(0,255,65,0.08);
+  --status-error: #ff3333;
+  --status-error-dim: rgba(255,51,51,0.08);
+  --spinner-color: #00ff41;
+  --bench-gold: linear-gradient(135deg,#00ff41,#00cc33);
+  --bench-silver: linear-gradient(135deg,#22aa22,#1a7a1a);
+  --bench-bronze: linear-gradient(135deg,#1a7a1a,#115511);
+  --chip-free-bg: rgba(0,255,65,0.06);
+  --chip-free-text: #00ff41;
 }
 body.hacker-mode::after {
   content: '';
@@ -282,7 +341,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .settings-card-title img { width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0; }
 .settings-card-title .model-name-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; flex-shrink: 1; }
 .settings-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
-.settings-badge.free { background: var(--green-dim); color: var(--green); }
+.settings-badge.free { background: var(--chip-free-bg); color: var(--chip-free-text); }
 .settings-badge.paid { background: var(--orange-dim); color: var(--orange); }
 .settings-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0; }
 .settings-stat { text-align: center; }
@@ -479,13 +538,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .experience-block { background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--text-3); border-radius: 2px var(--radius) var(--radius) 2px; padding: 10px 14px; margin: 8px 0; font-size: 12.5px; color: var(--text-2); max-width: 90%; line-height: 1.55; }
 
 /* ── Task Complete ── */
-.task-complete { text-align: center; padding: 14px; margin: 12px 0; font-size: 12.5px; font-weight: 600; color: var(--green); display: flex; align-items: center; justify-content: center; gap: 8px; }
+.task-complete { text-align: center; padding: 14px; margin: 12px 0; font-size: 12.5px; font-weight: 600; color: var(--status-ok); display: flex; align-items: center; justify-content: center; gap: 8px; }
 .task-complete .task-time { font-weight: 400; color: var(--text-3); font-size: 12px; margin-left: 4px; }
 .task-complete.task-limit { color: var(--orange); }
 .task-complete.task-limit .task-time { color: var(--text-3); }
-.task-complete.task-failed { color: var(--red); }
+.task-complete.task-failed { color: var(--status-error); }
 .task-complete.task-failed .task-time { color: var(--text-3); }
-.task-complete.task-cancelled { color: var(--red); }
+.task-complete.task-cancelled { color: var(--status-error); }
 
 .file-summary { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 8px 0; overflow: hidden; }
 .file-summary-header { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 12.5px; font-weight: 500; color: var(--text-2); cursor: pointer; user-select: none; }
@@ -561,7 +620,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 }
 
 /* ── Spinner ── */
-.spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--spinner-color); border-radius: 50%; animation: spin 0.8s linear infinite; }
 .spinner-sm { width: 10px; height: 10px; border-width: 1.5px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -2163,7 +2222,7 @@ function renderModelsView() {
     const configuredProvs = new Set(m.configured_providers || []);
     const provChips = (m.providers || []).map(p => {
       const isProvConfigured = configuredProvs.has(p);
-      const chipStyle = isProvConfigured ? 'background:var(--green-dim);color:var(--green);' : '';
+      const chipStyle = isProvConfigured ? 'background:var(--configured-bg);color:var(--configured-text);' : '';
       const vendor = p.split('-')[0];
       return `<div class="settings-provider-chip" onclick="switchSettingsTab('providers');setTimeout(()=>{const c=document.querySelector('[data-provider-id=\\'${esc(vendor)}\\']');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})},100)" style="cursor:pointer;${chipStyle}">${PROVIDER_LOGOS[vendor] ? '<img src="' + PROVIDER_LOGOS[vendor] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : ''} ${esc(fmtProviderName(vendor))}${fmtProviderPriceInner(m)}</div>`;
     }).join('');
@@ -2172,12 +2231,12 @@ function renderModelsView() {
     const aaRank = m.aa_rankings || {};
     let benchTags = '';
     const _rankColor = (r) => {
-      if (!r) return 'var(--surface-3);color:var(--text-3)';
-      if (r <= 3) return r === 1 ? 'linear-gradient(135deg,#FFD700,#FFA500);color:#000;background-size:200% 200%;animation:shimmer 2s ease infinite' : r === 2 ? 'linear-gradient(135deg,#C0C0C0,#E8E8E8);color:#333;background-size:200% 200%;animation:shimmer 2s ease infinite' : 'linear-gradient(135deg,#CD7F32,#E8A862);color:#fff;background-size:200% 200%;animation:shimmer 2s ease infinite';
+      if (!r) return 'var(--badge-bg);color:var(--badge-text)';
+      if (r <= 3) return r === 1 ? 'var(--bench-gold);color:#000;background-size:200% 200%;animation:shimmer 2s ease infinite' : r === 2 ? 'var(--bench-silver);color:#333;background-size:200% 200%;animation:shimmer 2s ease infinite' : 'var(--bench-bronze);color:#fff;background-size:200% 200%;animation:shimmer 2s ease infinite';
       if (r <= 5) return 'var(--purple-dim);color:var(--purple)';
       if (r <= 10) return 'var(--accent-dim);color:var(--accent)';
-      if (r <= 20) return 'var(--green-dim);color:var(--green)';
-      return 'var(--surface-3);color:var(--text-3)';
+      if (r <= 20) return 'var(--configured-bg);color:var(--configured-text)';
+      return 'var(--badge-bg);color:var(--badge-text)';
     };
     const _benchTag = (label, val, rank, benchKey) => {
       if (!val) return '';
@@ -2199,7 +2258,7 @@ function renderModelsView() {
     const isConfigured = m.configured;
     const cardClass = isConfigured ? 'settings-card configured' : 'settings-card unconfigured';
     html += `<div class="${cardClass}">
-      <div class="settings-card-title">${logo ? '<img src="' + logo + '" alt="">' : '<i class="bx bx-bot" style="font-size:16px;color:var(--accent)"></i>'}<span class="model-name-text" title="${esc(displayName)}">${esc(displayName)}</span>${benchTags}${isConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;flex-shrink:0;">' + _('Configured') + '</span>' : ''}</div>
+      <div class="settings-card-title">${logo ? '<img src="' + logo + '" alt="">' : '<i class="bx bx-bot" style="font-size:16px;color:var(--accent)"></i>'}<span class="model-name-text" title="${esc(displayName)}">${esc(displayName)}</span>${benchTags}${isConfigured ? '<span class="settings-badge" style="background:var(--configured-bg);color:var(--configured-text);margin-left:auto;font-size:10px;flex-shrink:0;">' + _('Configured') + '</span>' : ''}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${m.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(m.input_tokens || 0)}</div><div class="settings-stat-label">Input<br>Tokens</div></div>
@@ -2300,7 +2359,7 @@ function renderProvidersView() {
     const provConfigured = p.configured;
     const provCardClass = provConfigured ? 'settings-card configured' : 'settings-card unconfigured';
     html += `<div class="${provCardClass}" data-provider-id="${esc(name)}">
-      <div class="settings-card-title">${PROVIDER_LOGOS[name] ? '<img src="' + PROVIDER_LOGOS[name] + '" alt="" style="width:16px;height:16px;border-radius:3px;">' : '<i class="bx bx-server" style="font-size:16px;color:var(--accent)"></i>'} ${esc(displayName)}${provConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;">' + _('Configured') + '</span>' : ''}</div>
+      <div class="settings-card-title">${PROVIDER_LOGOS[name] ? '<img src="' + PROVIDER_LOGOS[name] + '" alt="" style="width:16px;height:16px;border-radius:3px;">' : '<i class="bx bx-server" style="font-size:16px;color:var(--accent)"></i>'} ${esc(displayName)}${provConfigured ? '<span class="settings-badge" style="background:var(--configured-bg);color:var(--configured-text);margin-left:auto;font-size:10px;">' + _('Configured') + '</span>' : ''}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${p.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(p.input_tokens || 0)}</div><div class="settings-stat-label">Input<br>Tokens</div></div>
@@ -3076,6 +3135,11 @@ function handleSSEEvent(evt) {
       break;
     }
 
+    case 'system_notice': {
+      engine.enqueueEvent(evt);
+      break;
+    }
+
     case 'model_decision_end': {
       engine.enqueueEvent(evt);
       break;
@@ -3135,7 +3199,7 @@ function handleSSEEvent(evt) {
 
     case 'error': {
       const errMsg = evt.message || 'Unknown error';
-      engine.renderCenterNotice(`<i class="bx bx-x-circle" style="color:var(--red);font-size:16px;vertical-align:middle;"></i> <strong style="color:var(--red);">Error</strong>: ${esc(errMsg)}`);
+      engine.renderCenterNotice(`<i class="bx bx-x-circle" style="color:var(--status-error);font-size:16px;vertical-align:middle;"></i> <strong style="color:var(--status-error);">Error</strong>: ${esc(errMsg)}`);
       $('input').disabled = false;
       $('btn-send').disabled = false;
       sending = false;
@@ -3215,6 +3279,17 @@ async function init() {
         if (cfgData.ok && cfgData.models && cfgData.models.length > 1) {
           MODEL_OPTIONS = cfgData.models.map(m => ({ value: m.value, label: m.label }));
           window._configuredModels = cfgData.models.filter(m => m.value !== 'auto').map(m => ({id: m.value, display: m.label}));
+          window._modelPricing = {};
+          cfgData.models.forEach(m => {
+            if (m.value !== 'auto') {
+              window._modelPricing[m.value] = {
+                free_tier: m.free_tier || false,
+                input_per_1m: m.input_price_per_1m || 0,
+                output_per_1m: m.output_price_per_1m || 0,
+                currency: m.currency || 'USD',
+              };
+            }
+          });
           const newOpts = MODEL_OPTIONS.map(m => m.value === 'auto' ? { value: 'auto', label: _('Auto'), icon: 'bx-bot' } : { value: m.value, label: m.label, ...(MODEL_LOGOS[m.value] ? { logo: MODEL_LOGOS[m.value] } : { icon: 'bx-bot' }) });
           modelPill.setOptions(newOpts);
           if (_queuedTasks.length) _renderQueueContainer();

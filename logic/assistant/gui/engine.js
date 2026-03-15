@@ -308,6 +308,7 @@ class AgentGUIEngine {
     this.registerBlock('llm_response_end', (evt) => this._renderLLMResponseEnd(evt));
     this.registerBlock('ask_user', (evt) => this._renderAskUser(evt));
     this.registerBlock('notice', (evt) => this._renderNotice(evt));
+    this.registerBlock('system_notice', (evt) => this._renderNotice(evt));
     this.registerBlock('debug', (evt) => this._renderDebugNotice(evt));
     this.registerBlock('file_summary', (evt) => this._renderFileSummary(evt));
     this.registerBlock('tool_stream_start', (evt) => this._renderToolStreamStart(evt));
@@ -725,6 +726,7 @@ class AgentGUIEngine {
   async _renderThinking(evt) {
     const text = (typeof evt.tokens === 'string') ? evt.tokens : '';
     if (!text) return;
+    this._trackStreamingChars(text.length);
 
     if (this._activeThinkEl && this._activeThinkBlock && this._activeThinkBlock.parentNode === this.chatArea) {
       this._activeThinkBuf += text;
@@ -770,8 +772,10 @@ class AgentGUIEngine {
   }
 
   async _renderText(evt) {
+    const tokens = evt.tokens || '';
+    if (tokens.length > 0) this._trackStreamingChars(tokens.length);
     if (this._activeTextEl && this._activeTextGrp && this._activeTextGrp.parentNode === this.chatArea) {
-      this._activeTextBuf += evt.tokens;
+      this._activeTextBuf += tokens;
       this._scheduleTextRender();
       return;
     }
@@ -779,7 +783,7 @@ class AgentGUIEngine {
     const el = this._appendEl('div', 'msg-text', '', grp);
     this._activeTextGrp = grp;
     this._activeTextEl = el;
-    this._activeTextBuf = evt.tokens;
+    this._activeTextBuf = tokens;
     this._scheduleTextRender();
   }
 
@@ -1409,6 +1413,8 @@ class AgentGUIEngine {
     this._pendingLLMOpts = { self_operate: evt.self_operate, env: evt.env, self_name: evt.self_name };
     if (evt.self_operate) this._selfOperate = true;
     if (!this._taskStartTime) this._taskStartTime = Date.now();
+    this._llmRoundStartTime = Date.now();
+    this._streamingCharCount = 0;
     this._llmRequestEl = this._createModelInfoEl(provider, round, model, {
       self_operate: evt.self_operate,
       env: evt.env,
@@ -1424,6 +1430,7 @@ class AgentGUIEngine {
   _renderLLMResponseStart(evt) {
     if (this._llmRequestEl && !this._llmConnected) {
       this._llmConnected = true;
+      this._streamingInputTokens = evt.prompt_tokens || 0;
       const nameEl = this._llmRequestEl.querySelector('.model-name');
       if (nameEl) {
         const waitSuffix = nameEl.querySelector('.model-waiting');
@@ -1435,11 +1442,83 @@ class AgentGUIEngine {
       if (spinner) spinner.style.display = '';
       const latency = this._llmRequestEl.querySelector('.model-latency');
       if (latency) latency.textContent = '';
+      this._startStreamingBannerUpdates();
     }
     return sleep(50);
   }
 
+  _startStreamingBannerUpdates() {
+    this._stopStreamingBannerUpdates();
+    this._streamingBannerInterval = setInterval(() => {
+      if (!this._llmRequestEl) {
+        this._stopStreamingBannerUpdates();
+        return;
+      }
+      this._updateStreamingBanner();
+    }, 500);
+  }
+
+  _stopStreamingBannerUpdates() {
+    if (this._streamingBannerInterval) {
+      clearInterval(this._streamingBannerInterval);
+      this._streamingBannerInterval = null;
+    }
+  }
+
+  _updateStreamingBanner() {
+    if (!this._llmRequestEl) return;
+    const latencyEl = this._llmRequestEl.querySelector('.model-latency');
+    if (!latencyEl) return;
+
+    const elapsed = ((Date.now() - (this._llmRoundStartTime || Date.now())) / 1000).toFixed(1);
+    const estOutputTokens = Math.round(this._streamingCharCount / 3.5);
+    const inputTokens = this._streamingInputTokens || 0;
+
+    const sep = () => { const s = document.createElement('span'); s.textContent = ' \u00b7 '; s.className = 'model-sep'; return s; };
+
+    latencyEl.innerHTML = '';
+    const isSelfOperate = this._selfOperate;
+
+    const fmtT = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+    const tokenStr = inputTokens > 0
+      ? fmtT(inputTokens) + ' + ' + fmtT(estOutputTokens) + ' tokens'
+      : '~' + fmtT(estOutputTokens) + ' tokens';
+    const tokenSpan = document.createElement('span');
+    tokenSpan.textContent = tokenStr;
+    latencyEl.appendChild(tokenSpan);
+
+    if (!isSelfOperate) {
+      const pricing = this._getModelPricing(this._currentProvider);
+      if (pricing && !pricing.free_tier) {
+        const estCost = (inputTokens * pricing.input_per_1m / 1e6)
+          + (estOutputTokens * pricing.output_per_1m / 1e6);
+        const sym = pricing.currency === 'CNY' ? '\u00a5' : (this._costCurrency || '$');
+        latencyEl.appendChild(sep());
+        const costSpan = document.createElement('span');
+        costSpan.textContent = sym + estCost.toFixed(4);
+        latencyEl.appendChild(costSpan);
+      }
+    }
+
+    latencyEl.appendChild(sep());
+    const timeSpan = document.createElement('span');
+    timeSpan.textContent = elapsed + 's';
+    latencyEl.appendChild(timeSpan);
+  }
+
+  _getModelPricing(provider) {
+    if (typeof window._modelPricing === 'object' && window._modelPricing[provider]) {
+      return window._modelPricing[provider];
+    }
+    return null;
+  }
+
+  _trackStreamingChars(charCount) {
+    this._streamingCharCount = (this._streamingCharCount || 0) + charCount;
+  }
+
   _renderLLMResponseEnd(evt) {
+    this._stopStreamingBannerUpdates();
     if (this._llmRequestEl) {
       const spinner = this._llmRequestEl.querySelector('.model-spinner');
       if (spinner) {
@@ -1473,11 +1552,16 @@ class AgentGUIEngine {
       }
 
       const ridx = this._roundHistory.length - 1;
-      const tokenLabel = outTokens + ' tokens';
       const isSelfOperate = this._selfOperate;
+      const elapsed = evt.latency_s || ((Date.now() - (this._llmRoundStartTime || Date.now())) / 1000).toFixed(1);
+      const latLabel = elapsed ? elapsed + 's' : '';
+
+      const fmtTokens = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+      const tokenLabel = ctxTokens > 0
+        ? fmtTokens(ctxTokens) + ' + ' + fmtTokens(outTokens) + ' tokens'
+        : fmtTokens(outTokens) + ' tokens';
       const costLabel = isSelfOperate ? ''
         : (usage.cost != null ? (this._costCurrency || '$') + usage.cost.toFixed(4) : '$0.00');
-      const latLabel = evt.latency_s ? evt.latency_s + 's' : '';
       let ctxLabel = '';
       if (!isSelfOperate && ctxTokens > 0) {
         const ctxStr = ctxTokens >= 1000 ? (ctxTokens / 1000).toFixed(1) + 'k' : String(ctxTokens);
@@ -1500,7 +1584,7 @@ class AgentGUIEngine {
           a.addEventListener('click', () => this._showRoundDetail(idx));
           return a;
         };
-        const sep = () => { const s = document.createElement('span'); s.textContent = ' · '; s.className = 'model-sep'; return s; };
+        const sep = () => { const s = document.createElement('span'); s.textContent = ' \u00b7 '; s.className = 'model-sep'; return s; };
         latency.appendChild(makeLink(tokenLabel, ridx));
         if (costLabel) { latency.appendChild(sep()); latency.appendChild(document.createTextNode(costLabel)); }
         if (latLabel) { latency.appendChild(sep()); latency.appendChild(document.createTextNode(latLabel)); }
@@ -1662,7 +1746,7 @@ class AgentGUIEngine {
     }
     html += '<span class="model-name">' + esc(name);
     if (opts.waiting) {
-      html += ' <span class="model-waiting" style="color:var(--text-3);font-weight:400;font-size:12px;">\u00b7 Connecting\u2026</span>';
+      html += ' <span class="model-waiting" style="color:var(--text-3);font-weight:400;font-size:12px;">\u00b7 Waiting for the model provider\u2026</span>';
     }
     html += '</span>';
     html += '<span class="model-sep">\u00b7</span><div class="spinner spinner-sm model-spinner"></div><span class="model-latency"></span>';
@@ -1678,7 +1762,7 @@ class AgentGUIEngine {
     const text = evt.text || evt.message || '';
     if (!text) return;
     const levelIcons = { info: 'bx-info-circle', success: 'bx-check-circle', warning: 'bx-error' };
-    const levelColors = { info: 'var(--accent)', success: 'var(--green)', warning: 'var(--yellow)' };
+    const levelColors = { info: 'var(--accent)', success: 'var(--status-ok)', warning: 'var(--orange)' };
     const level = evt.level || '';
     const icon = evt.icon ? '<i class="bx ' + evt.icon + '"></i> '
       : (levelIcons[level] ? '<i class="bx ' + levelIcons[level] + '" style="color:' + levelColors[level] + '"></i> ' : '');

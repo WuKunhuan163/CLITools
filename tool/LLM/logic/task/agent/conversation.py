@@ -1400,6 +1400,50 @@ class ConversationManager:
                     self._cancel_requested = False
                     _was_cancelled = True
                     break
+
+                if round_num > 0 and self._provider_name != actual_provider_name:
+                    new_name = self._provider_name
+                    if new_name == "auto":
+                        self._emit({"type": "system_notice",
+                                    "text": "Switched to Auto. Re-deciding model\u2026",
+                                    "level": "info"})
+                        try:
+                            from tool.LLM.logic.auto import auto_decide
+                            chosen, _ = auto_decide(user_prompt=text)
+                            if chosen:
+                                actual_provider_name = chosen
+                                provider = get_provider(actual_provider_name)
+                                pipeline = get_pipeline(actual_provider_name)
+                                is_auto = True
+                                self._auto_confirmed = False
+                            else:
+                                self._emit({"type": "system_notice",
+                                            "text": "Auto re-decision failed: no available providers.",
+                                            "level": "warning"})
+                        except Exception as e:
+                            self._emit({"type": "system_notice",
+                                        "text": f"Auto re-decision failed: {e}",
+                                        "level": "warning"})
+                    else:
+                        old_name = actual_provider_name
+                        actual_provider_name = new_name
+                        try:
+                            provider = get_provider(actual_provider_name)
+                            pipeline = get_pipeline(actual_provider_name)
+                        except Exception as e:
+                            self._emit({"type": "system_notice",
+                                        "text": f"Failed to switch to {new_name}: {e}",
+                                        "level": "warning"})
+                            actual_provider_name = old_name
+                            provider = get_provider(actual_provider_name)
+                            pipeline = get_pipeline(actual_provider_name)
+                        is_auto = False
+                        self._emit({"type": "system_notice",
+                                    "text": f"Switched to {actual_provider_name}.",
+                                    "level": "info"})
+                        self._emit({"type": "model_confirmed",
+                                    "provider": actual_provider_name})
+
                 round_num += 1
                 self._current_round = round_num
                 self._emit({"type": "debug",

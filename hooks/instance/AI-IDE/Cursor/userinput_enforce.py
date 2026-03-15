@@ -45,11 +45,11 @@ def main():
         flag_file = Path(f"/tmp/cursor-userinput-done-{conversation_id}")
         if not flag_file.exists():
             _log("USERINPUT NOT called — injecting followup_message")
-            output["followup_message"] = (
-                "STOP. You have NOT called USERINPUT yet. "
-                "Execute `USERINPUT` as a shell command RIGHT NOW. "
-                "Do not do anything else first."
-            )
+            # output["followup_message"] = (
+            #     "STOP. You have NOT called USERINPUT yet. "
+            #     "Execute `USERINPUT` as a shell command RIGHT NOW. "
+            #     "Do not do anything else first."
+            # )
         else:
             _log("USERINPUT was called — no action needed")
     else:

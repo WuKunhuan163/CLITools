@@ -71,6 +71,7 @@ def list_models() -> List[Dict[str, Any]]:
             "display_name": meta.get("display_name", model),
             "providers": providers,
             "capabilities": meta.get("capabilities", {}),
+            "cost": meta.get("cost", {}),
         })
     return results
 

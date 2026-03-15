@@ -866,9 +866,14 @@ class AgentServer:
                 mid = m["model"]
                 provs = m.get("providers", [])
                 if any(p in available_providers for p in provs):
+                    cost = m.get("cost", {})
                     configured.append({
                         "value": mid,
                         "label": m.get("display_name", mid),
+                        "free_tier": cost.get("free_tier", False),
+                        "input_price_per_1m": (cost.get("input_per_1k", 0) or 0) * 1000,
+                        "output_price_per_1m": (cost.get("output_per_1k", 0) or 0) * 1000,
+                        "currency": cost.get("currency", "USD"),
                     })
             return {"ok": True, "models": configured}
         except Exception as e:
