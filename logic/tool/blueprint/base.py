@@ -1023,13 +1023,25 @@ class ToolBase:
 
         Maps --session agent/ask/plan to --agent/--ask/--plan equivalents.
         Also handles --session checkout for switching active sessions.
+
+        When called with no args, creates a new session and prints its ID
+        along with the GUI port (if a server is running).
         """
         if not args:
-            self._handle_agent([], mode="agent")
+            self._handle_session_create_and_info()
             return
 
-        subcmd = args[0]
-        rest = args[1:]
+        mode_flags = {"--agent": "agent", "--ask": "ask", "--plan": "plan"}
+        mode = "agent"
+        filtered = []
+        for a in args:
+            if a in mode_flags:
+                mode = mode_flags[a]
+            else:
+                filtered.append(a)
+
+        subcmd = filtered[0] if filtered else ""
+        rest = filtered[1:]
 
         if subcmd in ("agent", "ask", "plan"):
             self._handle_agent(rest, mode=subcmd)
@@ -1040,7 +1052,36 @@ class ToolBase:
         elif subcmd == "queue":
             self._handle_session_queue(rest)
         else:
-            self._handle_agent(args, mode="agent")
+            self._handle_agent(filtered, mode=mode)
+
+    def _handle_session_create_and_info(self):
+        """Create a new session and print ID + GUI port."""
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        DIM = get_color("DIM", "\033[2m")
+        GREEN = get_color("GREEN", "\033[32m")
+        RESET = get_color("RESET", "\033[0m")
+
+        from logic.agent.state import AgentSession, save_session
+        project_root = str(self.project_root)
+
+        session = AgentSession(
+            tool_name=self.tool_name,
+            codebase_root=str(self.tool_dir),
+            tier=2,
+        )
+        save_session(session, project_root)
+        self._save_active_session_id(session.id)
+
+        from logic.agent.command import _find_running_gui_port
+        port = _find_running_gui_port()
+
+        print(f"  {BOLD}{GREEN}Created.{RESET} {DIM}Session: {session.id}{RESET}")
+        if port:
+            print(f"  {DIM}GUI: http://localhost:{port}{RESET}")
+            print(f"  {DIM}Port: {port}{RESET}")
+        else:
+            print(f"  {DIM}No GUI server running. Use --session --gui to start one.{RESET}")
 
     def _handle_session_checkout(self, args):
         """Switch the current tool's active session or create a new one."""

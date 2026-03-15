@@ -45,6 +45,7 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
 
     self_name = ""
     env_spec = ""
+    prompt_flag_text = ""
     filtered_args = []
     i = 0
     skip_flags = {"--gui", "--live", "--dry-run", "--self-operate"}
@@ -54,6 +55,9 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
             i += 2
         elif args[i] == "--env" and i + 1 < len(args):
             env_spec = args[i + 1]
+            i += 2
+        elif args[i] == "--prompt" and i + 1 < len(args):
+            prompt_flag_text = args[i + 1]
             i += 2
         elif args[i] in skip_flags:
             i += 1
@@ -69,6 +73,19 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
 
     subcmd = filtered_args[0] if filtered_args else ""
     rest = filtered_args[1:]
+
+    if prompt_flag_text:
+        prompt_args = [prompt_flag_text] + rest
+        if gui_mode or self_operate:
+            _handle_prompt_gui(prompt_args, tool_name, project_root, tool_dir,
+                               mode=mode, **self_operate_opts)
+        elif dry_run:
+            _handle_prompt(prompt_args, tool_name, project_root, tool_dir,
+                           mode=mode, dry_run=True)
+        else:
+            _handle_prompt(prompt_args, tool_name, project_root, tool_dir,
+                           mode=mode, dry_run=False)
+        return
 
     if (gui_mode or self_operate) and subcmd == "prompt":
         _handle_prompt_gui(rest, tool_name, project_root, tool_dir, mode=mode,
@@ -582,6 +599,7 @@ def _handle_response(args: list, tool_name: str, project_root: str,
 
     full_text = ""
     tool_calls = []
+    tool_results_provided = 0
     has_tool_calls = False
 
     for evt in events:
@@ -613,6 +631,7 @@ def _handle_response(args: list, tool_name: str, project_root: str,
             print(f"\n  {BOLD}> {name}{RESET}")
 
         elif etype == "tool_result":
+            tool_results_provided += 1
             _inject(evt)
             _print_event(evt)
 
@@ -634,9 +653,10 @@ def _handle_response(args: list, tool_name: str, project_root: str,
             _inject(evt)
             print(f"\n  {DIM}[{latency}s via {provider}]{RESET}")
 
-            if has_tool_calls and tool_calls:
+            unresolved = [tc for tc in tool_calls[tool_results_provided:]]
+            if unresolved:
                 print(f"\n  {YELLOW}{BOLD}Executing tool calls...{RESET}")
-                for tc in tool_calls:
+                for tc in unresolved:
                     name = tc.get("name", tc.get("function", {}).get("name", "?"))
                     tc_args = tc.get("arguments", tc.get("function", {}).get("arguments", {}))
                     if isinstance(tc_args, str):
@@ -668,6 +688,65 @@ def _handle_response(args: list, tool_name: str, project_root: str,
     active_sid = state.get("active_session")
     status = state.get("status", "?")
     print(f"\n  {BOLD}Session state.{RESET} {DIM}ID: {found} | Status: {status}{RESET}")
+
+    if has_tool_calls and tool_calls:
+        _auto_feed(base_url, found, tool_calls, BOLD, DIM, CYAN, YELLOW, RESET)
+
+
+def _auto_feed(base_url: str, session_id: str, tool_calls: list,
+               BOLD: str, DIM: str, CYAN: str, YELLOW: str, RESET: str):
+    """After --response with tool calls, emit tool results and next llm_request.
+
+    This simulates the automatic feed that occurs after tool execution,
+    preparing the session for the next --response from the self-operate agent.
+    """
+    import urllib.request
+
+    history = json.loads(
+        urllib.request.urlopen(
+            f"{base_url}/api/history/{session_id}", timeout=5).read())
+    events = history.get("events", [])
+
+    current_round = 1
+    for evt in events:
+        if evt.get("type") == "llm_request":
+            r = evt.get("round", 1)
+            if r > current_round:
+                current_round = r
+    next_round = current_round + 1
+
+    self_operate = False
+    self_name = ""
+    env_spec = ""
+    provider_display = ""
+    for evt in events:
+        if evt.get("type") == "llm_request":
+            if evt.get("self_operate"):
+                self_operate = True
+                self_name = evt.get("self_name", "")
+                env_spec = evt.get("env", "")
+                provider_display = evt.get("provider", "")
+
+    if self_operate:
+        next_req = {
+            "type": "llm_request",
+            "provider": provider_display,
+            "round": next_round,
+            "model": self_name or "self",
+            "self_operate": True,
+            "env": env_spec,
+            "self_name": self_name,
+        }
+        req = urllib.request.Request(
+            f"{base_url}/api/inject_event",
+            data=json.dumps({"session_id": session_id, "event": next_req}).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=5)
+
+        print(f"\n  {CYAN}{BOLD}═══ Feed (Round {next_round}) ═══{RESET}")
+        print(f"  {DIM}Awaiting next --response for round {next_round}.{RESET}")
+        print(f"  {DIM}Session: {session_id[:8]}{RESET}")
 
 
 def _find_running_gui_port() -> int:
