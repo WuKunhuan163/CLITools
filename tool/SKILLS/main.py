@@ -464,7 +464,7 @@ def main():
         return
 
     if args.command == "search":
-        from logic.search.tools import search_skills
+        from interface.search import search_skills
         DIM = get_color("DIM", "\033[2m")
         query = " ".join(args.query)
         results = search_skills(

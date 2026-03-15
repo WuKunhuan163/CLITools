@@ -18,6 +18,7 @@ from logic.gui.engine import (
     play_notification_bell,
 )
 from logic.gui.manager import run_gui_subprocess, handle_gui_remote_command
+from logic.serve.html_server import LocalHTMLServer
 
 __all__ = [
     "ButtonBarWindow",
@@ -40,4 +41,5 @@ __all__ = [
     "play_notification_bell",
     "run_gui_subprocess",
     "handle_gui_remote_command",
+    "LocalHTMLServer",
 ]

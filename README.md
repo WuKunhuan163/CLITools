@@ -161,7 +161,7 @@ Every tool has a built-in session logger via `tool.log(message)`. Log files auto
 Key entry points:
 - `for_agent.md` — Full architecture guide, tool conventions, agent bootstrap, AI IDE workflow
 - `TOOL --search all "<query>"` — Semantic search across all tools, skills, lessons
-- `TOOL --session --agent --self-operate --prompt "<task>"` — Start a self-operate session
+- `TOOL --session --agent/--ask/--plan --self-operate --prompt "<task>"` — Start a self-operate session (choose mode by task type)
 - `USERINPUT` — Get interactive user feedback
 
 ### AI IDE Integration (Self-Operate Mode)
@@ -169,7 +169,7 @@ Key entry points:
 AI IDE agents (Cursor, Copilot, Windsurf, etc.) can use `--self-operate` mode to drive development through this project's assistant infrastructure. The project complements the IDE — it provides session tracking, an HTML GUI, quality nudges, and tool orchestration while the IDE handles file editing and code navigation.
 
 ```bash
-# Quick start: create session, inject responses, complete task
+# Quick start: choose --agent (full access), --ask (read-only), or --plan (design)
 TOOL --session --agent --prompt "<task>" --self-operate --self-name "Model" --env "IDE/cursor"
 TOOL --agent response <SID> tmp/response.json    # Inject response (auto-feeds next round)
 TOOL --agent response <SID> '[{"type":"complete","reason":"done"}]'   # Complete

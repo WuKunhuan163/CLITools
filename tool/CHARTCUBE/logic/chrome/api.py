@@ -12,8 +12,8 @@ import time
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from logic.chrome.session import CDPSession, CDP_PORT
-from logic.cdmcp_loader import (
+from interface.chrome import CDPSession, CDP_PORT
+from interface.cdmcp import (
     load_cdmcp_overlay,
     load_cdmcp_sessions,
 )
@@ -189,7 +189,7 @@ def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
         _debug_log(f"Failed to load session manager: {e}")
         return {"ok": False, "error": f"Session manager load failed: {e}"}
 
-    from logic.chrome.session import is_chrome_cdp_available
+    from interface.chrome import is_chrome_cdp_available
     cdp_ok = is_chrome_cdp_available(port)
     _debug_log(f"Pre-boot CDP check: available={cdp_ok}")
 

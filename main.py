@@ -303,7 +303,7 @@ def _tool_dev_handler(dev_args):
                 size = l.get("size_mb", 0)
                 print(f"  {BOLD}{l['key']}{RESET}: branch={branch}, size={size}MB")
     elif subcmd == "docs":
-        from logic.dev.report import list_docs
+        from interface.dev import list_docs
         scope = rest[0] if rest else "root"
         docs = list_docs(scope)
         print(f"  {BOLD}Docs at{RESET} {DIM}{docs['path']}{RESET}")
@@ -324,7 +324,7 @@ def _tool_dev_handler(dev_args):
             return
         scope = rest[0]
         topic = " ".join(rest[1:]) if len(rest) > 1 else "untitled"
-        from logic.dev.report import create_report
+        from interface.dev import create_report
         path = create_report(scope, topic, f"# {topic}\n\n## Summary\n\n(Fill in)\n\n## Changes Made\n\n## Issues Found & Fixed\n\n## Next Steps\n")
         print(f"  {BOLD}{GREEN}Created{RESET} {DIM}{path}{RESET}")
     else:
@@ -672,7 +672,7 @@ def _tool_search_handler(search_args):
 
 
 # Root ToolBase instance for hooks, call-register, agent, skills infrastructure
-from logic.tool.blueprint.base import ToolBase as _ToolBase
+from interface.tool import ToolBase as _ToolBase
 _root_tool = _ToolBase("TOOL", is_root=True)
 
 # Maps --flag to handler function

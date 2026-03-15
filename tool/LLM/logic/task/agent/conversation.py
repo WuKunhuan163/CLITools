@@ -38,7 +38,7 @@ from tool.LLM.logic.session_context import SessionContext
 
 _LLM_TOOL_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..')
 try:
-    from logic.hooks.engine import HooksEngine
+    from interface.hooks import HooksEngine
     _HOOKS_AVAILABLE = True
 except ImportError:
     _HOOKS_AVAILABLE = False

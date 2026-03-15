@@ -41,7 +41,7 @@ def _get_auth_module():
 
 
 def _check_auth() -> dict:
-    from logic.chrome.session import CDPSession, CDP_PORT, list_tabs
+    from interface.chrome import CDPSession, CDP_PORT, list_tabs
     auth = _get_auth_module()
     result = {"signed_in": False, "email": None, "display_name": None}
     try:

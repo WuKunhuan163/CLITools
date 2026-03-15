@@ -18,7 +18,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-from logic.chrome.session import (
+from interface.chrome import (
     CDPSession, CDP_PORT, is_chrome_cdp_available, list_tabs, find_tab, open_tab, close_tab,
 )
 

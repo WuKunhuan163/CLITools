@@ -61,7 +61,7 @@ def _resolve_folder_id(path_spec):
 
 def _is_cdp_available():
     try:
-        from logic.chrome.session import is_chrome_cdp_available
+        from interface.chrome import is_chrome_cdp_available
         from tool.GOOGLE.logic.chrome.colab import find_colab_tab
         if not is_chrome_cdp_available():
             return False

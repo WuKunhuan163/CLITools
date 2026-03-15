@@ -165,6 +165,8 @@ Self-operate mode allows an AI IDE agent (e.g., Cursor, Copilot, Windsurf) to dr
 
 ```bash
 # 1. Create session + start GUI, send self-operate prompt
+#    Choose mode: --agent (full access), --ask (read-only), --plan (design only)
+#    Most AI IDEs map to: coding/debug tasks → --agent, questions → --ask, architecture → --plan
 TOOL_NAME --session --agent --prompt "<task>" --self-operate --self-name "Your Model" --env "IDE/cursor"
 #   → prints: Session: <SID>, GUI: http://localhost:8100
 
@@ -249,6 +251,7 @@ Session IDs use the format `YYYYMMDD-HHMMSS-<6hex>` for chronological sorting.
 
 ```bash
 # 1. Start a self-operate session (exec via your IDE's terminal tool)
+#    Choose mode by task type: --agent (coding), --ask (questions), --plan (design)
 exec("TOOL_NAME --session --agent --prompt '<task>' --self-operate --self-name 'YourModel' --env 'IDE/cursor'")
 
 # 2. Write your response as JSON, inject it

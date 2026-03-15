@@ -7,13 +7,13 @@ import json
 import time as _time
 from typing import Dict, Any, Optional
 
-from logic.chrome.session import (
+from interface.chrome import (
     CDPSession, CDP_PORT,
     is_chrome_cdp_available,
     find_tab,
     open_tab,
 )
-from logic.cdmcp_loader import load_cdmcp_sessions
+from interface.cdmcp import load_cdmcp_sessions
 
 YUANBAO_URL_PATTERN = "yuanbao.tencent.com"
 YUANBAO_CHAT_URL = "https://yuanbao.tencent.com/chat"

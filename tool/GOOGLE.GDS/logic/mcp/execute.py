@@ -187,7 +187,7 @@ def build_execute_workflow(command, as_python=False, marker=None):
 
 def _is_cdp_available():
     try:
-        from logic.chrome.session import is_chrome_cdp_available
+        from interface.chrome import is_chrome_cdp_available
         return is_chrome_cdp_available()
     except Exception:
         return False
@@ -252,7 +252,7 @@ def run_mcp_execute(command, as_python=False, as_json=False):
 def _load_cdmcp():
     """Try to load CDMCP overlay and interact modules. Returns (overlay, interact) or (None, None)."""
     try:
-        from logic.cdmcp_loader import load_cdmcp_overlay, load_cdmcp_interact
+        from interface.cdmcp import load_cdmcp_overlay, load_cdmcp_interact
         return load_cdmcp_overlay(), load_cdmcp_interact()
     except Exception:
         return None, None
@@ -295,7 +295,7 @@ def _run_cdp_with_turing(command, as_python=False):
         return False
 
     def _stage_find_tab(stage):
-        from logic.chrome.session import CDPSession
+        from interface.chrome import CDPSession
         from tool.GOOGLE.logic.chrome.colab import find_colab_tab, _reopen_colab_tab as reopen_colab_tab
         tab = find_colab_tab()
         if not tab:
@@ -362,7 +362,7 @@ def _run_cdp_with_turing(command, as_python=False):
         from tool.GOOGLE.logic.chrome.colab import find_colab_tab as _find_tab
         _tab = _find_tab()
         if _tab and _tab.get("webSocketDebuggerUrl"):
-            from logic.chrome.session import CDPSession as _CdpCls
+            from interface.chrome import CDPSession as _CdpCls
             _cdp_session_holder[0] = _CdpCls(_tab["webSocketDebuggerUrl"], timeout=10)
             if overlay:
                 try:

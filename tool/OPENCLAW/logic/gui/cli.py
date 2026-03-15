@@ -22,8 +22,8 @@ try:
 except ImportError:
     pass
 
-from logic.config import get_color
-from logic.lang.utils import get_translation
+from interface.config import get_color
+from interface.lang import get_translation
 from logic.turing.display.manager import truncate_to_width, _get_configured_width
 from interface.status import fmt_status, fmt_detail, fmt_stage
 from tool.OPENCLAW.logic.session import SessionManager, Session
@@ -895,7 +895,7 @@ class OpenClawCLI:
     def _launch_dashboard(self):
         """Launch the LLM dashboard as a persistent local server."""
         from tool.LLM.interface.main import generate_dashboard as generate
-        from logic.serve.html_server import LocalHTMLServer
+        from interface.gui import LocalHTMLServer
 
         path = generate()
         server = LocalHTMLServer(

@@ -394,7 +394,7 @@ def cmd_dashboard(args):
     print(f"  {BOLD}{GREEN}Generated{RESET} {path}.")
 
     if getattr(args, "serve", False):
-        from logic.serve.html_server import LocalHTMLServer
+        from interface.gui import LocalHTMLServer
 
         port = getattr(args, "port", 0) or 0
         server = LocalHTMLServer(
