@@ -6,7 +6,7 @@ and feedback-driven pushback. Each (provider, model) pair maintains:
 - next_safe_t: Timestamp after which calls are expected to succeed
 - rpm_window: Sliding window of recent request timestamps
 - tpm_window: Sliding window of (timestamp, token_count) pairs
-- queue: FIFO of pending request futures
+- in_flight_tickets: Tracked tickets with TTL for orphan detection
 - state: idle / throttled / cooldown / blocked
 
 Usage:
@@ -20,15 +20,17 @@ Usage:
         print(f"Queue backed up, ~{eta.wait_s}s wait")
         return
 
-    # Normal queued call (blocks until slot available)
-    ticket = qm.enqueue("zhipu-glm-4.7-flash", context_tokens=4000)
-    ticket.wait()  # blocks
-    result = provider._send_request(...)
-    ticket.complete(result)  # feeds back to queue
+    # Context-manager style (auto-cleanup on crash/exception):
+    ticket = qm.enqueue("zhipu-glm-4.7-flash", context_tokens=4000, timeout=60)
+    with ticket:
+        result = provider._send_request(...)
+        ticket.complete(result)
 
     # Aggressive call (bypass queue, may risk 429)
     ticket = qm.enqueue("zhipu-glm-4.7-flash", aggressive=True)
-    # returns immediately, no queue wait
+    with ticket:
+        result = provider._send_request(...)
+        ticket.complete(result)
 """
 import json
 import time
@@ -37,6 +39,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Callable
 from enum import Enum
+
+
+_IN_FLIGHT_TTL_S = 300.0
 
 
 class ProviderState(Enum):
@@ -90,8 +95,21 @@ class WaitEstimate:
         return self.wait_s <= 0.0
 
 
+class QueueTimeout(Exception):
+    """Raised when enqueue() exceeds the caller's timeout."""
+    pass
+
+
 class Ticket:
-    """A queued request handle with wait/cancel semantics."""
+    """A queued request handle with wait/cancel semantics.
+
+    Use as a context manager for automatic cleanup:
+        with qm.enqueue("provider") as ticket:
+            result = do_api_call()
+            ticket.complete(result)
+    If an exception occurs, the ticket is automatically cancelled
+    and in_flight is decremented.
+    """
 
     def __init__(self, provider_name: str, context_tokens: int = 0,
                  aggressive: bool = False):
@@ -99,22 +117,29 @@ class Ticket:
         self.context_tokens = context_tokens
         self.aggressive = aggressive
         self.created_at = time.time()
+        self.granted_at: float = 0.0
         self._event = threading.Event()
         self._result: Optional[Dict[str, Any]] = None
         self._cancelled = False
+        self._completed = False
+        self._manager: Optional["RateQueueManager"] = None
+
+    def _bind(self, manager: "RateQueueManager"):
+        self._manager = manager
 
     def wait(self, timeout: Optional[float] = None) -> bool:
-        """Block until this ticket's turn. Returns True if granted, False if timeout/cancelled."""
+        """Block until this ticket's turn. Returns True if granted."""
         if self.aggressive:
             return True
         return self._event.wait(timeout=timeout)
 
     def grant(self):
         """Signal that this ticket may proceed."""
+        self.granted_at = time.time()
         self._event.set()
 
     def cancel(self):
-        """Cancel this ticket (remove from queue)."""
+        """Cancel this ticket."""
         self._cancelled = True
         self._event.set()
 
@@ -122,13 +147,33 @@ class Ticket:
     def cancelled(self) -> bool:
         return self._cancelled
 
+    @property
+    def completed(self) -> bool:
+        return self._completed
+
     def complete(self, result: Dict[str, Any]):
         """Report the API call result for feedback."""
+        if self._completed:
+            return
+        self._completed = True
         self._result = result
+        if self._manager:
+            self._manager.complete(self, result)
 
     @property
     def result(self) -> Optional[Dict[str, Any]]:
         return self._result
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self._completed and not self._cancelled:
+            if exc_type is not None:
+                self._cancelled = True
+            if self._manager:
+                self._manager._release_ticket(self)
+        return False
 
 
 @dataclass
@@ -143,9 +188,9 @@ class ProviderQueue:
     rpd_count: int = 0
     rpd_date: str = ""
     in_flight: int = 0
+    in_flight_tickets: Dict[int, float] = field(default_factory=dict)
     consecutive_429s: int = 0
     last_429_t: float = 0.0
-    pending: List[Ticket] = field(default_factory=list)
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def _prune_windows(self, now: float):
@@ -157,11 +202,24 @@ class ProviderQueue:
             self.rpd_count = 0
             self.rpd_date = today
 
+    def _reap_orphans(self, now: float) -> int:
+        """Remove tickets that have been in-flight past the TTL.
+        Returns number of reaped orphans."""
+        reaped = 0
+        expired = [tid for tid, t in self.in_flight_tickets.items()
+                    if now - t > _IN_FLIGHT_TTL_S]
+        for tid in expired:
+            del self.in_flight_tickets[tid]
+            self.in_flight = max(0, self.in_flight - 1)
+            reaped += 1
+        return reaped
+
     def compute_next_safe_t(self, now: float = 0) -> float:
         """Compute the earliest timestamp at which a new request is safe."""
         if now <= 0:
             now = time.time()
         self._prune_windows(now)
+        self._reap_orphans(now)
         earliest = now
 
         if self.rpm_window and self.limits.rpm > 0:
@@ -211,7 +269,7 @@ class ProviderQueue:
         state = self.state
         if self.consecutive_429s >= 3:
             state = ProviderState.COOLDOWN
-        elif len(self.pending) > 0 or base_wait > 0:
+        elif base_wait > 0:
             state = ProviderState.THROTTLED
 
         reason = ""
@@ -227,13 +285,13 @@ class ProviderQueue:
         return WaitEstimate(
             wait_s=round(base_wait, 2),
             queue_position=position,
-            queue_length=len(self.pending),
+            queue_length=0,
             state=state,
             next_safe_t=safe_t,
             reason=reason,
         )
 
-    def record_request(self, context_tokens: int = 0):
+    def record_request(self, ticket_id: int, context_tokens: int = 0):
         """Record that a request was dispatched now."""
         now = time.time()
         self.rpm_window.append(now)
@@ -241,15 +299,17 @@ class ProviderQueue:
             self.tpm_window.append((now, context_tokens))
         self.rpd_count += 1
         self.in_flight += 1
+        self.in_flight_tickets[ticket_id] = now
 
-    def record_complete(self, result: Dict[str, Any]):
+    def record_complete(self, ticket_id: int, result: Dict[str, Any]):
         """Record that a request completed. Adjusts state based on result."""
+        self.in_flight_tickets.pop(ticket_id, None)
         self.in_flight = max(0, self.in_flight - 1)
         error_code = result.get("error_code", 0)
 
         if result.get("ok"):
             self.consecutive_429s = 0
-            self.state = ProviderState.ACTIVE if self.pending else ProviderState.IDLE
+            self.state = ProviderState.IDLE
         elif error_code == 429:
             self.consecutive_429s += 1
             self.last_429_t = time.time()
@@ -258,10 +318,26 @@ class ProviderQueue:
         elif 500 <= error_code < 600:
             self.state = ProviderState.THROTTLED
 
+    def record_release(self, ticket_id: int):
+        """Release an in-flight slot without a result (crash/cancel cleanup)."""
+        self.in_flight_tickets.pop(ticket_id, None)
+        self.in_flight = max(0, self.in_flight - 1)
+
     def _pushback_all(self):
-        """Push back next_safe_t for all pending tickets after a 429."""
+        """Push back next_safe_t after a 429."""
         backoff = min(2 ** self.consecutive_429s, 120)
         self.next_safe_t = max(self.next_safe_t, time.time() + backoff)
+
+    def reset(self):
+        """Reset all transient state. Safe to call after recovery."""
+        self.state = ProviderState.IDLE
+        self.next_safe_t = 0.0
+        self.rpm_window.clear()
+        self.tpm_window.clear()
+        self.in_flight = 0
+        self.in_flight_tickets.clear()
+        self.consecutive_429s = 0
+        self.last_429_t = 0.0
 
 
 class RateQueueManager:
@@ -319,59 +395,81 @@ class RateQueueManager:
         """Estimate how long a new request would wait."""
         pq = self._ensure_provider(provider_name)
         with pq._lock:
-            return pq.estimate_wait(position=len(pq.pending))
+            return pq.estimate_wait()
 
     def enqueue(self, provider_name: str, context_tokens: int = 0,
-                aggressive: bool = False) -> Ticket:
+                aggressive: bool = False, timeout: Optional[float] = None) -> Ticket:
         """Enqueue a request and return a Ticket.
 
         Args:
             provider_name: Registered provider name.
             context_tokens: Estimated input tokens for TPM tracking.
             aggressive: If True, bypass queue and return immediately.
-                The caller accepts the risk of a 429 response.
+            timeout: Max seconds to wait for a slot. None = no limit.
+                Raises QueueTimeout if exceeded.
 
         Returns:
-            A Ticket. Call ticket.wait() to block until granted,
-            then ticket.complete(result) after the API call.
+            A Ticket. Use as context manager for automatic cleanup:
+                with qm.enqueue("provider", timeout=60) as ticket:
+                    result = api_call()
+                    ticket.complete(result)
         """
         pq = self._ensure_provider(provider_name)
         ticket = Ticket(provider_name, context_tokens, aggressive)
+        ticket._bind(self)
+        tid = id(ticket)
 
         if aggressive:
             with pq._lock:
-                pq.record_request(context_tokens)
+                pq.record_request(tid, context_tokens)
             return ticket
+
+        deadline = time.time() + timeout if timeout else None
 
         while True:
             with pq._lock:
                 now = time.time()
+                if deadline and now >= deadline:
+                    raise QueueTimeout(
+                        f"Timed out after {timeout}s waiting for {provider_name}")
                 safe_t = pq.compute_next_safe_t(now)
                 max_conc = max(pq.limits.max_concurrency, 1)
 
                 if safe_t <= now and pq.in_flight < max_conc:
-                    pq.record_request(context_tokens)
+                    pq.record_request(tid, context_tokens)
                     ticket.grant()
                     return ticket
                 else:
                     wait_s = max(0.1, safe_t - now)
+                    if deadline:
+                        wait_s = min(wait_s, deadline - now)
 
             time.sleep(min(wait_s, 2.0))
 
     def complete(self, ticket: Ticket, result: Dict[str, Any]):
         """Report that a request completed. Updates queue state."""
-        ticket.complete(result)
+        if not isinstance(result, dict):
+            result = {"ok": True}
         pq = self._ensure_provider(ticket.provider_name)
         with pq._lock:
-            pq.record_complete(result)
+            pq.record_complete(id(ticket), result)
+
+    def _release_ticket(self, ticket: Ticket):
+        """Release an in-flight ticket without a result (crash/cancel)."""
+        pq = self._ensure_provider(ticket.provider_name)
+        with pq._lock:
+            pq.record_release(id(ticket))
 
     def cancel(self, ticket: Ticket):
-        """Cancel a pending ticket."""
-        pq = self._ensure_provider(ticket.provider_name)
+        """Cancel a ticket and release its in-flight slot."""
         ticket.cancel()
+        self._release_ticket(ticket)
+
+    def reset_provider(self, provider_name: str):
+        """Reset all transient state for a provider. Use after recovery."""
+        pq = self._ensure_provider(provider_name)
         with pq._lock:
-            if ticket in pq.pending:
-                pq.pending.remove(ticket)
+            pq.reset()
 
     def get_status(self, provider_name: str = None) -> Dict[str, Any]:
         """Get queue status for one or all providers."""
@@ -380,7 +478,11 @@ class RateQueueManager:
             with pq._lock:
                 return self._format_status(pq)
         with self._lock:
-            return {name: self._format_status(pq) for name, pq in self._queues.items()}
+            result = {}
+            for name, pq in self._queues.items():
+                with pq._lock:
+                    result[name] = self._format_status(pq)
+            return result
 
     @staticmethod
     def _format_status(pq: ProviderQueue) -> Dict[str, Any]:
@@ -390,7 +492,9 @@ class RateQueueManager:
             "name": pq.name,
             "state": pq.state.value,
             "in_flight": pq.in_flight,
-            "queue_length": len(pq.pending),
+            "orphan_candidates": sum(
+                1 for t in pq.in_flight_tickets.values()
+                if now - t > _IN_FLIGHT_TTL_S * 0.5),
             "next_safe_t": safe_t,
             "wait_s": round(max(0, safe_t - now), 2),
             "consecutive_429s": pq.consecutive_429s,
@@ -399,7 +503,6 @@ class RateQueueManager:
             "rpd_used": pq.rpd_count,
             "rpd_limit": pq.limits.rpd,
         }
-
 
 
 _instance: Optional[RateQueueManager] = None
