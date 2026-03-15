@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Assistant - Live</title>
+<title>TOOL Assistant</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22%236366f1%22><path d=%22M21.928 11.607c-.202-.488-.635-.605-.928-.633V8c0-1.103-.897-2-2-2h-6V4.61c.305-.274.5-.668.5-1.11a1.5 1.5 0 0 0-3 0c0 .442.195.836.5 1.11V6H5c-1.103 0-2 .897-2 2v2.997l-.082.006A1 1 0 0 0 1.99 12v2a1 1 0 0 0 1 1H3v5c0 1.103.897 2 2 2h14c1.103 0 2-.897 2-2v-5a1 1 0 0 0 1-1v-1.938a1.006 1.006 0 0 0-.072-.455zM5 20V8h14l.001 3.996L19 12v2l.001.005.001 5.995H5z%22/><ellipse cx=%228.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><ellipse cx=%2215.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><path d=%22M8 16h8v2H8z%22/></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
@@ -606,11 +606,11 @@ body.debug-mode .debug-block { display: block; }
 <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><i class="bx bx-chevron-left"></i></button>
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <h1><div class="sidebar-logo"><i class="bx bx-bot"></i></div> Assistant</h1>
+    <h1><div class="sidebar-logo"><i class="bx bx-bot"></i></div> <span id="sidebar-title">TOOL Assistant</span></h1>
     <button class="btn-new" title="New session" onclick="createNewSession()">+</button>
   </div>
   <div class="session-list" id="session-list"></div>
-  <div class="sidebar-footer">Assistant — Live</div>
+  <div class="sidebar-footer" id="sidebar-footer">TOOL Assistant</div>
 </aside>
 
 <main class="main">
@@ -2720,6 +2720,20 @@ function handleSSEEvent(evt) {
       break;
     }
 
+    case 'model_decision_end': {
+      if (evt.chosen && modelPill) {
+        currentModel = evt.chosen;
+        modelPill.setValue(evt.chosen);
+      }
+      engine.enqueueEvent(evt);
+      break;
+    }
+
+    case 'model_decision_start': {
+      engine.enqueueEvent(evt);
+      break;
+    }
+
     case 'error': {
       const errMsg = evt.message || 'Unknown error';
       engine.renderCenterNotice(`<i class="bx bx-x-circle" style="color:var(--red);font-size:16px;vertical-align:middle;"></i> <strong style="color:var(--red);">Error</strong>: ${esc(errMsg)}`);
@@ -2759,6 +2773,19 @@ function handleSSEEvent(evt) {
 
 /* ── Init ── */
 async function init() {
+  try {
+    const scopeResp = await fetch('/api/scope');
+    const scopeData = await scopeResp.json();
+    if (scopeData.ok && scopeData.scope_name) {
+      const sn = scopeData.scope_name;
+      document.title = sn + ' Assistant';
+      const st = document.getElementById('sidebar-title');
+      if (st) st.textContent = sn + ' Assistant';
+      const sf = document.getElementById('sidebar-footer');
+      if (sf) sf.textContent = sn + ' Assistant';
+    }
+  } catch (e) { /* keep defaults */ }
+
   let initialSessionId = null;
   try {
     const resp = await fetch('/api/sessions');

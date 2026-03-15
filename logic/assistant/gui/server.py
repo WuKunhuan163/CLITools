@@ -75,9 +75,9 @@ You are an autonomous AI Agent. You can independently plan, execute, and verify 
 ## Available Tools
 
 1. **exec(command=...)** — Run shell commands. For CLI tools, viewing files, installing deps.
-2. **edit_file(path=..., old_text=..., new_text=...)** — Edit or create files. Two modes:
-   - **Targeted edit**: Provide old_text and new_text to replace specific text in an existing file.
-   - **Create/overwrite**: Omit old_text (or set to empty) and provide new_text with the full file content. Creates parent directories automatically.
+2. **edit_file(path=..., start_line=..., end_line=..., new_text=...)** — Edit or create files. Two modes:
+   - **Targeted edit**: Provide start_line, end_line, and new_text to replace lines [start_line, end_line] inclusive.
+   - **Create new file**: Provide path and new_text only (no line params). Creates parent directories automatically.
 3. **read_file(path=..., start_line=..., end_line=...)** — Read a range of lines from ONE file. start_line and end_line are REQUIRED. Best practice: use search() first to locate relevant line numbers, then read only the precise range you need.
 4. **search(pattern=..., path=...)** — Search for text INSIDE files (grep-style). NOT for listing files. To list files, use exec(command="find <dir> -name '*.py'").
 5. **todo(action=..., items=...)** — Manage a task list.
@@ -105,12 +105,12 @@ When receiving a task, **use tools immediately**. Do NOT explore the project fir
 
 ## Cost-Efficient Editing (IMPORTANT)
 
-**Always prefer edit_file with old_text for modifying existing files.** Output tokens are expensive. Targeted edits (old_text → new_text) only output the changed portion, saving significant cost on large files.
+**Always prefer edit_file with start_line/end_line for modifying existing files.** Output tokens are expensive. Line-range edits only output the changed portion, saving significant cost on large files.
 
-- **Modifying existing files**: Use edit_file(path, old_text=<exact snippet>, new_text=<replacement>). First read_file to get the exact text, then replace only what changes.
-- **Creating new files**: Use edit_file(path, new_text=<full file>) with old_text omitted. Only used for brand-new files.
+- **Modifying existing files**: Use edit_file(path, start_line=N, end_line=M, new_text=<replacement>). First read_file to find exact line numbers, then replace only the lines that change.
+- **Creating new files**: Use edit_file(path, new_text=<full file>) without line params. Only used for brand-new files.
 - **Multiple changes to one file**: Make separate edit_file calls for each change. This is cheaper than rewriting the whole file.
-- **NEVER rewrite an entire file** when you only need to change a few lines. A 500-line file with a 3-line fix should use edit_file with old_text, not a full rewrite.
+- **NEVER rewrite an entire file** when you only need to change a few lines. A 500-line file with a 3-line fix should use start_line/end_line, not a full rewrite.
 
 ## Quality Standards
 
@@ -127,19 +127,19 @@ When writing code:
 - Add necessary imports
 
 ## File Modification Rules
-- **Modify existing files**: ALWAYS use edit_file(old_text, new_text) for targeted changes. First read_file to see current content, then copy the exact snippet to modify as old_text. This is MUCH cheaper than rewriting the whole file.
-- **Create new files**: Use edit_file(path, new_text=<full content>) with old_text omitted. Content must be COMPLETE, runnable code.
+- **Modify existing files**: ALWAYS use edit_file(start_line, end_line, new_text) for targeted changes. First read_file to find exact line numbers, then replace only the lines that change. This is MUCH cheaper than rewriting the whole file.
+- **Create new files**: Use edit_file(path, new_text=<full content>) without line params. Content must be COMPLETE, runnable code.
 - **Reading strategy**: ALWAYS use search() first to locate relevant code, then read_file with precise start_line/end_line to read only the needed range. Do NOT re-read the same file repeatedly.
 - **Cost rule**: For a file with N lines where you change K lines, a targeted edit costs ~K tokens. A full rewrite costs ~N tokens. When K << N, targeted edit saves (N-K) output tokens.
 
 ### edit_file Example
-If the file contains:
+If the file contains (lines 1-2):
 ```python
 def hello():
     print("hello")
 ```
-To add a parameter: edit_file(path="file.py", old_text='def hello():\\n    print("hello")', new_text='def hello(name):\\n    print(f"hello {name}")')
-To append a new function: edit_file(path="file.py", old_text='    print("hello")', new_text='    print("hello")\\n\\ndef goodbye():\\n    print("bye")')
+To add a parameter: edit_file(path="file.py", start_line=1, end_line=2, new_text='def hello(name):\\n    print(f"hello {name}")')
+To append after line 2: edit_file(path="file.py", start_line=2, end_line=2, new_text='    print("hello")\\n\\ndef goodbye():\\n    print("bye")')
 
 ## Debugging Rules
 - When tests fail, first determine whether the bug is in the test or the implementation. Pick ONE side to fix, don't oscillate between both.
@@ -193,6 +193,7 @@ class AgentServer:
         lang: str = "en",
         default_codebase: str = None,
         brain=None,
+        scope_name: str = "TOOL",
     ):
         self.provider_name = provider_name
         self.system_prompt = system_prompt or get_system_prompt(lang)
@@ -200,6 +201,7 @@ class AgentServer:
         self.port = port
         self.lang = lang
         self.default_codebase = default_codebase
+        self.scope_name = scope_name
 
         self._mgr = ConversationManager(
             provider_name=provider_name,
@@ -347,7 +349,11 @@ class AgentServer:
 
         # ── System ─────────────────────────────────────────────
         if path == "/api/state":
-            return {"ok": True, "state": self._mgr.get_state()}
+            state = self._mgr.get_state()
+            state["scope_name"] = self.scope_name
+            return {"ok": True, "state": state}
+        if path == "/api/scope":
+            return {"ok": True, "scope_name": self.scope_name}
         if path == "/api/usage":
             return {"ok": True, "usage": self._get_usage_data()}
         if path == "/api/session_config" and method == "GET":
@@ -465,16 +471,22 @@ class AgentServer:
         model = body.get("model", "").strip()
         if not model:
             return {"ok": False, "error": "Missing model"}
-        try:
-            from tool.LLM.logic.registry import get_provider
-            provider = get_provider(model)
-            if not provider.is_available():
-                return {"ok": False, "error": f"Model {model} is not available"}
-        except Exception as e:
-            return {"ok": False, "error": str(e)}
+        if model != "auto":
+            try:
+                from tool.LLM.logic.registry import get_provider
+                provider = get_provider(model)
+                if not provider.is_available():
+                    return {"ok": False, "error": f"Model {model} is not available"}
+            except Exception as e:
+                return {"ok": False, "error": str(e)}
         old_model = self._mgr._provider_name
         self._mgr._provider_name = model
         self.provider_name = model
+        try:
+            from tool.LLM.logic.auto import get_health
+            get_health().mark_user_selected(model)
+        except Exception:
+            pass
         self._push_sse({"type": "model_switched", "from": old_model, "to": model})
         return {"ok": True, "model": model}
 
@@ -1301,6 +1313,7 @@ def start_server(
     lang: str = "en",
     default_codebase: str = None,
     brain=None,
+    scope_name: str = "TOOL",
 ) -> AgentServer:
     """Convenience function to start the live agent server.
 
@@ -1314,6 +1327,7 @@ def start_server(
         lang=lang,
         default_codebase=default_codebase,
         brain=brain,
+        scope_name=scope_name,
     )
     agent.start(open_browser=open_browser)
     return agent

@@ -313,6 +313,8 @@ class AgentGUIEngine {
     this.registerBlock('tool_stream_start', (evt) => this._renderToolStreamStart(evt));
     this.registerBlock('tool_stream_delta', (evt) => this._renderToolStreamDelta(evt));
     this.registerBlock('tool_stream_end', (evt) => this._renderToolStreamEnd(evt));
+    this.registerBlock('model_decision_start', (evt) => this._renderModelDecisionStart(evt));
+    this.registerBlock('model_decision_end', (evt) => this._renderModelDecisionEnd(evt));
   }
 
   /* ── Replay / Debug Mode ── */
@@ -1503,6 +1505,44 @@ class AgentGUIEngine {
     return sleep(100);
   }
 
+  _renderModelDecisionStart(evt) {
+    const div = document.createElement('div');
+    div.className = 'model-info model-decision';
+    div.innerHTML =
+      '<i class="bx bx-bot model-info-icon" style="color:var(--accent);font-size:16px;"></i>'
+      + '<span class="model-name" style="color:var(--text-2);">Choosing model\u2026</span>'
+      + '<span class="model-sep">\u00b7</span>'
+      + '<div class="spinner spinner-sm model-spinner"></div>';
+    this._modelDecisionEl = div;
+    this.chatArea.appendChild(div);
+    this._scrollEnd();
+    return sleep(100);
+  }
+
+  _renderModelDecisionEnd(evt) {
+    if (this._modelDecisionEl) {
+      const chosen = evt.chosen;
+      if (chosen) {
+        const resolveNameFn = typeof resolveDisplayName === 'function' ? resolveDisplayName : null;
+        const names = typeof MODEL_DISPLAY_NAMES !== 'undefined' ? MODEL_DISPLAY_NAMES : {};
+        const displayName = resolveNameFn ? resolveNameFn(chosen) : (names[chosen] || chosen);
+        this._modelDecisionEl.querySelector('.model-name').textContent = displayName;
+        const spinner = this._modelDecisionEl.querySelector('.model-spinner');
+        if (spinner) spinner.style.display = 'none';
+        if (this._onAutoModelChosen) this._onAutoModelChosen(chosen);
+      } else {
+        this._modelDecisionEl.querySelector('.model-name').textContent = 'No model available';
+        this._modelDecisionEl.querySelector('.model-name').style.color = 'var(--red)';
+        const spinner = this._modelDecisionEl.querySelector('.model-spinner');
+        if (spinner) spinner.style.display = 'none';
+      }
+      this._modelDecisionEl = null;
+    }
+    return sleep(100);
+  }
+
+  onAutoModelChosen(cb) { this._onAutoModelChosen = cb; }
+
   setMaxRoundHistory(n) {
     this._maxRoundHistory = n;
     while (this._roundHistory.length > n) this._roundHistory.shift();
@@ -1583,7 +1623,7 @@ class AgentGUIEngine {
     let html = '';
     if (logo) {
       html += '<img src="' + logo + '" alt="' + esc(name) + '" class="logo-adaptive" crossorigin="anonymous" onerror="this.style.display=\'none\'">';
-    } else if (opts.self_operate) {
+    } else {
       html += '<i class="bx bx-bot model-info-icon"></i>';
     }
     html += '<span class="model-name">' + esc(name);

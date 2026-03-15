@@ -422,7 +422,6 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
     new_text = args.get("new_text", args.get("content", ""))
     start_line = args.get("start_line")
     end_line = args.get("end_line")
-    old_text = args.get("old_text", "")
     if not path:
         return {"ok": False, "output": "Missing path"}
 
@@ -498,33 +497,12 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
                                   new_content=new_text)
             return {"ok": True, "output": f"Edit applied to {path} (L{s}-{e})"}
 
-        if old_text:
-            count = content.count(old_text)
-            if count == 0:
-                ctx.emit({"type": "tool_result", "ok": False,
-                           "output": "old_text not found in file"})
-                if ctx.env_obj:
-                    ctx.env_obj.record_result(f"edit:{path}", False, "not found")
-                return {"ok": False,
-                        "output": "old_text not found in file. Use read_file to "
-                                  "see the exact current content."}
-            if count > 1:
-                ctx.emit({"type": "tool_result", "ok": False,
-                           "output": f"old_text found {count} times (ambiguous)"})
-                return {"ok": False,
-                        "output": f"old_text found {count} times. Provide more "
-                                  f"context to make it unique."}
-            change_start = content.find(old_text)
-            start_lineno = content[:change_start].count('\n')
-            return _apply_edit_and_emit(path, content, old_text, new_text,
-                                        start_lineno, ctx)
-
         ctx.emit({"type": "tool_result", "ok": False,
-                   "output": "Must provide start_line/end_line or old_text for existing files"})
+                   "output": "Must provide start_line and end_line for existing files"})
         return {"ok": False,
                 "output": "For existing files, provide start_line and end_line to "
-                          "specify the edit range, or old_text for text matching. "
-                          "Use read_file first to find exact line numbers."}
+                          "specify the edit range. Use read_file first to find "
+                          "exact line numbers."}
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
         if ctx.env_obj:

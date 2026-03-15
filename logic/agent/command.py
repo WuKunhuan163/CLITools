@@ -251,6 +251,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         enable_tools=True,
         default_codebase=tool_dir or None,
         lang=lang,
+        scope_name=tool_name,
     )
 
     print(fmt_status("Started GUI.", complement=f"at {agent.url}", style="success"))

@@ -116,11 +116,12 @@ class OpenAICompatProvider(LLMProvider):
 
         self._rate_limiter.wait()
 
+        effective_max = min(max_tokens, self.DEFAULT_MAX_OUTPUT) if max_tokens else self.DEFAULT_MAX_OUTPUT
         payload: Dict[str, Any] = {
             "model": self._model,
             "messages": messages,
             "temperature": temperature,
-            self.MAX_TOKENS_PARAM: max_tokens or self.DEFAULT_MAX_OUTPUT,
+            self.MAX_TOKENS_PARAM: effective_max,
             "stream": False,
         }
         if tools:
@@ -209,11 +210,12 @@ class OpenAICompatProvider(LLMProvider):
 
         self._rate_limiter.wait()
 
+        effective_max = min(max_tokens, self.DEFAULT_MAX_OUTPUT) if max_tokens else self.DEFAULT_MAX_OUTPUT
         payload: Dict[str, Any] = {
             "model": self._model,
             "messages": messages,
             "temperature": temperature,
-            self.MAX_TOKENS_PARAM: max_tokens or self.DEFAULT_MAX_OUTPUT,
+            self.MAX_TOKENS_PARAM: effective_max,
             "stream": True,
         }
         if tools:

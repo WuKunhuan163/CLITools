@@ -1253,11 +1253,44 @@ class ConversationManager:
             session.context.add_user(packaged)
 
             auto_title = session.message_count == 1 and session.title == "New Task"
-            from tool.LLM.logic.registry import get_provider
-            provider = get_provider(self._provider_name)
+            from tool.LLM.logic.registry import get_provider, get_pipeline
+
+            is_auto = self._provider_name == "auto"
+            actual_provider_name = self._provider_name
+
+            if is_auto:
+                self._emit({
+                    "type": "model_decision_start",
+                    "text": "Choosing model\u2026",
+                })
+                try:
+                    from tool.LLM.logic.auto import auto_decide
+                    chosen, _ = auto_decide(user_prompt=text)
+                    if chosen:
+                        actual_provider_name = chosen
+                    else:
+                        self._emit({"type": "model_decision_end", "chosen": None,
+                                    "error": "No available providers"})
+                        self._emit({"type": "text", "tokens": "Error: No available providers for Auto mode."})
+                        self._emit({"type": "complete", "reason": "error"})
+                        self._mark_session_done(session_id, "error")
+                        return
+                except Exception as e:
+                    self._emit({"type": "model_decision_end", "chosen": None,
+                                "error": str(e)})
+                    self._emit({"type": "text", "tokens": f"Error: Auto decision failed: {e}"})
+                    self._emit({"type": "complete", "reason": "error"})
+                    self._mark_session_done(session_id, "error")
+                    return
+                self._emit({
+                    "type": "model_decision_end",
+                    "chosen": actual_provider_name,
+                })
+
+            provider = get_provider(actual_provider_name)
 
             if not provider.is_available():
-                self._emit({"type": "text", "tokens": f"Error: Provider {self._provider_name} is not available."})
+                self._emit({"type": "text", "tokens": f"Error: Provider {actual_provider_name} is not available."})
                 self._emit({"type": "complete", "reason": "error"})
                 self._mark_session_done(session_id, "error")
                 return
@@ -1271,8 +1304,7 @@ class ConversationManager:
                              if t.get("function", {}).get("name") not in _write_tools]
                 if hasattr(self, '_extra_tools'):
                     tools.extend(self._extra_tools)
-            from tool.LLM.logic.registry import get_pipeline
-            pipeline = get_pipeline(self._provider_name)
+            pipeline = get_pipeline(actual_provider_name)
 
             from tool.LLM.logic.config import get_config_value
             cfg_turn_limit = get_config_value("default_turn_limit", 20)
@@ -1333,12 +1365,9 @@ class ConversationManager:
                 for _llm_attempt in range(2):
                     llm_req_evt = {
                         "type": "llm_request",
-                        "provider": self._provider_name if _llm_attempt == 0 else getattr(provider, 'name', '?'),
+                        "provider": actual_provider_name if _llm_attempt == 0 else getattr(provider, 'name', '?'),
                         "round": round_num,
                     }
-                    if self._provider_name == "auto" and hasattr(provider, '_last_used') and provider._last_used:
-                        llm_req_evt["auto_using"] = provider._last_used
-                        llm_req_evt["auto_chain"] = getattr(provider, '_get_fallback_chain', lambda: [])()
                     self._emit(llm_req_evt)
 
                     first_chunk = True
@@ -1370,16 +1399,6 @@ class ConversationManager:
                                 _cancelled_mid_stream = True
                                 _was_cancelled = True
                                 break
-                            if chunk.get("_auto_switched"):
-                                from_m = chunk.get("_auto_from", "?")
-                                to_m = chunk.get("_auto_to", "?")
-                                self._emit({
-                                    "type": "notice",
-                                    "text": f"Switched to {to_m}",
-                                    "detail": f"Fallback from {from_m}",
-                                    "icon": "bx-transfer",
-                                })
-                                continue
                             if first_chunk and chunk.get("ok"):
                                 first_chunk = False
                                 self._emit({"type": "llm_response_start", "round": round_num})
@@ -1438,8 +1457,8 @@ class ConversationManager:
                                         "round": round_num,
                                         "latency_s": latency,
                                         "has_tool_calls": bool(tool_calls_accum),
-                                        "provider": self._provider_name,
-                                        "model": chunk.get("model", self._provider_name),
+                                        "provider": actual_provider_name,
+                                        "model": chunk.get("model", actual_provider_name),
                                         "_full_text": full_text,
                                     }
                                     if chunk.get("usage"):
@@ -1481,30 +1500,63 @@ class ConversationManager:
                             _llm_error = result
 
                     if _llm_error is None:
+                        try:
+                            from tool.LLM.logic.auto import get_health
+                            get_health().record_success(actual_provider_name)
+                        except Exception:
+                            pass
                         break
 
                     err = _llm_error.get("error", "Unknown error")
                     error_code = _llm_error.get("error_code", 0)
                     if not error_code and ("429" in err or "rate limit" in err.lower()):
                         error_code = 429
-                    failed_name = getattr(provider, 'name', self._provider_name)
+                    failed_name = getattr(provider, 'name', actual_provider_name)
 
-                    if not _fallback_attempted and error_code in self._RETRYABLE_CODES:
-                        fb = self._try_fallback_provider(failed_name)
-                        if fb:
-                            fb_provider, fb_pipeline, fb_name = fb
-                            self._emit({
-                                "type": "notice",
-                                "text": f"Switching to {fb_name}",
-                                "detail": f"Fallback from {failed_name} ({error_code})",
-                                "icon": "bx-transfer",
-                            })
-                            provider = fb_provider
-                            pipeline = fb_pipeline
-                            full_text = ""
-                            tool_calls_accum = []
-                            _fallback_attempted = True
-                            continue
+                    try:
+                        from tool.LLM.logic.auto import get_health
+                        get_health().record_error(failed_name, error_code)
+                    except Exception:
+                        pass
+
+                    # Auto fallback: try next available model
+                    if is_auto and round_num == 1:
+                        try:
+                            from tool.LLM.logic.auto import get_next_available
+                            _tried = getattr(self, '_auto_tried', set())
+                            _tried.add(failed_name)
+                            self._auto_tried = _tried
+                            fallback = get_next_available(exclude=list(_tried))
+                            if fallback:
+                                actual_provider_name = fallback
+                                provider = get_provider(actual_provider_name)
+                                pipeline = get_pipeline(actual_provider_name)
+                                tools_reload = list(BUILTIN_TOOLS) if self._enable_tools and provider.capabilities.supports_tool_calling else None
+                                if tools_reload and session_mode in ("ask", "plan"):
+                                    _write_tools = {"edit_file", "todo"}
+                                    tools_reload = [t for t in tools_reload
+                                                    if t.get("function", {}).get("name") not in _write_tools]
+                                if tools_reload is not None:
+                                    tools = tools_reload
+                                self._emit({
+                                    "type": "llm_response_end",
+                                    "round": round_num,
+                                    "error": True,
+                                    "error_code": error_code,
+                                    "latency_s": 0,
+                                    "has_tool_calls": False,
+                                    "provider": failed_name,
+                                })
+                                self._emit({"type": "debug",
+                                            "text": f"Auto fallback: {failed_name} → {actual_provider_name}"})
+                                self._emit({
+                                    "type": "model_decision_end",
+                                    "chosen": actual_provider_name,
+                                })
+                                round_num -= 1
+                                continue
+                        except Exception:
+                            pass
 
                     self._emit({
                         "type": "llm_response_end",
@@ -1601,15 +1653,14 @@ class ConversationManager:
                                 nudge = (
                                     "You already read the file. Now use "
                                     "edit_file to apply your fix. Provide "
-                                    "old_text (the exact text to replace) and "
-                                    "new_text (the replacement). For surgical "
-                                    "edits, include only the changed portion.")
+                                    "start_line, end_line, and new_text. "
+                                    "Only replace the lines that change.")
                             else:
                                 nudge = (
                                     "You described changes but didn't apply them. "
-                                    "First read_file to locate the exact text, "
-                                    "then use edit_file with old_text and new_text "
-                                    "to make a surgical edit.")
+                                    "First read_file to locate exact line numbers, "
+                                    "then use edit_file with start_line, end_line, "
+                                    "and new_text.")
                             session.context.add_user(nudge)
                             self._emit({"type": "debug",
                                          "text": "Nudging agent to apply changes"})
@@ -1812,24 +1863,15 @@ class ConversationManager:
             self._mark_session_done(session_id, "error")
 
     def _generate_title_async(self, session_id: str, user_msg: str, assistant_msg: str):
-        """Generate a short title for the conversation.
-
-        Skips if the user has already renamed the session from "New Task".
-        """
+        """Generate a short title using the fast auto_generate_title interface."""
         session = self._sessions.get(session_id)
         if not session or session.title != "New Task":
             return
         try:
-            from tool.LLM.logic.registry import get_provider
-            provider = get_provider(self._provider_name)
-            result = provider.send([
-                {"role": "system", "content": "Write a 3-6 word title summarizing this chat. No quotes, no punctuation."},
-                {"role": "user", "content": f"User: {user_msg[:150]}\nAssistant: {assistant_msg[:150]}"},
-            ], temperature=0.3, max_tokens=20)
-            if result.get("ok"):
-                title = result["text"].strip().strip('"').strip("'").strip(".")
-                if title and len(title) < 50:
-                    self.rename_session(session_id, title)
+            from tool.LLM.logic.auto import auto_generate_title
+            title = auto_generate_title(user_msg)
+            if title and len(title) < 50:
+                self.rename_session(session_id, title)
         except Exception:
             pass
 
