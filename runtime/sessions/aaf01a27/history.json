@@ -2,6 +2,7 @@
  "id": "aaf01a27",
  "title": "R6 Task 27: Dependency Graph",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773459545.80973,
  "message_count": 1,
  "codebase_root": null,

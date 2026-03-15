@@ -2,6 +2,7 @@
  "id": "9af69f23",
  "title": "Task 35: CLI Word Freq Tool",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773469696.854759,
  "message_count": 2,
  "codebase_root": ".",

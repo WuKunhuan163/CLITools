@@ -2,6 +2,7 @@
  "id": "30dcdf3f",
  "title": "R8 Task 17: Config Analysis",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773464378.287903,
  "message_count": 2,
  "codebase_root": null,

@@ -2,6 +2,7 @@
  "id": "7b896569",
  "title": "Task 31: Slug Utils",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773465519.049319,
  "message_count": 2,
  "codebase_root": ".",

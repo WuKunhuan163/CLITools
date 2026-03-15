@@ -2,6 +2,7 @@
  "id": "b2e1bd51",
  "title": "Task 32: Rate Limiter Audit",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773466036.106113,
  "message_count": 1,
  "codebase_root": ".",

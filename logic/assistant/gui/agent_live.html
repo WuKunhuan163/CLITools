@@ -901,6 +901,11 @@ engine.onSessionChange((action, session) => {
     activeSessionId = session.id;
     $('main-title').textContent = session.title;
     apiActivateSession(session.id);
+    const sessionMode = session.mode || 'agent';
+    if (sessionMode !== currentMode) {
+      currentMode = sessionMode;
+      if (modePill && modePill.setValue) modePill.setValue(sessionMode);
+    }
   }
 });
 
@@ -1670,8 +1675,10 @@ function handleSSEEvent(evt) {
   switch (evt.type) {
     case 'session_created':
       if (!engine.getSession(evt.id)) {
-        engine.addSession(evt.id, evt.title || 'New Task', 'idle');
+        engine.addSession(evt.id, evt.title || 'New Task', 'idle', evt.mode || 'agent');
       }
+      engine.setActiveSession(evt.id);
+      activeSessionId = evt.id;
       break;
 
     case 'session_renamed':
@@ -1753,11 +1760,16 @@ async function init() {
     if (data.ok && data.sessions) {
       let runningId = null;
       data.sessions.forEach(s => {
-        engine.addSession(s.id, s.title, s.status);
+        engine.addSession(s.id, s.title, s.status, s.mode || 'agent');
         if (s.status === 'running') runningId = s.id;
         if (!initialSessionId) initialSessionId = s.id;
       });
       if (runningId) initialSessionId = runningId;
+      const initSession = data.sessions.find(s => s.id === (runningId || initialSessionId));
+      if (initSession && initSession.mode && initSession.mode !== currentMode) {
+        currentMode = initSession.mode;
+        if (modePill && modePill.setValue) modePill.setValue(initSession.mode);
+      }
     }
   } catch (err) {
     console.warn('Failed to load sessions:', err);

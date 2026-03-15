@@ -2,6 +2,7 @@
  "id": "086752c3",
  "title": "Task 34: Multi-File Bug Fix",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773469412.093982,
  "message_count": 2,
  "codebase_root": ".",

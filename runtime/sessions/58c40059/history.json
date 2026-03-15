@@ -2,6 +2,7 @@
  "id": "58c40059",
  "title": "Create a simple Python script at tmp/hello.py that prints he",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773472117.064259,
  "message_count": 0,
  "codebase_root": ".",

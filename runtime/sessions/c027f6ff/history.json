@@ -2,6 +2,7 @@
  "id": "c027f6ff",
  "title": "Task 32b: Rate Limiter Audit (retry)",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773466307.2853818,
  "message_count": 1,
  "codebase_root": ".",

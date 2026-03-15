@@ -2,6 +2,7 @@
  "id": "bd9e35ac",
  "title": "Task 30: Bug Hunt",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773465306.897953,
  "message_count": 1,
  "codebase_root": ".",

@@ -178,12 +178,15 @@ class AgentServer:
         self._load_persisted_events()
 
     def _load_persisted_events(self):
-        """Load event history from persisted session files."""
+        """Load event history from persisted session files.
+
+        Supports both new layout (``<id>/history.json``) and legacy (``<id>.json``).
+        """
         import glob
         sessions_dir = os.path.join(str(_root), "runtime", "sessions")
         if not os.path.isdir(sessions_dir):
             return
-        for path in glob.glob(os.path.join(sessions_dir, "*.json")):
+        for path in glob.glob(os.path.join(sessions_dir, "*/history.json")):
             try:
                 with open(path, encoding="utf-8") as f:
                     data = json.load(f)
@@ -191,6 +194,17 @@ class AgentServer:
                 events = data.get("events", [])
                 if sid and events:
                     self._event_history[sid] = events
+            except Exception:
+                continue
+        for path in glob.glob(os.path.join(sessions_dir, "*.json")):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                sid = data.get("id")
+                if sid and sid not in self._event_history:
+                    events = data.get("events", [])
+                    if events:
+                        self._event_history[sid] = events
             except Exception:
                 continue
 

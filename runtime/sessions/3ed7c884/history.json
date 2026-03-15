@@ -2,6 +2,7 @@
  "id": "3ed7c884",
  "title": "Verify Fixes",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773461881.8738,
  "message_count": 1,
  "codebase_root": null,

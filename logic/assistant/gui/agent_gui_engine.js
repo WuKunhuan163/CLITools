@@ -434,8 +434,8 @@ class AgentGUIEngine {
 
   onSessionChange(cb) { this._onSessionChange = cb; }
 
-  addSession(id, title, status) {
-    this.sessions[id] = { id, title: title || 'New Task', status: status || 'idle', createdAt: Date.now() };
+  addSession(id, title, status, mode) {
+    this.sessions[id] = { id, title: title || 'New Task', status: status || 'idle', mode: mode || 'agent', createdAt: Date.now() };
     if (!this.activeSessionId) this.activeSessionId = id;
     this._refreshSessions();
     return this.sessions[id];

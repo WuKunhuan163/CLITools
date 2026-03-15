@@ -334,31 +334,21 @@ BUILTIN_TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "write_file",
-            "description": "Create or overwrite a file with the given content. Use for creating HTML, CSS, JS, Python, or any text files.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string", "description": "File path to write (absolute or relative to project root)"},
-                    "content": {"type": "string", "description": "Full file content to write"},
-                },
-                "required": ["path", "content"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "edit_file",
-            "description": "Replace a specific text in a file. Use this to modify existing files without rewriting the whole file. First read_file to see current content, then use edit_file to make targeted changes.",
+            "description": (
+                "Edit or create a file. Two modes:\n"
+                "- Targeted edit: provide old_text and new_text to replace specific text.\n"
+                "- Create/overwrite: omit old_text (or set to empty) and provide new_text "
+                "with the full file content. Creates parent directories automatically."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "File path to edit"},
-                    "old_text": {"type": "string", "description": "Exact text to find and replace (must exist in the file)"},
-                    "new_text": {"type": "string", "description": "Replacement text"},
+                    "path": {"type": "string", "description": "File path to edit or create"},
+                    "old_text": {"type": "string", "description": "Exact text to find and replace. Leave empty to create/overwrite the entire file."},
+                    "new_text": {"type": "string", "description": "Replacement text, or full file content when old_text is empty."},
                 },
-                "required": ["path", "old_text", "new_text"],
+                "required": ["path", "new_text"],
             },
         },
     },
@@ -632,7 +622,7 @@ class ConversationManager:
             self._std_tools = {}
             self._ToolContext = None
 
-        for name in ("exec", "read_file", "search", "write_file",
+        for name in ("exec", "read_file", "search",
                      "edit_file", "todo", "ask_user", "experience"):
             if name in self._std_tools:
                 self._tool_handlers[name] = self._make_std_handler(name)
@@ -1105,11 +1095,14 @@ class ConversationManager:
         path = args.get("path", "")
         old_text = args.get("old_text", "")
         new_text = args.get("new_text", "")
-        if not path or not old_text:
-            return {"ok": False, "output": "Missing path or old_text"}
+        if not path:
+            return {"ok": False, "output": "Missing path"}
 
         if not os.path.isabs(path):
             path = os.path.join(self._get_cwd(), path)
+
+        if not old_text:
+            return self._handle_write_file({"path": path, "content": new_text})
 
         self._emit({"type": "tool", "name": "edit_file",
                      "desc": f"Edit {os.path.basename(path)}", "cmd": f"edit {path}"})
@@ -1459,7 +1452,7 @@ class ConversationManager:
             if self._active_session_id is None:
                 self._active_session_id = sid
         self._emit({"type": "session_created", "id": sid, "title": title,
-                     "codebase_root": codebase})
+                     "codebase_root": codebase, "mode": mode})
         self._fire_hook("on_session_start",
                         session_id=sid, codebase_root=codebase, title=title)
         self._persist_session(sid)
@@ -1622,6 +1615,10 @@ class ConversationManager:
             tools = None
             if self._enable_tools and provider.capabilities.supports_tool_calling:
                 tools = list(BUILTIN_TOOLS)
+                if session_mode in ("ask", "plan"):
+                    _write_tools = {"write_file", "edit_file", "todo"}
+                    tools = [t for t in tools
+                             if t.get("function", {}).get("name") not in _write_tools]
                 if hasattr(self, '_extra_tools'):
                     tools.extend(self._extra_tools)
             from tool.LLM.logic.registry import get_pipeline

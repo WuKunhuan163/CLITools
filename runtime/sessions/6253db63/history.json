@@ -2,6 +2,7 @@
  "id": "6253db63",
  "title": "R8 Task 18: Bug Hunt",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773464537.472893,
  "message_count": 1,
  "codebase_root": null,

@@ -2,6 +2,7 @@
  "id": "239f0486",
  "title": "R6 Task 29: Debug Investigation",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773460325.49874,
  "message_count": 1,
  "codebase_root": null,

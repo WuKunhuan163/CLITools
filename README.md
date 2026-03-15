@@ -152,6 +152,33 @@ Every tool has a built-in session logger via `tool.log(message)`. Log files auto
 
 ---
 
+## For AI Agents
+
+**If you are an AI agent** (LLM assistant, IDE copilot, or automated system), read `for_agent.md` in this directory for comprehensive architecture docs, tool conventions, and the AI IDE integration workflow. That file is your primary reference.
+
+Key entry points:
+- `for_agent.md` — Full architecture guide, tool conventions, agent bootstrap, AI IDE workflow
+- `TOOL --search all "<query>"` — Semantic search across all tools, skills, lessons
+- `TOOL --agent/--ask/--plan --dry-run prompt "<task>"` — Start a session with ecosystem context
+- `USERINPUT` — Get interactive user feedback
+
+### AI IDE Integration
+
+This project provides its own assistant infrastructure (file read/write, exec, search, edit tools) that integrates with the project's progress tracking, quality nudges, and HTML GUI. AI IDE agents (Cursor, Copilot, Windsurf, etc.) can use our tools via `exec()` to benefit from this ecosystem while continuing to use the IDE's own tools for capabilities we don't yet cover.
+
+The workflow: `--prompt --dry-run` (get context) → `--response` (provide answers) → `--history/--feed` (check state) → `USERINPUT` (get feedback) → repeat.
+
+See `for_agent.md` section "AI IDE Integration Workflow" for the full step-by-step guide.
+
+### Remote Assistant Integration
+
+When a remote LLM provider acts as the assistant, the system manages the full conversation loop: context packaging, tool execution, quality checks, and GUI rendering. The `--dry-run` flag allows AI IDE agents to act as the provider themselves, creating sessions in the GUI without sending to a remote LLM. This enables:
+- **Self-testing**: An IDE agent can role-play as the remote assistant to test the ecosystem
+- **Hybrid operation**: IDE tools for fast operations, project tools for tracked operations
+- **Progressive disclosure**: The system feeds context incrementally based on what the agent has discovered
+
+---
+
 ## Contribution
 
 Active development happens on the `dev` branch. Run `SKILLS show tool-development-workflow` for the full development guide.

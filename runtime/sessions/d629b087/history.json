@@ -2,6 +2,7 @@
  "id": "d629b087",
  "title": "New Task",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773463146.151165,
  "message_count": 0,
  "codebase_root": null,

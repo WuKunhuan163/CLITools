@@ -284,13 +284,14 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
 
     label = MODE_LABELS.get(mode, "Agent")
 
+    gui_url = _ensure_gui_and_create_session(
+        session, provider, tool_dir, mode)
+    if gui_url:
+        print(f"  {BOLD}GUI session opened.{RESET} {DIM}{gui_url}{RESET}")
+
     if dry_run:
-        gui_url = _ensure_gui_and_create_session(
-            session, provider, tool_dir, mode)
         _print_dry_run(
             session, prompt, tool_name, project_root, mode, provider)
-        if gui_url:
-            print(f"\n  {BOLD}GUI session opened.{RESET} {DIM}{gui_url}{RESET}")
         return
 
     print(f"  {BOLD}{label} session started.{RESET} {DIM}{session.id}{RESET}")
@@ -683,11 +684,20 @@ def _handle_history(args: list, project_root: str):
 
 
 def _load_events_from_disk(session_id: str, project_root: str):
-    """Load events from a persisted session file."""
-    sessions_dir = os.path.join(project_root, "tool", "LLM", "data", "sessions")
+    """Load events from a persisted session file.
+
+    Supports both new layout (``<id>/history.json``) and legacy (``<id>.json``).
+    """
+    sessions_dir = os.path.join(project_root, "runtime", "sessions")
     if not os.path.isdir(sessions_dir):
         return None
     import glob
+    for path in glob.glob(os.path.join(sessions_dir, "*/history.json")):
+        dir_name = os.path.basename(os.path.dirname(path))
+        if dir_name.startswith(session_id):
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("events", [])
     for path in glob.glob(os.path.join(sessions_dir, "*.json")):
         basename = os.path.basename(path).replace(".json", "")
         if basename.startswith(session_id):

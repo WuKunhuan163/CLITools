@@ -290,8 +290,10 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
     path = args.get("path", "")
     old_text = args.get("old_text", "")
     new_text = args.get("new_text", "")
-    if not path or not old_text:
-        return {"ok": False, "output": "Missing path or old_text"}
+    if not path:
+        return {"ok": False, "output": "Missing path"}
+    if not old_text:
+        return handle_write_file({"path": path, "content": new_text}, ctx)
 
     if not os.path.isabs(path):
         path = os.path.join(ctx.cwd, path)

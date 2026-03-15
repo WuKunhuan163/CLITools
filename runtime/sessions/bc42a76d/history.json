@@ -2,6 +2,7 @@
  "id": "bc42a76d",
  "title": "R6 Task 28: Refactor Extract",
  "status": "idle",
+ "mode": "agent",
  "created_at": 1773459828.9043388,
  "message_count": 1,
  "codebase_root": null,
