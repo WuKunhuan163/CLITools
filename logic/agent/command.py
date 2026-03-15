@@ -623,6 +623,14 @@ def _handle_response(args: list, tool_name: str, project_root: str,
             has_tool_calls = evt.get("has_tool_calls", has_tool_calls)
             latency = evt.get("latency_s", 0)
             provider = evt.get("provider", "?")
+            usage = evt.get("usage", {})
+            if not usage.get("completion_tokens") and full_text:
+                est_out = max(1, len(full_text) // 4)
+                est_in = est_out * 2
+                evt.setdefault("usage", {})
+                evt["usage"]["completion_tokens"] = est_out
+                evt["usage"]["prompt_tokens"] = est_in
+                evt["usage"]["total_tokens"] = est_in + est_out
             _inject(evt)
             print(f"\n  {DIM}[{latency}s via {provider}]{RESET}")
 

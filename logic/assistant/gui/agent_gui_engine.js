@@ -1072,9 +1072,9 @@ class AgentGUIEngine {
 
       const ridx = this._roundHistory.length - 1;
       const tokenLabel = outTokens + ' tokens';
-      const costLabel = usage.cost != null
-        ? (this._costCurrency || '$') + usage.cost.toFixed(4)
-        : '$0.00';
+      const isSelfOperate = this._selfOperate;
+      const costLabel = isSelfOperate ? ''
+        : (usage.cost != null ? (this._costCurrency || '$') + usage.cost.toFixed(4) : '$0.00');
       const latLabel = evt.latency_s ? evt.latency_s + 's' : '';
       let ctxLabel = '';
       if (ctxTokens > 0) {
@@ -1100,8 +1100,7 @@ class AgentGUIEngine {
         };
         const sep = () => { const s = document.createElement('span'); s.textContent = ' · '; s.className = 'model-sep'; return s; };
         latency.appendChild(makeLink(tokenLabel, ridx));
-        latency.appendChild(sep());
-        latency.appendChild(document.createTextNode(costLabel));
+        if (costLabel) { latency.appendChild(sep()); latency.appendChild(document.createTextNode(costLabel)); }
         if (latLabel) { latency.appendChild(sep()); latency.appendChild(document.createTextNode(latLabel)); }
         if (ctxLabel) { latency.appendChild(sep()); latency.appendChild(makeLink(ctxLabel, ridx)); }
       }
@@ -1198,7 +1197,6 @@ class AgentGUIEngine {
       html += '<i class="bx bx-bot model-info-icon"></i>';
     }
     html += '<span class="model-name">' + esc(name) + '</span>';
-    if (round) html += '<span class="model-round">Round ' + round + '</span>';
     html += '<span class="model-sep">\u00b7</span><div class="spinner spinner-sm model-spinner"></div><span class="model-latency"></span>';
     div.innerHTML = html;
     return div;

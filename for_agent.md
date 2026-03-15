@@ -155,6 +155,33 @@ Agent infrastructure lives in `logic/agent/` (core) and `interface/agent.py` (fa
 
 Default LLM provider: `zhipu-glm-4.7` (GLM-4.7 via Zhipu AI). Configure via `--agent setup`.
 
+### Self-Operate Mode
+
+Self-operate mode allows an AI IDE (e.g., Cursor) to use the assistant GUI as its own interface, driving the conversation from the terminal rather than through a remote LLM provider.
+
+```bash
+# Start self-operate session with prompt
+TOOL_NAME --agent --self-operate --self-name "Opus 4.6" --env "IDE/cursor" prompt "Create a hello.py"
+
+# Inject a response (simulates an LLM API reply)
+TOOL_NAME --agent response <SESSION_ID> '<json_events>'
+
+# Complete the task
+TOOL_NAME --agent response <SESSION_ID> '[{"type":"complete","reason":"done"}]'
+```
+
+**Options:**
+- `--self-operate`: Enables self-operate mode. The prompt is displayed in the GUI but NOT sent to an LLM provider. The chatbox input is disabled until the task completes.
+- `--self-name "Name"`: Display name for the operating agent (e.g., "Opus 4.6").
+- `--env "IDE/cursor"`: Environment identifier. The last path segment is used to resolve a logo from `logic/asset/image/env/IDE/`. If not specified, a default bot icon is shown.
+
+**Flow:**
+1. `--self-operate prompt "..."` creates a new GUI session, shows the user prompt and a model banner with the env logo + name, and waits for `--response`.
+2. `--response <SID> <json>` injects events (text, tool calls, etc.) into the session. Tool calls are executed server-side.
+3. Repeat step 2 until the task is done, then inject a `complete` event.
+
+**Environment logos** are stored in `logic/asset/image/env/IDE/` (cursor.svg, copilot.svg, windsurf.svg).
+
 **Auto Model Selection**: Use provider name `auto` for automatic model selection with fallback. The Auto provider ranks available models by stability (free-tier preference, RPM headroom, error rate tracking) and automatically falls back to the next model on 429/500 errors. Implemented in `tool/LLM/logic/auto.py`.
 
 ### Exec Timeout & Background Execution
