@@ -17,7 +17,7 @@ CDP_PORT = 9222
 
 def _is_cdp_available():
     try:
-        from interface.chrome import is_chrome_cdp_available
+        from logic.chrome.session import is_chrome_cdp_available
         return is_chrome_cdp_available(CDP_PORT)
     except Exception:
         return False

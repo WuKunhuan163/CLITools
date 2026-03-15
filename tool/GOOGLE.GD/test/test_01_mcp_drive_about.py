@@ -20,7 +20,7 @@ def _cdp_enabled():
 
 
 def _colab_tab_exists():
-    from tool.GOOGLE.logic.chrome.colab import find_colab_tab
+    from tool.GOOGLE.interface.main import find_colab_tab
     return find_colab_tab() is not None
 
 
@@ -32,7 +32,7 @@ class TestMcpDriveAbout(unittest.TestCase):
             self.skipTest("Chrome CDP not available")
         if not _colab_tab_exists():
             self.skipTest("No Colab tab found")
-        from tool.GOOGLE.logic.chrome.drive import get_drive_about
+        from tool.GOOGLE.interface.main import get_drive_about
         result = get_drive_about()
         self.assertTrue(result.get("success"), f"Drive about failed: {result.get('error')}")
         data = result.get("data", {})
@@ -48,7 +48,7 @@ class TestMcpDriveList(unittest.TestCase):
             self.skipTest("Chrome CDP not available")
         if not _colab_tab_exists():
             self.skipTest("No Colab tab found")
-        from tool.GOOGLE.logic.chrome.drive import list_drive_files
+        from tool.GOOGLE.interface.main import list_drive_files
         result = list_drive_files("root", page_size=3)
         self.assertTrue(result.get("success"), f"Drive list failed: {result.get('error')}")
         self.assertIsInstance(result.get("files"), list)

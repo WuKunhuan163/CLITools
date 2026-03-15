@@ -18,7 +18,8 @@ from logic.gui.engine import (
     play_notification_bell,
 )
 from logic.gui.manager import run_gui_subprocess, handle_gui_remote_command
-from logic.serve.html_server import LocalHTMLServer
+from logic.serve.html_server import LocalHTMLServer, find_free_port
+from logic.gui.tkinter.widget.text import UndoableText
 
 __all__ = [
     "ButtonBarWindow",
@@ -42,4 +43,6 @@ __all__ = [
     "run_gui_subprocess",
     "handle_gui_remote_command",
     "LocalHTMLServer",
+    "find_free_port",
+    "UndoableText",
 ]

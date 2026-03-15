@@ -121,7 +121,7 @@ class GCTool(MCPToolBase):
                 auto_open=False, wait_sec=0,
             )
         if not tab_info:
-            from tool.GOOGLE.logic.chrome.colab import find_colab_tab
+            from tool.GOOGLE.interface.main import find_colab_tab
             raw = find_colab_tab()
             if raw:
                 tab_info = {"id": raw["id"], "url": raw.get("url", ""),
@@ -738,7 +738,7 @@ def _colab_connect_stages():
                 open_url=_get_colab_open_url(), auto_open=True, wait_sec=12.0,
             )
         if not tab_info:
-            from tool.GOOGLE.logic.chrome.colab import find_colab_tab
+            from tool.GOOGLE.interface.main import find_colab_tab
             raw = find_colab_tab()
             if raw:
                 tab_info = {"id": raw["id"], "url": raw.get("url", ""),
@@ -2124,8 +2124,8 @@ def main():
     RESET = get_color("RESET")
 
     from interface.chrome import is_chrome_cdp_available, CDPSession, CDP_PORT, list_tabs
-    from tool.GOOGLE.logic.chrome.colab import find_colab_tab, inject_and_execute
-    from tool.GOOGLE.logic.chrome.oauth import handle_oauth_if_needed
+    from tool.GOOGLE.interface.main import find_colab_tab, inject_and_execute
+    from tool.GOOGLE.interface.main import handle_oauth_if_needed
 
     if args.command == "state":
         if getattr(args, "json", False):
@@ -2154,7 +2154,7 @@ def main():
                 if page_err:
                     print(f"{BOLD}{RED}Page{RESET}: {page_err}")
                 else:
-                    from tool.GOOGLE.logic.chrome.login import check_login_state
+                    from tool.GOOGLE.interface.main import check_login_state
                     login = check_login_state()
                     if login["signed_in"]:
                         email = login.get("email") or "unknown"

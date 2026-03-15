@@ -14,7 +14,7 @@ import json
 import time
 from typing import Optional, Dict, Any
 
-from interface.chrome import (
+from logic.chrome.session import (
     CDPSession, real_click, insert_text,
 )
 

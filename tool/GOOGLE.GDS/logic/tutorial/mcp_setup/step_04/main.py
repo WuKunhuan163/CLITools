@@ -29,7 +29,7 @@ def _run_cdp_execute(command: str, on_log=None, on_done=None):
         on_log(f"  Marker: {marker}")
 
     try:
-        from tool.GOOGLE.logic.chrome.colab import inject_and_execute
+        from tool.GOOGLE.interface.main import inject_and_execute
     except ImportError as e:
         if on_done:
             on_done(False, "", str(e))

@@ -18,7 +18,7 @@ def is_mcp_available():
     try:
         sys.path.insert(0, str(PROJECT_ROOT))
         from interface.chrome import is_chrome_cdp_available
-        from tool.GOOGLE.logic.chrome.colab import find_colab_tab
+        from tool.GOOGLE.interface.main import find_colab_tab
         if not is_chrome_cdp_available():
             return False
         tab = find_colab_tab()

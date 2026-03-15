@@ -13,7 +13,7 @@ import threading
 from pathlib import Path
 from typing import Optional, Dict, Any, Callable, List
 
-from interface.chrome import CDPSession, CDP_PORT, list_tabs, close_tab
+from logic.chrome.session import CDPSession, CDP_PORT, list_tabs, close_tab
 
 
 _AUTH_COOKIES = ("SID", "SSID", "APISID", "SAPISID", "HSID")

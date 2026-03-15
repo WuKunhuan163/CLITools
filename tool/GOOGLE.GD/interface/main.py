@@ -5,7 +5,7 @@ using the authenticated gapi.client session in a Colab tab.
 
 Usage::
 
-    from tool.GOOGLE.logic.chrome.drive import (
+    from tool.GOOGLE.interface.main import (
         list_drive_files,
         create_drive_file,
         delete_drive_file,
@@ -14,7 +14,7 @@ Usage::
         DRIVE_MIME_TYPES,
     )
 """
-from tool.GOOGLE.logic.chrome.drive import (  # noqa: F401
+from tool.GOOGLE.interface.main import (  # noqa: F401
     DRIVE_MIME_TYPES,
     create_notebook,
     create_drive_file,

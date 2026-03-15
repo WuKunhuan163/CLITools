@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Optional, Dict, Any, Callable
 
-from interface.chrome import (
+from logic.chrome.session import (
     CDPSession, CDP_PORT, is_chrome_cdp_available, open_tab, list_tabs,
 )
 
@@ -19,7 +19,7 @@ def _open_in_session_window(url: str, port: int = CDP_PORT):
     try:
         import sys
         sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-        from interface.cdmcp import load_cdmcp_sessions
+        from logic.cdmcp_loader import load_cdmcp_sessions
         sm = load_cdmcp_sessions()
         for info in sm.list_sessions():
             wid = info.get("window_id")

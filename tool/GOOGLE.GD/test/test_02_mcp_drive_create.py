@@ -24,7 +24,7 @@ def _cdp_enabled():
 
 
 def _colab_tab_exists():
-    from tool.GOOGLE.logic.chrome.colab import find_colab_tab
+    from tool.GOOGLE.interface.main import find_colab_tab
     return find_colab_tab() is not None
 
 
@@ -57,7 +57,7 @@ class TestDriveCreateDoc(unittest.TestCase):
 
     def test_create_and_delete_doc(self):
         """Create a Google Doc, verify it, then delete it."""
-        from tool.GOOGLE.logic.chrome.drive import create_drive_file, delete_drive_file
+        from tool.GOOGLE.interface.main import create_drive_file, delete_drive_file
         name = f"_unittest_doc_{int(time.time())}"
         result = create_drive_file(name, "doc", _FOLDER_ID)
         self.assertTrue(result.get("success"), f"Create doc failed: {result.get('error')}")
@@ -74,7 +74,7 @@ class TestDriveCreateSheet(unittest.TestCase):
 
     def test_create_and_delete_sheet(self):
         """Create a Google Sheet, verify it, then delete it."""
-        from tool.GOOGLE.logic.chrome.drive import create_drive_file, delete_drive_file
+        from tool.GOOGLE.interface.main import create_drive_file, delete_drive_file
         name = f"_unittest_sheet_{int(time.time())}"
         result = create_drive_file(name, "sheet", _FOLDER_ID)
         self.assertTrue(result.get("success"), f"Create sheet failed: {result.get('error')}")
@@ -91,7 +91,7 @@ class TestDriveCreateSlide(unittest.TestCase):
 
     def test_create_and_delete_slide(self):
         """Create a Google Slides presentation, verify it, then delete it."""
-        from tool.GOOGLE.logic.chrome.drive import create_drive_file, delete_drive_file
+        from tool.GOOGLE.interface.main import create_drive_file, delete_drive_file
         name = f"_unittest_slide_{int(time.time())}"
         result = create_drive_file(name, "slide", _FOLDER_ID)
         self.assertTrue(result.get("success"), f"Create slide failed: {result.get('error')}")
@@ -108,7 +108,7 @@ class TestDriveCreateForm(unittest.TestCase):
 
     def test_create_and_delete_form(self):
         """Create a Google Form, verify it, then delete it."""
-        from tool.GOOGLE.logic.chrome.drive import create_drive_file, delete_drive_file
+        from tool.GOOGLE.interface.main import create_drive_file, delete_drive_file
         name = f"_unittest_form_{int(time.time())}"
         result = create_drive_file(name, "form", _FOLDER_ID)
         self.assertTrue(result.get("success"), f"Create form failed: {result.get('error')}")
@@ -124,7 +124,7 @@ class TestDriveCreateFolder(unittest.TestCase):
 
     def test_create_and_delete_folder(self):
         """Create a Drive folder, verify it, then delete it."""
-        from tool.GOOGLE.logic.chrome.drive import create_drive_file, delete_drive_file
+        from tool.GOOGLE.interface.main import create_drive_file, delete_drive_file
         name = f"_unittest_folder_{int(time.time())}"
         result = create_drive_file(name, "folder", _FOLDER_ID)
         self.assertTrue(result.get("success"), f"Create folder failed: {result.get('error')}")
@@ -140,7 +140,7 @@ class TestDriveCreateColab(unittest.TestCase):
 
     def test_create_and_delete_colab(self):
         """Create a Colab notebook, verify it, then delete it."""
-        from tool.GOOGLE.logic.chrome.drive import create_drive_file, delete_drive_file
+        from tool.GOOGLE.interface.main import create_drive_file, delete_drive_file
         name = f"_unittest_colab_{int(time.time())}"
         result = create_drive_file(name, "colab", _FOLDER_ID, content="print('test')")
         self.assertTrue(result.get("success"), f"Create colab failed: {result.get('error')}")
@@ -156,7 +156,7 @@ class TestDriveListAfterCreate(unittest.TestCase):
 
     def test_created_file_appears_in_listing(self):
         """A newly created file should appear in list_drive_files."""
-        from tool.GOOGLE.logic.chrome.drive import (
+        from tool.GOOGLE.interface.main import (
             create_drive_file, list_drive_files, delete_drive_file,
         )
         name = f"_unittest_list_verify_{int(time.time())}"

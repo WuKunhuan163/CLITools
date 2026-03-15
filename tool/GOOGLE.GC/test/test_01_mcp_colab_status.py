@@ -25,7 +25,7 @@ class TestMcpColabStatus(unittest.TestCase):
         """find_colab_tab returns a dict with url and webSocketDebuggerUrl."""
         if not _cdp_enabled():
             self.skipTest("Chrome CDP not available")
-        from tool.GOOGLE.logic.chrome.colab import find_colab_tab
+        from tool.GOOGLE.interface.main import find_colab_tab
         tab = find_colab_tab()
         if tab is None:
             self.skipTest("No Colab tab found (not a failure, just not open)")
@@ -40,7 +40,7 @@ class TestMcpColabInject(unittest.TestCase):
         """inject_and_execute runs Python code and detects completion marker."""
         if not _cdp_enabled():
             self.skipTest("Chrome CDP not available")
-        from tool.GOOGLE.logic.chrome.colab import find_colab_tab, inject_and_execute
+        from tool.GOOGLE.interface.main import find_colab_tab, inject_and_execute
         tab = find_colab_tab()
         if tab is None:
             self.skipTest("No Colab tab found")

@@ -123,9 +123,9 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
     Stage 3: Wait for mount cell to finish executing
     Stage 4: Verify the mount result via Drive API
     """
-    from interface.chrome import CDPSession, is_chrome_cdp_available, CDP_PORT
-    from tool.GOOGLE.logic.chrome.colab import find_colab_tab, _reopen_colab_tab as reopen_colab_tab
-    from tool.GOOGLE.logic.chrome.oauth import handle_oauth_if_needed, close_oauth_tabs
+    from logic.chrome.session import CDPSession, is_chrome_cdp_available, CDP_PORT
+    from tool.GOOGLE.interface.main import find_colab_tab, _reopen_colab_tab as reopen_colab_tab
+    from tool.GOOGLE.interface.main import handle_oauth_if_needed, close_oauth_tabs
 
     session_holder = [None]
     cell_done_early = [False]
@@ -135,7 +135,7 @@ def _execute_cdp(tool, remount_mod, script, metadata, no_feedback=False):
 
     def _load_overlay():
         try:
-            from interface.cdmcp import load_cdmcp_overlay
+            from logic.cdmcp_loader import load_cdmcp_overlay
             overlay_mod[0] = load_cdmcp_overlay()
         except Exception:
             pass

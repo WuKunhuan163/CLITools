@@ -184,7 +184,7 @@ def setup_cursor_ide_action(stage=None):
     """Deploy Cursor IDE rules and hooks if Cursor is detected."""
     project_root = Path(__file__).parent.absolute()
     try:
-        from logic.setup.cursor.deploy import detect_cursor_ide, deploy
+        from interface.tool import detect_cursor_ide, deploy_cursor as deploy
         if not detect_cursor_ide(project_root):
             return True
         result = deploy(project_root)

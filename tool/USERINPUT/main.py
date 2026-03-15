@@ -301,7 +301,7 @@ class UserInputWindow(BaseGUIWindow):
         text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         scrollbar = tk.Scrollbar(text_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        from logic.gui.tkinter.widget.text import UndoableText
+        from interface.gui import UndoableText
         self.text_widget = UndoableText.create(
             text_frame, 
             wrap=tk.WORD, 

@@ -10,7 +10,7 @@ due to ToS concerns. Use the official Kling AI API instead.
 import json
 from typing import Dict, Any, Optional
 
-from interface.chrome import (
+from logic.chrome.session import (
     CDPSession, CDP_PORT,
     find_tab,
 )

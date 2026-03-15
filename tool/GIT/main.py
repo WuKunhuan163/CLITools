@@ -100,7 +100,7 @@ def main():
             
             # Trigger auto-push if needed (via post-commit hook or manually)
             try:
-                from logic.git.engine import auto_push_if_needed
+                from interface.git import auto_push_if_needed
                 auto_push_if_needed()
             except ImportError: pass
         else:

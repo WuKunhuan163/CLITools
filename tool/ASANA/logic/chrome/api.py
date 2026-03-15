@@ -6,7 +6,7 @@ through the same-origin Asana REST API at ``/api/1.0/``.
 import json
 from typing import Dict, Any, Optional
 
-from interface.chrome import (
+from logic.chrome.session import (
     CDPSession, CDP_PORT,
     find_tab,
 )

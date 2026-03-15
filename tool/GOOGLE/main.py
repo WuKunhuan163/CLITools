@@ -105,7 +105,7 @@ class GoogleTool(ToolBase):
             print(f"{BOLD}{RED}Failed{RESET} Chrome CDP not available.")
             return
 
-        from tool.GOOGLE.logic.chrome.login import check_login_state
+        from tool.GOOGLE.interface.main import check_login_state
         _log = lambda m: print(f"  {BOLD}{BLUE}[GOOGLE]{RESET} {m}")
         state = check_login_state(log_fn=_log)
 
@@ -130,7 +130,7 @@ class GoogleTool(ToolBase):
             print(f"{BOLD}{RED}Failed{RESET} Chrome CDP not available.")
             return
 
-        from tool.GOOGLE.logic.chrome.login import sign_out
+        from tool.GOOGLE.interface.main import sign_out
         _log = lambda m: print(f"  {BOLD}{BLUE}[GOOGLE]{RESET} {m}")
         ok = sign_out(log_fn=_log)
         if ok:
@@ -153,8 +153,9 @@ class GoogleTool(ToolBase):
 
         print(f"  {BOLD}{BLUE}Launching{RESET} Chrome with CDP...")
         try:
-            from tool.GOOGLE_CDMCP.logic.cdp.session_manager import ensure_chrome
-            result = ensure_chrome()
+            from interface.cdmcp import load_cdmcp_sessions
+            sm = load_cdmcp_sessions()
+            result = sm.ensure_chrome()
         except ImportError:
             from interface.chrome import CDP_PORT
             import subprocess as _sp
@@ -287,7 +288,7 @@ class GoogleTool(ToolBase):
             print(f"  Security: Collect password via USERINPUT, then pass it here.")
             return
 
-        from tool.GOOGLE.logic.chrome.login import sign_in
+        from tool.GOOGLE.interface.main import sign_in
         _log = lambda m: print(f"  {BOLD}{BLUE}[GOOGLE]{RESET} {m}")
 
         result = sign_in(

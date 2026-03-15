@@ -14,7 +14,7 @@ import json
 import time
 from typing import Any, Dict, Optional
 
-from interface.chrome import CDPSession, list_tabs, CDP_PORT
+from logic.chrome.session import CDPSession, list_tabs, CDP_PORT
 
 _MYACCOUNT_URL = "https://myaccount.google.com"
 

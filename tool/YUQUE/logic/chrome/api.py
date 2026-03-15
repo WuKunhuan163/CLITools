@@ -12,8 +12,8 @@ import time
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from interface.chrome import CDPSession, CDP_PORT
-from interface.cdmcp import (
+from logic.chrome.session import CDPSession, CDP_PORT
+from logic.cdmcp_loader import (
     load_cdmcp_overlay,
     load_cdmcp_sessions,
 )
@@ -100,7 +100,7 @@ def _ensure_session(port: int = CDP_PORT) -> Optional[CDPSession]:
 def boot_session(port: int = CDP_PORT) -> Dict[str, Any]:
     """Boot the Yuque CDMCP session with retry logic."""
     sm = load_cdmcp_sessions()
-    from interface.chrome import is_chrome_cdp_available
+    from logic.chrome.session import is_chrome_cdp_available
 
     for attempt in range(2):
         try:

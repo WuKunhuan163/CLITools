@@ -28,7 +28,7 @@ import time
 import threading
 from typing import Optional, Dict, Any, Callable
 
-from interface.chrome import CDPSession, CDP_PORT, list_tabs, close_tab
+from logic.chrome.session import CDPSession, CDP_PORT, list_tabs, close_tab
 
 _active_trackers: Dict[str, "UserActionTracker"] = {}
 

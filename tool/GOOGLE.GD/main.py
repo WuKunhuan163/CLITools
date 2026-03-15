@@ -53,7 +53,7 @@ def main():
     RED = get_color("RED")
     RESET = get_color("RESET")
 
-    from tool.GOOGLE.logic.chrome.drive import (
+    from tool.GOOGLE.interface.main import (
         list_drive_files, create_drive_file, delete_drive_file, get_drive_about,
     )
 

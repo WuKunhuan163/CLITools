@@ -15,7 +15,7 @@ CDP_PORT = 9222
 
 def _is_cdp_available():
     try:
-        from interface.chrome import is_chrome_cdp_available
+        from logic.chrome.session import is_chrome_cdp_available
         return is_chrome_cdp_available(CDP_PORT)
     except Exception:
         return False
@@ -23,7 +23,7 @@ def _is_cdp_available():
 
 def _has_colab_tab():
     try:
-        from tool.GOOGLE.logic.chrome.colab import find_colab_tab
+        from tool.GOOGLE.interface.main import find_colab_tab
         return find_colab_tab(CDP_PORT) is not None
     except Exception:
         return False

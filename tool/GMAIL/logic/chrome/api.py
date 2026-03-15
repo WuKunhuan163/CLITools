@@ -12,7 +12,7 @@ All data read/write goes through :mod:`tool.GMAIL.logic.gmail_api`.
 import json
 from typing import Dict, Any, Optional
 
-from interface.chrome import (
+from logic.chrome.session import (
     CDPSession, CDP_PORT,
     is_chrome_cdp_available,
     find_tab,

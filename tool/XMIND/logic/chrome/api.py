@@ -15,7 +15,7 @@ import importlib.util
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from interface.chrome import (
+from logic.chrome.session import (
     CDPSession, CDP_PORT,
 )
 
@@ -252,7 +252,7 @@ def get_page_info(port: int = CDP_PORT) -> Dict[str, Any]:
 
 def take_screenshot(output_path: Optional[str] = None, port: int = CDP_PORT) -> Dict[str, Any]:
     """Take a screenshot of the XMind page (passive, non-invasive)."""
-    from interface.chrome import capture_screenshot
+    from logic.chrome.session import capture_screenshot
     cdp = _ensure_session(port)
     if not cdp:
         return {"ok": False, "error": "No session"}

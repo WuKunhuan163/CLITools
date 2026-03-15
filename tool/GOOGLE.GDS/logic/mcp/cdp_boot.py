@@ -74,7 +74,7 @@ def _get_debug_profile_dir():
 
 def _is_cdp_available(port=CDP_PORT):
     try:
-        from interface.chrome import is_chrome_cdp_available
+        from logic.chrome.session import is_chrome_cdp_available
         return is_chrome_cdp_available(port)
     except Exception:
         return False
@@ -223,7 +223,7 @@ def _shutdown_chrome_debug(port=CDP_PORT):
 def _find_colab_tab(port=CDP_PORT):
     """Check if a Colab tab is already open."""
     try:
-        from tool.GOOGLE.logic.chrome.colab import find_colab_tab
+        from tool.GOOGLE.interface.main import find_colab_tab
         return find_colab_tab(port)
     except Exception:
         return None

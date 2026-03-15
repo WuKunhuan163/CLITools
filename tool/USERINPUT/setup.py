@@ -104,7 +104,7 @@ def main():
     def inject_default_prompts(stage=None):
         """Populate config.json with default system prompts if not already set."""
         try:
-            from logic.setup.userinput import get_default_prompts
+            from interface.tool import get_default_prompts
             config = {}
             if config_path.exists():
                 with open(config_path, 'r') as f:

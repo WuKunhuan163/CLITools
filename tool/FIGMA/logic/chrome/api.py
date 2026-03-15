@@ -9,12 +9,12 @@ import time
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from interface.chrome import (
+from logic.chrome.session import (
     CDPSession, CDP_PORT,
     capture_screenshot,
 )
 
-from interface.cdmcp import (
+from logic.cdmcp_loader import (
     load_cdmcp_overlay,
     load_cdmcp_sessions,
     load_cdmcp_interact,
@@ -671,7 +671,7 @@ def add_text(text: str, x: int = 400, y: int = 300,
             _mouse_click(cdp, x, y)
             time.sleep(0.6)
 
-            from interface.chrome import insert_text
+            from logic.chrome.session import insert_text
             for char in text:
                 insert_text(cdp, char)
                 time.sleep(0.03)
@@ -735,7 +735,7 @@ def rename_file(new_name: str, port: int = CDP_PORT) -> Dict[str, Any]:
         mod = 4 if platform.system() == "Darwin" else 2
         _send_key(cdp, "a", modifiers=mod)
         time.sleep(0.2)
-        from interface.chrome import insert_text
+        from logic.chrome.session import insert_text
         for char in new_name:
             insert_text(cdp, char)
             time.sleep(0.03)
@@ -1161,7 +1161,7 @@ def rename_layer(old_name: str, new_name: str,
             mod = 4 if platform.system() == "Darwin" else 2
             _send_key(cdp, "a", modifiers=mod)
             time.sleep(0.1)
-            from interface.chrome import insert_text
+            from logic.chrome.session import insert_text
             for char in new_name:
                 insert_text(cdp, char)
                 time.sleep(0.02)
@@ -1319,7 +1319,7 @@ def add_comment(text: str, x: int, y: int,
         time.sleep(0.3)
         _mouse_click(cdp, x, y)
         time.sleep(0.8)
-        from interface.chrome import insert_text
+        from logic.chrome.session import insert_text
         for ch in text:
             insert_text(cdp, ch)
             time.sleep(0.02)
@@ -1353,7 +1353,7 @@ def create_frame_with_content(name: str, x: int, y: int,
             time.sleep(0.3)
             _mouse_click(cdp, x + width // 2, y + height // 2)
             time.sleep(0.5)
-            from interface.chrome import insert_text
+            from logic.chrome.session import insert_text
             for ch in content_text:
                 insert_text(cdp, ch)
                 time.sleep(0.02)
@@ -1570,7 +1570,7 @@ def open_quick_actions(query: str = "", port: int = CDP_PORT) -> Dict[str, Any]:
         })
         time.sleep(0.8)
         if query:
-            from interface.chrome import insert_text
+            from logic.chrome.session import insert_text
             for ch in query:
                 insert_text(cdp, ch)
                 time.sleep(0.03)

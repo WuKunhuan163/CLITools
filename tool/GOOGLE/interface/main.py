@@ -2,7 +2,7 @@
 
 Provides functions for other tools (e.g. GOOGLE.GDS) to interact with
 Chrome DevTools Protocol:  session management, tab control, Colab cell
-injection, Google Drive operations, and OAuth automation.
+injection, Google Drive operations, OAuth and login automation.
 
 Usage from another tool::
 
@@ -11,6 +11,7 @@ Usage from another tool::
         find_colab_tab,
         inject_and_execute,
         handle_oauth_if_needed,
+        check_login_state,
     )
 """
 
@@ -54,4 +55,11 @@ from tool.GOOGLE.logic.chrome.oauth import (  # noqa: F401
     has_oauth_dialog,
     click_connect_button,
     find_oauth_tab,
+)
+
+# ---- Login state ----
+from tool.GOOGLE.logic.chrome.login import (  # noqa: F401
+    check_login_state,
+    sign_in,
+    sign_out,
 )

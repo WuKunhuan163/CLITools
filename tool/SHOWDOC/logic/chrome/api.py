@@ -17,7 +17,7 @@ import importlib.util
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from interface.chrome import (
+from logic.chrome.session import (
     CDPSession, CDP_PORT,
     is_chrome_cdp_available,
 )

@@ -9,7 +9,7 @@ import time
 import urllib.request
 from typing import Optional, Callable
 
-from interface.chrome import CDPSession, CDP_PORT, real_click
+from logic.chrome.session import CDPSession, CDP_PORT, real_click
 
 
 # ---------------------------------------------------------------------------

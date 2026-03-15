@@ -7,7 +7,7 @@ once authenticated.
 import json
 from typing import Dict, Any, Optional
 
-from interface.chrome import (
+from logic.chrome.session import (
     CDPSession, CDP_PORT,
     find_tab,
 )

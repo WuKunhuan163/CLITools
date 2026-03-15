@@ -24,7 +24,7 @@ import importlib.util
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from interface.chrome import (
+from logic.chrome.session import (
     CDPSession, CDP_PORT,
     is_chrome_cdp_available,
     capture_screenshot,
@@ -824,7 +824,7 @@ def open_video(video_url: str, port: int = CDP_PORT) -> Dict[str, Any]:
 def _send_key(session: CDPSession, key: str, code: str = "",
               modifiers: int = 0, text: str = ""):
     """Send a keyboard event to the page."""
-    from interface.chrome import dispatch_key
+    from logic.chrome.session import dispatch_key
     dispatch_key(session, key, code or f"Key{key.upper()}", modifiers, text)
 
 

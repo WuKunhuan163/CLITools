@@ -14,7 +14,7 @@ import importlib.util
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
-from interface.chrome import (
+from logic.chrome.session import (
     CDPSession, CDP_PORT,
     is_chrome_cdp_available, list_tabs, find_tab, real_click, capture_screenshot,
 )
@@ -295,7 +295,7 @@ def navigate(url: str, port: int = CDP_PORT) -> Dict[str, Any]:
             finally:
                 session.close()
 
-    from interface.chrome import open_tab
+    from logic.chrome.session import open_tab
     if open_tab(url, port):
         time.sleep(1)
         tab = find_tab(domain, port=port)
