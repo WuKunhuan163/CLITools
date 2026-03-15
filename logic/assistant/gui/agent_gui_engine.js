@@ -395,13 +395,23 @@ class AgentGUIEngine {
 
   _isNearBottom() {
     const el = this.chatArea;
-    return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   }
 
   _scrollEnd() {
-    if (this._isNearBottom()) {
+    if (this._userScrolledUp) return;
+    if (this._isNearBottom() || this._forceScroll) {
       requestAnimationFrame(() => { this.chatArea.scrollTop = this.chatArea.scrollHeight; });
     }
+  }
+
+  _forceScrollToBottom() {
+    this._userScrolledUp = false;
+    this._forceScroll = true;
+    requestAnimationFrame(() => {
+      this.chatArea.scrollTop = this.chatArea.scrollHeight;
+      this._forceScroll = false;
+    });
   }
 
   /* ── Scroll-to-Bottom Button ── */
@@ -409,8 +419,19 @@ class AgentGUIEngine {
   _initScrollToBottom() {
     if (!this.chatArea) return;
     this._scrollBtn = null;
+    this._userScrolledUp = false;
+    this._forceScroll = false;
+    let _lastScrollTop = this.chatArea.scrollTop;
 
     this.chatArea.addEventListener('scroll', () => {
+      const cur = this.chatArea.scrollTop;
+      if (cur < _lastScrollTop && !this._isNearBottom()) {
+        this._userScrolledUp = true;
+      }
+      if (this._isNearBottom()) {
+        this._userScrolledUp = false;
+      }
+      _lastScrollTop = cur;
       if (typeof _updateFloatPanel === 'function') _updateFloatPanel();
     });
   }
@@ -618,6 +639,7 @@ class AgentGUIEngine {
       this._removeTaskFileBar();
     }
     this._appendAnimated('div', 'msg-user', esc(content));
+    this._forceScrollToBottom();
     return sleep(400);
   }
 
@@ -740,7 +762,23 @@ class AgentGUIEngine {
         if (n === 'write_file' || n === 'edit_file' || n === 'edit') {
           const fname = te.file || te.cmd || te.desc || '';
           const cleanPath = fname.replace(/^(write|edit)\s+/, '');
-          this._modifiedFiles.push({ name: cleanPath.split('/').pop() || cleanPath, path: cleanPath, type: n === 'write_file' ? 'new' : 'edit' });
+          let added = 0, removed = 0;
+          const statsEl = this.lastToolEl.querySelector('[data-tc=diffstats]');
+          if (statsEl) {
+            const ac = statsEl.querySelector('.added-count');
+            const rc = statsEl.querySelector('.removed-count');
+            if (ac) added = parseInt(ac.textContent.replace('+', ''), 10) || 0;
+            if (rc) removed = parseInt(rc.textContent.replace('-', ''), 10) || 0;
+          }
+          this._modifiedFiles.push({ name: cleanPath.split('/').pop() || cleanPath, path: cleanPath, type: n === 'write_file' ? 'new' : 'edit', added, removed });
+          const key = cleanPath;
+          if (this._taskFiles[key]) {
+            this._taskFiles[key].added += added;
+            this._taskFiles[key].removed += removed;
+          } else {
+            this._taskFiles[key] = { name: cleanPath.split('/').pop() || cleanPath, path: cleanPath, type: n === 'write_file' ? 'new' : 'edit', added, removed };
+          }
+          this._updateTaskFileBar();
         }
       }
       this.lastToolEl = null;
@@ -888,7 +926,13 @@ class AgentGUIEngine {
       if (f.added) parts.push('<span class="added-count">+' + f.added + '</span>');
       if (f.removed) parts.push('<span class="removed-count">-' + f.removed + '</span>');
       const stat = parts.length ? '<span class="file-stat">' + parts.join(' ') + '</span>' : '';
-      return '<div class="file-summary-item">' + renderFileIcon(f.name) + ' ' + esc(f.name) + ' ' + tag + ' ' + stat + '</div>';
+      const fileActions = showActions
+        ? '<span class="file-item-actions">'
+          + '<button class="file-item-btn reject" title="Reject" data-path="' + esc(f.path) + '" onclick="event.stopPropagation();window._revertFile(this)"><i class="bx bx-x"></i></button>'
+          + '<button class="file-item-btn accept" title="Accept" data-path="' + esc(f.path) + '" onclick="event.stopPropagation();this.closest(\'.file-summary-item\').classList.add(\'accepted\')"><i class="bx bx-check"></i></button>'
+          + '</span>'
+        : '';
+      return '<div class="file-summary-item">' + renderFileIcon(f.name) + ' ' + esc(f.name) + ' ' + tag + ' ' + stat + fileActions + '</div>';
     }).join('');
 
     const actionsHtml = showActions
@@ -898,10 +942,21 @@ class AgentGUIEngine {
         + '</div>'
       : '';
 
+    let totalAdded = 0, totalRemoved = 0;
+    files.forEach(f => { totalAdded += f.added || 0; totalRemoved += f.removed || 0; });
+    let totalStat = '';
+    if (totalAdded || totalRemoved) {
+      const tp = [];
+      if (totalAdded) tp.push('<span class="added-count">+' + totalAdded + '</span>');
+      if (totalRemoved) tp.push('<span class="removed-count">-' + totalRemoved + '</span>');
+      totalStat = '<span class="file-stat" style="margin-left:6px;">' + tp.join(' ') + '</span>';
+    }
+
     this._taskFileBarEl.innerHTML =
       '<div class="file-summary-header">'
       + '<i class="bx bx-chevron-right file-summary-chevron"></i>'
       + '<span>' + count + ' File' + (count > 1 ? 's' : '') + '</span>'
+      + totalStat
       + actionsHtml
       + '</div>'
       + '<div class="file-summary-list">' + filesHtml + '</div>';
@@ -913,17 +968,25 @@ class AgentGUIEngine {
     });
 
     if (showActions) {
+      this._taskFileBarEl.classList.add('expanded');
       const revertBtn = this._taskFileBarEl.querySelector('[data-action=revert]');
       const saveBtn = this._taskFileBarEl.querySelector('[data-action=save]');
       if (revertBtn) {
-        revertBtn.addEventListener('click', (e) => {
+        revertBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          this._removeTaskFileBar();
+          const rejectBtns = this._taskFileBarEl.querySelectorAll('.file-item-btn.reject');
+          for (const b of rejectBtns) {
+            if (!b.closest('.file-summary-item.rejected')) {
+              await window._revertFile(b);
+            }
+          }
         });
       }
       if (saveBtn) {
         saveBtn.addEventListener('click', (e) => {
           e.stopPropagation();
+          const items = this._taskFileBarEl.querySelectorAll('.file-summary-item');
+          items.forEach(it => it.classList.add('accepted'));
           this._removeTaskFileBar();
         });
       }

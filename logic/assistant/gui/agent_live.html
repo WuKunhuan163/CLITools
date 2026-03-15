@@ -84,7 +84,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .messages, .messages *, .input-field, textarea, input[type="text"], pre, code, .msg-text, .tool-result-content { user-select: text; -webkit-user-select: text; }
 
 /* ── Sidebar ── */
-.sidebar { width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+.sidebar { width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; transition: width 0.2s ease, min-width 0.2s ease; position: relative; }
+.sidebar.collapsed { width: 0; min-width: 0; overflow: hidden; border-right: none; }
+.sidebar-toggle { position: absolute; right: -14px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-3); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 10; transition: all 0.2s ease; }
+.sidebar-toggle:hover { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+.sidebar.collapsed .sidebar-toggle { right: -32px; }
 .sidebar-header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
 .sidebar-header h1 { font-size: 13px; font-weight: 700; letter-spacing: 0.5px; color: var(--text); display: flex; align-items: center; gap: 10px; }
 .sidebar-logo { width: 26px; height: 26px; border-radius: 7px; background: var(--accent-dim); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 14px; }
@@ -298,7 +302,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .tool-icon.edit { background: var(--orange-dim); color: var(--orange); font-size: 13px; }
 .tool-icon.search { background: var(--orange-dim); color: var(--orange); }
 .tool-icon.think { background: var(--purple-dim); color: var(--purple); }
-.tool-desc { color: var(--text); font-size: 12.5px; font-weight: 500; overflow-wrap: anywhere; word-break: break-word; }
+.tool-desc { color: var(--text); font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .tool-file-link { cursor: pointer; border-radius: 2px; padding: 0 1px; }
 .tool-file-link:hover { color: var(--accent); text-decoration: underline; }
 .tool-cmd-inline { color: var(--text-3); font-family: var(--mono); font-size: 11.5px; font-weight: 400; margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
@@ -338,7 +342,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .file-summary-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 12px; color: var(--text); }
 .file-summary-item i { color: var(--text-3); font-size: 14px; }
 .file-tag-new { font-size: 10px; color: var(--green); background: var(--green-dim); padding: 0 4px; border-radius: 3px; font-weight: 500; }
-.file-stat { font-size: 11px; color: var(--green); font-family: var(--mono); margin-left: auto; }
+.file-stat { font-size: 11px; font-family: var(--mono); margin-left: auto; display: flex; gap: 4px; }
+.file-stat .added-count { color: var(--green); }
+.file-stat .removed-count { color: var(--red); }
 
 /* ── Persistent Task File Bar ── */
 .task-file-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 0 28px 8px; overflow: hidden; }
@@ -354,6 +360,15 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .task-file-revert:hover { background: rgba(255,100,100,0.25); }
 .task-file-save { background: rgba(100,255,100,0.15); color: var(--green); }
 .task-file-save:hover { background: rgba(100,255,100,0.25); }
+.file-item-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.file-item-btn { border: none; background: transparent; cursor: pointer; padding: 2px 4px; border-radius: 4px; color: var(--text-3); font-size: 14px; line-height: 1; display: flex; align-items: center; }
+.file-item-btn:hover { background: rgba(255,255,255,0.08); }
+.file-item-btn.reject:hover { color: var(--red); background: rgba(255,100,100,0.12); }
+.file-item-btn.accept:hover { color: var(--green); background: rgba(100,255,100,0.12); }
+.file-summary-item.accepted { opacity: 0.5; }
+.file-summary-item.accepted .file-item-btn { display: none; }
+.file-summary-item.rejected { opacity: 0.4; text-decoration: line-through; }
+.file-summary-item.rejected .file-item-btn { display: none; }
 
 /* ── Block animations ── */
 .block-enter { opacity: 0; transform: translateY(8px); }
@@ -551,7 +566,8 @@ body.debug-mode .debug-block { display: block; }
 </head>
 <body>
 
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
+  <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><i class="bx bx-chevron-left"></i></button>
   <div class="sidebar-header">
     <h1><div class="sidebar-logo"><i class="bx bx-bot"></i></div> LLM Agent</h1>
     <button class="btn-new" title="New session" onclick="createNewSession()">+</button>
@@ -568,10 +584,10 @@ body.debug-mode .debug-block { display: block; }
         <i class="bx bx-moon" id="theme-icon" style="font-size:14px;"></i>
       </div>
       <div class="debug-toggle" id="debug-toggle" onclick="toggleDebug()" title="Show raw LLM events and system feeds">
-        <span>Debug</span>
+        <span data-i18n="Debug">Debug</span>
         <div class="toggle-track"><div class="toggle-knob"></div></div>
       </div>
-      <button class="btn-settings" id="btn-settings" onclick="openSettings()"><i class="bx bx-cog"></i> Settings</button>
+      <button class="btn-settings" id="btn-settings" onclick="openSettings()"><i class="bx bx-cog"></i> <span data-i18n="Settings">Settings</span></button>
     </div>
   </div>
 
@@ -599,7 +615,7 @@ body.debug-mode .debug-block { display: block; }
 
   <div class="float-actions" id="float-actions">
     <button class="float-action-btn" id="btn-scroll-bottom" onclick="document.getElementById('chat').scrollTo({top:document.getElementById('chat').scrollHeight,behavior:'smooth'})"><i class="bx bx-chevron-down"></i></button>
-    <button class="float-action-btn stop-btn" id="btn-stop" onclick="cancelTask()"><i class="bx bx-stop-circle"></i> Stop</button>
+    <button class="float-action-btn stop-btn" id="btn-stop" onclick="cancelTask()"><i class="bx bx-stop-circle"></i> <span data-i18n="Stop">Stop</span></button>
   </div>
 
   <div class="input-area">
@@ -631,10 +647,10 @@ body.debug-mode .debug-block { display: block; }
 <div class="settings-overlay" id="settings-overlay" onclick="if(event.target===this)closeSettings()">
   <div class="settings-panel" style="position:relative">
     <div class="settings-sidebar">
-      <div class="settings-sidebar-title"><button class="settings-close" onclick="closeSettings()"><i class="bx bx-x"></i></button> Settings</div>
-      <div class="settings-tab active" data-tab="general" onclick="switchSettingsTab('general')"><i class="bx bx-cog"></i> General</div>
-      <div class="settings-tab" data-tab="models" onclick="switchSettingsTab('models')"><i class="bx bx-chip"></i> Models</div>
-      <div class="settings-tab" data-tab="providers" onclick="switchSettingsTab('providers')"><i class="bx bx-server"></i> Providers</div>
+      <div class="settings-sidebar-title"><button class="settings-close" onclick="closeSettings()"><i class="bx bx-x"></i></button> <span data-i18n="Settings">Settings</span></div>
+      <div class="settings-tab active" data-tab="general" onclick="switchSettingsTab('general')"><i class="bx bx-cog"></i> <span data-i18n="General">General</span></div>
+      <div class="settings-tab" data-tab="models" onclick="switchSettingsTab('models')"><i class="bx bx-chip"></i> <span data-i18n="Models">Models</span></div>
+      <div class="settings-tab" data-tab="providers" onclick="switchSettingsTab('providers')"><i class="bx bx-server"></i> <span data-i18n="Providers">Providers</span></div>
     </div>
     <div class="settings-content" id="settings-content"></div>
   </div>
@@ -851,6 +867,64 @@ const THEMES = {
 let currentTheme = localStorage.getItem('theme') || 'dark';
 if (!THEMES[currentTheme]) currentTheme = 'dark';
 
+/* ── i18n ── */
+const _I18N = {
+  zh: {
+    'Settings': '设置', 'General': '通用', 'Models': '模型', 'Providers': '供应商',
+    'Debug': '调试', 'Stop': '停止', 'New session': '新会话',
+    'Agent': '代理', 'Plan': '计划', 'Ask': '问答', 'Auto': '自动',
+    'Color Mode': '颜色模式', 'Language': '语言', 'Appearance': '外观',
+    'Context & Limits': '上下文限制', 'Configured': '已配置', 'Not configured': '未配置',
+    'Validate & Save': '验证并保存', 'Guide': '指南', 'Delete': '删除',
+    'Usage': '用量', 'Benchmarks': '基准测试',
+    'Revert all': '全部撤回', 'Save all': '全部保存',
+    'Dark': '深色', 'Light': '浅色', 'Brilliant': '明亮',
+    'Type a message. Ctrl+Enter to send.': '输入消息。Ctrl+Enter 发送。',
+    'rounds': '轮', 'files': '文件', 'File': '文件', 'Files': '文件',
+    'modified': '已修改', 'new': '新建', 'reverted': '已撤回',
+    'Task completed': '任务完成', 'Task failed, please try again': '任务失败，请重试',
+    'Round limit reached': '已达轮数上限',
+    'Calls': '调用', 'Input Tokens': '输入令牌', 'Output Tokens': '输出令牌', 'Cost': '费用',
+    'Recent Calls': '最近调用', 'API Keys': 'API 密钥', 'Add Key': '添加密钥',
+    'Token History': '令牌历史', 'No API keys configured': '未配置 API 密钥',
+    'Providers': '供应商', 'Models': '模型',
+  },
+  ar: {
+    'Settings': 'الإعدادات', 'General': 'عام', 'Models': 'النماذج', 'Providers': 'المزودون',
+    'Debug': 'تصحيح', 'Stop': 'إيقاف', 'New session': 'جلسة جديدة',
+    'Agent': 'الوكيل', 'Plan': 'خطة', 'Ask': 'سؤال', 'Auto': 'تلقائي',
+  },
+};
+let _guiLang = localStorage.getItem('guiLang') || 'en';
+function _(key) {
+  if (_guiLang === 'en' || !_I18N[_guiLang]) return key;
+  return _I18N[_guiLang][key] || key;
+}
+function _applyLang() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = _(el.dataset.i18n);
+  });
+  const inp = $('input');
+  if (inp) inp.placeholder = _('Type a message. Ctrl+Enter to send.');
+  _refreshPillLabels();
+  renderSettingsTab();
+}
+function _refreshPillLabels() {
+  if (typeof modePill !== 'undefined' && modePill) {
+    modePill.setOptions(Object.keys(MODE_ICONS).map(k => ({ value: k, label: _(MODE_LABELS[k]), icon: MODE_ICONS[k] })));
+  }
+  if (typeof modelPill !== 'undefined' && modelPill) {
+    modelPill.setOptions(MODEL_OPTIONS.map(o => ({ value: o.value, label: _(o.label), logo: MODEL_LOGOS[o.value] || ZHIPU_LOGO })));
+  }
+  const turnSel = $('turn-limit-select');
+  if (turnSel) {
+    turnSel.querySelectorAll('option').forEach(opt => {
+      const n = opt.value;
+      opt.textContent = n + ' ' + _('rounds');
+    });
+  }
+}
+
 function applyTheme(name) {
   currentTheme = name;
   document.body.classList.remove('light-mode', 'brilliant-mode');
@@ -905,7 +979,7 @@ function createDebugBlock(evt) {
   div.innerHTML = `
     <div class="debug-block-inner">
       <div class="debug-block-header" onclick="this.parentElement.parentElement.classList.toggle('expanded')">
-        <i class="bx bx-clipboard debug-copy" title="Copy JSON" onclick="event.stopPropagation();navigator.clipboard.writeText(${esc(JSON.stringify(fullJson))});this.className='bx bx-check debug-copy';setTimeout(()=>this.className='bx bx-clipboard debug-copy',1200)"></i>
+        <i class="bx bx-clipboard debug-copy" title="Copy JSON" onclick="event.stopPropagation();var t=this.closest('.debug-block').querySelector('.debug-block-body').textContent;navigator.clipboard.writeText(t);this.className='bx bx-check debug-copy';setTimeout(()=>this.className='bx bx-clipboard debug-copy',1200)"></i>
         ${usageHtml}
         <span class="debug-type">${typeName}</span>
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(preview)}</span>
@@ -1242,18 +1316,18 @@ function renderGeneralView() {
     { value: 'zh', label: '中文' },
     { value: 'ar', label: 'العربية' },
   ].map(l => `<option value="${l.value}" ${l.value === currentLang ? 'selected' : ''}>${l.label}</option>`).join('');
-  return `<div class="settings-section-title">Appearance</div>
+  return `<div class="settings-section-title">${_('Appearance')}</div>
     <div class="settings-card" style="padding:16px;">
       <div style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:12px;">
-        <span><strong>Color Mode</strong></span>
+        <span><strong>${_('Color Mode')}</strong></span>
         <select onchange="applyTheme(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:120px;">${themeOpts}</select>
       </div>
       <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
-        <span><strong>Language</strong></span>
-        <select onchange="localStorage.setItem('guiLang',this.value);location.reload();" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:120px;">${langOpts}</select>
+        <span><strong>${_('Language')}</strong></span>
+        <select onchange="_guiLang=this.value;localStorage.setItem('guiLang',this.value);_applyLang();" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:120px;">${langOpts}</select>
       </div>
     </div>
-    <div class="settings-section-title" style="margin-top:16px;">Context & Limits</div>
+    <div class="settings-section-title" style="margin-top:16px;">${_('Context & Limits')}</div>
     <div class="settings-card" style="padding:16px;">
       ${_settingsPow2Input('max_input_tokens', 65536, 1024, 1048576, 'Max input tokens per API call (default 64k).')}
       ${_settingsPow2Input('max_output_tokens', 16384, 256, 262144, 'Max output tokens per API call (default 16k).')}
@@ -1263,7 +1337,7 @@ function renderGeneralView() {
       ${_settingsNumInput('max_exec_chars', 6000, 1000, 30000, 'Max characters returned by exec tool output.')}
       ${_settingsNumInput('history_limit', 20, 5, 200, 'Default number of events shown by --history.')}
     </div>
-    <div class="settings-section-title" style="margin-top:16px;">Debug</div>
+    <div class="settings-section-title" style="margin-top:16px;">${_('Debug')}</div>
     <div class="settings-card" style="padding:16px;">
       <label style="display:flex;align-items:center;gap:12px;font-size:13px;">
         <span><strong>Token History</strong><br><span style="color:var(--text-3);font-size:11.5px;">Max rounds retained for token/context detail inspection (max 1024)</span></span>
@@ -1277,9 +1351,9 @@ function renderModelsView() {
   const calls = usageData.calls || [];
   const modelNames = Object.keys(models);
   if (!modelNames.length) {
-    return `<div class="settings-section-title">Models</div><div class="settings-empty">No model data yet. Start a conversation to see usage statistics.</div>`;
+    return `<div class="settings-section-title">${_('Models')}</div><div class="settings-empty">No model data yet. Start a conversation to see usage statistics.</div>`;
   }
-  let html = `<div class="settings-section-title" style="display:flex;align-items:center;gap:10px;">Models<input type="text" id="settings-model-search" placeholder="Filter..." oninput="renderSettingsTab()" style="margin-left:auto;width:120px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--text);font-family:var(--font);outline:none;"></div>`;
+  let html = `<div class="settings-section-title" style="display:flex;align-items:center;gap:10px;">${_('Models')}<input type="text" id="settings-model-search" placeholder="Filter..." oninput="renderSettingsTab()" style="margin-left:auto;width:120px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--text);font-family:var(--font);outline:none;"></div>`;
   const modelSearch = (document.getElementById('settings-model-search')?.value || '').toLowerCase();
   for (const name of modelNames) {
     const m = models[name];
@@ -1316,7 +1390,7 @@ function renderModelsView() {
     const isConfigured = m.configured;
     const cardClass = isConfigured ? 'settings-card configured' : 'settings-card unconfigured';
     html += `<div class="${cardClass}">
-      <div class="settings-card-title"><img src="${logo}" alt=""> ${esc(displayName)} ${tierBadge} ${benchTags}${isConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;">Configured</span>' : ''}</div>
+      <div class="settings-card-title"><img src="${logo}" alt=""> ${esc(displayName)} ${tierBadge} ${benchTags}${isConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;">' + _('Configured') + '</span>' : ''}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${m.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(m.input_tokens || 0)}</div><div class="settings-stat-label">Input Tokens</div></div>
@@ -1335,9 +1409,9 @@ function renderProvidersView() {
   const calls = usageData.calls || [];
   const provNames = Object.keys(providers);
   if (!provNames.length) {
-    return `<div class="settings-section-title">Providers</div><div class="settings-empty">No provider data yet. Start a conversation to see usage statistics.</div>`;
+    return `<div class="settings-section-title">${_('Providers')}</div><div class="settings-empty">No provider data yet. Start a conversation to see usage statistics.</div>`;
   }
-  let html = `<div class="settings-section-title" style="display:flex;align-items:center;gap:10px;">Providers<input type="text" id="settings-prov-search" placeholder="Filter..." oninput="renderSettingsTab()" style="margin-left:auto;width:120px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--text);font-family:var(--font);outline:none;"></div>`;
+  let html = `<div class="settings-section-title" style="display:flex;align-items:center;gap:10px;">${_('Providers')}<input type="text" id="settings-prov-search" placeholder="Filter..." oninput="renderSettingsTab()" style="margin-left:auto;width:120px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--text);font-family:var(--font);outline:none;"></div>`;
   const provSearch = (document.getElementById('settings-prov-search')?.value || '').toLowerCase();
   for (const name of provNames) {
     const p = providers[name];
@@ -1356,7 +1430,7 @@ function renderProvidersView() {
     const provConfigured = p.configured;
     const provCardClass = provConfigured ? 'settings-card configured' : 'settings-card unconfigured';
     html += `<div class="${provCardClass}" data-provider-id="${esc(name)}">
-      <div class="settings-card-title">${PROVIDER_LOGOS[name] ? '<img src="' + PROVIDER_LOGOS[name] + '" alt="" style="width:16px;height:16px;border-radius:3px;">' : '<i class="bx bx-server" style="font-size:16px;color:var(--accent)"></i>'} ${esc(displayName)}${provConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;">Configured</span>' : ''}</div>
+      <div class="settings-card-title">${PROVIDER_LOGOS[name] ? '<img src="' + PROVIDER_LOGOS[name] + '" alt="" style="width:16px;height:16px;border-radius:3px;">' : '<i class="bx bx-server" style="font-size:16px;color:var(--accent)"></i>'} ${esc(displayName)}${provConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;">' + _('Configured') + '</span>' : ''}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${p.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(p.input_tokens || 0)}</div><div class="settings-stat-label">Input Tokens</div></div>
@@ -1367,14 +1441,14 @@ function renderProvidersView() {
       <div style="margin-top:10px;display:flex;align-items:center;gap:8px;margin-bottom:4px;">
         <span style="font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">API Keys</span>
         <button class="settings-add-key-btn" onclick="toggleKeyInput(this.closest('.settings-card').querySelector('.settings-key-form'))" style="margin-left:auto;font-size:10px;padding:2px 8px;background:var(--accent-dim);color:var(--accent);border:none;border-radius:4px;cursor:pointer;font-weight:600;"><i class="bx bx-plus" style="font-size:11px;vertical-align:middle;"></i> Add Key</button>
-        <button onclick="showProviderGuide('${esc(name)}')" style="font-size:10px;padding:2px 8px;background:var(--surface-3);color:var(--text-2);border:none;border-radius:4px;cursor:pointer;font-weight:600;"><i class="bx bx-book-open" style="font-size:11px;vertical-align:middle;"></i> Guide</button>
+        <button onclick="showProviderGuide('${esc(name)}')" style="font-size:10px;padding:2px 8px;background:var(--surface-3);color:var(--text-2);border:none;border-radius:4px;cursor:pointer;font-weight:600;"><i class="bx bx-book-open" style="font-size:11px;vertical-align:middle;"></i> ${_('Guide')}</button>
       </div>
       ${keysHtml}
       <div class="settings-add-key" data-vendor="${esc(name)}">
         <div class="settings-key-form" style="display:none;">
           <div class="settings-key-form-row">
             <input type="password" placeholder="Paste API key..." class="settings-key-input">
-            <button class="settings-validate-btn" onclick="validateAndSaveKey(this)">Validate & Save</button>
+            <button class="settings-validate-btn" onclick="validateAndSaveKey(this)">${_('Validate & Save')}</button>
           </div>
           <div class="settings-key-status"></div>
         </div>
@@ -1714,6 +1788,18 @@ async function deleteApiKey(vendor, btn) {
   } catch (e) { console.warn('Delete key failed:', e); }
 }
 
+/* ── Sidebar Toggle ── */
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const btn = sb.querySelector('.sidebar-toggle i');
+  sb.classList.toggle('collapsed');
+  if (sb.classList.contains('collapsed')) {
+    btn.className = 'bx bx-chevron-right';
+  } else {
+    btn.className = 'bx bx-chevron-left';
+  }
+}
+
 /* ── Diff Hunk Actions ── */
 window._diffHunkAction = async function(btn, action) {
   const hunk = btn.closest('.diff-hunk');
@@ -1767,6 +1853,40 @@ window._diffHunkAction = async function(btn, action) {
     } catch (e) {
       console.warn('Revert error:', e);
     }
+  }
+};
+
+window._revertFile = async function(btn) {
+  const filePath = btn.dataset.path;
+  if (!filePath) return;
+  const item = btn.closest('.file-summary-item');
+
+  const toolCalls = document.querySelectorAll('.tool-call[data-tool-type="edit"]');
+  let reverted = 0, failed = 0;
+  for (const tc of toolCalls) {
+    const cmd = (tc.dataset.toolCmd || '').replace(/^(write|edit)\s+/, '');
+    if (cmd !== filePath) continue;
+    const hunks = tc.querySelectorAll('.diff-hunk:not(.rejected)');
+    for (const hunk of hunks) {
+      const removed = hunk.dataset.removed || '';
+      const added = hunk.dataset.added || '';
+      const sid = tc.dataset.sid;
+      try {
+        const res = await fetch('/api/revert-hunk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sid, path: cmd, old_text: added, new_text: removed }),
+        });
+        const data = await res.json();
+        if (data.ok) { hunk.classList.add('rejected'); reverted++; }
+        else { failed++; console.warn('Revert failed for hunk:', data.error); }
+      } catch (e) { failed++; console.warn('Revert error:', e); }
+    }
+    const stats = tc.querySelector('[data-tc=diffstats]');
+    if (stats) stats.innerHTML = '<span style="color:var(--text-3);font-style:italic">reverted</span>';
+  }
+  if (item && !failed) {
+    item.classList.add('rejected');
   }
 };
 
