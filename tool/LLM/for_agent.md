@@ -221,6 +221,51 @@ include before/after metrics, root cause analysis, and lessons learned.
 Existing reports:
 - `providers/zhipu_glm4/report/2026-03-08_quality-feedback-loop.md` — Quality feedback loop infrastructure
 
+## Context Feed Compression
+
+Multi-round agent sessions generate rapidly growing context. The pipeline
+applies automatic compression to keep API calls within token limits while
+preserving the agent's ability to recall past actions.
+
+### How it works
+
+`compress_history()` in `logic/pipeline.py` processes messages before each
+API call. It identifies "rounds" (user message boundaries) and:
+
+- **Last 3 rounds**: Full tool output preserved (agent needs precise content
+  for ongoing work).
+- **Older rounds**: Tool results compressed to first/last line summaries:
+  - `edit_file` → "[ok] Edited {file} ({N} lines)"
+  - `read_file` → First line + "..." + last line
+  - `exec` → "[ok] `{cmd}` + first/last output lines"
+  - `search` → "Searched '{pattern}': ~{N} result lines"
+  - `assistant` text → First + last sentence
+  - `think` → Preserved in full (already concise)
+
+### Design rationale
+
+Remote model providers (Zhipu, Baidu, Google, etc.) do NOT maintain server-side
+session context. Each API call sends the full message history. Without compression,
+a 20-round session can exceed 100K tokens, causing failures on models with smaller
+context windows and unnecessary API costs.
+
+The round-based approach was chosen over LLM-based summarization because:
+1. It's deterministic and fast (no extra API call)
+2. It preserves the exact structure agents expect (role/tool_call_id fields)
+3. First/last line heuristic retains enough detail for recall without full content
+4. The most recent rounds (where active work happens) remain fully intact
+
+### Future work (TODO)
+
+- **Progressive disclosure**: Agent brain tracks what it has explored, enabling
+  retrieval-augmented recall of specific old round contents on demand.
+- **Semantic round labels**: Each round gets a brief label (e.g., "Read config.py")
+  that serves as a compact index for the agent to reference.
+- **Initial prompt compression**: System prompt + tool schemas compression to
+  reduce the fixed-cost portion of each API call.
+- **Multi-range edit_file**: Support a list of (old_text, new_text) pairs in
+  a single edit_file call to reduce round trips.
+
 ## Dependencies
 
 - PYTHON (managed Python runtime)

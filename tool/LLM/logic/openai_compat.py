@@ -35,6 +35,7 @@ class OpenAICompatProvider(LLMProvider):
     DEFAULT_MAX_CONTEXT: int = 8192
     DEFAULT_MAX_OUTPUT: int = 4096
     REQUEST_TIMEOUT: int = 120
+    MAX_TOKENS_PARAM: str = "max_tokens"
 
     name: str = "openai-compat"
     cost_model = CostModel(free_tier=True)
@@ -119,7 +120,7 @@ class OpenAICompatProvider(LLMProvider):
             "model": self._model,
             "messages": messages,
             "temperature": temperature,
-            "max_tokens": max_tokens or self.DEFAULT_MAX_OUTPUT,
+            self.MAX_TOKENS_PARAM: max_tokens or self.DEFAULT_MAX_OUTPUT,
             "stream": False,
         }
         if tools:
@@ -212,7 +213,7 @@ class OpenAICompatProvider(LLMProvider):
             "model": self._model,
             "messages": messages,
             "temperature": temperature,
-            "max_tokens": max_tokens or self.DEFAULT_MAX_OUTPUT,
+            self.MAX_TOKENS_PARAM: max_tokens or self.DEFAULT_MAX_OUTPUT,
             "stream": True,
         }
         if tools:

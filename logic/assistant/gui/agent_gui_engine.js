@@ -1605,6 +1605,9 @@ class AgentGUIEngine {
     if (name === 'ask_user') {
       return { label: 'Asked user', icon: 'bx-help-circle', expandable: true };
     }
+    if (name === 'think') {
+      return { label: 'Thought', icon: 'bx-brain', expandable: true, isThink: true };
+    }
     return { label: (desc || name), icon: 'bx-code', expandable: true };
   }
 
@@ -1634,6 +1637,12 @@ class AgentGUIEngine {
         + readIconHtml
         + '<span class="tool-desc">Read <span class="tool-file-link" data-op="read">' + escWbr(info.readLabel || '') + '</span></span>'
         + '<span class="diff-stats" data-tc="diffstats"></span>'
+        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+    } else if (info.isThink) {
+      headerContent =
+        '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
+        + '<i class="bx bx-brain tool-natural-icon"></i>'
+        + '<span class="tool-desc">Thinking...</span>'
         + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
     } else {
       const otherIconHtml = info.icon && info.icon.startsWith('_devicon_:')
@@ -1669,6 +1678,21 @@ class AgentGUIEngine {
 
   _finishToolCall(el, ok, output, evt) {
     evt = evt || {};
+    const toolName = el.dataset.toolName;
+    if (toolName === 'think') {
+      const s = el.querySelector('[data-tc=status]');
+      if (s) s.remove();
+      el.classList.remove('expanded');
+      const descEl = el.querySelector('.tool-desc');
+      if (descEl) descEl.textContent = 'Thought';
+      const out = el.querySelector('[data-tc=output]');
+      if (out && output) {
+        out.style.whiteSpace = 'pre-wrap';
+        out.style.background = 'transparent';
+        out.textContent = output;
+      }
+      return;
+    }
     const s = el.querySelector('[data-tc=status]');
     if (s) {
       s.className = 'tool-status ' + (ok ? 'success' : 'error');
