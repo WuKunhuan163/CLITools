@@ -1616,7 +1616,8 @@ function renderModelsView() {
     const provChips = (m.providers || []).map(p => {
       const isProvConfigured = configuredProvs.has(p);
       const chipStyle = isProvConfigured ? 'background:var(--green-dim);color:var(--green);' : '';
-      return `<div class="settings-provider-chip" onclick="settingsTab='providers';renderSettingsTab();setTimeout(()=>{const c=document.querySelector('[data-provider-id=\\'${esc(p.split('-')[0])}\\']');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})},100)" style="cursor:pointer;${chipStyle}">${PROVIDER_LOGOS[p.split('-')[0]] ? '<img src="' + PROVIDER_LOGOS[p.split('-')[0]] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : ''} ${esc(p)}${fmtProviderPriceInner(m)}</div>`;
+      const vendor = p.split('-')[0];
+      return `<div class="settings-provider-chip" onclick="settingsTab='providers';renderSettingsTab();setTimeout(()=>{const c=document.querySelector('[data-provider-id=\\'${esc(vendor)}\\']');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})},100)" style="cursor:pointer;${chipStyle}">${PROVIDER_LOGOS[vendor] ? '<img src="' + PROVIDER_LOGOS[vendor] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : ''} ${esc(fmtProviderName(vendor))}${fmtProviderPriceInner(m)}</div>`;
     }).join('');
     const modelCalls = calls.filter(c => c.model === name || c.provider === name);
     const aa = m.aa_benchmarks || {};
@@ -1676,7 +1677,7 @@ function renderProvidersView() {
   for (const name of provNames) {
     const p = providers[name];
     if (provSearch && !name.toLowerCase().includes(provSearch)) continue;
-    const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+    const displayName = fmtProviderName(name);
     const modelChips = (p.models || []).map(m => {
       const mData = (usageData.models || {})[m];
       const badge = mData ? ' ' + fmtPriceBadge(mData) : '';
@@ -1772,6 +1773,11 @@ function fmtProviderPriceInner(m) {
     return `<span class="price-inner paid">${sym}${m.input_price.toFixed(2)},${m.output_price.toFixed(2)}/M</span>`;
   }
   return '';
+}
+function fmtProviderName(raw) {
+  if (!raw) return '';
+  if (raw !== raw.toLowerCase()) return raw;
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 function fmtTokens(n) { return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n); }
 function fmtTime(ts) { if (!ts) return '-'; const d = new Date(ts * 1000); return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); }

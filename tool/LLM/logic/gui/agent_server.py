@@ -745,6 +745,7 @@ class AgentServer:
         except Exception:
             pass
 
+        sorted_mids = sorted(models.keys(), key=len, reverse=True)
         for call in self._usage_calls:
             model_key = call.get("model", "")
             prov_key = call.get("provider", "")
@@ -752,8 +753,13 @@ class AgentServer:
             inp = call.get("input_tokens", 0)
             outp = call.get("output_tokens", 0)
 
-            for mid, mdata in models.items():
-                if mid in model_key or model_key in mdata.get("providers", []):
+            for mid in sorted_mids:
+                mdata = models[mid]
+                provs = mdata.get("providers", [])
+                if (mid == model_key
+                        or model_key in provs
+                        or prov_key in provs
+                        or any(pr.endswith('-' + mid) for pr in [model_key, prov_key] if pr)):
                     mdata["total_calls"] += 1
                     mdata["input_tokens"] += inp
                     mdata["output_tokens"] += outp
