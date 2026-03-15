@@ -105,6 +105,7 @@ def build_ecosystem_info(
         "After changes: update tool's README.md + for_agent.md. Document new infrastructure.",
         "Complete ALL tasks before stopping. User must confirm satisfaction.",
         "Prefer tool calls over reading files. exec 'TOOL --search all X' finds anything.",
+        "You may be interrupted at any round. Proactively record key findings via experience() so progress is never lost.",
     ]
 
     # -- User-defined rationale (empty by default; OpenClaw will populate) --

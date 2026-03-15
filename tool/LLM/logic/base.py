@@ -167,6 +167,7 @@ class LLMProvider(ABC):
         tool_calls_by_index: Dict[int, Dict[str, Any]] = {}
         chunk_count = 0
         ttft = None
+        api_usage = None
 
         for chunk in self.send_streaming(messages, temperature, max_tokens,
                                          tools=tools):
@@ -174,6 +175,9 @@ class LLMProvider(ABC):
                 chunk.get("error", "Stream error")
                 yield chunk
                 return
+
+            if chunk.get("usage"):
+                api_usage = chunk["usage"]
 
             tc = chunk.get("tool_calls")
             if tc:
@@ -214,7 +218,7 @@ class LLMProvider(ABC):
         merged_tool_calls = [tool_calls_by_index[k] for k in sorted(tool_calls_by_index)]
 
         estimated_tokens = len(full_text) // 4
-        usage = {"completion_tokens": estimated_tokens, "total_tokens": estimated_tokens}
+        usage = api_usage or {"prompt_tokens": 0, "completion_tokens": estimated_tokens, "total_tokens": estimated_tokens}
         result_for_record = {
             "ok": True, "text": full_text,
             "model": getattr(self, "_model", self.name),

@@ -22,6 +22,7 @@ Usage:
     mgr.send_message("s1", "Fix the BILIBILI bug",
                      context_feed={"hint": "BILIBILI search returns empty results"})
 """
+import json
 import threading
 import time
 import uuid
@@ -322,6 +323,7 @@ class ConversationManager:
         self._current_turn_session_id: Optional[str] = None
         self._event_cb: Optional[Callable] = None
         self._lock = threading.Lock()
+        self._cancel_requested = False
 
         if brain is not None:
             self._brain = brain
@@ -425,14 +427,95 @@ class ConversationManager:
         self._tool_handlers[name] = handler
 
     def _register_default_tool_handlers(self):
-        self._tool_handlers["exec"] = self._handle_exec
-        self._tool_handlers["read_file"] = self._handle_read_file
-        self._tool_handlers["todo"] = self._handle_todo
-        self._tool_handlers["search"] = self._handle_search
-        self._tool_handlers["write_file"] = self._handle_write_file
-        self._tool_handlers["edit_file"] = self._handle_edit_file
-        self._tool_handlers["ask_user"] = self._handle_ask_user
-        self._tool_handlers["experience"] = self._handle_experience
+        try:
+            from logic.assistant.std import STANDARD_TOOLS, ToolContext
+            self._std_tools = STANDARD_TOOLS
+            self._ToolContext = ToolContext
+        except ImportError:
+            self._std_tools = {}
+            self._ToolContext = None
+
+        for name in ("exec", "read_file", "search", "write_file",
+                     "edit_file", "todo", "ask_user", "experience"):
+            if name in self._std_tools:
+                self._tool_handlers[name] = self._make_std_handler(name)
+            else:
+                fallback = getattr(self, f"_handle_{name}", None)
+                if fallback:
+                    self._tool_handlers[name] = fallback
+
+    def _make_std_handler(self, name: str):
+        def handler(args: dict) -> dict:
+            if name in ('write_file', 'edit_file'):
+                self._snapshot_file(args.get('path', ''))
+            ctx = self._ToolContext(
+                emit=self._emit,
+                cwd=self._get_cwd(),
+                project_root=_PROJECT_ROOT,
+                brain=self._brain,
+                env_obj=self._get_current_environment(),
+                write_history=getattr(self, '_write_history', {}),
+                dup_counts=getattr(self, '_dup_counts', {}),
+                turn_writes=getattr(self, '_turn_writes', []),
+                turn_reads=getattr(self, '_turn_reads', []),
+            )
+            return self._std_tools[name](args, ctx)
+        return handler
+
+    def _snapshot_file(self, path: str):
+        """Snapshot file content before first write for final diff."""
+        if not path:
+            return
+        if not os.path.isabs(path):
+            path = os.path.join(self._get_cwd(), path)
+        snapshots = getattr(self, '_file_snapshots', {})
+        if path not in snapshots:
+            try:
+                with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                    snapshots[path] = f.read()
+            except FileNotFoundError:
+                snapshots[path] = None
+            except Exception:
+                snapshots[path] = None
+
+    def _emit_file_summary(self):
+        """Emit file_summary event with final diffs for all modified files."""
+        snapshots = getattr(self, '_file_snapshots', {})
+        if not snapshots:
+            return
+        import difflib
+        files = []
+        for path, original in snapshots.items():
+            try:
+                with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                    current = f.read()
+            except Exception:
+                current = ''
+            if original is None:
+                added = len(current.split('\n')) if current else 0
+                files.append({
+                    "path": path,
+                    "name": os.path.basename(path),
+                    "type": "new",
+                    "added": added,
+                    "removed": 0,
+                })
+            else:
+                orig_lines = original.split('\n')
+                cur_lines = current.split('\n')
+                diff = list(difflib.unified_diff(orig_lines, cur_lines, lineterm=''))
+                added = sum(1 for l in diff if l.startswith('+') and not l.startswith('+++'))
+                removed = sum(1 for l in diff if l.startswith('-') and not l.startswith('---'))
+                if added or removed:
+                    files.append({
+                        "path": path,
+                        "name": os.path.basename(path),
+                        "type": "edit",
+                        "added": added,
+                        "removed": removed,
+                    })
+        if files:
+            self._emit({"type": "file_summary", "files": files})
 
     def _get_cwd(self) -> str:
         """Return working directory: session codebase or project root."""
@@ -448,7 +531,9 @@ class ConversationManager:
         cmd = args.get("command", "")
         cwd = self._get_cwd()
         project_root = _PROJECT_ROOT
-        self._emit({"type": "tool", "name": "exec", "desc": cmd, "cmd": cmd})
+        first_word = cmd.strip().split()[0] if cmd.strip() else "exec"
+        exec_desc = f"Run {first_word}" if len(cmd) > 40 else cmd
+        self._emit({"type": "tool", "name": "exec", "desc": exec_desc, "cmd": cmd})
 
         env = os.environ.copy()
         extra_paths = []
@@ -498,7 +583,9 @@ class ConversationManager:
             path = os.path.join(self._get_cwd(), path)
         if hasattr(self, '_turn_reads'):
             self._turn_reads.append(path)
-        self._emit({"type": "tool", "name": "read", "desc": path, "cmd": path})
+        basename = os.path.basename(path.rstrip("/"))
+        read_desc = f"Read {basename}" if basename else "List directory"
+        self._emit({"type": "tool", "name": "read", "desc": read_desc, "cmd": path})
         env_obj = self._get_current_environment()
         try:
             if os.path.isdir(path):
@@ -534,20 +621,26 @@ class ConversationManager:
         pattern = args.get("pattern", "")
         path = args.get("path", ".")
         cwd = self._get_cwd()
-        self._emit({"type": "tool", "name": "search", "desc": f"Search: {pattern}", "cmd": f"search '{pattern}' {path}"})
+        search_desc = f"Search for \"{pattern}\"" + (f" in {os.path.basename(path)}" if path != "." else "")
+        self._emit({"type": "tool", "name": "search", "desc": search_desc, "cmd": f"search '{pattern}' {path}"})
         env_obj = self._get_current_environment()
         try:
             if shutil.which("rg"):
-                cmd = ["rg", "--max-count", "10", "--no-heading", pattern, path]
+                cmd = ["rg", "--max-count", "10", "--no-heading",
+                       "--type-add", "src:*.py", "--type-add", "src:*.js",
+                       "--type-add", "src:*.html", "--type-add", "src:*.css",
+                       "--type-add", "src:*.md", "--type-add", "src:*.json",
+                       "--type-add", "src:*.txt", "--type-add", "src:*.yaml",
+                       "-t", "src", pattern, path]
             else:
                 cmd = ["grep", "-rn", "--include=*.py", "--include=*.js",
                        "--include=*.html", "--include=*.css", "--include=*.md",
                        "--include=*.json", "--include=*.txt", "--include=*.yaml",
                        "-m", "10", pattern, path]
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=15, cwd=cwd,
+                cmd, capture_output=True, timeout=15, cwd=cwd,
             )
-            output = result.stdout[:2000] or "(no matches)"
+            output = result.stdout.decode("utf-8", errors="replace")[:2000] or "(no matches)"
             self._emit({"type": "tool_result", "ok": True, "output": output})
             if env_obj:
                 env_obj.record_result(f"search:{pattern}", True, output[:300])
@@ -623,7 +716,8 @@ class ConversationManager:
             self._turn_writes: List[str] = []
         self._turn_writes.append(path)
 
-        self._emit({"type": "tool", "name": "write_file", "desc": f"Write: {path}", "cmd": f"write {path}"})
+        write_basename = os.path.basename(path)
+        self._emit({"type": "tool", "name": "write_file", "desc": f"Create {write_basename}", "cmd": f"write {path}"})
         env_obj = self._get_current_environment()
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -732,7 +826,7 @@ class ConversationManager:
             path = os.path.join(self._get_cwd(), path)
 
         self._emit({"type": "tool", "name": "edit_file",
-                     "desc": f"Edit: {os.path.basename(path)}", "cmd": f"edit {path}"})
+                     "desc": f"Edit {os.path.basename(path)}", "cmd": f"edit {path}"})
         env_obj = self._get_current_environment()
         try:
             content = open(path, encoding='utf-8', errors='replace').read()
@@ -768,9 +862,16 @@ class ConversationManager:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(new_content)
 
-            diff_preview = f"-{old_text[:80]}\n+{new_text[:80]}"
+            old_lines = old_text.splitlines()
+            new_lines = new_text.splitlines()
+            diff_lines = []
+            for ol in old_lines[:10]:
+                diff_lines.append(f"-{ol}")
+            for nl in new_lines[:10]:
+                diff_lines.append(f"+{nl}")
+            diff_preview = "\n".join(diff_lines)
             self._emit({"type": "tool_result", "ok": True,
-                         "output": f"Edited {os.path.basename(path)}\n{diff_preview}"})
+                         "output": diff_preview})
             if env_obj:
                 env_obj.record_result(f"edit:{path}", True, diff_preview)
             return {"ok": True, "output": f"Edit applied to {path}"}
@@ -931,6 +1032,9 @@ class ConversationManager:
             if session_id in self._sessions:
                 self._active_session_id = session_id
 
+    def cancel_current(self):
+        self._cancel_requested = True
+
     def get_session(self, session_id: str) -> Optional[Session]:
         return self._sessions.get(session_id)
 
@@ -946,7 +1050,7 @@ class ConversationManager:
     def send_message(self, session_id: str, text: str,
                      blocking: bool = False,
                      context_feed: Optional[Dict[str, Any]] = None,
-                     break_after_first_reply: bool = False):
+                     turn_limit: int = 0):
         """Send a user message and get LLM response.
 
         Parameters
@@ -960,20 +1064,22 @@ class ConversationManager:
             Additional system state to package with the message.
             Keys: ``hint`` (str), ``errors`` (list[str]),
             ``tools_available`` (dict), ``lesson`` (str).
-        break_after_first_reply : bool
-            If True, stop after first agent reply (no Round 2).
+        turn_limit : int
+            Max rounds per user message. 0 = unlimited (uses internal
+            safety cap). The agent is stopped once it produces a text-only
+            response at or after this many rounds.
         """
         if blocking:
-            self._run_turn(session_id, text, context_feed, break_after_first_reply)
+            self._run_turn(session_id, text, context_feed, turn_limit)
         else:
             t = threading.Thread(target=self._run_turn,
-                                 args=(session_id, text, context_feed, break_after_first_reply),
+                                 args=(session_id, text, context_feed, turn_limit),
                                  daemon=True)
             t.start()
 
     def _run_turn(self, session_id: str, text: str,
                   context_feed: Optional[Dict[str, Any]] = None,
-                  break_after_first_reply: bool = False):
+                  turn_limit: int = 0):
         session = self._sessions.get(session_id)
         if not session:
             self._emit({"type": "error", "message": f"Session {session_id} not found"})
@@ -985,6 +1091,7 @@ class ConversationManager:
         self._turn_writes = []
         self._turn_reads: List[str] = []
         self._quality_warnings: Dict[str, List[str]] = {}
+        self._file_snapshots: Dict[str, Optional[str]] = {}
         self._emit({"type": "session_status", "id": session_id, "status": "running"})
 
         # Build user event with prompt + ecosystem context + system state
@@ -1042,22 +1149,39 @@ class ConversationManager:
             from tool.LLM.logic.registry import get_pipeline
             pipeline = get_pipeline(self._provider_name)
 
-            max_tool_rounds = 15
+            max_tool_rounds = (turn_limit + 5) if turn_limit > 0 else 30
             round_num = 0
             empty_retries = 0
             max_empty_retries = pipeline.get_max_retries()
             consecutive_empty = 0
             MAX_CONSECUTIVE_EMPTY = 3
+            _tool_call_history: List[str] = []
 
             default_max_tokens = min(
                 getattr(provider.capabilities, 'max_output_tokens', 4096) or 4096,
                 8192)
             current_max_tokens = default_max_tokens
 
+            _wrapup_nudged = False
+            _force_no_tools = False
+
             while round_num < max_tool_rounds:
+                if self._cancel_requested:
+                    self._cancel_requested = False
+                    self._emit({"type": "text", "tokens": "\n[Task cancelled by user]\n"})
+                    break
                 round_num += 1
                 full_text = ""
                 tool_calls_accum = []
+
+                if (turn_limit > 0 and round_num == turn_limit - 1
+                        and not _wrapup_nudged):
+                    _wrapup_nudged = True
+                    session.context.add_user(
+                        "[System] You are approaching the turn limit. "
+                        "Complete ALL remaining sub-tasks now. If you "
+                        "have multiple parts to address, do them in this "
+                        "round. Summarize your findings concisely.")
 
                 self._emit({
                     "type": "llm_request",
@@ -1072,7 +1196,10 @@ class ConversationManager:
                     session.context.get_messages_for_api(),
                     turn_number=session.message_count,
                 )
-                api_tools = pipeline.prepare_tools(tools, provider.capabilities)
+                if _force_no_tools:
+                    api_tools = None
+                else:
+                    api_tools = pipeline.prepare_tools(tools, provider.capabilities)
 
                 if use_streaming:
                     for chunk in provider.stream(
@@ -1109,9 +1236,10 @@ class ConversationManager:
                                 if chunk.get("usage"):
                                     stream_end_evt["usage"] = chunk["usage"]
                                 self._emit(stream_end_evt)
-                                if break_after_first_reply and not tool_calls_accum and round_num >= 3:
-                                    self._emit({"type": "text",
-                                                "tokens": f"[Break after round {round_num} — stopping.]\n"})
+                                if turn_limit > 0 and not tool_calls_accum and round_num >= turn_limit:
+                                    self._emit({"type": "notice",
+                                                "text": f"Turn limit reached ({round_num}/{turn_limit})",
+                                                "icon": "bx-stop-circle"})
                                     self._emit({"type": "complete"})
                                     session.status = "idle"
                                     self._emit({"type": "session_status", "id": session_id, "status": "idle"})
@@ -1173,9 +1301,10 @@ class ConversationManager:
                 if full_text:
                     self._emit({"type": "text", "tokens": full_text})
 
-                if break_after_first_reply and not tool_calls_accum and round_num >= 3:
-                    self._emit({"type": "text",
-                                "tokens": f"[Break after round {round_num} — stopping.]\n"})
+                if turn_limit > 0 and not tool_calls_accum and round_num >= turn_limit:
+                    self._emit({"type": "notice",
+                                "text": f"Turn limit reached ({round_num}/{turn_limit})",
+                                "icon": "bx-stop-circle"})
                     self._emit({"type": "complete"})
                     session.status = "idle"
                     self._emit({"type": "session_status", "id": session_id, "status": "idle"})
@@ -1285,9 +1414,42 @@ class ConversationManager:
                 }
                 session.context.add_raw_message(assistant_msg)
 
+                parallel_tcs = []
+                linear_tcs = []
+                PARALLEL_TOOLS = {"read_file", "search"}
                 for tc in tool_calls_accum:
+                    fn_name = tc.get("function", {}).get("name", "")
+                    if fn_name in PARALLEL_TOOLS:
+                        parallel_tcs.append(tc)
+                    else:
+                        linear_tcs.append(tc)
+
+                tool_results_map: Dict[str, dict] = {}
+
+                if parallel_tcs and len(parallel_tcs) > 1:
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor(
+                            max_workers=min(4, len(parallel_tcs))) as pool:
+                        futures = {
+                            pool.submit(self._execute_tool_call, tc): tc
+                            for tc in parallel_tcs
+                        }
+                        for fut in concurrent.futures.as_completed(futures):
+                            tc = futures[fut]
+                            tool_results_map[tc.get("id", "")] = fut.result()
+                elif parallel_tcs:
+                    tc = parallel_tcs[0]
+                    tool_results_map[tc.get("id", "")] = self._execute_tool_call(tc)
+
+                for tc in linear_tcs:
                     result = self._execute_tool_call(tc)
+                    tool_results_map[tc.get("id", "")] = result
+                    if not result.get("ok", True):
+                        break
+
+                for tc in tool_calls_accum:
                     tool_id = tc.get("id", "")
+                    result = tool_results_map.get(tool_id, {"output": "[skipped]"})
                     tool_msg = {
                         "role": "tool",
                         "tool_call_id": tool_id,
@@ -1295,6 +1457,31 @@ class ConversationManager:
                     }
                     session.context.add_raw_message(tool_msg)
 
+                    fn = tc.get("function", {})
+                    call_sig = f"{fn.get('name','')}:{fn.get('arguments','')[:200]}"
+                    _tool_call_history.append(call_sig)
+
+                if len(_tool_call_history) >= 4:
+                    recent = _tool_call_history[-4:]
+                    unique_recent = set(recent)
+                    if len(unique_recent) <= 2:
+                        loop_nudge = (
+                            "You are repeating the same tool calls. Stop reading "
+                            "and SYNTHESIZE what you have learned so far. "
+                            "Respond to the user with your findings now.")
+                        session.context.add_user(loop_nudge)
+                        self._emit({"type": "text",
+                                     "tokens": "[Loop detected — nudging synthesis...]\n"})
+
+                if turn_limit > 0 and round_num >= turn_limit + 3:
+                    _force_no_tools = True
+                    session.context.add_user(
+                        "STOP making tool calls. You have exceeded the turn limit. "
+                        "Summarize everything you have found and respond NOW.")
+                    self._emit({"type": "text",
+                                 "tokens": f"[Hard ceiling at round {round_num} — forcing text-only response...]\n"})
+
+            self._emit_file_summary()
             self._emit({"type": "complete"})
 
             if auto_title:
@@ -1302,6 +1489,7 @@ class ConversationManager:
 
         except Exception as e:
             self._emit({"type": "text", "tokens": f"Exception: {e}"})
+            self._emit_file_summary()
             self._emit({"type": "complete"})
 
         session.status = "done"

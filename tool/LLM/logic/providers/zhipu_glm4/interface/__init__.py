@@ -287,6 +287,7 @@ class ZhipuGLM4Provider(LLMProvider):
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": True,
+            "stream_options": {"include_usage": True},
         }
         if tools:
             payload["tools"] = tools
@@ -308,6 +309,7 @@ class ZhipuGLM4Provider(LLMProvider):
             yield {"ok": False, "error": str(e)}
             return
 
+        last_usage = {}
         try:
             for raw_line in resp:
                 line = raw_line.decode("utf-8").strip()
@@ -318,6 +320,8 @@ class ZhipuGLM4Provider(LLMProvider):
                     break
                 try:
                     chunk = json.loads(data_str)
+                    if chunk.get("usage"):
+                        last_usage = chunk["usage"]
                     delta = chunk.get("choices", [{}])[0].get("delta", {})
                     content = delta.get("content", "")
                     tc = delta.get("tool_calls")
@@ -327,5 +331,7 @@ class ZhipuGLM4Provider(LLMProvider):
                         yield {"ok": True, "text": content}
                 except Exception:
                     continue
+            if last_usage:
+                yield {"ok": True, "text": "", "usage": last_usage}
         finally:
             resp.close()

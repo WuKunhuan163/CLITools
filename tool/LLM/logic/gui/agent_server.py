@@ -9,7 +9,8 @@ Usage:
     # → http://localhost:{port}/
 
 API Endpoints:
-    POST /api/send     {"session_id": "...", "text": "..."}
+    POST /api/send     {"session_id": "...", "text": "...", "turn_limit": 10}
+    POST /api/model    {"model": "zhipu-glm-4.7-flash"}
     POST /api/session  {"title": "..."}
     POST /api/rename   {"session_id": "...", "title": "..."}
     POST /api/delete   {"session_id": "..."}
@@ -60,6 +61,7 @@ _SYSTEM_PROMPTS = {
 
 - **立即行动**: 收到"创建文件"任务时，第一个工具调用就应该是write_file。
 - **持续执行**: 创建完一个文件后，立即继续创建下一个文件。不要中途停下来解释。
+- **并行调用**: 如果多个工具调用互不依赖（如读取多个文件、搜索多个关键词），在同一轮中并行调用它们。
 - **完整输出**: write_file的content必须包含完整的、可运行的代码。不要用省略号或占位符。
 - **文件创建**: 一个网站需要HTML+CSS(+JS)文件。用write_file逐个创建所有必需文件。
 - **工具发现**: 如果任务需要使用外部工具（搜索视频、查数据等），先用 exec(command="TOOL --search tools-deep 'keywords'") 发现工具。
@@ -119,6 +121,7 @@ When receiving a task, **use tools immediately**. Do NOT explore the project fir
 
 - **Act immediately**: When asked to "create a file", your FIRST tool call should be write_file.
 - **Continuous execution**: After creating one file, immediately create the next. Don't stop to explain mid-way.
+- **Parallel calls**: When multiple tool calls are independent (e.g., reading multiple files, searching multiple patterns), call them in parallel in the same turn.
 - **Complete output**: write_file content must contain complete, runnable code. No ellipsis or placeholders.
 - **File creation**: A website needs HTML+CSS(+JS) files. Use write_file to create all required files.
 - **Tool discovery**: If the task requires external tools (search videos, fetch data), first use exec(command="TOOL --search tools-deep 'keywords'") to discover tools.
@@ -232,10 +235,10 @@ class AgentServer:
                 if not session:
                     return {"ok": False, "error": f"Session {sid} not found"}
                 context_feed = body.get("context_feed")
-                break_after = body.get("break_after_first_reply", False)
+                turn_limit = int(body.get("turn_limit", 0))
                 self._mgr.send_message(sid, text, blocking=False,
                                        context_feed=context_feed,
-                                       break_after_first_reply=break_after)
+                                       turn_limit=turn_limit)
                 return {"ok": True, "session_id": sid}
 
             elif path == "/api/input":
@@ -249,6 +252,27 @@ class AgentServer:
                     "text": text,
                 })
                 return {"ok": True, "session_id": sid}
+
+            elif path == "/api/model":
+                model = body.get("model", "").strip()
+                if not model:
+                    return {"ok": False, "error": "Missing model"}
+                try:
+                    from tool.LLM.logic.registry import get_provider
+                    provider = get_provider(model)
+                    if not provider.is_available():
+                        return {"ok": False, "error": f"Model {model} is not available"}
+                except Exception as e:
+                    return {"ok": False, "error": str(e)}
+                old_model = self._mgr._provider_name
+                self._mgr._provider_name = model
+                self.provider_name = model
+                self._push_sse({
+                    "type": "model_switched",
+                    "from": old_model,
+                    "to": model,
+                })
+                return {"ok": True, "model": model}
 
             elif path == "/api/session":
                 title = body.get("title", "New Task")
@@ -278,6 +302,10 @@ class AgentServer:
                     self._default_session_id = remaining[-1]["id"] if remaining else None
                     return {"ok": True}
                 return {"ok": False, "error": "Missing session_id"}
+
+            elif path == "/api/cancel":
+                self._mgr.cancel_current()
+                return {"ok": True}
 
             return {"ok": False, "error": "Unknown endpoint"}
 
@@ -378,7 +406,7 @@ class AgentServer:
         """Start the live agent server."""
         from logic.serve.html_server import LocalHTMLServer
 
-        html_path = str(_dir / "agent_live.html")
+        html_path = str(_root / "logic" / "assistant" / "gui" / "agent_live.html")
 
         self._server = LocalHTMLServer(
             html_path=html_path,
