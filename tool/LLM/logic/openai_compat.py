@@ -271,10 +271,13 @@ class OpenAICompatProvider(LLMProvider):
                         continue
                     delta = choices[0].get("delta", {})
                     content = delta.get("content", "")
+                    reasoning = delta.get("reasoning_content", "")
                     tc = delta.get("tool_calls")
                     if tc:
                         yield {"ok": True, "tool_calls": tc}
-                    elif content:
+                    if reasoning:
+                        yield {"ok": True, "reasoning": reasoning}
+                    if content:
                         yield {"ok": True, "text": content}
                 except Exception:
                     continue

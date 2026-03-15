@@ -388,6 +388,29 @@ BUILTIN_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "think",
+            "description": (
+                "Use this tool to think through complex problems step-by-step "
+                "before acting. Write your reasoning in the 'thought' parameter. "
+                "This is visible to the user as a thinking block. Use it when you "
+                "need to plan an approach, weigh trade-offs, or reason about "
+                "multiple steps before executing."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "thought": {
+                        "type": "string",
+                        "description": "Your step-by-step reasoning or analysis",
+                    },
+                },
+                "required": ["thought"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "experience",
             "description": "Record a lesson learned during this task. Lessons persist across sessions and help you avoid repeating mistakes. Use after fixing bugs, discovering non-obvious behavior, or learning a workaround.",
             "parameters": {
@@ -643,7 +666,7 @@ class ConversationManager:
             self._ToolContext = None
 
         for name in ("exec", "read_file", "search", "write_file",
-                     "edit_file", "todo", "ask_user", "experience"):
+                     "edit_file", "todo", "ask_user", "think", "experience"):
             if name in self._std_tools:
                 self._tool_handlers[name] = self._make_std_handler(name)
             else:
@@ -1187,6 +1210,9 @@ class ConversationManager:
             if env_obj:
                 env_obj.record_result(f"edit:{path}", False, str(e))
             return {"ok": False, "output": str(e)}
+
+    def _handle_think(self, args: dict) -> dict:
+        return {"ok": True, "output": "[Thinking complete]"}
 
     def _handle_ask_user(self, args: dict) -> dict:
         question = args.get("question", "")
@@ -1782,6 +1808,9 @@ class ConversationManager:
                                 self._emit({"type": "llm_response_start", "round": round_num})
 
                             if chunk.get("ok"):
+                                r = chunk.get("reasoning", "")
+                                if r:
+                                    self._emit({"type": "thinking", "tokens": r})
                                 t = chunk.get("text", "")
                                 if t:
                                     full_text += t

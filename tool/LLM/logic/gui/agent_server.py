@@ -56,6 +56,7 @@ You are an autonomous AI Agent. You can independently plan, execute, and verify 
 5. **search(pattern=..., path=...)** — Search for text INSIDE files (grep-style). NOT for listing files. To list files, use exec(command="find <dir> -name '*.py'").
 6. **todo(action=..., items=...)** — Manage a task list.
 7. **ask_user(question=...)** — Ask the user a question for feedback.
+8. **think(thought=...)** — Think step-by-step before acting. Use this when facing complex decisions, multi-step plans, or debugging. Write your reasoning as a structured analysis. The user sees your thinking process.
 
 ## Agent Workflow
 
@@ -733,6 +734,8 @@ class AgentServer:
         available_providers = set()
         for p in list_reg_providers():
             pname = p.get("name", "")
+            if pname == "auto":
+                continue
             vendor = pname.split("-")[0] if pname else "unknown"
             if vendor not in providers:
                 providers[vendor] = {

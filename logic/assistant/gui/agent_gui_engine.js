@@ -246,6 +246,9 @@ class AgentGUIEngine {
     this._activeTextEl = null;
     this._activeTextGrp = null;
     this._activeTextBuf = '';
+    this._activeThinkEl = null;
+    this._activeThinkBlock = null;
+    this._activeThinkBuf = '';
     this._roundHistory = [];
     this._maxRoundHistory = 16;
     this._maxContextTokens = 0;
@@ -648,12 +651,22 @@ class AgentGUIEngine {
 
   async _renderThinking(evt) {
     const text = (typeof evt.tokens === 'string') ? evt.tokens : '';
+    if (!text) return;
+
+    if (this._activeThinkEl && this._activeThinkBlock && this._activeThinkBlock.parentNode === this.chatArea) {
+      this._activeThinkBuf += text;
+      this._activeThinkEl.textContent = this._activeThinkBuf;
+      this._activeThinkBlock.classList.add('expanded');
+      this._scrollEnd();
+      return;
+    }
+
     const trivial = /^(Processing|Thinking|Working|Analyzing)[\s.]*$/i.test(text.trim())
                     || text.trim().length < 30;
-    if (trivial) return;
+    if (trivial && !this._activeThinkEl) return;
 
     const duration = evt.duration ? Math.round(evt.duration) + 's' : '';
-    const el = this._appendAnimated('div', 'thought-block',
+    const el = this._appendAnimated('div', 'thought-block expanded',
       '<div class="thought-header" onclick="this.parentElement.classList.toggle(\'expanded\')">'
       + '<span class="thought-label">Thought</span>'
       + '<span class="thought-duration" data-tc="duration">' + (duration ? 'for ' + duration : '') + '</span>'
@@ -662,19 +675,15 @@ class AgentGUIEngine {
       + '<div class="thought-body"><span class="think-content"></span></div>');
 
     const content = el.querySelector('.think-content');
+    this._activeThinkBlock = el;
+    this._activeThinkEl = content;
+    this._activeThinkBuf = text;
 
     if (_replayMode) {
       content.textContent = text;
     } else {
-      let buf = '';
-      el.classList.add('expanded');
-      for (const ch of text) {
-        buf += ch;
-        content.textContent = buf;
-        this._scrollEnd();
-        await sleep(8);
-      }
-      el.classList.remove('expanded');
+      content.textContent = text;
+      this._scrollEnd();
     }
     await sleep(200);
   }
@@ -699,6 +708,12 @@ class AgentGUIEngine {
     this._activeTextEl = null;
     this._activeTextGrp = null;
     this._activeTextBuf = '';
+    if (this._activeThinkBlock) {
+      this._activeThinkBlock.classList.remove('expanded');
+    }
+    this._activeThinkEl = null;
+    this._activeThinkBlock = null;
+    this._activeThinkBuf = '';
   }
 
   async _streamText(el, tokens, delay) {
@@ -943,20 +958,26 @@ class AgentGUIEngine {
     const st = this._streamingTools && this._streamingTools[idx];
     if (!st) return sleep(0);
 
+    const isThink = st.name === 'think';
+    const isEdit = st.name === 'edit_file' || st.name === 'write_file' || st.name === 'edit';
+
     const statusEl = st.el.querySelector('[data-tc=status]');
-    if (statusEl) {
-      statusEl.className = 'tool-status running';
-      statusEl.innerHTML = '<div class="spinner spinner-sm"></div>';
+    if (isThink) {
+      if (statusEl) statusEl.remove();
+      st.el.classList.remove('expanded');
+      const descEl = st.el.querySelector('.tool-desc');
+      if (descEl) descEl.textContent = 'Thought';
+      this.lastToolEl = null;
+    } else {
+      if (statusEl) {
+        statusEl.className = 'tool-status running';
+        statusEl.innerHTML = '<div class="spinner spinner-sm"></div>';
+      }
+      const descEl = st.el.querySelector('.tool-desc');
+      if (descEl && isEdit) descEl.textContent = 'Applying edit...';
+      this.lastToolEl = st.el;
     }
 
-    const descEl = st.el.querySelector('.tool-desc');
-    if (descEl) {
-      const isEdit = st.name === 'edit_file' || st.name === 'write_file' || st.name === 'edit';
-      if (isEdit) descEl.textContent = 'Applying edit...';
-      else if (st.name === 'think') descEl.textContent = 'Thought';
-    }
-
-    this.lastToolEl = st.el;
     delete this._streamingTools[idx];
     return sleep(0);
   }
