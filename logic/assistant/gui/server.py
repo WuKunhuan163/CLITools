@@ -363,6 +363,15 @@ class AgentServer:
         if path == "/api/file-lines" and method == "POST":
             return self._read_file_lines(body)
 
+        # ── Settings panel control ──
+        if path == "/api/settings/open" and method == "POST":
+            tab = body.get("tab", "")
+            self._push_sse({"type": "settings_open", "tab": tab})
+            return {"ok": True, "tab": tab}
+        if path == "/api/settings/close" and method == "POST":
+            self._push_sse({"type": "settings_close"})
+            return {"ok": True}
+
         # ── Essential frontend routes (config saves, text-based revert) ──
         if method == "POST":
             if path == "/api/send" and body.get("_config"):
@@ -1107,6 +1116,16 @@ class AgentServer:
                 providers[vendor]["models"].append(pname)
             try:
                 keys = get_api_keys(vendor)
+                try:
+                    from tool.LLM.logic.key_state import get_selector
+                    sel = get_selector(vendor)
+                    states = sel.get_all_states()
+                    for k in keys:
+                        st = states.get(k["id"], {})
+                        k["state"] = st.get("status", "active")
+                        k["state_reason"] = st.get("reason", "")
+                except Exception:
+                    pass
                 providers[vendor]["api_keys"] = keys
                 if keys:
                     available_providers.add(pname)

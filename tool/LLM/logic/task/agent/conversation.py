@@ -1283,8 +1283,8 @@ class ConversationManager:
                     self._mark_session_done(session_id, "error")
                     return
                 self._emit({
-                    "type": "model_decision_end",
-                    "chosen": actual_provider_name,
+                    "type": "model_decision_proposed",
+                    "proposed": actual_provider_name,
                 })
 
             provider = get_provider(actual_provider_name)
@@ -1401,6 +1401,12 @@ class ConversationManager:
                                 break
                             if first_chunk and chunk.get("ok"):
                                 first_chunk = False
+                                if is_auto and not getattr(self, '_auto_confirmed', False):
+                                    self._auto_confirmed = True
+                                    self._emit({
+                                        "type": "model_confirmed",
+                                        "provider": actual_provider_name,
+                                    })
                                 self._emit({"type": "llm_response_start", "round": round_num})
 
                             if chunk.get("ok"):
@@ -1519,8 +1525,9 @@ class ConversationManager:
                     except Exception:
                         pass
 
-                    # Auto fallback: try next available model
-                    if is_auto and round_num == 1:
+                    # Auto fallback: try next available model until one is confirmed
+                    _auto_confirmed = getattr(self, '_auto_confirmed', False)
+                    if is_auto and not _auto_confirmed:
                         try:
                             from tool.LLM.logic.auto import get_next_available
                             _tried = getattr(self, '_auto_tried', set())
@@ -1550,8 +1557,8 @@ class ConversationManager:
                                 self._emit({"type": "debug",
                                             "text": f"Auto fallback: {failed_name} → {actual_provider_name}"})
                                 self._emit({
-                                    "type": "model_decision_end",
-                                    "chosen": actual_provider_name,
+                                    "type": "model_decision_proposed",
+                                    "proposed": actual_provider_name,
                                 })
                                 round_num -= 1
                                 continue

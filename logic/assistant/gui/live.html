@@ -23,8 +23,8 @@
   --accent-dim: rgba(91,141,239,0.12);
   --green: #4ade80;
   --green-dim: rgba(74,222,128,0.10);
-  --green-card-bg: #0f2018;
-  --green-card-border: #1a3d28;
+  --green-card-bg: #162b1e;
+  --green-card-border: #2a5438;
   --orange: #fbbf24;
   --orange-dim: rgba(251,191,36,0.10);
   --red: #f87171;
@@ -76,8 +76,8 @@ body.brilliant-mode {
   --accent-dim: rgba(108,92,231,0.18);
   --green: #00e676;
   --green-dim: rgba(0,230,118,0.12);
-  --green-card-bg: #0a1f16;
-  --green-card-border: #1a4030;
+  --green-card-bg: #122b1e;
+  --green-card-border: #245238;
   --orange: #ffab00;
   --orange-dim: rgba(255,171,0,0.12);
   --red: #ff5252;
@@ -1463,9 +1463,13 @@ let usageData = { models: {}, providers: {}, calls: [], rates: {} };
 let displayCurrency = localStorage.getItem('displayCurrency') || 'USD';
 let currencyList = [];
 
-function openSettings() {
+function openSettings(tab) {
+  if (tab) { settingsTab = tab; }
   $('settings-overlay').classList.add('open');
-  fetchUsageData().then(() => renderSettingsTab());
+  fetchUsageData().then(() => {
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === settingsTab));
+    renderSettingsTab();
+  });
 }
 function closeSettings() {
   $('settings-overlay').classList.remove('open');
@@ -1972,9 +1976,14 @@ function renderProvidersView() {
       const mLogo = MODEL_LOGOS[m] ? '<img src="' + MODEL_LOGOS[m] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : '';
       return `<div class="settings-provider-chip">${mLogo}${esc(MODEL_DISPLAY_NAMES[m] || m)}${badge}</div>`;
     }).join('');
-    const keysHtml = (p.api_keys || []).map(k =>
-      `<div class="settings-key-row"><span class="settings-key-mask">${maskKey(k.key)}</span><span class="settings-key-label">${esc(k.label || 'default')}</span><button class="settings-key-delete" title="Delete key" onclick="deleteApiKey('${esc(name)}',this)"><i class="bx bx-trash"></i></button></div>`
-    ).join('') || '<div style="font-size:11px;color:var(--text-3);padding:4px 0;">No API keys configured</div>';
+    const keysHtml = (p.api_keys || []).map(k => {
+      const isStale = k.state === 'stale';
+      const staleTag = isStale
+        ? `<span style="font-size:10px;padding:1px 6px;background:var(--red-dim);color:var(--red);border-radius:3px;font-weight:600;" title="${esc(k.state_reason || 'Key is stale')}">stale</span>
+           <button onclick="reverifyKey('${esc(name)}','${esc(k.id)}',this)" style="font-size:10px;padding:1px 6px;background:var(--accent-dim);color:var(--accent);border:none;border-radius:3px;cursor:pointer;font-weight:600;" title="Re-verify this key"><i class='bx bx-refresh' style='font-size:11px;vertical-align:middle;'></i> Verify</button>`
+        : '';
+      return `<div class="settings-key-row"><span class="settings-key-mask">${maskKey(k.key)}</span><span class="settings-key-label">${esc(k.label || 'default')}</span>${staleTag}<button class="settings-key-delete" title="Delete key" onclick="deleteApiKey('${esc(name)}',this)"><i class="bx bx-trash"></i></button></div>`;
+    }).join('') || '<div style="font-size:11px;color:var(--text-3);padding:4px 0;">No API keys configured</div>';
     const provCalls = calls.filter(c => (c.provider || '').includes(name));
     const provConfigured = p.configured;
     const provCardClass = provConfigured ? 'settings-card configured' : 'settings-card unconfigured';
@@ -2356,6 +2365,24 @@ async function deleteApiKey(vendor, btn) {
   } catch (e) { console.warn('Delete key failed:', e); }
 }
 
+async function reverifyKey(vendor, keyId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bx bx-loader-alt bx-spin" style="font-size:11px;vertical-align:middle;"></i> Verifying';
+  try {
+    const res = await fetch('/api/key/reverify', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor, key_id: keyId}) });
+    const data = await res.json();
+    if (data.ok) {
+      fetchUsageData().then(() => renderSettingsTab());
+    } else {
+      btn.innerHTML = `<i class='bx bx-x' style='font-size:11px;vertical-align:middle;'></i> ${data.error || 'Failed'}`;
+      setTimeout(() => { btn.innerHTML = '<i class="bx bx-refresh" style="font-size:11px;vertical-align:middle;"></i> Verify'; btn.disabled = false; }, 2000);
+    }
+  } catch (e) {
+    btn.innerHTML = '<i class="bx bx-x" style="font-size:11px;vertical-align:middle;"></i> Error';
+    setTimeout(() => { btn.innerHTML = '<i class="bx bx-refresh" style="font-size:11px;vertical-align:middle;"></i> Verify'; btn.disabled = false; }, 2000);
+  }
+}
+
 /* ── Sidebar Toggle ── */
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
@@ -2721,9 +2748,19 @@ function handleSSEEvent(evt) {
     }
 
     case 'model_decision_end': {
-      if (evt.chosen && modelPill) {
-        currentModel = evt.chosen;
-        modelPill.setValue(evt.chosen);
+      engine.enqueueEvent(evt);
+      break;
+    }
+
+    case 'model_decision_proposed': {
+      engine.enqueueEvent(evt);
+      break;
+    }
+
+    case 'model_confirmed': {
+      if (evt.provider && modelPill) {
+        currentModel = evt.provider;
+        modelPill.setValue(evt.provider);
       }
       engine.enqueueEvent(evt);
       break;
@@ -2731,6 +2768,15 @@ function handleSSEEvent(evt) {
 
     case 'model_decision_start': {
       engine.enqueueEvent(evt);
+      break;
+    }
+
+    case 'settings_open': {
+      openSettings(evt.tab || '');
+      break;
+    }
+    case 'settings_close': {
+      closeSettings();
       break;
     }
 

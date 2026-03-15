@@ -315,6 +315,8 @@ class AgentGUIEngine {
     this.registerBlock('tool_stream_end', (evt) => this._renderToolStreamEnd(evt));
     this.registerBlock('model_decision_start', (evt) => this._renderModelDecisionStart(evt));
     this.registerBlock('model_decision_end', (evt) => this._renderModelDecisionEnd(evt));
+    this.registerBlock('model_decision_proposed', (evt) => this._renderModelDecisionProposed(evt));
+    this.registerBlock('model_confirmed', (evt) => this._renderModelConfirmed(evt));
   }
 
   /* ── Replay / Debug Mode ── */
@@ -1538,6 +1540,32 @@ class AgentGUIEngine {
       }
       this._modelDecisionEl = null;
     }
+    return sleep(100);
+  }
+
+  _renderModelDecisionProposed(evt) {
+    if (!this._modelDecisionEl) {
+      this._renderModelDecisionStart({text: 'Choosing model\u2026'});
+    }
+    if (this._modelDecisionEl) {
+      const proposed = evt.proposed;
+      const resolveNameFn = typeof resolveDisplayName === 'function' ? resolveDisplayName : null;
+      const names = typeof MODEL_DISPLAY_NAMES !== 'undefined' ? MODEL_DISPLAY_NAMES : {};
+      const displayName = resolveNameFn ? resolveNameFn(proposed) : (names[proposed] || proposed);
+      const nameEl = this._modelDecisionEl.querySelector('.model-name');
+      nameEl.textContent = `Choosing model (${displayName})\u2026`;
+    }
+    return sleep(100);
+  }
+
+  _renderModelConfirmed(evt) {
+    if (this._modelDecisionEl) {
+      const provider = evt.provider;
+      const el = this._createModelInfoEl(provider);
+      this._modelDecisionEl.replaceWith(el);
+      this._modelDecisionEl = null;
+    }
+    if (this._onAutoModelChosen) this._onAutoModelChosen(evt.provider);
     return sleep(100);
   }
 
