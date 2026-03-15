@@ -1283,7 +1283,7 @@ def _session_api(port: int, method: str, path: str, body: dict = None) -> dict:
     """Call the GUI API and return parsed JSON response."""
     import urllib.request
     url = f"http://localhost:{port}{path}"
-    data = json.dumps(body).encode() if body else None
+    data = json.dumps(body or {}).encode() if method != "GET" else None
     req = urllib.request.Request(url, data=data, method=method,
                                 headers={"Content-Type": "application/json"})
     try:
@@ -1359,7 +1359,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             idx = rest.index("--limit")
             if idx + 1 < len(rest):
                 limit = int(rest[idx + 1])
-        r = _session_api(port, "GET", f"/api/session/{sid}/history")
+        r = _session_api(port, "GET", f"/api/session/{sid}/history")  # RESTful
         if r.get("ok"):
             events = r.get("events", [])
             for evt in events[-limit:]:
@@ -1396,8 +1396,8 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             return
         sid = rest[0]
         text = " ".join(rest[1:])
-        r = _session_api(port, "POST", "/api/send",
-                         {"session_id": sid, "text": text})
+        r = _session_api(port, "POST", f"/api/session/{sid}/send",
+                         {"text": text})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "model":
@@ -1405,7 +1405,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             print("Usage: --session model <model_id>")
             return
         model = rest[0]
-        r = _session_api(port, "POST", "/api/model", {"model": model})
+        r = _session_api(port, "POST", "/api/model/switch", {"model": model})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "edits":
@@ -1413,7 +1413,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             print("Usage: --session edits <SID>")
             return
         sid = rest[0]
-        r = _session_api(port, "GET", f"/api/session/{sid}/edit-blocks")
+        r = _session_api(port, "GET", f"/api/session/{sid}/edit")
         if r.get("ok"):
             blocks = r.get("blocks", [])
             print(f"Edit blocks: {len(blocks)}")
@@ -1434,7 +1434,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             return
         sid = rest[0]
         idx = int(rest[1])
-        r = _session_api(port, "POST", f"/api/session/{sid}/edit-blocks/{idx}",
+        r = _session_api(port, "POST", f"/api/session/{sid}/edit/{idx}",
                          {"action": "accept"})
         print(json.dumps(r, ensure_ascii=False))
 
@@ -1444,7 +1444,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             return
         sid = rest[0]
         idx = int(rest[1])
-        r = _session_api(port, "POST", f"/api/session/{sid}/edit-blocks/{idx}",
+        r = _session_api(port, "POST", f"/api/session/{sid}/edit/{idx}",
                          {"action": "revert"})
         print(json.dumps(r, ensure_ascii=False))
 
@@ -1453,7 +1453,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             print("Usage: --session accept-all <SID>")
             return
         sid = rest[0]
-        edits = _session_api(port, "GET", f"/api/session/{sid}/edit-blocks")
+        edits = _session_api(port, "GET", f"/api/session/{sid}/edit")
         if not edits.get("ok"):
             print(f"Error: {edits.get('error')}")
             return
@@ -1461,7 +1461,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
         for b in edits.get("blocks", []):
             if not b["decided"]:
                 r = _session_api(port, "POST",
-                                 f"/api/session/{sid}/edit-blocks/{b['index']}",
+                                 f"/api/session/{sid}/edit/{b['index']}",
                                  {"action": "accept"})
                 if r.get("ok"):
                     accepted += 1
@@ -1472,7 +1472,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             print("Usage: --session revert-all <SID>")
             return
         sid = rest[0]
-        edits = _session_api(port, "GET", f"/api/session/{sid}/edit-blocks")
+        edits = _session_api(port, "GET", f"/api/session/{sid}/edit")
         if not edits.get("ok"):
             print(f"Error: {edits.get('error')}")
             return
@@ -1480,7 +1480,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
         for b in reversed(edits.get("blocks", [])):
             if not b["decided"]:
                 r = _session_api(port, "POST",
-                                 f"/api/session/{sid}/edit-blocks/{b['index']}",
+                                 f"/api/session/{sid}/edit/{b['index']}",
                                  {"action": "revert"})
                 if r.get("ok"):
                     reverted += 1
@@ -1488,23 +1488,22 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
 
     elif subcmd == "new":
         title = " ".join(rest) if rest else "New Task"
-        r = _session_api(port, "POST", "/api/session", {"title": title})
+        r = _session_api(port, "POST", "/api/sessions", {"title": title})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "delete":
         if not rest:
             print("Usage: --session delete <SID>")
             return
-        r = _session_api(port, "POST", "/api/delete",
-                         {"session_id": rest[0]})
+        r = _session_api(port, "DELETE", f"/api/session/{rest[0]}", {})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "clear":
-        r = _session_api(port, "POST", "/api/clear_all", {})
+        r = _session_api(port, "DELETE", "/api/sessions", {})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "cancel":
-        r = _session_api(port, "POST", "/api/cancel", {})
+        r = _session_api(port, "POST", "/api/session/default/cancel", {})
         print(json.dumps(r, ensure_ascii=False))
 
     else:
@@ -1516,19 +1515,33 @@ def _session_help(tool_name: str = "TOOL"):
     print(f"""
 Session Control (wraps GUI HTTP API)
 
-Usage:
+Sessions:
   {tool_name} --session list                         List sessions
-  {tool_name} --session state [SID]                  Show session state
-  {tool_name} --session history <SID> [--limit N]    Show event history
-  {tool_name} --session send <SID> "prompt"          Send a message
-  {tool_name} --session model <model_id>             Switch model (e.g. zhipu-glm-4.7-flash)
-  {tool_name} --session edits <SID>                  List edit blocks and states
-  {tool_name} --session accept <SID> <index>         Accept an edit hunk
-  {tool_name} --session revert <SID> <index>         Revert an edit hunk
-  {tool_name} --session accept-all <SID>             Accept all undecided hunks
-  {tool_name} --session revert-all <SID>             Revert all undecided hunks
   {tool_name} --session new [title]                  Create new session
   {tool_name} --session delete <SID>                 Delete session
   {tool_name} --session clear                        Delete all + create fresh
+
+Communication:
+  {tool_name} --session send <SID> "prompt"          Send a message
+  {tool_name} --session state [SID]                  Show session state
+  {tool_name} --session history <SID> [--limit N]    Show event history
   {tool_name} --session cancel                       Cancel running task
+
+Edit control:
+  {tool_name} --session edits <SID>                  List edit blocks
+  {tool_name} --session accept <SID> <index>         Accept a hunk
+  {tool_name} --session revert <SID> <index>         Revert a hunk
+  {tool_name} --session accept-all <SID>             Accept all undecided
+  {tool_name} --session revert-all <SID>             Revert all undecided
+
+Model:
+  {tool_name} --session model <model_id>             Switch model
+
+API paths:
+  GET    /api/sessions                   POST /api/sessions
+  GET    /api/session/<sid>/state        DELETE /api/session/<sid>
+  POST   /api/session/<sid>/send         GET  /api/session/<sid>/history
+  GET    /api/session/<sid>/edit         POST /api/session/<sid>/edit/<idx>
+  POST   /api/model/switch              GET  /api/model/list
+  POST   /api/key/{{validate,save,delete,states,reverify}}
 """)

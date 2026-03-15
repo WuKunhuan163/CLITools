@@ -153,6 +153,14 @@ class _SingleFileHandler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    def do_DELETE(self):
+        if self.path.startswith("/api/") and self._api_handler:
+            body = self._read_body()
+            result = self._api_handler("DELETE", self.path, body)
+            self._json_response(result)
+        else:
+            self.send_error(404)
+
     def _serve_sse(self):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")

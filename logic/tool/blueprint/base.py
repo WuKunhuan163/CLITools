@@ -1045,7 +1045,7 @@ class ToolBase:
 
         gui_api_cmds = {"list", "state", "history", "send", "model",
                         "edits", "accept", "revert", "accept-all",
-                        "revert-all", "new", "clear", "cancel"}
+                        "revert-all", "new", "delete", "clear", "cancel"}
         if subcmd in gui_api_cmds:
             from logic.agent.command import handle_session_command
             handle_session_command(filtered, self.tool_name)
@@ -1053,7 +1053,7 @@ class ToolBase:
             self._handle_agent(rest, mode=subcmd)
         elif subcmd == "checkout":
             self._handle_session_checkout(rest)
-        elif subcmd in ("delete", "clean"):
+        elif subcmd == "clean":
             self._handle_session_clean(rest)
         elif subcmd == "queue":
             self._handle_session_queue(rest)

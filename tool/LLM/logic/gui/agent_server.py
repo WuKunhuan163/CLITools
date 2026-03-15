@@ -8,28 +8,45 @@ Usage:
     server = start_agent_server(port=0)
     # → http://localhost:{port}/
 
-API Endpoints:
-    POST /api/send     {"session_id": "...", "text": "...", "turn_limit": 20}
-    POST /api/model    {"model": "zhipu-glm-4.7-flash"}
-    POST /api/session  {"title": "..."}
-    POST /api/rename   {"session_id": "...", "title": "..."}
-    POST /api/delete   {"session_id": "..."}
-    POST /api/clear_all  Delete all sessions & create a fresh one
-    GET  /api/session/<sid>/edit-blocks       List all edit blocks
-    POST /api/session/<sid>/edit-blocks/<idx> {"action":"accept"|"revert"}
-    GET  /api/session/<sid>/history          Session event history
-    POST /api/activate/<sid>  Set active session
-    GET  /api/sessions
-    GET  /api/state
-    GET  /api/usage
-    POST /api/input    {"session_id": "...", "text": "..."}
-                       Simulates typing into the input box then clicking send.
-                       The browser receives an 'inject_input' SSE event to
-                       animate the text appearing, then auto-submits.
-    POST /api/inject_event   {"session_id": "...", "event": {...}}
-                             Push a single event into the SSE stream + history.
-    POST /api/inject_events  {"session_id": "...", "events": [{...}, ...]}
-                             Push multiple events in order.
+RESTful API:
+
+  Sessions:
+    GET  /api/sessions                           List all sessions
+    POST /api/sessions                           Create new session
+    DELETE /api/sessions                          Clear all + create fresh
+
+  Session (per-session):
+    GET  /api/session/<sid>/state                 Session state
+    GET  /api/session/<sid>/history               Event history
+    POST /api/session/<sid>/send                  Send message
+    POST /api/session/<sid>/cancel                Cancel running task
+    POST /api/session/<sid>/rename                Rename session
+    POST /api/session/<sid>/activate              Set as active
+    DELETE /api/session/<sid>                      Delete session
+    POST /api/session/<sid>/input                 Inject user input (GUI animation)
+    POST /api/session/<sid>/inject                Inject single SSE event
+    POST /api/session/<sid>/inject-batch          Inject multiple SSE events
+
+  Edit blocks (per-session):
+    GET  /api/session/<sid>/edit                  List edit blocks
+    POST /api/session/<sid>/edit/<idx>            Accept/revert hunk
+
+  Model:
+    GET  /api/model/list                          Configured models
+    POST /api/model/switch                        Switch model
+
+  Keys:
+    POST /api/key/validate                        Validate API key
+    POST /api/key/save                            Save API key
+    POST /api/key/delete                          Delete API key
+    POST /api/key/states                          Get key states
+    POST /api/key/reverify                        Reverify a key
+
+  System:
+    GET  /api/state                               Full system state
+    GET  /api/usage                               Usage data
+
+  Legacy aliases preserved for frontend compatibility.
 """
 import json
 import os
@@ -284,309 +301,385 @@ class AgentServer:
                 pending_tool = None
 
     def _api_handler(self, method: str, path: str, body: Optional[dict]) -> dict:
-        """Route API requests to ConversationManager methods."""
+        """Route API requests — RESTful paths with legacy aliases."""
         path = path.split("?")[0]
-
+        body = body or {}
         import re as _re
 
-        # RESTful: /api/session/<sid>/edit-blocks[/<idx>]
-        _eb_match = _re.match(r'/api/session/([^/]+)/edit-blocks(?:/(\d+))?$', path)
-        if _eb_match:
-            sid = _eb_match.group(1)
-            idx = _eb_match.group(2)
-            if method == "GET" and idx is None:
-                return self._list_edit_blocks(sid)
-            elif method == "POST" and idx is not None:
-                action = (body or {}).get("action", "accept")
-                if action == "revert":
-                    return self._revert_hunk({"session_id": sid, "hunk_index": int(idx)})
-                else:
-                    return self._accept_hunk({"session_id": sid, "hunk_index": int(idx)})
+        # ── /api/session/<sid>/... ──────────────────────────────
+        _ses_match = _re.match(r'/api/session/([^/]+)(?:/(.+))?$', path)
+        if _ses_match:
+            sid = _ses_match.group(1)
+            if sid == "default":
+                sid = self._default_session_id or ""
+            sub = (_ses_match.group(2) or "").strip("/")
+            return self._route_session(method, sid, sub, body)
 
-        # RESTful: /api/session/<sid>/history
-        _hist_match = _re.match(r'/api/session/([^/]+)/history$', path)
-        if _hist_match and method == "GET":
-            sid = _hist_match.group(1)
-            events = self._event_history.get(sid, [])
-            return {"ok": True, "events": events}
-
-        if method == "GET":
-            if path == "/api/sessions":
+        # ── /api/sessions ──────────────────────────────────────
+        if path == "/api/sessions":
+            if method == "GET":
                 return {"ok": True, "sessions": self._mgr.list_sessions()}
-            elif path == "/api/state":
-                return {"ok": True, "state": self._mgr.get_state()}
-            elif path == "/api/usage":
-                return {"ok": True, "usage": self._get_usage_data()}
-            elif path.startswith("/api/history/"):
-                sid = path.split("/api/history/")[1].strip("/")
-                events = self._event_history.get(sid, [])
-                return {"ok": True, "events": events}
-            elif path == "/api/configured_models":
-                return self._get_configured_models()
-            elif path == "/api/session_config":
-                return self._get_session_config()
-            elif path == "/api/currencies":
-                return self._get_currencies()
-            return {"ok": False, "error": "Unknown endpoint"}
+            elif method == "POST":
+                return self._api_create_session(body)
+            elif method == "DELETE":
+                return self._api_clear_all()
 
+        # ── /api/model/... ─────────────────────────────────────
+        if path == "/api/model/list" or path == "/api/configured_models":
+            return self._get_configured_models()
+        if path in ("/api/model/switch", "/api/model"):
+            return self._api_switch_model(body)
+
+        # ── /api/key/... ───────────────────────────────────────
+        if path in ("/api/key/validate", "/api/validate-key"):
+            return self._api_validate_key(body)
+        if path in ("/api/key/save", "/api/save-key"):
+            return self._api_save_key(body)
+        if path in ("/api/key/delete", "/api/delete-key"):
+            return self._api_delete_key(body)
+        if path in ("/api/key/states", "/api/key-states"):
+            return self._api_key_states(body)
+        if path in ("/api/key/reverify", "/api/reverify-key"):
+            return self._api_reverify_key(body)
+
+        # ── System ─────────────────────────────────────────────
+        if path == "/api/state":
+            return {"ok": True, "state": self._mgr.get_state()}
+        if path == "/api/usage":
+            return {"ok": True, "usage": self._get_usage_data()}
+        if path == "/api/session_config" and method == "GET":
+            return self._get_session_config()
+        if path == "/api/currencies":
+            return self._get_currencies()
+
+        # ── Legacy aliases (frontend compatibility) ────────────
         if method == "POST":
-            body = body or {}
-
             if path == "/api/send":
                 if body.get("_config"):
                     return self._save_session_config(body.get("key"), body.get("value"))
                 sid = body.get("session_id") or self._default_session_id
-                text = (body.get("text") or body.get("prompt") or "").strip()
-                if not sid:
-                    return {"ok": False, "error": "No active session"}
-                if not text:
-                    return {"ok": False, "error": "Empty message"}
-                session = self._mgr.get_session(sid)
-                if not session:
-                    return {"ok": False, "error": f"Session {sid} not found"}
-                context_feed = body.get("context_feed")
-                raw_tl = body.get("turn_limit")
-                turn_limit = int(raw_tl) if raw_tl is not None else -1
-                self._mgr.send_message(sid, text, blocking=False,
-                                       context_feed=context_feed,
-                                       turn_limit=turn_limit)
-                return {"ok": True, "session_id": sid}
-
-            elif path == "/api/input":
+                return self._api_send(sid, body)
+            if path == "/api/input":
                 sid = body.get("session_id") or self._default_session_id
-                text = body.get("text", "").strip()
-                if not sid or not text:
-                    return {"ok": False, "error": "Missing session_id or text"}
-                self._push_sse({
-                    "type": "inject_input",
-                    "session_id": sid,
-                    "text": text,
-                })
-                return {"ok": True, "session_id": sid}
-
-            elif path == "/api/model":
-                model = body.get("model", "").strip()
-                if not model:
-                    return {"ok": False, "error": "Missing model"}
-                try:
-                    from tool.LLM.logic.registry import get_provider
-                    provider = get_provider(model)
-                    if not provider.is_available():
-                        return {"ok": False, "error": f"Model {model} is not available"}
-                except Exception as e:
-                    return {"ok": False, "error": str(e)}
-                old_model = self._mgr._provider_name
-                self._mgr._provider_name = model
-                self.provider_name = model
-                self._push_sse({
-                    "type": "model_switched",
-                    "from": old_model,
-                    "to": model,
-                })
-                return {"ok": True, "model": model}
-
-            elif path == "/api/session":
-                title = body.get("title", "New Task")
-                codebase = body.get("codebase_root")
-                mode = body.get("mode", "agent")
-                sid = self._mgr.new_session(
-                    title=title, codebase_root=codebase, mode=mode)
-                self._default_session_id = sid
-
-                pre_events = body.get("events", [])
-                if pre_events:
-                    if sid not in self._event_history:
-                        self._event_history[sid] = []
-                    for evt in pre_events:
-                        evt["session_id"] = sid
-                        for k, v in list(evt.items()):
-                            if v == "__SID__":
-                                evt[k] = sid
-                        self._event_history[sid].append(evt)
-                        if evt.get("type") == "session_status":
-                            s = self._mgr.get_session(sid)
-                            if s:
-                                s.status = evt.get("status", s.status)
-
-                self_operate = body.get("self_operate", False)
-                self._push_sse({
-                    "type": "session_created",
-                    "id": sid,
-                    "title": title,
-                    "mode": mode,
-                    "self_operate": self_operate,
-                })
-
-                for evt in pre_events:
-                    self._push_sse(evt)
-
-                return {"ok": True, "session_id": sid}
-
-            elif path == "/api/rename":
-                sid = body.get("session_id", "")
-                title = body.get("title", "")
-                if sid and title:
-                    self._mgr.rename_session(sid, title)
-                    return {"ok": True}
-                return {"ok": False, "error": "Missing session_id or title"}
-
-            elif path == "/api/delete":
-                sid = body.get("session_id", "")
-                if sid:
-                    self._mgr.delete_session(sid)
-                    if sid in self._event_history:
-                        del self._event_history[sid]
-                    remaining = self._mgr.list_sessions()
-                    self._default_session_id = remaining[-1]["id"] if remaining else None
-                    self._push_sse({"type": "session_deleted", "id": sid})
-                    return {"ok": True}
-                return {"ok": False, "error": "Missing session_id"}
-
-            elif path == "/api/clear_all":
-                sessions = self._mgr.list_sessions()
-                deleted = 0
-                for s in sessions:
-                    sid = s["id"]
-                    self._mgr.delete_session(sid)
-                    if sid in self._event_history:
-                        del self._event_history[sid]
-                    self._push_sse({"type": "session_deleted", "id": sid})
-                    deleted += 1
-                self._default_session_id = None
-                new_sid = self._mgr.new_session(title="New Task")
-                self._default_session_id = new_sid
-                self._push_sse({"type": "session_created", "id": new_sid,
-                                "title": "New Task"})
-                return {"ok": True, "deleted": deleted, "new_session": new_sid}
-
-            elif path.startswith("/api/activate/"):
+                return self._api_input(sid, body)
+            if path == "/api/session":
+                return self._api_create_session(body)
+            if path == "/api/rename":
+                return self._api_rename(body.get("session_id", ""), body)
+            if path == "/api/delete":
+                return self._api_delete_session(body.get("session_id", ""))
+            if path == "/api/clear_all":
+                return self._api_clear_all()
+            if path.startswith("/api/activate/"):
                 sid = path.split("/api/activate/")[1].strip("/")
-                session = self._mgr.get_session(sid)
-                if not session:
-                    return {"ok": False, "error": f"Session {sid} not found"}
-                self._mgr.set_active(sid)
-                self._default_session_id = sid
-                return {"ok": True, "session_id": sid,
-                        "title": session.title, "status": session.status}
-
-            elif path == "/api/cancel":
-                self._mgr.cancel_current()
-                return {"ok": True}
-
-            elif path == "/api/validate-key":
-                vendor = body.get("vendor", "").strip()
-                key = body.get("key", "").strip()
-                if not vendor or not key:
-                    return {"ok": False, "error": "Missing vendor or key"}
-                return self._validate_api_key(vendor, key)
-
-            elif path == "/api/save-key":
-                vendor = body.get("vendor", "").strip()
-                key = body.get("key", "").strip()
-                if not vendor or not key:
-                    return {"ok": False, "error": "Missing vendor or key"}
-                from tool.LLM.logic.config import set_config_value
-                set_config_value(f"{vendor}_api_key", key)
-                self._push_sse({"type": "settings_changed", "action": "key_saved", "vendor": vendor})
-                return {"ok": True}
-
-            elif path == "/api/delete-key":
-                vendor = body.get("vendor", "").strip()
-                if not vendor:
-                    return {"ok": False, "error": "Missing vendor"}
-                from tool.LLM.logic.config import set_config_value
-                set_config_value(f"{vendor}_api_key", "")
-                self._push_sse({"type": "settings_changed", "action": "key_deleted", "vendor": vendor})
-                return {"ok": True}
-
-            elif path == "/api/key-states":
-                vendor = body.get("vendor", "").strip()
-                if not vendor:
-                    return {"ok": False, "error": "Missing vendor"}
-                from tool.LLM.logic.key_state import get_selector
-                sel = get_selector(vendor)
-                return {"ok": True, "states": sel.get_all_states(),
-                        "has_usable": sel.has_usable_keys(),
-                        "active_count": sel.get_active_count()}
-
-            elif path == "/api/reverify-key":
-                vendor = body.get("vendor", "").strip()
-                key_id = body.get("key_id", "").strip()
-                if not vendor or not key_id:
-                    return {"ok": False, "error": "Missing vendor or key_id"}
-                from tool.LLM.logic.key_state import get_selector
-                sel = get_selector(vendor)
-                result = sel.reverify(key_id)
-                if result.get("ok"):
-                    self._push_sse({"type": "settings_changed",
-                                    "action": "key_reverified", "vendor": vendor,
-                                    "key_id": key_id})
-                return result
-
-            elif path == "/api/revert-hunk":
+                return self._api_activate(sid)
+            if path == "/api/cancel":
+                sid = body.get("session_id") or self._default_session_id
+                return self._api_cancel(sid or "")
+            if path == "/api/revert-hunk":
                 return self._revert_hunk(body)
-
-            elif path == "/api/accept-hunk":
+            if path == "/api/accept-hunk":
                 return self._accept_hunk(body)
-
-            elif path == "/api/edit-blocks":
+            if path == "/api/edit-blocks":
                 sid = body.get("session_id") or self._default_session_id
                 return self._list_edit_blocks(sid)
-
-            elif path == "/api/queue":
+            if path == "/api/queue":
                 sid = body.get("session_id") or self._default_session_id
-                action = body.get("action", "list")
-                if not sid:
-                    return {"ok": False, "error": "No active session"}
-                if action == "list":
-                    queue = self._mgr.get_task_queue(sid)
-                    return {"ok": True, "queue": [
-                        {"text": t.get("text", "")[:100]} for t in queue
-                    ]}
-                elif action == "clear":
-                    count = self._mgr.clear_task_queue(sid)
-                    return {"ok": True, "cleared": count}
-                return {"ok": False, "error": f"Unknown queue action: {action}"}
-
-            elif path == "/api/inject_event":
+                return self._api_queue(sid, body)
+            if path == "/api/inject_event":
                 sid = body.get("session_id") or self._default_session_id
-                event = body.get("event")
-                if not sid:
-                    return {"ok": False, "error": "No active session"}
-                if not event or not isinstance(event, dict):
-                    return {"ok": False, "error": "Missing or invalid event"}
-                event["session_id"] = sid
-                if sid not in self._event_history:
-                    self._event_history[sid] = []
-                self._event_history[sid].append(event)
-                if event.get("type") == "session_status":
+                return self._api_inject_event(sid, body)
+            if path == "/api/inject_events":
+                sid = body.get("session_id") or self._default_session_id
+                return self._api_inject_events(sid, body)
+
+        if method == "GET":
+            if path.startswith("/api/history/"):
+                sid = path.split("/api/history/")[1].strip("/")
+                events = self._event_history.get(sid, [])
+                return {"ok": True, "events": events}
+
+        return {"ok": False, "error": f"Unknown endpoint: {method} {path}"}
+
+    def _route_session(self, method: str, sid: str, sub: str, body: dict) -> dict:
+        """Route /api/session/<sid>/<sub> requests."""
+        import re as _re
+
+        if not sub:
+            if method == "GET":
+                return self._api_session_state(sid)
+            elif method == "DELETE":
+                return self._api_delete_session(sid)
+
+        if sub == "state":
+            return self._api_session_state(sid)
+        if sub == "history":
+            events = self._event_history.get(sid, [])
+            return {"ok": True, "events": events}
+        if sub == "send":
+            return self._api_send(sid, body)
+        if sub == "cancel":
+            return self._api_cancel(sid)
+        if sub == "rename":
+            return self._api_rename(sid, body)
+        if sub == "activate":
+            return self._api_activate(sid)
+        if sub == "input":
+            return self._api_input(sid, body)
+        if sub == "inject":
+            return self._api_inject_event(sid, body)
+        if sub == "inject-batch":
+            return self._api_inject_events(sid, body)
+        if sub == "queue":
+            return self._api_queue(sid, body)
+
+        # /api/session/<sid>/edit[/<idx>]
+        _edit_m = _re.match(r'edit(?:/(\d+))?$', sub)
+        if _edit_m:
+            idx = _edit_m.group(1)
+            if method == "GET" and idx is None:
+                return self._list_edit_blocks(sid)
+            elif method == "POST" and idx is not None:
+                action = body.get("action", "accept")
+                if action == "revert":
+                    return self._revert_hunk({"session_id": sid, "hunk_index": int(idx)})
+                return self._accept_hunk({"session_id": sid, "hunk_index": int(idx)})
+
+        # Legacy: edit-blocks[/<idx>]
+        _eb_m = _re.match(r'edit-blocks(?:/(\d+))?$', sub)
+        if _eb_m:
+            idx = _eb_m.group(1)
+            if method == "GET" and idx is None:
+                return self._list_edit_blocks(sid)
+            elif method == "POST" and idx is not None:
+                action = body.get("action", "accept")
+                if action == "revert":
+                    return self._revert_hunk({"session_id": sid, "hunk_index": int(idx)})
+                return self._accept_hunk({"session_id": sid, "hunk_index": int(idx)})
+
+        return {"ok": False, "error": f"Unknown session endpoint: {sub}"}
+
+    # ── API Implementation Methods ───────────────────────────────
+
+    def _api_session_state(self, sid: str) -> dict:
+        session = self._mgr.get_session(sid)
+        if not session:
+            return {"ok": False, "error": f"Session {sid} not found"}
+        return {"ok": True, "id": sid, "title": session.title,
+                "status": session.status,
+                "message_count": len(getattr(session, 'messages', []))}
+
+    def _api_send(self, sid: str, body: dict) -> dict:
+        text = (body.get("text") or body.get("prompt") or "").strip()
+        if not sid:
+            return {"ok": False, "error": "No active session"}
+        if not text:
+            return {"ok": False, "error": "Empty message"}
+        session = self._mgr.get_session(sid)
+        if not session:
+            return {"ok": False, "error": f"Session {sid} not found"}
+        context_feed = body.get("context_feed")
+        raw_tl = body.get("turn_limit")
+        turn_limit = int(raw_tl) if raw_tl is not None else -1
+        self._mgr.send_message(sid, text, blocking=False,
+                               context_feed=context_feed,
+                               turn_limit=turn_limit)
+        return {"ok": True, "session_id": sid}
+
+    def _api_input(self, sid: str, body: dict) -> dict:
+        text = body.get("text", "").strip()
+        if not sid or not text:
+            return {"ok": False, "error": "Missing session_id or text"}
+        self._push_sse({"type": "inject_input", "session_id": sid, "text": text})
+        return {"ok": True, "session_id": sid}
+
+    def _api_switch_model(self, body: dict) -> dict:
+        model = body.get("model", "").strip()
+        if not model:
+            return {"ok": False, "error": "Missing model"}
+        try:
+            from tool.LLM.logic.registry import get_provider
+            provider = get_provider(model)
+            if not provider.is_available():
+                return {"ok": False, "error": f"Model {model} is not available"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        old_model = self._mgr._provider_name
+        self._mgr._provider_name = model
+        self.provider_name = model
+        self._push_sse({"type": "model_switched", "from": old_model, "to": model})
+        return {"ok": True, "model": model}
+
+    def _api_create_session(self, body: dict) -> dict:
+        title = body.get("title", "New Task")
+        codebase = body.get("codebase_root")
+        mode = body.get("mode", "agent")
+        sid = self._mgr.new_session(title=title, codebase_root=codebase, mode=mode)
+        self._default_session_id = sid
+        pre_events = body.get("events", [])
+        if pre_events:
+            if sid not in self._event_history:
+                self._event_history[sid] = []
+            for evt in pre_events:
+                evt["session_id"] = sid
+                for k, v in list(evt.items()):
+                    if v == "__SID__":
+                        evt[k] = sid
+                self._event_history[sid].append(evt)
+                if evt.get("type") == "session_status":
                     s = self._mgr.get_session(sid)
                     if s:
-                        s.status = event.get("status", s.status)
-                self._push_sse(event)
-                self._maybe_record_injected_round(sid, event)
-                return {"ok": True}
+                        s.status = evt.get("status", s.status)
+        self_operate = body.get("self_operate", False)
+        self._push_sse({"type": "session_created", "id": sid, "title": title,
+                        "mode": mode, "self_operate": self_operate})
+        for evt in pre_events:
+            self._push_sse(evt)
+        return {"ok": True, "session_id": sid}
 
-            elif path == "/api/inject_events":
-                sid = body.get("session_id") or self._default_session_id
-                events = body.get("events", [])
-                if not sid:
-                    return {"ok": False, "error": "No active session"}
-                if not isinstance(events, list):
-                    return {"ok": False, "error": "events must be a list"}
-                if sid not in self._event_history:
-                    self._event_history[sid] = []
-                for evt in events:
-                    if isinstance(evt, dict):
-                        evt["session_id"] = sid
-                        self._event_history[sid].append(evt)
-                        self._push_sse(evt)
-                        self._maybe_record_injected_round(sid, evt)
-                return {"ok": True, "count": len(events)}
+    def _api_rename(self, sid: str, body: dict) -> dict:
+        title = body.get("title", "")
+        if sid and title:
+            self._mgr.rename_session(sid, title)
+            return {"ok": True}
+        return {"ok": False, "error": "Missing session_id or title"}
 
-            return {"ok": False, "error": "Unknown endpoint"}
+    def _api_delete_session(self, sid: str) -> dict:
+        if not sid:
+            return {"ok": False, "error": "Missing session_id"}
+        self._mgr.delete_session(sid)
+        if sid in self._event_history:
+            del self._event_history[sid]
+        remaining = self._mgr.list_sessions()
+        self._default_session_id = remaining[-1]["id"] if remaining else None
+        self._push_sse({"type": "session_deleted", "id": sid})
+        return {"ok": True}
 
-        return {"ok": False, "error": "Method not allowed"}
+    def _api_clear_all(self) -> dict:
+        sessions = self._mgr.list_sessions()
+        deleted = 0
+        for s in sessions:
+            sid = s["id"]
+            self._mgr.delete_session(sid)
+            if sid in self._event_history:
+                del self._event_history[sid]
+            self._push_sse({"type": "session_deleted", "id": sid})
+            deleted += 1
+        self._default_session_id = None
+        new_sid = self._mgr.new_session(title="New Task")
+        self._default_session_id = new_sid
+        self._push_sse({"type": "session_created", "id": new_sid, "title": "New Task"})
+        return {"ok": True, "deleted": deleted, "new_session": new_sid}
+
+    def _api_activate(self, sid: str) -> dict:
+        session = self._mgr.get_session(sid)
+        if not session:
+            return {"ok": False, "error": f"Session {sid} not found"}
+        self._mgr.set_active(sid)
+        self._default_session_id = sid
+        return {"ok": True, "session_id": sid,
+                "title": session.title, "status": session.status}
+
+    def _api_cancel(self, sid: str) -> dict:
+        self._mgr.cancel_current()
+        return {"ok": True}
+
+    def _api_validate_key(self, body: dict) -> dict:
+        vendor = body.get("vendor", "").strip()
+        key = body.get("key", "").strip()
+        if not vendor or not key:
+            return {"ok": False, "error": "Missing vendor or key"}
+        return self._validate_api_key(vendor, key)
+
+    def _api_save_key(self, body: dict) -> dict:
+        vendor = body.get("vendor", "").strip()
+        key = body.get("key", "").strip()
+        if not vendor or not key:
+            return {"ok": False, "error": "Missing vendor or key"}
+        from tool.LLM.logic.config import set_config_value
+        set_config_value(f"{vendor}_api_key", key)
+        self._push_sse({"type": "settings_changed", "action": "key_saved", "vendor": vendor})
+        return {"ok": True}
+
+    def _api_delete_key(self, body: dict) -> dict:
+        vendor = body.get("vendor", "").strip()
+        if not vendor:
+            return {"ok": False, "error": "Missing vendor"}
+        from tool.LLM.logic.config import set_config_value
+        set_config_value(f"{vendor}_api_key", "")
+        self._push_sse({"type": "settings_changed", "action": "key_deleted", "vendor": vendor})
+        return {"ok": True}
+
+    def _api_key_states(self, body: dict) -> dict:
+        vendor = body.get("vendor", "").strip()
+        if not vendor:
+            return {"ok": False, "error": "Missing vendor"}
+        from tool.LLM.logic.key_state import get_selector
+        sel = get_selector(vendor)
+        return {"ok": True, "states": sel.get_all_states(),
+                "has_usable": sel.has_usable_keys(),
+                "active_count": sel.get_active_count()}
+
+    def _api_reverify_key(self, body: dict) -> dict:
+        vendor = body.get("vendor", "").strip()
+        key_id = body.get("key_id", "").strip()
+        if not vendor or not key_id:
+            return {"ok": False, "error": "Missing vendor or key_id"}
+        from tool.LLM.logic.key_state import get_selector
+        sel = get_selector(vendor)
+        result = sel.reverify(key_id)
+        if result.get("ok"):
+            self._push_sse({"type": "settings_changed",
+                            "action": "key_reverified", "vendor": vendor,
+                            "key_id": key_id})
+        return result
+
+    def _api_queue(self, sid: str, body: dict) -> dict:
+        action = body.get("action", "list")
+        if not sid:
+            return {"ok": False, "error": "No active session"}
+        if action == "list":
+            queue = self._mgr.get_task_queue(sid)
+            return {"ok": True, "queue": [
+                {"text": t.get("text", "")[:100]} for t in queue]}
+        elif action == "clear":
+            count = self._mgr.clear_task_queue(sid)
+            return {"ok": True, "cleared": count}
+        return {"ok": False, "error": f"Unknown queue action: {action}"}
+
+    def _api_inject_event(self, sid: str, body: dict) -> dict:
+        event = body.get("event")
+        if not sid:
+            return {"ok": False, "error": "No active session"}
+        if not event or not isinstance(event, dict):
+            return {"ok": False, "error": "Missing or invalid event"}
+        event["session_id"] = sid
+        if sid not in self._event_history:
+            self._event_history[sid] = []
+        self._event_history[sid].append(event)
+        if event.get("type") == "session_status":
+            s = self._mgr.get_session(sid)
+            if s:
+                s.status = event.get("status", s.status)
+        self._push_sse(event)
+        self._maybe_record_injected_round(sid, event)
+        return {"ok": True}
+
+    def _api_inject_events(self, sid: str, body: dict) -> dict:
+        events = body.get("events", [])
+        if not sid:
+            return {"ok": False, "error": "No active session"}
+        if not isinstance(events, list):
+            return {"ok": False, "error": "events must be a list"}
+        if sid not in self._event_history:
+            self._event_history[sid] = []
+        for evt in events:
+            if isinstance(evt, dict):
+                evt["session_id"] = sid
+                self._event_history[sid].append(evt)
+                self._push_sse(evt)
+                self._maybe_record_injected_round(sid, evt)
+        return {"ok": True, "count": len(events)}
 
     @staticmethod
     def _validate_api_key(vendor: str, key: str) -> dict:
