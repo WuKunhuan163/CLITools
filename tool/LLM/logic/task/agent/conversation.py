@@ -959,11 +959,6 @@ class ConversationManager:
         except Exception:
             args = {}
 
-        if name == "write_file":
-            name = "edit_file"
-            args = {"path": args.get("path", ""), "old_text": "",
-                    "new_text": args.get("content", "")}
-
         sid = self._current_turn_session_id or ""
         session = self._sessions.get(sid)
         session_mode = getattr(session, 'mode', 'agent') if session else 'agent'
@@ -1758,9 +1753,6 @@ class ConversationManager:
             _elapsed_s = round(time.time() - _turn_t0)
             self._emit_file_summary()
             if _was_cancelled:
-                self._emit({"type": "notice", "level": "info",
-                            "text": "Task cancelled by user",
-                            "icon": "bx-stop-circle"})
                 self._emit({"type": "complete", "reason": "cancelled",
                             "round": round_num, "elapsed_s": _elapsed_s})
             elif turn_limit > 0 and round_num >= turn_limit:
@@ -1769,12 +1761,15 @@ class ConversationManager:
                             "elapsed_s": _elapsed_s})
             else:
                 self._emit({"type": "complete", "elapsed_s": _elapsed_s})
+            _done_reason = "cancelled" if _was_cancelled else (
+                "round_limit" if (turn_limit > 0 and round_num >= turn_limit) else "done")
             self._fire_hook("on_turn_end",
                             session_id=session_id, round_count=round_num,
                             tool_calls_count=len(_tool_call_history),
-                            status="cancelled" if _was_cancelled else "completed")
+                            status=_done_reason)
             session.status = "done"
-            self._emit({"type": "session_status", "id": session_id, "status": "done"})
+            self._emit({"type": "session_status", "id": session_id,
+                        "status": "done", "reason": _done_reason})
             self._persist_session(session_id)
 
             if auto_title:
@@ -1794,7 +1789,8 @@ class ConversationManager:
                             round_count=getattr(self, '_current_round', 0),
                             tool_calls_count=0, status="error")
             session.status = "done"
-            self._emit({"type": "session_status", "id": session_id, "status": "done"})
+            self._emit({"type": "session_status", "id": session_id,
+                        "status": "done", "reason": "error"})
             self._persist_session(session_id)
 
     def _generate_title_async(self, session_id: str, user_msg: str, assistant_msg: str):

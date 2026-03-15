@@ -582,9 +582,10 @@ class AgentGUIEngine {
     if (this._onSessionChange) this._onSessionChange('delete', { id });
   }
 
-  setSessionStatus(id, status) {
+  setSessionStatus(id, status, reason) {
     if (!this.sessions[id]) return;
     this.sessions[id].status = status;
+    if (reason) this.sessions[id].doneReason = reason;
     this._refreshSessions();
   }
 
@@ -612,13 +613,21 @@ class AgentGUIEngine {
       if (s.status === 'running') {
         dotIcon = '<div class="spinner spinner-sm" style="border-top-color:var(--green)"></div>';
       } else if (s.status === 'done') {
-        dotIcon = '<i class="bx bxs-check-circle"></i>';
+        const r = s.doneReason || '';
+        if (r === 'cancelled' || r === 'error') {
+          dotIcon = '<i class="bx bx-x-circle"></i>';
+        } else if (r === 'round_limit') {
+          dotIcon = '<i class="bx bx-error-circle"></i>';
+        } else {
+          dotIcon = '<i class="bx bxs-check-circle"></i>';
+        }
       } else {
         dotIcon = '<i class="bx bx-circle"></i>';
       }
 
+      const dotCls = s.status + (s.status === 'done' && s.doneReason ? '-' + s.doneReason : '');
       div.innerHTML =
-        '<div class="session-dot ' + esc(s.status) + '">' + dotIcon + '</div>'
+        '<div class="session-dot ' + esc(dotCls) + '">' + dotIcon + '</div>'
         + '<div class="session-title-text" data-sid="' + esc(s.id) + '">' + esc(s.title) + '</div>'
         + '<div class="session-actions">'
         + '<button class="session-act-btn" title="Rename" data-action="rename"><i class="bx bx-pencil"></i></button>'
@@ -1128,6 +1137,18 @@ class AgentGUIEngine {
     this._modifiedFiles = [];
     this.clearAllTrackers();
     const reason = evt.reason || 'done';
+    this._lastCompleteReason = reason;
+
+    if (this._llmRequestEl) {
+      const spinner = this._llmRequestEl.querySelector('.model-spinner');
+      if (spinner) {
+        if (reason === 'cancelled' || reason === 'error') {
+          spinner.outerHTML = '<i class="bx bx-x-circle" style="color:var(--red);font-size:14px;"></i>';
+        } else {
+          spinner.style.display = 'none';
+        }
+      }
+    }
 
     let elapsed = evt.elapsed_s || 0;
     if (!elapsed && this._taskStartTime) {
@@ -1139,7 +1160,7 @@ class AgentGUIEngine {
 
     let icon, label, cls;
     if (reason === 'cancelled') {
-      icon = '<i class="bx bx-stop-circle" style="font-size:14px;"></i>';
+      icon = '<i class="bx bx-x-circle" style="font-size:14px;"></i>';
       label = 'Task cancelled by user';
       cls = 'task-complete task-cancelled';
     } else if (reason === 'error') {
@@ -1303,19 +1324,31 @@ class AgentGUIEngine {
     const model = evt.model || '';
     this._currentProvider = provider;
     this._currentRound = round;
+    this._pendingLLMModel = model;
+    this._pendingLLMOpts = { self_operate: evt.self_operate, env: evt.env, self_name: evt.self_name };
     if (evt.self_operate) this._selfOperate = true;
     if (!this._taskStartTime) this._taskStartTime = Date.now();
     this._llmRequestEl = this._createModelInfoEl(provider, round, model, {
       self_operate: evt.self_operate,
       env: evt.env,
       self_name: evt.self_name,
+      waiting: true,
     });
+    this._llmConnected = false;
     this.chatArea.appendChild(this._llmRequestEl);
     if (typeof _adaptLogoBrightness === 'function') _adaptLogoBrightness();
     return sleep(100);
   }
 
   _renderLLMResponseStart(evt) {
+    if (this._llmRequestEl && !this._llmConnected) {
+      this._llmConnected = true;
+      const nameEl = this._llmRequestEl.querySelector('.model-name');
+      if (nameEl) {
+        const waitSuffix = nameEl.querySelector('.model-waiting');
+        if (waitSuffix) waitSuffix.remove();
+      }
+    }
     if (this._llmRequestEl) {
       const spinner = this._llmRequestEl.querySelector('.model-spinner');
       if (spinner) spinner.style.display = '';
@@ -1482,7 +1515,11 @@ class AgentGUIEngine {
     } else if (opts.self_operate) {
       html += '<i class="bx bx-bot model-info-icon"></i>';
     }
-    html += '<span class="model-name">' + esc(name) + '</span>';
+    html += '<span class="model-name">' + esc(name);
+    if (opts.waiting) {
+      html += ' <span class="model-waiting" style="color:var(--text-3);font-weight:400;font-size:12px;">\u00b7 Connecting\u2026</span>';
+    }
+    html += '</span>';
     html += '<span class="model-sep">\u00b7</span><div class="spinner spinner-sm model-spinner"></div><span class="model-latency"></span>';
     div.innerHTML = html;
     return div;
