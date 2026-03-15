@@ -409,6 +409,7 @@ class AgentServer:
                     if s:
                         s.status = event.get("status", s.status)
                 self._push_sse(event)
+                self._maybe_record_injected_round(sid, event)
                 return {"ok": True}
 
             elif path == "/api/inject_events":
@@ -425,6 +426,7 @@ class AgentServer:
                         evt["session_id"] = sid
                         self._event_history[sid].append(evt)
                         self._push_sse(evt)
+                        self._maybe_record_injected_round(sid, evt)
                 return {"ok": True, "count": len(events)}
 
             return {"ok": False, "error": "Unknown endpoint"}
@@ -460,6 +462,33 @@ class AgentServer:
     def _push_sse(self, evt: dict):
         if self._server:
             self._server.push_event(evt)
+
+    def _maybe_record_injected_round(self, sid: str, evt: dict):
+        """Record round data in round_store for injected events (self-operate)."""
+        if evt.get("type") != "llm_response_end":
+            return
+        round_num = evt.get("round", 0)
+        if not round_num:
+            return
+        history = self._event_history.get(sid, [])
+        input_parts = []
+        output_text = evt.get("_full_text", "")
+        for h in history:
+            if h.get("type") == "user":
+                input_parts.append(h.get("prompt", h.get("text", "")))
+            elif h.get("type") == "llm_request" and h.get("round") == round_num:
+                feed = h.get("context_feed")
+                if feed:
+                    input_parts.append(json.dumps(feed, ensure_ascii=False, indent=1))
+        if not output_text:
+            for h in history:
+                if h.get("type") == "text" and not h.get("_recorded"):
+                    output_text += h.get("tokens", "")
+        self._round_store.record_round(
+            sid, round_num,
+            input_tokens="\n\n---\n\n".join(input_parts) if input_parts else "",
+            output_tokens=output_text,
+        )
 
     def _on_mgr_event(self, evt: dict):
         """Forward ConversationManager events to SSE, track usage, and store history."""

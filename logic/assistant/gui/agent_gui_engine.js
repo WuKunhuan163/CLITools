@@ -1077,7 +1077,7 @@ class AgentGUIEngine {
         : (usage.cost != null ? (this._costCurrency || '$') + usage.cost.toFixed(4) : '$0.00');
       const latLabel = evt.latency_s ? evt.latency_s + 's' : '';
       let ctxLabel = '';
-      if (ctxTokens > 0) {
+      if (!isSelfOperate && ctxTokens > 0) {
         const ctxStr = ctxTokens >= 1000 ? (ctxTokens / 1000).toFixed(1) + 'k' : String(ctxTokens);
         if (this._maxContextTokens && this._maxContextTokens > 0) {
           const pct = ((ctxTokens / this._maxContextTokens) * 100).toFixed(1);
@@ -1140,7 +1140,7 @@ class AgentGUIEngine {
         <tr><td>Output Tokens</td><td class="token-link" data-type="output" data-round="${data.round}">${data.output_tokens.toLocaleString()}</td></tr>
         <tr><td>Total Tokens</td><td class="token-link" data-type="context" data-round="${data.round}">${data.total_tokens.toLocaleString()}</td></tr>
         <tr><td>Latency</td><td>${data.latency_s}s</td></tr>
-        <tr><td>Cost</td><td>${(this._costCurrency || '$') + data.cost.toFixed(6)}</td></tr>
+        ${this._selfOperate ? '' : `<tr><td>Cost</td><td>${(this._costCurrency || '$') + data.cost.toFixed(6)}</td></tr>`}
         <tr><td>Time</td><td>${new Date(data.timestamp).toLocaleTimeString()}</td></tr>
         ${u.prompt_tokens_details ? `<tr><td>Prompt Details</td><td><pre style="margin:0;font-size:11px;">${esc(JSON.stringify(u.prompt_tokens_details, null, 2))}</pre></td></tr>` : ''}
         ${u.completion_tokens_details ? `<tr><td>Completion Details</td><td><pre style="margin:0;font-size:11px;">${esc(JSON.stringify(u.completion_tokens_details, null, 2))}</pre></td></tr>` : ''}
@@ -1155,9 +1155,7 @@ class AgentGUIEngine {
         const round = td.dataset.round;
         const sid = this.activeSessionId;
         if (sid && type && round != null) {
-          const tc = type === 'input' ? data.context_tokens : (type === 'output' ? data.output_tokens : data.total_tokens);
-          const cost = data.cost || 0;
-          window.open(`/session/${sid}/${type}/${round}?tokens=${tc}&cost=${cost.toFixed(6)}`, '_blank');
+          window.open(`/session/${sid}/${type}/${round}`, '_blank');
         }
       });
     });

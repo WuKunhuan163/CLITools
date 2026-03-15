@@ -195,6 +195,13 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
     if existing_port:
         base_url = f"http://localhost:{existing_port}"
         print(f"  {BOLD}Reusing{RESET} GUI at {base_url}")
+
+        if prompt and _has_running_session(base_url):
+            RED = get_color("RED", "\033[31m")
+            print(f"  {RED}{BOLD}Blocked.{RESET} A session is still running.")
+            print(f"  {DIM}Complete or cancel the current task before starting a new one.{RESET}")
+            return
+
         if prompt and not self_operate:
             try:
                 import urllib.request
@@ -328,6 +335,20 @@ def _inject_self_operate_prompt(base_url: str, prompt: str, self_name: str,
     print(f"  {BOLD}Self-operate prompt sent.{RESET} {DIM}Session: {sid}{RESET}")
     print(f"  {CYAN}Awaiting response:{RESET} --agent response {sid[:8]} <json>")
     print(f"  {DIM}Display name: {display_name}{RESET}")
+
+
+def _has_running_session(base_url: str) -> bool:
+    """Check if any session is currently in 'running' state."""
+    try:
+        import urllib.request
+        resp = json.loads(
+            urllib.request.urlopen(f"{base_url}/api/sessions", timeout=5).read())
+        for s in resp.get("sessions", []):
+            if s.get("status") == "running":
+                return True
+    except Exception:
+        pass
+    return False
 
 
 def _get_provider_name() -> str:
@@ -650,6 +671,8 @@ def _handle_response(args: list, tool_name: str, project_root: str,
                 evt["usage"]["completion_tokens"] = est_out
                 evt["usage"]["prompt_tokens"] = est_in
                 evt["usage"]["total_tokens"] = est_in + est_out
+            if full_text:
+                evt["_full_text"] = full_text
             _inject(evt)
             print(f"\n  {DIM}[{latency}s via {provider}]{RESET}")
 
