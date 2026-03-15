@@ -298,17 +298,18 @@ class AgentGUIEngine {
   /* ── Process a single protocol event ── */
 
   async processEvent(evt) {
-    if (evt.type !== 'text') {
+    const isStreamDelta = evt.type === 'tool_stream_delta';
+    if (evt.type !== 'text' && !isStreamDelta) {
       this._clearActiveText();
     }
-    if (this._createDebugBlock) {
+    if (this._createDebugBlock && !isStreamDelta) {
       const debugEl = this._createDebugBlock(evt);
       if (debugEl) this.chatArea.appendChild(debugEl);
     }
     const handler = this.blockRegistry[evt.type];
     if (handler) {
       await handler(evt);
-      if (evt.type !== 'text') this._appendSpacer();
+      if (evt.type !== 'text' && !isStreamDelta) this._appendSpacer();
     }
   }
 
@@ -1543,6 +1544,7 @@ class AgentGUIEngine {
             if (diff.removeCount) parts.push('<span class="removed-count">-' + diff.removeCount + '</span>');
             stats.innerHTML = parts.join(' ');
           }
+          out.innerHTML = '<div class="diff-view">' + diff.html + '</div>';
           }
         } else if (toolType === 'write') {
           const lines = output.split('\n');
