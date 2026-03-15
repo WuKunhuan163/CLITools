@@ -1023,6 +1023,7 @@ class AgentGUIEngine {
       self_name: evt.self_name,
     });
     this.chatArea.appendChild(this._llmRequestEl);
+    if (typeof _adaptLogoBrightness === 'function') _adaptLogoBrightness();
     return sleep(100);
   }
 
@@ -1192,7 +1193,7 @@ class AgentGUIEngine {
     div.className = 'model-info';
     let html = '';
     if (logo) {
-      html += '<img src="' + logo + '" alt="' + esc(name) + '">';
+      html += '<img src="' + logo + '" alt="' + esc(name) + '" class="logo-adaptive" crossorigin="anonymous" onerror="this.style.display=\'none\'">';
     } else if (opts.self_operate) {
       html += '<i class="bx bx-bot model-info-icon"></i>';
     }

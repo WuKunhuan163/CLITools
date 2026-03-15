@@ -86,9 +86,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 /* ── Sidebar ── */
 .sidebar { width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; transition: width 0.2s ease, min-width 0.2s ease; position: relative; }
 .sidebar.collapsed { width: 0; min-width: 0; overflow: hidden; border-right: none; }
-.sidebar-toggle { position: absolute; right: -14px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-3); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 10; transition: all 0.2s ease; }
+.sidebar-toggle { position: fixed; left: calc(var(--sidebar-w) - 14px); top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-3); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; z-index: 100; transition: left 0.2s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease; }
 .sidebar-toggle:hover { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
-.sidebar.collapsed .sidebar-toggle { right: -32px; }
+.sidebar-toggle.collapsed { left: 6px; }
 .sidebar-header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
 .sidebar-header h1 { font-size: 13px; font-weight: 700; letter-spacing: 0.5px; color: var(--text); display: flex; align-items: center; gap: 10px; }
 .sidebar-logo { width: 26px; height: 26px; border-radius: 7px; background: var(--accent-dim); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 14px; }
@@ -573,8 +573,8 @@ body.debug-mode .debug-block { display: block; }
 </head>
 <body>
 
+<button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><i class="bx bx-chevron-left"></i></button>
 <aside class="sidebar" id="sidebar">
-  <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><i class="bx bx-chevron-left"></i></button>
   <div class="sidebar-header">
     <h1><div class="sidebar-logo"><i class="bx bx-bot"></i></div> Assistant</h1>
     <button class="btn-new" title="New session" onclick="createNewSession()">+</button>
@@ -945,6 +945,72 @@ function applyTheme(name) {
   const icon = $('theme-icon');
   if (icon) icon.className = 'bx ' + (THEMES[name]?.icon || 'bx-moon');
   localStorage.setItem('theme', name);
+  _adaptLogoBrightness();
+}
+
+const _logoAdaptCache = new Map();
+function _getBgBrightness() {
+  const s = getComputedStyle(document.body);
+  const bg = s.getPropertyValue('--bg').trim();
+  const m = bg.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i);
+  if (!m) return 0.1;
+  const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+function _adaptLogoBrightness() {
+  const bgBright = _getBgBrightness();
+  const isDarkBg = bgBright < 0.5;
+  document.querySelectorAll('img.logo-adaptive').forEach(img => {
+    if (!img.complete || !img.naturalWidth) {
+      img.onload = () => _adaptSingleLogo(img, isDarkBg);
+      return;
+    }
+    _adaptSingleLogo(img, isDarkBg);
+  });
+}
+
+function _adaptSingleLogo(img, isDarkBg) {
+  const src = img.src;
+  if (_logoAdaptCache.has(src)) {
+    _applyLogoFilter(img, _logoAdaptCache.get(src), isDarkBg);
+    return;
+  }
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const w = Math.min(img.naturalWidth, 64);
+  const h = Math.min(img.naturalHeight, 64);
+  canvas.width = w;
+  canvas.height = h;
+  try {
+    ctx.drawImage(img, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    let totalBright = 0, count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 30) continue;
+      totalBright += (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
+      count++;
+    }
+    const logoBright = count > 0 ? totalBright / count : 0.5;
+    _logoAdaptCache.set(src, logoBright);
+    _applyLogoFilter(img, logoBright, isDarkBg);
+  } catch (e) {
+    _logoAdaptCache.set(src, -1);
+    img.style.filter = '';
+  }
+}
+
+function _applyLogoFilter(img, logoBright, isDarkBg) {
+  if (logoBright < 0) { img.style.filter = ''; return; }
+  const isLogoDark = logoBright < 0.35;
+  const isLogoLight = logoBright > 0.7;
+  if (isDarkBg && isLogoDark) {
+    img.style.filter = 'invert(1)';
+  } else if (!isDarkBg && isLogoLight) {
+    img.style.filter = 'invert(1)';
+  } else {
+    img.style.filter = '';
+  }
 }
 
 function cycleTheme() {
@@ -1204,7 +1270,10 @@ const INITIAL_EVENTS = 30;
 let _pendingOlderEvents = [];
 let _allSessionEvents = [];
 
+let _activatingSessionLock = null;
 async function apiActivateSession(sid) {
+  if (_activatingSessionLock === sid) return;
+  _activatingSessionLock = sid;
   const chatArea = $('chat-area');
   chatArea.innerHTML = '';
   _pendingOlderEvents = [];
@@ -1237,6 +1306,8 @@ async function apiActivateSession(sid) {
   } catch (e) {
     console.warn('Failed to load session history:', e);
     chatArea.innerHTML = '<div id="welcome" class="welcome"><p>Type a message to start</p></div>';
+  } finally {
+    setTimeout(() => { if (_activatingSessionLock === sid) _activatingSessionLock = null; }, 500);
   }
 }
 
@@ -1808,12 +1879,14 @@ async function deleteApiKey(vendor, btn) {
 /* ── Sidebar Toggle ── */
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
-  const btn = sb.querySelector('.sidebar-toggle i');
+  const toggleBtn = document.getElementById('sidebar-toggle');
+  const icon = toggleBtn.querySelector('i');
   sb.classList.toggle('collapsed');
+  toggleBtn.classList.toggle('collapsed');
   if (sb.classList.contains('collapsed')) {
-    btn.className = 'bx bx-chevron-right';
+    icon.className = 'bx bx-chevron-right';
   } else {
-    btn.className = 'bx bx-chevron-left';
+    icon.className = 'bx bx-chevron-left';
   }
 }
 
@@ -2043,8 +2116,19 @@ function handleSSEEvent(evt) {
       if (!engine.getSession(evt.id)) {
         engine.addSession(evt.id, evt.title || 'New Task', 'idle', evt.mode || 'agent');
       }
-      engine.setActiveSession(evt.id);
       activeSessionId = evt.id;
+      engine.activeSessionId = evt.id;
+      engine.clearAllTrackers();
+      engine._refreshSessions();
+      $('main-title').textContent = evt.title || 'New Task';
+      apiActivateSession(evt.id).then(() => {
+        if (engine._selfOperate) {
+          $('input').disabled = true;
+          $('input').placeholder = 'Self-operate mode \u2014 awaiting response via CLI...';
+          $('btn-send').disabled = true;
+          setStopMode(true);
+        }
+      });
       { const m = evt.mode || 'agent';
         if (m !== currentMode) {
           currentMode = m;
