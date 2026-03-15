@@ -155,32 +155,66 @@ Agent infrastructure lives in `logic/agent/` (core) and `interface/agent.py` (fa
 
 Default LLM provider: `zhipu-glm-4.7` (GLM-4.7 via Zhipu AI). Configure via `--agent setup`.
 
-### Self-Operate Mode
+### Self-Operate Mode (AI IDE Agents)
 
-Self-operate mode allows an AI IDE (e.g., Cursor) to use the assistant GUI as its own interface, driving the conversation from the terminal rather than through a remote LLM provider.
+Self-operate mode allows an AI IDE agent (e.g., Cursor, Copilot, Windsurf) to drive development through this project's assistant infrastructure, gaining access to session tracking, HTML GUI visualization, quality nudges, and tool orchestration — while the IDE remains the primary development environment.
+
+**This is the recommended approach for AI IDE integration.** The project's assistant tools complement (not replace) the IDE's built-in capabilities.
+
+#### Quick Start (5 commands)
 
 ```bash
-# Start self-operate session with prompt
-TOOL_NAME --agent --self-operate --self-name "Opus 4.6" --env "IDE/cursor" prompt "Create a hello.py"
+# 1. Create session + start GUI, send self-operate prompt
+TOOL_NAME --session --agent --prompt "<task>" --self-operate --self-name "Your Model" --env "IDE/cursor"
+#   → prints: Session: <SID>, GUI: http://localhost:8100
 
-# Inject a response (simulates an LLM API reply)
-TOOL_NAME --agent response <SESSION_ID> '<json_events>'
+# 2. Inject your response (natural language + tool calls as JSON)
+TOOL_NAME --agent response <SID> tmp/response.json
 
-# Complete the task
-TOOL_NAME --agent response <SESSION_ID> '[{"type":"complete","reason":"done"}]'
+# 3. System auto-feeds next round. Inject next response.
+TOOL_NAME --agent response <SID> tmp/response_r2.json
+
+# 4. Repeat until task is done, then inject complete event:
+TOOL_NAME --agent response <SID> '[{"type":"complete","reason":"done"}]'
+
+# 5. Get user feedback
+./bin/USERINPUT/USERINPUT
 ```
 
-**Options:**
-- `--self-operate`: Enables self-operate mode. The prompt is displayed in the GUI but NOT sent to an LLM provider. The chatbox input is disabled until the task completes.
-- `--self-name "Name"`: Display name for the operating agent (e.g., "Opus 4.6").
-- `--env "IDE/cursor"`: Environment identifier. The last path segment is used to resolve a logo from `logic/asset/image/env/IDE/`. If not specified, a default bot icon is shown.
+#### Options
 
-**Flow:**
-1. `--self-operate prompt "..."` creates a new GUI session, shows the user prompt and a model banner with the env logo + name, and waits for `--response`.
-2. `--response <SID> <json>` injects events (text, tool calls, etc.) into the session. Tool calls are executed server-side.
-3. Repeat step 2 until the task is done, then inject a `complete` event.
+| Flag | Purpose | Example |
+|------|---------|---------|
+| `--self-operate` | Enable self-operate mode. Prompt is shown in GUI, NOT sent to LLM. Input box is disabled. | |
+| `--self-name` | Your display name in the GUI model banner | `--self-name "Claude 4.6"` |
+| `--env` | Environment identifier. Resolves logo from `logic/asset/image/env/IDE/` | `--env "IDE/cursor"` |
+| `--prompt` | The task prompt (alternative to positional argument) | `--prompt "Fix the bug"` |
 
-**Environment logos** are stored in `logic/asset/image/env/IDE/` (cursor.svg, copilot.svg, windsurf.svg).
+If `--env` is not specified, a default robot icon is shown. Available env logos: `cursor.svg`, `copilot.svg`, `windsurf.svg` in `logic/asset/image/env/IDE/`.
+
+#### Response JSON Format
+
+Each response is an array of events following the project's protocol. A typical response:
+
+```json
+[
+  {"type": "llm_response_start", "round": 1, "model": "your-model"},
+  {"type": "text", "tokens": "I'll create the file now."},
+  {"type": "tool", "name": "write_file", "arguments": {"path": "hello.py", "content": "print('hello')"}},
+  {"type": "tool_result", "name": "write_file", "output": "File written: hello.py"},
+  {"type": "llm_response_end", "round": 1, "has_tool_calls": true, "latency_s": 2.1,
+   "usage": {"prompt_tokens": 1024, "completion_tokens": 256}}
+]
+```
+
+If your response includes `tool_result` events, those tools are considered already executed and will NOT be re-run server-side. Omit `tool_result` to have the server execute tools for you.
+
+#### Lifecycle Rules
+
+- **One task at a time**: While a session is running, new `--agent --prompt` calls are blocked with "Blocked. A session is still running."
+- **Auto-feed**: After each `--response`, the system automatically prepares the next round (equivalent to `--feed`). The terminal prints the round number and awaits the next `--response`.
+- **Completion**: Inject `[{"type":"complete","reason":"done"}]` to end the session. The sidebar indicator changes from spinner to checkmark.
+- **Cancellation**: Use `TOOL_NAME --session cancel` to abort a running session.
 
 **Auto Model Selection**: Use provider name `auto` for automatic model selection with fallback. The Auto provider ranks available models by stability (free-tier preference, RPM headroom, error rate tracking) and automatically falls back to the next model on 429/500 errors. Implemented in `tool/LLM/logic/auto.py`.
 
@@ -207,64 +241,57 @@ Session IDs use the format `YYYYMMDD-HHMMSS-<6hex>` for chronological sorting.
 
 ### AI IDE Integration Workflow
 
-**If you are an AI IDE agent** (e.g., Cursor, Copilot, Windsurf, or any IDE that provides built-in file/terminal tools), this project offers its own equivalent tools that integrate with the project's progress tracking, nudge system, and session management. Follow this workflow to leverage the project ecosystem instead of relying solely on the IDE's built-in tools.
+**If you are an AI IDE agent** (e.g., Cursor, Copilot, Windsurf) with access to built-in file/terminal tools, use `--self-operate` mode to drive development through this project's ecosystem. This gives you session tracking, an HTML GUI for visualization, quality nudges, and tool orchestration — while your IDE remains the primary environment.
 
-**Why use project tools instead of IDE tools?** Our tools automatically track file modifications, trigger quality checks, emit UI events to the HTML GUI, and feed session context to the nudge/hint system. IDE tools bypass all of this.
+**The project complements your IDE**, not replaces it. Use IDE tools for what they do best (file editing, code navigation). Use project tools for session management, progress tracking, and the GUI.
 
-**When to fallback to IDE tools:** If the project's equivalent tool has a bug that you cannot fix, or if the IDE provides a capability not yet developed in the project, continue using the IDE tool. Fix the project tool's bug first if possible.
-
-#### Step-by-step workflow
-
-**i. Detection**: If you discover you are running inside an AI IDE (you have access to IDE-provided read/write/exec tools), read this section. Otherwise, skip.
-
-**ii. Tool substitution**: Use the AI IDE's `exec` tool to call our standard tool commands instead of using the IDE's built-in file operations directly:
+#### Recommended: Self-Operate Workflow
 
 ```bash
-# Instead of IDE read_file → use our exec:
-exec("TOOL_NAME --ask --dry-run prompt 'read file X'")
+# 1. Start a self-operate session (exec via your IDE's terminal tool)
+exec("TOOL_NAME --session --agent --prompt '<task>' --self-operate --self-name 'YourModel' --env 'IDE/cursor'")
 
-# Instead of IDE write_file → use our response injection:
-exec("TOOL_NAME --agent --response <session_id> <path.json>")
+# 2. Write your response as JSON, inject it
+exec("TOOL_NAME --agent response <SID> tmp/response.json")
+
+# 3. After auto-feed, inject next response for the new round
+exec("TOOL_NAME --agent response <SID> tmp/response_r2.json")
+
+# 4. Complete the task
+exec("TOOL_NAME --agent response <SID> '[{\"type\":\"complete\",\"reason\":\"done\"}]'")
+
+# 5. Get user feedback
+exec("./bin/USERINPUT/USERINPUT")
 ```
 
-**iii. Starting a task**: When you receive user input `<prompt>`, first run:
+See "Self-Operate Mode" section above for response JSON format and lifecycle rules.
+
+#### Alternative: Dry-Run Workflow (legacy)
+
+If you prefer not to use `--self-operate`, you can use `--dry-run` to preview the packed prompt without sending to an LLM provider:
 
 ```bash
-TOOL_NAME --agent --dry-run prompt "<prompt>"
+TOOL_NAME --agent --dry-run prompt "<task>"
 ```
 
-Choose `--ask`, `--plan`, or `--agent` based on the task type (`--debug` and other modes map to `--agent`). The `--dry-run` flag:
-- Creates a new session in the GUI (opens the browser tab)
-- Shows the system prompt, user message, and available tools
-- Does NOT send to the remote LLM provider — YOU are the provider
+This creates a session and shows the system prompt, user message, and available tools in the terminal. You then provide responses via `--response` as above.
 
-**iv. Providing responses**: Write your response as JSON following the OpenAI response protocol, save it to `runtime/sessions/<session_id>/data/<response_id>.json`, then inject:
+#### Checking State
 
 ```bash
-TOOL_NAME --agent --response <session_id> runtime/sessions/<session_id>/data/000.json
+TOOL_NAME --agent history <session_id> --limit 20   # Recent events
+TOOL_NAME --agent feed <session_id>                  # Current state for next round
 ```
 
-Response IDs are sequential: `000.json`, `001.json`, ..., `999.json`, `1000.json`.
+#### USERINPUT Loop
 
-The terminal will show no output on success. Warnings indicate protocol violations (e.g., invalid JSON, schema mismatch).
-
-**v. Checking state**: At any time:
+After task completion, always call `USERINPUT` for user feedback:
 
 ```bash
-# View recent conversation events
-TOOL_NAME --agent history <session_id> --limit 20
-
-# View current session state (what a new agent would see if resuming)
-TOOL_NAME --agent feed <session_id>
+./bin/USERINPUT/USERINPUT --hint "Task completed, awaiting feedback"
 ```
 
-`--feed` provides the same ecosystem information as `--prompt` (system prompt, context, tools). It supports `--dry-run` to preview without executing.
-
-**vi. Receiving tool results**: After you inject a response containing tool calls, the system executes them and returns results via the feed. Check `--history` or `--feed` to see tool execution results.
-
-**vii. Task completion**: When your session task is complete, the system emits a `complete` event. Continue to the next step.
-
-**viii. USERINPUT loop**: After completing all session tasks, call `USERINPUT` to get user feedback. If feedback arrives, return to step iii with the new prompt. If no feedback, perform related development/testing tasks and retry `USERINPUT`.
+If feedback arrives, start a new self-operate session with the new prompt. If no feedback, perform related work and retry.
 
 ### USERINPUT Feedback Loop
 

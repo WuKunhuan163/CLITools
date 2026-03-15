@@ -161,23 +161,25 @@ Every tool has a built-in session logger via `tool.log(message)`. Log files auto
 Key entry points:
 - `for_agent.md` — Full architecture guide, tool conventions, agent bootstrap, AI IDE workflow
 - `TOOL --search all "<query>"` — Semantic search across all tools, skills, lessons
-- `TOOL --agent/--ask/--plan --dry-run prompt "<task>"` — Start a session with ecosystem context
+- `TOOL --session --agent --self-operate --prompt "<task>"` — Start a self-operate session
 - `USERINPUT` — Get interactive user feedback
 
-### AI IDE Integration
+### AI IDE Integration (Self-Operate Mode)
 
-This project provides its own assistant infrastructure (file read/write, exec, search, edit tools) that integrates with the project's progress tracking, quality nudges, and HTML GUI. AI IDE agents (Cursor, Copilot, Windsurf, etc.) can use our tools via `exec()` to benefit from this ecosystem while continuing to use the IDE's own tools for capabilities we don't yet cover.
+AI IDE agents (Cursor, Copilot, Windsurf, etc.) can use `--self-operate` mode to drive development through this project's assistant infrastructure. The project complements the IDE — it provides session tracking, an HTML GUI, quality nudges, and tool orchestration while the IDE handles file editing and code navigation.
 
-The workflow: `--prompt --dry-run` (get context) → `--response` (provide answers) → `--history/--feed` (check state) → `USERINPUT` (get feedback) → repeat.
+```bash
+# Quick start: create session, inject responses, complete task
+TOOL --session --agent --prompt "<task>" --self-operate --self-name "Model" --env "IDE/cursor"
+TOOL --agent response <SID> tmp/response.json    # Inject response (auto-feeds next round)
+TOOL --agent response <SID> '[{"type":"complete","reason":"done"}]'   # Complete
+```
 
-See `for_agent.md` section "AI IDE Integration Workflow" for the full step-by-step guide.
+See `for_agent.md` sections "Self-Operate Mode" and "AI IDE Integration Workflow" for the full guide, response JSON format, and lifecycle rules.
 
 ### Remote Assistant Integration
 
-When a remote LLM provider acts as the assistant, the system manages the full conversation loop: context packaging, tool execution, quality checks, and GUI rendering. The `--dry-run` flag allows AI IDE agents to act as the provider themselves, creating sessions in the GUI without sending to a remote LLM. This enables:
-- **Self-testing**: An IDE agent can role-play as the remote assistant to test the ecosystem
-- **Hybrid operation**: IDE tools for fast operations, project tools for tracked operations
-- **Progressive disclosure**: The system feeds context incrementally based on what the agent has discovered
+When a remote LLM provider acts as the assistant, the system manages the full conversation loop: context packaging, tool execution, quality checks, and GUI rendering. Both remote-provider and self-operate sessions share the same lifecycle (running → done), GUI visualization, and tool execution pipeline.
 
 ---
 
