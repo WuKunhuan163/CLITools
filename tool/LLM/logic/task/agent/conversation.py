@@ -1178,6 +1178,7 @@ class ConversationManager:
         session_mode = getattr(session, 'mode', 'agent')
         session.status = "running"
         session.message_count += 1
+        self._cancel_requested = False
         self._current_turn_session_id = session_id
         self._current_round = 0
         self._turn_writes = []

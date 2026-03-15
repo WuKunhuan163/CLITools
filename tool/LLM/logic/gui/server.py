@@ -1210,8 +1210,45 @@ class AgentServer:
         else:
             return _not_found_page(f"Unknown data type: {data_type}")
 
+    _PID_FILE = os.path.join(os.path.dirname(__file__), ".server.pid")
+
+    @classmethod
+    def _kill_stale_server(cls):
+        """Kill any previously running server in this scope (PID file guard)."""
+        pid_path = cls._PID_FILE
+        if not os.path.exists(pid_path):
+            return
+        try:
+            with open(pid_path) as f:
+                old_pid = int(f.read().strip())
+            os.kill(old_pid, 0)
+            import signal
+            os.kill(old_pid, signal.SIGTERM)
+            import time
+            time.sleep(1)
+            try:
+                os.kill(old_pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        except (ProcessLookupError, ValueError, PermissionError):
+            pass
+        try:
+            os.remove(pid_path)
+        except OSError:
+            pass
+
+    @classmethod
+    def _write_pid(cls):
+        with open(cls._PID_FILE, "w") as f:
+            f.write(str(os.getpid()))
+
     def start(self, open_browser: bool = True):
-        """Start the live agent server."""
+        """Start the live agent server (kills any stale server first)."""
+        self._kill_stale_server()
+        self._write_pid()
+        import atexit
+        atexit.register(lambda: os.path.exists(self._PID_FILE) and os.remove(self._PID_FILE))
+
         from interface.gui import LocalHTMLServer
 
         html_path = str(_root / "logic" / "assistant" / "gui" / "live.html")
