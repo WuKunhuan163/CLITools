@@ -1276,11 +1276,13 @@ class ConversationManager:
             _force_no_tools = False
             _silent_rounds = 0
             _zombie_checks = 0
+            _was_cancelled = False
+            _turn_t0 = time.time()
 
             while round_num < max_rounds:
                 if self._cancel_requested:
                     self._cancel_requested = False
-                    self._emit({"type": "text", "tokens": "\n[Task cancelled by user]\n"})
+                    _was_cancelled = True
                     break
                 round_num += 1
                 self._current_round = round_num
@@ -1338,10 +1340,10 @@ class ConversationManager:
                         ):
                             if self._cancel_requested:
                                 self._cancel_requested = False
-                                self._emit({"type": "text", "tokens": "\n[Task cancelled by user]\n"})
                                 full_text = ""
                                 tool_calls_accum = []
                                 _cancelled_mid_stream = True
+                                _was_cancelled = True
                                 break
                             if chunk.get("_auto_switched"):
                                 from_m = chunk.get("_auto_from", "?")
@@ -1671,10 +1673,17 @@ class ConversationManager:
                     tool_results_map[tc.get("id", "")] = self._execute_tool_call(tc)
 
                 for tc in linear_tcs:
+                    if self._cancel_requested:
+                        self._cancel_requested = False
+                        _was_cancelled = True
+                        break
                     result = self._execute_tool_call(tc)
                     tool_results_map[tc.get("id", "")] = result
                     if not result.get("ok", True):
                         break
+
+                if _was_cancelled:
+                    break
 
                 for tc in tool_calls_accum:
                     tool_id = tc.get("id", "")
@@ -1746,16 +1755,24 @@ class ConversationManager:
                     self._emit({"type": "debug",
                                  "text": f"Hard ceiling at round {round_num} — forcing text-only response"})
 
+            _elapsed_s = round(time.time() - _turn_t0)
             self._emit_file_summary()
-            if turn_limit > 0 and round_num >= turn_limit:
+            if _was_cancelled:
+                self._emit({"type": "notice", "level": "info",
+                            "text": "Task cancelled by user",
+                            "icon": "bx-stop-circle"})
+                self._emit({"type": "complete", "reason": "cancelled",
+                            "round": round_num, "elapsed_s": _elapsed_s})
+            elif turn_limit > 0 and round_num >= turn_limit:
                 self._emit({"type": "complete", "reason": "round_limit",
-                            "round": round_num, "turn_limit": turn_limit})
+                            "round": round_num, "turn_limit": turn_limit,
+                            "elapsed_s": _elapsed_s})
             else:
-                self._emit({"type": "complete"})
+                self._emit({"type": "complete", "elapsed_s": _elapsed_s})
             self._fire_hook("on_turn_end",
                             session_id=session_id, round_count=round_num,
                             tool_calls_count=len(_tool_call_history),
-                            status="completed")
+                            status="cancelled" if _was_cancelled else "completed")
             session.status = "done"
             self._emit({"type": "session_status", "id": session_id, "status": "done"})
             self._persist_session(session_id)
@@ -1766,7 +1783,12 @@ class ConversationManager:
         except Exception as e:
             self._emit({"type": "text", "tokens": f"Exception: {e}"})
             self._emit_file_summary()
-            self._emit({"type": "complete", "reason": "error"})
+            try:
+                _err_elapsed = round(time.time() - _turn_t0)
+            except NameError:
+                _err_elapsed = 0
+            self._emit({"type": "complete", "reason": "error",
+                        "elapsed_s": _err_elapsed})
             self._fire_hook("on_turn_end",
                             session_id=session_id,
                             round_count=getattr(self, '_current_round', 0),

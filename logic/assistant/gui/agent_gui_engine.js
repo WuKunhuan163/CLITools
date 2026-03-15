@@ -1129,16 +1129,20 @@ class AgentGUIEngine {
     this.clearAllTrackers();
     const reason = evt.reason || 'done';
 
-    let elapsed = 0;
-    if (this._taskStartTime) {
+    let elapsed = evt.elapsed_s || 0;
+    if (!elapsed && this._taskStartTime) {
       elapsed = Math.round((Date.now() - this._taskStartTime) / 1000);
-      this._taskStartTime = null;
     }
+    this._taskStartTime = null;
     const m = Math.floor(elapsed / 60);
     const s = elapsed % 60;
 
     let icon, label, cls;
-    if (reason === 'error') {
+    if (reason === 'cancelled') {
+      icon = '<i class="bx bx-stop-circle" style="font-size:14px;"></i>';
+      label = 'Task cancelled by user';
+      cls = 'task-complete task-cancelled';
+    } else if (reason === 'error') {
       icon = '<i class="bx bx-x-circle" style="font-size:14px;"></i>';
       label = 'Task failed, please try again';
       cls = 'task-complete task-failed';
