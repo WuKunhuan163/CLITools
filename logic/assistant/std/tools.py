@@ -351,7 +351,6 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
         return {"ok": False, "output": str(e)}
 
 
-@register_tool("edit_file")
 def _build_diff_preview(all_lines, start_lineno, old_lines, new_lines, new_all, ctx_n):
     """Build a diff preview with context lines and hidden-line markers."""
     diff_lines = []
@@ -417,6 +416,7 @@ def _apply_edit_and_emit(path, content, old_lines_text, new_text, start_lineno,
     return {"ok": True, "output": f"Edit applied to {path}"}
 
 
+@register_tool("edit_file")
 def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
     path = args.get("path", "")
     new_text = args.get("new_text", args.get("content", ""))

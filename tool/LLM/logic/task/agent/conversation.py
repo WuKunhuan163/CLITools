@@ -184,6 +184,7 @@ class Session:
     created_at: float = field(default_factory=time.time)
     message_count: int = 0
     codebase_root: Optional[str] = None
+    done_reason: Optional[str] = None
 
     @property
     def _dir(self) -> str:
@@ -203,6 +204,8 @@ class Session:
             "codebase_root": self.codebase_root,
             "context": self.context.to_dict(),
         }
+        if self.done_reason:
+            data["done_reason"] = self.done_reason
         if events is not None:
             data["events"] = events
         path = os.path.join(session_dir, "history.json")
@@ -242,6 +245,16 @@ class Session:
                 if has_complete and status in ("idle", "running"):
                     status = "done"
 
+            done_reason = data.get("done_reason")
+            if not done_reason and status == "done" and events:
+                for evt in reversed(events):
+                    if evt.get("type") == "session_status" and evt.get("reason"):
+                        done_reason = evt["reason"]
+                        break
+                    if evt.get("type") == "complete" and evt.get("reason"):
+                        done_reason = evt["reason"]
+                        break
+
             session = cls(
                 id=data["id"],
                 title=title,
@@ -251,6 +264,7 @@ class Session:
                 created_at=data.get("created_at", time.time()),
                 message_count=data.get("message_count", 0),
                 codebase_root=data.get("codebase_root"),
+                done_reason=done_reason,
             )
             if path.endswith(".json") and not path.endswith("history.json"):
                 session.save(events=events)
@@ -782,6 +796,16 @@ class ConversationManager:
         except Exception:
             return 2
 
+    def _mark_session_done(self, session_id: str, reason: str = "done"):
+        """Set session status to done with a reason, emit event, and persist."""
+        session = self._sessions.get(session_id)
+        if session:
+            session.status = "done"
+            session.done_reason = reason
+        self._emit({"type": "session_status", "id": session_id,
+                    "status": "done", "reason": reason})
+        self._persist_session(session_id)
+
     def _handle_think(self, args: dict) -> dict:
         return {"ok": True, "output": "[Thinking complete]"}
 
@@ -1074,7 +1098,8 @@ class ConversationManager:
         return [
             {"id": s.id, "title": s.title, "status": s.status,
              "mode": s.mode, "message_count": s.message_count,
-             "created_at": s.created_at}
+             "created_at": s.created_at,
+             **({"done_reason": s.done_reason} if s.done_reason else {})}
             for s in self._sessions.values()
         ]
 
@@ -1124,10 +1149,7 @@ class ConversationManager:
                     self._emit({"type": "complete", "reason": "error"})
                     session = self._sessions.get(session_id)
                     if session:
-                        session.status = "done"
-                    self._emit({"type": "session_status",
-                                "id": session_id, "status": "done"})
-                    self._persist_session(session_id)
+                        self._mark_session_done(session_id)
                 self._drain_task_queue(session_id)
             t = threading.Thread(target=_safe_run, daemon=True)
             t.start()
@@ -1151,10 +1173,7 @@ class ConversationManager:
                 self._emit({"type": "complete", "reason": "error"})
                 session = self._sessions.get(session_id)
                 if session:
-                    session.status = "done"
-                self._emit({"type": "session_status",
-                            "id": session_id, "status": "done"})
-                self._persist_session(session_id)
+                    self._mark_session_done(session_id)
 
     def get_task_queue(self, session_id: str) -> list:
         """Return the current task queue for a session."""
@@ -1177,6 +1196,7 @@ class ConversationManager:
 
         session_mode = getattr(session, 'mode', 'agent')
         session.status = "running"
+        session.done_reason = None
         session.message_count += 1
         self._cancel_requested = False
         self._current_turn_session_id = session_id
@@ -1239,9 +1259,7 @@ class ConversationManager:
             if not provider.is_available():
                 self._emit({"type": "text", "tokens": f"Error: Provider {self._provider_name} is not available."})
                 self._emit({"type": "complete", "reason": "error"})
-                session.status = "done"
-                self._emit({"type": "session_status", "id": session_id, "status": "done"})
-                self._persist_session(session_id)
+                self._mark_session_done(session_id, "error")
                 return
 
             tools = None
@@ -1432,9 +1450,7 @@ class ConversationManager:
                                             self._generate_title_async(session_id, text, full_text)
                                         self._emit({"type": "complete", "reason": "round_limit",
                                                     "round": round_num, "turn_limit": turn_limit})
-                                        session.status = "done"
-                                        self._emit({"type": "session_status", "id": session_id, "status": "done"})
-                                        self._persist_session(session_id)
+                                        self._mark_session_done(session_id, "round_limit")
                                         return
                                     break
                             else:
@@ -1501,9 +1517,7 @@ class ConversationManager:
                     })
                     self._emit({"type": "text", "tokens": f"Error: {err}"})
                     self._emit({"type": "complete", "reason": "error"})
-                    session.status = "done"
-                    self._emit({"type": "session_status", "id": session_id, "status": "done"})
-                    self._persist_session(session_id)
+                    self._mark_session_done(session_id, "error")
                     return
 
                 if not use_streaming and _llm_error is None:
@@ -1543,9 +1557,7 @@ class ConversationManager:
                         self._generate_title_async(session_id, text, full_text)
                     self._emit({"type": "complete", "reason": "round_limit",
                                 "round": round_num, "turn_limit": turn_limit})
-                    session.status = "done"
-                    self._emit({"type": "session_status", "id": session_id, "status": "done"})
-                    self._persist_session(session_id)
+                    self._mark_session_done(session_id, "round_limit")
                     return
 
                 if not full_text and not tool_calls_accum:
@@ -1779,10 +1791,7 @@ class ConversationManager:
                             session_id=session_id, round_count=round_num,
                             tool_calls_count=len(_tool_call_history),
                             status=_done_reason)
-            session.status = "done"
-            self._emit({"type": "session_status", "id": session_id,
-                        "status": "done", "reason": _done_reason})
-            self._persist_session(session_id)
+            self._mark_session_done(session_id, _done_reason)
 
             if auto_title:
                 self._generate_title_async(session_id, text, full_text)
@@ -1800,10 +1809,7 @@ class ConversationManager:
                             session_id=session_id,
                             round_count=getattr(self, '_current_round', 0),
                             tool_calls_count=0, status="error")
-            session.status = "done"
-            self._emit({"type": "session_status", "id": session_id,
-                        "status": "done", "reason": "error"})
-            self._persist_session(session_id)
+            self._mark_session_done(session_id, "error")
 
     def _generate_title_async(self, session_id: str, user_msg: str, assistant_msg: str):
         """Generate a short title for the conversation.

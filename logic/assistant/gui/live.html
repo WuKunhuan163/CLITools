@@ -1160,6 +1160,23 @@ engine.onSessionChange((action, session) => {
       currentMode = sessionMode;
       if (modePill && modePill.setValue) modePill.setValue(sessionMode);
     }
+  } else if (action === 'delete' && session && session.id) {
+    fetch('/api/session/' + session.id, { method: 'DELETE' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) {
+          delete _sessionDrafts[session.id];
+          if (activeSessionId === session.id || !activeSessionId) {
+            const remaining = engine.listSessions();
+            if (remaining.length > 0) {
+              engine.setActiveSession(remaining[0].id);
+              activeSessionId = remaining[0].id;
+            } else {
+              createNewSession();
+            }
+          }
+        }
+      }).catch(() => {});
   }
 });
 
@@ -2585,8 +2602,11 @@ function syncSessions() {
       const existing = engine.getSession(s.id);
       if (!existing) {
         engine.addSession(s.id, s.title, s.status, s.mode || 'agent');
+        if (s.done_reason) engine.setSessionStatus(s.id, s.status, s.done_reason);
       } else {
-        if (existing.status !== s.status) engine.setSessionStatus(s.id, s.status);
+        if (existing.status !== s.status || existing.doneReason !== s.done_reason) {
+          engine.setSessionStatus(s.id, s.status, s.done_reason);
+        }
         if (existing.title !== s.title) engine.renameSession(s.id, s.title);
       }
     });
