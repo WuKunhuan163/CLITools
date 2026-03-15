@@ -1450,12 +1450,14 @@ class AgentGUIEngine {
   }
 
   _renderNotice(evt) {
+    const text = evt.text || evt.message || '';
+    if (!text) return;
     const levelIcons = { info: 'bx-info-circle', success: 'bx-check-circle', warning: 'bx-error' };
     const levelColors = { info: 'var(--accent)', success: 'var(--green)', warning: 'var(--yellow)' };
     const level = evt.level || '';
     const icon = evt.icon ? '<i class="bx ' + evt.icon + '"></i> '
       : (levelIcons[level] ? '<i class="bx ' + levelIcons[level] + '" style="color:' + levelColors[level] + '"></i> ' : '');
-    this.renderCenterNotice(icon + esc(evt.text || ''));
+    this.renderCenterNotice(icon + esc(text));
     return sleep(200);
   }
 

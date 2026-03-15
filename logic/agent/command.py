@@ -1359,7 +1359,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             idx = rest.index("--limit")
             if idx + 1 < len(rest):
                 limit = int(rest[idx + 1])
-        r = _session_api(port, "GET", f"/api/history/{sid}")
+        r = _session_api(port, "GET", f"/api/session/{sid}/history")
         if r.get("ok"):
             events = r.get("events", [])
             for evt in events[-limit:]:
@@ -1413,8 +1413,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             print("Usage: --session edits <SID>")
             return
         sid = rest[0]
-        r = _session_api(port, "POST", "/api/edit-blocks",
-                         {"session_id": sid})
+        r = _session_api(port, "GET", f"/api/session/{sid}/edit-blocks")
         if r.get("ok"):
             blocks = r.get("blocks", [])
             print(f"Edit blocks: {len(blocks)}")
@@ -1435,8 +1434,8 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             return
         sid = rest[0]
         idx = int(rest[1])
-        r = _session_api(port, "POST", "/api/accept-hunk",
-                         {"session_id": sid, "hunk_index": idx})
+        r = _session_api(port, "POST", f"/api/session/{sid}/edit-blocks/{idx}",
+                         {"action": "accept"})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "revert":
@@ -1445,8 +1444,8 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             return
         sid = rest[0]
         idx = int(rest[1])
-        r = _session_api(port, "POST", "/api/revert-hunk",
-                         {"session_id": sid, "hunk_index": idx})
+        r = _session_api(port, "POST", f"/api/session/{sid}/edit-blocks/{idx}",
+                         {"action": "revert"})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "accept-all":
@@ -1454,16 +1453,16 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             print("Usage: --session accept-all <SID>")
             return
         sid = rest[0]
-        edits = _session_api(port, "POST", "/api/edit-blocks",
-                             {"session_id": sid})
+        edits = _session_api(port, "GET", f"/api/session/{sid}/edit-blocks")
         if not edits.get("ok"):
             print(f"Error: {edits.get('error')}")
             return
         accepted = 0
         for b in edits.get("blocks", []):
             if not b["decided"]:
-                r = _session_api(port, "POST", "/api/accept-hunk",
-                                 {"session_id": sid, "hunk_index": b["index"]})
+                r = _session_api(port, "POST",
+                                 f"/api/session/{sid}/edit-blocks/{b['index']}",
+                                 {"action": "accept"})
                 if r.get("ok"):
                     accepted += 1
         print(f"Accepted {accepted} hunks")
@@ -1473,16 +1472,16 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             print("Usage: --session revert-all <SID>")
             return
         sid = rest[0]
-        edits = _session_api(port, "POST", "/api/edit-blocks",
-                             {"session_id": sid})
+        edits = _session_api(port, "GET", f"/api/session/{sid}/edit-blocks")
         if not edits.get("ok"):
             print(f"Error: {edits.get('error')}")
             return
         reverted = 0
         for b in reversed(edits.get("blocks", [])):
             if not b["decided"]:
-                r = _session_api(port, "POST", "/api/revert-hunk",
-                                 {"session_id": sid, "hunk_index": b["index"]})
+                r = _session_api(port, "POST",
+                                 f"/api/session/{sid}/edit-blocks/{b['index']}",
+                                 {"action": "revert"})
                 if r.get("ok"):
                     reverted += 1
         print(f"Reverted {reverted} hunks")

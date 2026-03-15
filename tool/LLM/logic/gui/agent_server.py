@@ -15,8 +15,9 @@ API Endpoints:
     POST /api/rename   {"session_id": "...", "title": "..."}
     POST /api/delete   {"session_id": "..."}
     POST /api/clear_all  Delete all sessions & create a fresh one
-    POST /api/accept-hunk  {"path": "...", "hunk_index": 0}  Accept (keep) a hunk
-    POST /api/edit-blocks  {"session_id": "..."}  List all edit blocks and states
+    GET  /api/session/<sid>/edit-blocks       List all edit blocks
+    POST /api/session/<sid>/edit-blocks/<idx> {"action":"accept"|"revert"}
+    GET  /api/session/<sid>/history          Session event history
     POST /api/activate/<sid>  Set active session
     GET  /api/sessions
     GET  /api/state
@@ -285,6 +286,29 @@ class AgentServer:
     def _api_handler(self, method: str, path: str, body: Optional[dict]) -> dict:
         """Route API requests to ConversationManager methods."""
         path = path.split("?")[0]
+
+        import re as _re
+
+        # RESTful: /api/session/<sid>/edit-blocks[/<idx>]
+        _eb_match = _re.match(r'/api/session/([^/]+)/edit-blocks(?:/(\d+))?$', path)
+        if _eb_match:
+            sid = _eb_match.group(1)
+            idx = _eb_match.group(2)
+            if method == "GET" and idx is None:
+                return self._list_edit_blocks(sid)
+            elif method == "POST" and idx is not None:
+                action = (body or {}).get("action", "accept")
+                if action == "revert":
+                    return self._revert_hunk({"session_id": sid, "hunk_index": int(idx)})
+                else:
+                    return self._accept_hunk({"session_id": sid, "hunk_index": int(idx)})
+
+        # RESTful: /api/session/<sid>/history
+        _hist_match = _re.match(r'/api/session/([^/]+)/history$', path)
+        if _hist_match and method == "GET":
+            sid = _hist_match.group(1)
+            events = self._event_history.get(sid, [])
+            return {"ok": True, "events": events}
 
         if method == "GET":
             if path == "/api/sessions":
