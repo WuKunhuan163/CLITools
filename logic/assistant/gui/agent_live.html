@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LLM Agent - Live</title>
+<title>Assistant - Live</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
@@ -278,8 +278,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .diff-hunk-btn.reject:hover { background: rgba(248,113,113,0.1); color: var(--red); border-color: var(--red); }
 .diff-hunk.accepted { opacity: 0.5; border-left-color: var(--green); }
 .diff-hunk.accepted .diff-hunk-actions { display: none !important; }
-.diff-hunk.rejected .diff-line.added { display: none; }
-.diff-hunk.rejected .diff-line.removed { text-decoration: none; opacity: 1; }
 .diff-hunk.rejected { border-left-color: var(--red); opacity: 0.6; }
 .diff-hunk.rejected .diff-hunk-actions { display: none !important; }
 .diff-line.context { color: var(--text-3); }
@@ -288,6 +286,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 
 /* ── Tool Call ── */
 .tool-call { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 6px 0; overflow: hidden; max-width: 90%; animation: fadeIn 0.2s ease; }
+.tool-call.reverted { opacity: 0.55; }
 .tool-call-header { padding: 9px 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; cursor: pointer; user-select: none; }
 .tool-call-header:hover { background: rgba(255,255,255,0.03); }
 .tool-call-actions { display: none; align-items: center; gap: 4px; margin-left: 6px; flex-shrink: 0; }
@@ -365,10 +364,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .file-item-btn:hover { background: rgba(255,255,255,0.08); }
 .file-item-btn.reject:hover { color: var(--red); background: rgba(255,100,100,0.12); }
 .file-item-btn.accept:hover { color: var(--green); background: rgba(100,255,100,0.12); }
-.file-summary-item.accepted { opacity: 0.5; }
+.file-summary-item.accepted { opacity: 0.7; }
 .file-summary-item.accepted .file-item-btn { display: none; }
-.file-summary-item.rejected { opacity: 0.4; text-decoration: line-through; }
+.file-summary-item.rejected { opacity: 0.5; text-decoration: line-through; }
 .file-summary-item.rejected .file-item-btn { display: none; }
+.file-result-icon { font-size: 14px; margin-left: 4px; flex-shrink: 0; }
+.file-result-icon.accept-icon { color: var(--green); }
+.file-result-icon.reject-icon { color: var(--red); }
 
 /* ── Block animations ── */
 .block-enter { opacity: 0; transform: translateY(8px); }
@@ -569,11 +571,11 @@ body.debug-mode .debug-block { display: block; }
 <aside class="sidebar" id="sidebar">
   <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar"><i class="bx bx-chevron-left"></i></button>
   <div class="sidebar-header">
-    <h1><div class="sidebar-logo"><i class="bx bx-bot"></i></div> LLM Agent</h1>
+    <h1><div class="sidebar-logo"><i class="bx bx-bot"></i></div> Assistant</h1>
     <button class="btn-new" title="New session" onclick="createNewSession()">+</button>
   </div>
   <div class="session-list" id="session-list"></div>
-  <div class="sidebar-footer">LLM Agent — Live</div>
+  <div class="sidebar-footer">Assistant — Live</div>
 </aside>
 
 <main class="main">
@@ -1131,7 +1133,9 @@ async function sendMessage() {
   sending = true;
   input.value = '';
   input.style.height = 'auto';
-  input.placeholder = 'Type a message. Ctrl+Enter to send.';
+  input.placeholder = _('Type a message. Ctrl+Enter to send.');
+  setStopMode(true);
+  engine.enqueueEvent({ type: 'user', prompt: text });
 
   try {
     const payload = { session_id: activeSessionId, text, mode: currentMode, model: currentModel, turn_limit: currentTurnLimit };
@@ -1143,9 +1147,11 @@ async function sendMessage() {
     const data = await resp.json();
     if (!data.ok) {
       console.error('Send failed:', data.error);
+      setStopMode(false);
     }
   } catch (err) {
     console.error('Send error:', err);
+    setStopMode(false);
   }
 }
 
@@ -1833,9 +1839,13 @@ window._diffHunkAction = async function(btn, action) {
       if (data.ok) {
         hunk.classList.add('rejected');
         hunk.classList.remove('accepted');
+        hunk.querySelectorAll('.diff-line.added, .diff-line.removed').forEach(line => {
+          line.classList.remove('added', 'removed');
+          line.classList.add('read-line');
+        });
         const stats = toolCall.querySelector('[data-tc=diffstats]');
+        const remaining = toolCall.querySelectorAll('.diff-hunk:not(.rejected)');
         if (stats) {
-          const remaining = toolCall.querySelectorAll('.diff-hunk:not(.rejected)');
           let a = 0, r = 0;
           remaining.forEach(h => {
             a += (h.querySelectorAll('.diff-line.added') || []).length;
@@ -1844,8 +1854,16 @@ window._diffHunkAction = async function(btn, action) {
           let parts = [];
           if (a) parts.push('<span class="added-count">+' + a + '</span>');
           if (r) parts.push('<span class="removed-count">-' + r + '</span>');
-          if (!parts.length) parts.push('<span style="color:var(--text-3);font-style:italic">reverted</span>');
+          if (!parts.length) parts.push('<span style="color:var(--text-3);font-style:italic">' + _('reverted') + '</span>');
           stats.innerHTML = parts.join(' ');
+        }
+        if (!remaining.length) {
+          const statusEl = toolCall.querySelector('[data-tc=status]');
+          if (statusEl) {
+            statusEl.className = 'tool-status error';
+            statusEl.innerHTML = '<i class="bx bx-x" style="font-size:16px;"></i>';
+          }
+          toolCall.classList.add('reverted');
         }
       } else {
         console.warn('Revert failed:', data.error);
@@ -1853,6 +1871,16 @@ window._diffHunkAction = async function(btn, action) {
     } catch (e) {
       console.warn('Revert error:', e);
     }
+  }
+};
+
+window._acceptFile = function(btn) {
+  const item = btn.closest('.file-summary-item');
+  if (!item) return;
+  item.classList.add('accepted');
+  const actions = item.querySelector('.file-item-actions');
+  if (actions && !actions.querySelector('.file-result-icon')) {
+    actions.insertAdjacentHTML('beforeend', '<i class="bx bx-check file-result-icon accept-icon"></i>');
   }
 };
 
@@ -1882,11 +1910,27 @@ window._revertFile = async function(btn) {
         else { failed++; console.warn('Revert failed for hunk:', data.error); }
       } catch (e) { failed++; console.warn('Revert error:', e); }
     }
-    const stats = tc.querySelector('[data-tc=diffstats]');
-    if (stats) stats.innerHTML = '<span style="color:var(--text-3);font-style:italic">reverted</span>';
+    if (!failed) {
+      const statusEl = tc.querySelector('[data-tc=status]');
+      if (statusEl) {
+        statusEl.className = 'tool-status error';
+        statusEl.innerHTML = '<i class="bx bx-x" style="font-size:16px;"></i>';
+      }
+      const stats = tc.querySelector('[data-tc=diffstats]');
+      if (stats) stats.innerHTML = '<span style="color:var(--text-3);font-style:italic">' + _('reverted') + '</span>';
+      tc.classList.add('reverted');
+      tc.querySelectorAll('.diff-line.added, .diff-line.removed').forEach(line => {
+        line.classList.remove('added', 'removed');
+        line.classList.add('read-line');
+      });
+    }
   }
   if (item && !failed) {
     item.classList.add('rejected');
+    const actions = item.querySelector('.file-item-actions');
+    if (actions && !actions.querySelector('.file-result-icon')) {
+      actions.insertAdjacentHTML('beforeend', '<i class="bx bx-x file-result-icon reject-icon"></i>');
+    }
   }
 };
 
@@ -2036,6 +2080,15 @@ function handleSSEEvent(evt) {
 
     default:
       if (evt.session_id && evt.session_id !== activeSessionId) break;
+      if (evt.type === 'user' && evt.session_id) break;
+      if (evt.type === 'complete') {
+        sending = false;
+        $('input').disabled = false;
+        $('btn-send').disabled = false;
+        setStopMode(false);
+        const reason = evt.reason || 'done';
+        if (activeSessionId) engine.setSessionStatus(activeSessionId, reason === 'error' ? 'idle' : 'done');
+      }
       engine.enqueueEvent(evt);
       break;
   }

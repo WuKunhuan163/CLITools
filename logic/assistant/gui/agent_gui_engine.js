@@ -929,7 +929,7 @@ class AgentGUIEngine {
       const fileActions = showActions
         ? '<span class="file-item-actions">'
           + '<button class="file-item-btn reject" title="Reject" data-path="' + esc(f.path) + '" onclick="event.stopPropagation();window._revertFile(this)"><i class="bx bx-x"></i></button>'
-          + '<button class="file-item-btn accept" title="Accept" data-path="' + esc(f.path) + '" onclick="event.stopPropagation();this.closest(\'.file-summary-item\').classList.add(\'accepted\')"><i class="bx bx-check"></i></button>'
+          + '<button class="file-item-btn accept" title="Accept" data-path="' + esc(f.path) + '" onclick="event.stopPropagation();window._acceptFile(this)"><i class="bx bx-check"></i></button>'
           + '</span>'
         : '';
       return '<div class="file-summary-item">' + renderFileIcon(f.name) + ' ' + esc(f.name) + ' ' + tag + ' ' + stat + fileActions + '</div>';
@@ -985,9 +985,8 @@ class AgentGUIEngine {
       if (saveBtn) {
         saveBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          const items = this._taskFileBarEl.querySelectorAll('.file-summary-item');
-          items.forEach(it => it.classList.add('accepted'));
-          this._removeTaskFileBar();
+          const acceptBtns = this._taskFileBarEl.querySelectorAll('.file-item-btn.accept');
+          acceptBtns.forEach(b => { if (!b.closest('.file-summary-item.accepted')) window._acceptFile(b); });
         });
       }
     }
