@@ -365,7 +365,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .file-stat .removed-count { color: var(--red); }
 
 /* ── Persistent Task File Bar ── */
-.task-file-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 0 28px 8px; overflow: hidden; transition: opacity 0.3s ease; }
+.task-file-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 0 28px 8px; overflow: hidden; transition: opacity 0.3s ease; min-width: 400px; }
 .task-file-bar.removing { opacity: 0; }
 .task-file-bar .file-summary-header { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 12.5px; font-weight: 500; color: var(--text-2); cursor: pointer; user-select: none; }
 .task-file-bar .file-summary-header:hover { background: rgba(255,255,255,0.03); }
@@ -870,7 +870,7 @@ function setMode(mode) {
 
 function setModel(model) {
   currentModel = model;
-  fetch('/api/model', {
+  fetch('/api/model/switch', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({model}),
@@ -1233,7 +1233,7 @@ function setStopMode(on) {
 
 async function cancelTask() {
   try {
-    await fetch('/api/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    await fetch(`/api/session/${activeSessionId}/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   } catch (e) { console.warn('Cancel failed:', e); }
 }
 
@@ -1268,8 +1268,8 @@ async function sendMessage() {
   engine.enqueueEvent({ type: 'user', prompt: text });
 
   try {
-    const payload = { session_id: activeSessionId, text, mode: currentMode, model: currentModel, turn_limit: currentTurnLimit };
-    const resp = await fetch('/api/send', {
+    const payload = { text, mode: currentMode, model: currentModel, turn_limit: currentTurnLimit };
+    const resp = await fetch(`/api/session/${activeSessionId}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -1288,7 +1288,7 @@ async function sendMessage() {
 /* ── Create New Session ── */
 async function createNewSession() {
   try {
-    const resp = await fetch('/api/session', {
+    const resp = await fetch('/api/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'New Task' }),
@@ -1332,7 +1332,7 @@ async function apiActivateSession(sid) {
   _pendingOlderEvents = [];
   _allSessionEvents = [];
   try {
-    const resp = await fetch(`/api/history/${sid}`);
+    const resp = await fetch(`/api/session/${sid}/history`);
     const data = await resp.json();
     if (data.ok && data.events && data.events.length > 0) {
       const allEvents = data.events;
@@ -2248,10 +2248,10 @@ async function validateAndSaveKey(btn) {
   btn.disabled = true;
   _setKeyStatus(status, '<span style="color:var(--text-3)">Validating...</span>');
   try {
-    const res = await fetch('/api/validate-key', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor, key}) });
+    const res = await fetch('/api/key/validate', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor, key}) });
     const data = await res.json();
     if (data.ok) {
-      const saveRes = await fetch('/api/save-key', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor, key}) });
+      const saveRes = await fetch('/api/key/save', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor, key}) });
       const saveData = await saveRes.json();
       if (saveData.ok) {
         _setKeyStatus(status, '<span style="color:var(--green)"><i class="bx bx-check"></i> Saved</span>');
@@ -2272,7 +2272,7 @@ async function validateAndSaveKey(btn) {
 async function deleteApiKey(vendor, btn) {
   if (!confirm('Delete this API key?')) return;
   try {
-    const res = await fetch('/api/delete-key', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor}) });
+    const res = await fetch('/api/key/delete', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor}) });
     const data = await res.json();
     if (data.ok) {
       fetchUsageData().then(() => renderSettingsTab());
@@ -2689,7 +2689,7 @@ async function init() {
   }
 
   try {
-    const cfgResp = await fetch('/api/configured_models');
+    const cfgResp = await fetch('/api/model/list');
     const cfgData = await cfgResp.json();
     if (cfgData.ok && cfgData.models && cfgData.models.length > 1) {
       MODEL_OPTIONS = cfgData.models.map(m => ({ value: m.value, label: m.label }));

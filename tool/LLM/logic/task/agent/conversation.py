@@ -1302,6 +1302,7 @@ class ConversationManager:
                              "text": f"Round {round_num}/{turn_limit} (max_rounds={max_rounds})"})
                 full_text = ""
                 tool_calls_accum = []
+                _cancelled_mid_stream = False
 
                 if (not _is_unlimited and turn_limit > 3
                         and round_num == turn_limit - 1
@@ -1349,6 +1350,13 @@ class ConversationManager:
                             max_tokens=current_max_tokens,
                             tools=api_tools,
                         ):
+                            if self._cancel_requested:
+                                self._cancel_requested = False
+                                self._emit({"type": "text", "tokens": "\n[Task cancelled by user]\n"})
+                                full_text = ""
+                                tool_calls_accum = []
+                                _cancelled_mid_stream = True
+                                break
                             if chunk.get("_auto_switched"):
                                 from_m = chunk.get("_auto_from", "?")
                                 to_m = chunk.get("_auto_to", "?")
@@ -1516,6 +1524,9 @@ class ConversationManager:
                     if result.get("usage"):
                         resp_event["usage"] = result["usage"]
                     self._emit(resp_event)
+
+                if _cancelled_mid_stream:
+                    break
 
                 if full_text and not tool_calls_accum and "<tool_call>" in full_text:
                     cleaned, parsed_tcs = self._parse_text_tool_calls(full_text)

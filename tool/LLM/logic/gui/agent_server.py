@@ -46,7 +46,10 @@ RESTful API:
     GET  /api/state                               Full system state
     GET  /api/usage                               Usage data
 
-  Legacy aliases preserved for frontend compatibility.
+  Frontend-specific:
+    POST /api/send {"_config":true,...}       Save config values
+    POST /api/revert-hunk                     Text-based hunk revert
+    POST /api/activate/<sid>                  Activate session
 """
 import json
 import os
@@ -352,52 +355,15 @@ class AgentServer:
         if path == "/api/currencies":
             return self._get_currencies()
 
-        # ── Legacy aliases (frontend compatibility) ────────────
+        # ── Essential frontend routes (config saves, text-based revert) ──
         if method == "POST":
-            if path == "/api/send":
-                if body.get("_config"):
-                    return self._save_session_config(body.get("key"), body.get("value"))
-                sid = body.get("session_id") or self._default_session_id
-                return self._api_send(sid, body)
-            if path == "/api/input":
-                sid = body.get("session_id") or self._default_session_id
-                return self._api_input(sid, body)
-            if path == "/api/session":
-                return self._api_create_session(body)
-            if path == "/api/rename":
-                return self._api_rename(body.get("session_id", ""), body)
-            if path == "/api/delete":
-                return self._api_delete_session(body.get("session_id", ""))
-            if path == "/api/clear_all":
-                return self._api_clear_all()
+            if path == "/api/send" and body.get("_config"):
+                return self._save_session_config(body.get("key"), body.get("value"))
+            if path == "/api/revert-hunk":
+                return self._revert_hunk(body)
             if path.startswith("/api/activate/"):
                 sid = path.split("/api/activate/")[1].strip("/")
                 return self._api_activate(sid)
-            if path == "/api/cancel":
-                sid = body.get("session_id") or self._default_session_id
-                return self._api_cancel(sid or "")
-            if path == "/api/revert-hunk":
-                return self._revert_hunk(body)
-            if path == "/api/accept-hunk":
-                return self._accept_hunk(body)
-            if path == "/api/edit-blocks":
-                sid = body.get("session_id") or self._default_session_id
-                return self._list_edit_blocks(sid)
-            if path == "/api/queue":
-                sid = body.get("session_id") or self._default_session_id
-                return self._api_queue(sid, body)
-            if path == "/api/inject_event":
-                sid = body.get("session_id") or self._default_session_id
-                return self._api_inject_event(sid, body)
-            if path == "/api/inject_events":
-                sid = body.get("session_id") or self._default_session_id
-                return self._api_inject_events(sid, body)
-
-        if method == "GET":
-            if path.startswith("/api/history/"):
-                sid = path.split("/api/history/")[1].strip("/")
-                events = self._event_history.get(sid, [])
-                return {"ok": True, "events": events}
 
         return {"ok": False, "error": f"Unknown endpoint: {method} {path}"}
 

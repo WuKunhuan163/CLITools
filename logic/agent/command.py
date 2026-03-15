@@ -208,7 +208,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
                 import urllib.request
                 data = json.dumps({"text": prompt, "turn_limit": default_turn_limit}).encode()
                 req = urllib.request.Request(
-                    f"{base_url}/api/send",
+                    f"{base_url}/api/session/default/send",
                     data=data,
                     headers={"Content-Type": "application/json"},
                     method="POST",
@@ -266,7 +266,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
                 import urllib.request
                 data = json.dumps({"text": prompt, "turn_limit": default_turn_limit}).encode()
                 req = urllib.request.Request(
-                    f"{agent.url}/api/send",
+                    f"{agent.url}/api/session/default/send",
                     data=data,
                     headers={"Content-Type": "application/json"},
                     method="POST",
@@ -326,7 +326,7 @@ def _inject_self_operate_prompt(base_url: str, prompt: str, self_name: str,
         "self_operate": True,
     }).encode()
     req = urllib.request.Request(
-        f"{base_url}/api/session",
+        f"{base_url}/api/sessions",
         data=payload,
         headers={"Content-Type": "application/json"},
         method="POST",
@@ -614,8 +614,8 @@ def _handle_response(args: list, tool_name: str, project_root: str,
     def _inject(evt):
         """Push a single event to the GUI SSE stream."""
         req = urllib.request.Request(
-            f"{base_url}/api/inject_event",
-            data=json.dumps({"session_id": found, "event": evt}).encode(),
+            f"{base_url}/api/session/{found}/inject",
+            data=json.dumps({"event": evt}).encode(),
             headers={"Content-Type": "application/json"},
         )
         urllib.request.urlopen(req, timeout=5)
@@ -763,8 +763,8 @@ def _auto_feed(base_url: str, session_id: str, tool_calls: list,
             "self_name": self_name,
         }
         req = urllib.request.Request(
-            f"{base_url}/api/inject_event",
-            data=json.dumps({"session_id": session_id, "event": next_req}).encode(),
+            f"{base_url}/api/session/{session_id}/inject",
+            data=json.dumps({"event": next_req}).encode(),
             headers={"Content-Type": "application/json"},
         )
         urllib.request.urlopen(req, timeout=5)
@@ -822,7 +822,7 @@ def _ensure_gui_and_create_session(session, provider_name: str,
             "mode": mode,
         }).encode()
         req = urllib.request.Request(
-            f"{base_url}/api/session",
+            f"{base_url}/api/sessions",
             data=data,
             headers={"Content-Type": "application/json"},
         )
