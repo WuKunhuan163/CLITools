@@ -306,13 +306,23 @@ class AgentServer:
                             if v == "__SID__":
                                 evt[k] = sid
                         self._event_history[sid].append(evt)
+                        if evt.get("type") == "session_status":
+                            s = self._mgr.get_session(sid)
+                            if s:
+                                s.status = evt.get("status", s.status)
 
+                self_operate = body.get("self_operate", False)
                 self._push_sse({
                     "type": "session_created",
                     "id": sid,
                     "title": title,
                     "mode": mode,
+                    "self_operate": self_operate,
                 })
+
+                for evt in pre_events:
+                    self._push_sse(evt)
+
                 return {"ok": True, "session_id": sid}
 
             elif path == "/api/rename":
@@ -394,6 +404,10 @@ class AgentServer:
                 if sid not in self._event_history:
                     self._event_history[sid] = []
                 self._event_history[sid].append(event)
+                if event.get("type") == "session_status":
+                    s = self._mgr.get_session(sid)
+                    if s:
+                        s.status = event.get("status", s.status)
                 self._push_sse(event)
                 return {"ok": True}
 

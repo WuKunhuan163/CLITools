@@ -133,6 +133,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .settings-section-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
 .settings-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; }
 .settings-card.configured { background: color-mix(in srgb, var(--green) 8%, var(--surface-2)); border-color: color-mix(in srgb, var(--green) 30%, var(--border)); }
+.settings-stepper { display:inline-flex; align-items:center; border:1px solid var(--border); border-radius:6px; background:var(--bg); overflow:hidden; user-select:none; }
+.settings-stepper .stepper-btn { width:28px; height:28px; border:none; background:transparent; color:var(--text-3); cursor:pointer; font-size:9px; line-height:1; padding:0; transition:background 0.15s,color 0.15s; }
+.settings-stepper .stepper-btn:hover { background:var(--surface-2); color:var(--text); }
+.settings-stepper .stepper-btn:active { background:var(--border); }
+.settings-stepper .stepper-value { min-width:60px; text-align:center; font-family:var(--mono); font-size:13px; color:var(--text); padding:0 4px; border-left:1px solid var(--border); border-right:1px solid var(--border); }
 .settings-card.unconfigured { }
 .settings-card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
 .settings-card-title img { width: 18px; height: 18px; border-radius: 3px; }
@@ -1369,9 +1374,14 @@ function renderSettingsTab() {
 function _settingsNumInput(key, defaultVal, min, max, desc) {
   const saved = localStorage.getItem(key);
   const val = saved ? parseInt(saved) : defaultVal;
+  const step = defaultVal >= 1000 ? 1000 : defaultVal >= 100 ? 100 : defaultVal >= 10 ? 5 : 1;
   return `<label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;">
     <span style="flex:1"><strong>${key.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase())}</strong><br><span style="color:var(--text-3);font-size:11.5px;">${desc}</span></span>
-    <input type="number" min="${min}" max="${max}" value="${val}" style="width:70px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text);font-size:13px;text-align:center;font-family:var(--mono);" onchange="var v=Math.min(Math.max(parseInt(this.value)||${defaultVal},${min}),${max});this.value=v;localStorage.setItem('${key}',v);_saveAssistantConfig('${key}',v);">
+    <div class="settings-stepper" data-key="${key}" data-min="${min}" data-max="${max}" data-default="${defaultVal}" data-mode="linear" data-step="${step}">
+      <button class="stepper-btn down" onclick="_stepperClick(this,-1)">\u25BC</button>
+      <span class="stepper-value">${val}</span>
+      <button class="stepper-btn up" onclick="_stepperClick(this,1)">\u25B2</button>
+    </div>
   </label>`;
 }
 
@@ -1381,10 +1391,36 @@ function _settingsPow2Input(key, defaultVal, min, max, desc) {
   const fmtK = (n) => n >= 1048576 ? (n/1048576)+'m' : n >= 1024 ? (n/1024)+'k' : String(n);
   return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;">
     <span style="flex:1"><strong>${key.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase())}</strong><br><span style="color:var(--text-3);font-size:11.5px;">${desc}</span></span>
-    <button style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);cursor:pointer;font-size:11px;line-height:1;padding:0;" onclick="var inp=this.nextElementSibling;var v=Math.max(parseInt(inp.value)/2,${min});inp.value=v;inp.title=v>=1048576?(v/1048576)+'m':v>=1024?(v/1024)+'k':v;localStorage.setItem('${key}',v);_saveAssistantConfig('${key}',v);">&darr;</button>
-    <input type="number" min="${min}" max="${max}" value="${val}" title="${fmtK(val)}" style="width:80px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);font-size:13px;text-align:center;font-family:var(--mono);" onchange="var v=Math.min(Math.max(parseInt(this.value)||${defaultVal},${min}),${max});this.value=v;this.title=v>=1048576?(v/1048576)+'m':v>=1024?(v/1024)+'k':v;localStorage.setItem('${key}',v);_saveAssistantConfig('${key}',v);">
-    <button style="width:24px;height:24px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);cursor:pointer;font-size:11px;line-height:1;padding:0;" onclick="var inp=this.previousElementSibling;var v=Math.min(parseInt(inp.value)*2,${max});inp.value=v;inp.title=v>=1048576?(v/1048576)+'m':v>=1024?(v/1024)+'k':v;localStorage.setItem('${key}',v);_saveAssistantConfig('${key}',v);">&uarr;</button>
+    <div class="settings-stepper" data-key="${key}" data-min="${min}" data-max="${max}" data-default="${defaultVal}" data-mode="pow2" title="${fmtK(val)}">
+      <button class="stepper-btn down" onclick="_stepperClick(this,-1)">\u25BC</button>
+      <span class="stepper-value">${fmtK(val)}</span>
+      <button class="stepper-btn up" onclick="_stepperClick(this,1)">\u25B2</button>
+    </div>
   </label>`;
+}
+
+function _stepperClick(btn, dir) {
+  const wrapper = btn.closest('.settings-stepper');
+  const key = wrapper.dataset.key;
+  const min = parseInt(wrapper.dataset.min);
+  const max = parseInt(wrapper.dataset.max);
+  const def = parseInt(wrapper.dataset.default);
+  const mode = wrapper.dataset.mode;
+  const valEl = wrapper.querySelector('.stepper-value');
+  const fmtK = (n) => n >= 1048576 ? (n/1048576)+'m' : n >= 1024 ? (n/1024)+'k' : String(n);
+
+  let raw = parseInt(localStorage.getItem(key)) || def;
+  if (mode === 'pow2') {
+    raw = dir > 0 ? Math.min(raw * 2, max) : Math.max(Math.floor(raw / 2), min);
+    valEl.textContent = fmtK(raw);
+    wrapper.title = fmtK(raw);
+  } else {
+    const step = parseInt(wrapper.dataset.step) || 1;
+    raw = dir > 0 ? Math.min(raw + step, max) : Math.max(raw - step, min);
+    valEl.textContent = raw;
+  }
+  localStorage.setItem(key, raw);
+  _saveAssistantConfig(key, raw);
 }
 
 async function _saveAssistantConfig(key, value) {
@@ -2121,6 +2157,7 @@ function handleSSEEvent(evt) {
       engine.clearAllTrackers();
       engine._refreshSessions();
       $('main-title').textContent = evt.title || 'New Task';
+      if (evt.self_operate) engine._selfOperate = true;
       apiActivateSession(evt.id).then(() => {
         if (engine._selfOperate) {
           $('input').disabled = true;
