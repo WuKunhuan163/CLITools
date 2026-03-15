@@ -276,6 +276,8 @@ class AgentGUIEngine {
     this._activeThinkEl = null;
     this._activeThinkBlock = null;
     this._activeThinkBuf = '';
+    this._textRafPending = false;
+    this._thinkRafPending = false;
     this._roundHistory = [];
     this._maxRoundHistory = 16;
     this._maxContextTokens = 0;
@@ -349,6 +351,20 @@ class AgentGUIEngine {
    * Events are guaranteed to execute one at a time, in order.
    */
   enqueueEvent(evt) {
+    if (evt.type === 'text' && this._eventQueue.length > 0) {
+      const last = this._eventQueue[this._eventQueue.length - 1];
+      if (last.type === 'text') {
+        last.tokens = (last.tokens || '') + (evt.tokens || '');
+        return;
+      }
+    }
+    if (evt.type === 'tool_stream_delta' && this._eventQueue.length > 0) {
+      const last = this._eventQueue[this._eventQueue.length - 1];
+      if (last.type === 'tool_stream_delta' && last.index === evt.index) {
+        last.content = (last.content || '') + (evt.content || '');
+        return;
+      }
+    }
     this._eventQueue.push(evt);
     if (!this._processing) this._drainQueue();
   }
@@ -687,9 +703,17 @@ class AgentGUIEngine {
 
     if (this._activeThinkEl && this._activeThinkBlock && this._activeThinkBlock.parentNode === this.chatArea) {
       this._activeThinkBuf += text;
-      this._activeThinkEl.textContent = this._activeThinkBuf;
-      this._activeThinkBlock.classList.add('expanded');
-      this._scrollEnd();
+      if (!this._thinkRafPending) {
+        this._thinkRafPending = true;
+        requestAnimationFrame(() => {
+          this._thinkRafPending = false;
+          if (this._activeThinkEl) {
+            this._activeThinkEl.textContent = this._activeThinkBuf;
+            this._activeThinkBlock.classList.add('expanded');
+            this._scrollEnd();
+          }
+        });
+      }
       return;
     }
 
@@ -723,8 +747,7 @@ class AgentGUIEngine {
   async _renderText(evt) {
     if (this._activeTextEl && this._activeTextGrp && this._activeTextGrp.parentNode === this.chatArea) {
       this._activeTextBuf += evt.tokens;
-      this._activeTextEl.innerHTML = md(this._activeTextBuf);
-      this._scrollEnd();
+      this._scheduleTextRender();
       return;
     }
     const grp = this._appendAnimated('div', 'msg-group');
@@ -732,35 +755,42 @@ class AgentGUIEngine {
     this._activeTextGrp = grp;
     this._activeTextEl = el;
     this._activeTextBuf = evt.tokens;
-    el.innerHTML = md(this._activeTextBuf);
-    this._scrollEnd();
+    this._scheduleTextRender();
+  }
+
+  _scheduleTextRender() {
+    if (this._textRafPending) return;
+    this._textRafPending = true;
+    requestAnimationFrame(() => {
+      this._textRafPending = false;
+      if (this._activeTextEl && this._activeTextBuf) {
+        this._activeTextEl.innerHTML = md(this._activeTextBuf);
+        this._scrollEnd();
+      }
+    });
   }
 
   _clearActiveText() {
+    if (this._textRafPending && this._activeTextEl && this._activeTextBuf) {
+      this._activeTextEl.innerHTML = md(this._activeTextBuf);
+    }
     this._activeTextEl = null;
     this._activeTextGrp = null;
     this._activeTextBuf = '';
+    this._textRafPending = false;
+    if (this._thinkRafPending && this._activeThinkEl && this._activeThinkBuf) {
+      this._activeThinkEl.textContent = this._activeThinkBuf;
+    }
     if (this._activeThinkBlock) {
       this._activeThinkBlock.classList.remove('expanded');
     }
     this._activeThinkEl = null;
     this._activeThinkBlock = null;
     this._activeThinkBuf = '';
+    this._thinkRafPending = false;
   }
 
-  async _streamText(el, tokens, delay) {
-    if (_replayMode) {
-      el.innerHTML = md(tokens);
-      return;
-    }
-    let buf = this._activeTextBuf || '';
-    const startAt = buf.length - tokens.length;
-    for (let i = 0; i < tokens.length; i++) {
-      el.innerHTML = md(buf.slice(0, startAt + i + 1));
-      this._scrollEnd();
-      await sleep(delay);
-    }
-  }
+  /* _streamText removed: real streaming uses RAF-batched rendering */
 
   _renderTool(evt) {
     this.toolIdx++;
@@ -934,18 +964,27 @@ class AgentGUIEngine {
     if (!st) return sleep(0);
 
     st.buffer += (evt.content || '');
+    st._dirty = true;
 
-    const contentEl = st.contentEl;
-    if (contentEl) {
-      const isEdit = st.name === 'edit_file' || st.name === 'write_file' || st.name === 'edit';
-      if (isEdit) {
-        contentEl.textContent = this._extractEditContent(st);
-      } else if (st.name === 'think') {
-        contentEl.textContent = this._extractThinkContent(st);
-      } else {
-        contentEl.textContent = st.buffer;
-      }
-      this._scrollEnd();
+    if (!st._rafPending) {
+      st._rafPending = true;
+      requestAnimationFrame(() => {
+        st._rafPending = false;
+        if (!st._dirty) return;
+        st._dirty = false;
+        const contentEl = st.contentEl;
+        if (contentEl) {
+          const isEdit = st.name === 'edit_file' || st.name === 'write_file' || st.name === 'edit';
+          if (isEdit) {
+            contentEl.textContent = this._extractEditContent(st);
+          } else if (st.name === 'think') {
+            contentEl.textContent = this._extractThinkContent(st);
+          } else {
+            contentEl.textContent = st.buffer;
+          }
+          this._scrollEnd();
+        }
+      });
     }
     return sleep(0);
   }
