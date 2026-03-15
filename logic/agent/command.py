@@ -238,19 +238,22 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
     DIM = get_color("DIM", "\033[2m")
     RESET = get_color("RESET", "\033[0m")
 
+    import sys as _sys
     prompt = " ".join(args) if args else None
     provider = _get_provider_name()
     default_turn_limit = _get_session_config_default("default_turn_limit", 20)
 
+    from interface.status import fmt_status, fmt_info, fmt_stage
+
+    print(fmt_stage("Checking for running server...", status="active"), flush=True)
     existing_port = _find_running_gui_port()
     if existing_port:
-        from interface.status import fmt_status
         base_url = f"http://localhost:{existing_port}"
-        print(fmt_status("Reusing GUI.", complement=f"at {base_url}"))
+        print(fmt_status("Reusing GUI.", complement=f"at {base_url}"), flush=True)
 
         if prompt and _has_running_session(base_url):
             RED = get_color("RED", "\033[31m")
-            print(f"  {RED}{BOLD}Blocked.{RESET} A session is still running.")
+            print(f"  {RED}{BOLD}Blocked.{RESET} A session is still running.", flush=True)
             print(f"  {DIM}Complete or cancel the current task before starting a new one.{RESET}")
             return
 
@@ -265,9 +268,9 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
                     method="POST",
                 )
                 urllib.request.urlopen(req, timeout=5)
-                print(f"  {BOLD}Sent{RESET} initial prompt.")
+                print(f"  {BOLD}Sent{RESET} initial prompt.", flush=True)
             except Exception:
-                print(f"  Prompt queued — type it in the browser.")
+                print(f"  Prompt queued — type it in the browser.", flush=True)
         elif prompt and self_operate:
             _inject_self_operate_prompt(base_url, prompt, self_name, env,
                                         default_turn_limit)
@@ -276,18 +279,16 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
     try:
         from logic.assistant.gui.server import start_server
     except ImportError:
-        print(f"  {BOLD}LLM tool not available.{RESET} Install it first.")
+        print(f"  {BOLD}LLM tool not available.{RESET} Install it first.", flush=True)
         return
-
-    from interface.status import fmt_status, fmt_info, fmt_stage
 
     label = MODE_LABELS.get(mode, "Agent")
     if self_operate:
         label_display = f"{label} (self-operate)"
     else:
         label_display = label
-    print(fmt_stage("Starting server...", status="active"))
-    print(fmt_info(f"{label_display} GUI (provider: {provider})"))
+    print(fmt_stage("Starting server...", status="active"), flush=True)
+    print(fmt_info(f"{label_display} GUI (provider: {provider})"), flush=True)
 
     try:
         from tool.LLM.logic.config import get_config_value
@@ -305,7 +306,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         scope_name=tool_name,
     )
 
-    print(fmt_status("Started GUI.", complement=f"at {agent.url}", style="success"))
+    print(fmt_status("Started GUI.", complement=f"at {agent.url}", style="success"), flush=True)
 
     if prompt:
         import time as _t
@@ -324,14 +325,15 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
                     method="POST",
                 )
                 urllib.request.urlopen(req, timeout=5)
-                print(f"  {BOLD}Sent{RESET} initial prompt.")
+                print(f"  {BOLD}Sent{RESET} initial prompt.", flush=True)
             except Exception:
-                print(f"  Prompt queued — type it in the browser.")
+                print(f"  Prompt queued — type it in the browser.", flush=True)
 
     if self_operate:
-        print(f"  {CYAN}{BOLD}Self-operate mode.{RESET} {DIM}Awaiting --response.{RESET}")
+        print(f"  {CYAN}{BOLD}Self-operate mode.{RESET} {DIM}Awaiting --response.{RESET}", flush=True)
 
-    print(fmt_info("Press Ctrl+C to stop."))
+    print(fmt_info("Press Ctrl+C to stop."), flush=True)
+    _sys.stdout.flush()
     try:
         agent._server.wait()
     except KeyboardInterrupt:
@@ -828,12 +830,26 @@ def _auto_feed(base_url: str, session_id: str, tool_calls: list,
 
 def _find_running_gui_port() -> int:
     """Find the port of a running LLM Agent GUI server."""
+    import socket
     import urllib.request
+
+    def _port_open(port: int) -> bool:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.05)
+            s.connect(("127.0.0.1", port))
+            s.close()
+            return True
+        except (ConnectionRefusedError, OSError):
+            return False
+
     for port_range in [range(8100, 8200), range(9780, 9800)]:
         for port in port_range:
+            if not _port_open(port):
+                continue
             try:
                 resp = urllib.request.urlopen(
-                    f"http://localhost:{port}/api/state", timeout=0.3)
+                    f"http://localhost:{port}/api/state", timeout=0.5)
                 if resp.status == 200:
                     return port
             except Exception:

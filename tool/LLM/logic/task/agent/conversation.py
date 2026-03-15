@@ -1377,6 +1377,8 @@ class ConversationManager:
             elif turn_limit == 0:
                 turn_limit = HARD_ROUND_CAP
             max_rounds = min(turn_limit, HARD_ROUND_CAP)
+            effective_limit = 0 if _is_unlimited else turn_limit
+            self._emit({"type": "turn_limit_set", "turn_limit": effective_limit})
             round_num = 0
             empty_retries = 0
             max_empty_retries = pipeline.get_max_retries()
