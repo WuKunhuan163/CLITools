@@ -4,7 +4,7 @@ Wires ConversationManager → SSE → browser, with HTTP API endpoints
 for message sending, session management, and automation control.
 
 Usage:
-    from tool.LLM.logic.gui.server import start_server
+    from logic.assistant.gui.server import start_server
     server = start_server(port=0)
     # → http://localhost:{port}/
 
@@ -58,10 +58,10 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 _dir = Path(__file__).resolve().parent
-_root = _dir.parent.parent.parent.parent
+_root = _dir.parent.parent.parent
 sys.path.insert(0, str(_root))
 
-from tool.LLM.logic.gui.round_store import (
+from logic.assistant.gui.round_store import (
     RoundStore, render_token_page, render_read_page,
     render_edit_page, _not_found_page
 )
@@ -1050,7 +1050,7 @@ class AgentServer:
             mid = m["model"]
             cap = m.get("capabilities", {})
             model_json_path = os.path.join(
-                os.path.dirname(__file__), "..", "models",
+                str(_root), "tool", "LLM", "logic", "models",
                 mid.replace("-", "_").replace(".", "_"), "model.json")
             cost_info = {}
             bench_info = {}

@@ -158,7 +158,7 @@ def start_server(provider_name="zhipu-glm-4.7", port=0,
 
     Returns an ``AgentServer`` instance with the server already running.
     """
-    from tool.LLM.logic.gui.server import start_server as _start
+    from logic.assistant.gui.server import start_server as _start
     return _start(
         provider_name=provider_name,
         port=port,

@@ -223,7 +223,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         return
 
     try:
-        from tool.LLM.logic.gui.server import start_server
+        from logic.assistant.gui.server import start_server
     except ImportError:
         print(f"  {BOLD}LLM tool not available.{RESET} Install it first.")
         return
@@ -800,7 +800,7 @@ def _ensure_gui_and_create_session(session, provider_name: str,
     port = _find_running_gui_port()
     if not port:
         try:
-            from tool.LLM.logic.gui.server import start_server
+            from logic.assistant.gui.server import start_server
             from tool.LLM.logic.config import get_config_value
             lang = get_config_value("lang", "en")
             agent = start_server(
