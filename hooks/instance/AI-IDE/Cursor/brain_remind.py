@@ -2,14 +2,19 @@
 """postToolUse hook: Anti-fatigue reminder system for USERINPUT execution.
 
 Fires after every tool call. Implements progressive escalation with format
-variation to combat message habituation over long sessions (50-100+ tool calls).
+variation to combat message habituation over long sessions.
+
+Schedule:
+  - Tool call #1: One initial reminder (establishes the pattern for fresh agents)
+  - Tool calls #2 to START_AFTER: Silent (agent remembers from the first reminder)
+  - Tool calls START_AFTER+: Reminders appear, ramping from MIN_INTERVAL to
+    MAX_INTERVAL (in tool calls between reminders). The ramp is linear.
 
 Anti-fatigue strategies:
 1. Dynamic messages — randomly selected from pools, never the same twice in a row
-2. Progressive escalation — 4 tiers with increasing urgency and format changes
+2. Progressive frequency — reminders get more frequent as work continues
 3. Format variation — alternates between brief/verbose, structural markers change
 4. Time awareness — tracks wall-clock time since last USERINPUT
-5. Contextual triggers — includes active task context at higher tiers
 """
 import json
 import os
@@ -22,6 +27,11 @@ from datetime import datetime
 
 LOG_FILE = Path("/tmp/cursor-hooks.log")
 
+_DEFAULT_START_AFTER = 500
+_DEFAULT_MIN_INTERVAL = 200
+_DEFAULT_MAX_INTERVAL = 50
+_RAMP_SPAN = 2000
+
 
 def _log(msg: str):
     try:
@@ -31,47 +41,22 @@ def _log(msg: str):
         pass
 
 
-# Tier 1: Gentle (count 1-10) — every 3rd call
-_T1_POOL = [
+_INITIAL_MSG = (
+    "USERINPUT is available for user feedback. "
+    "Call it with block_until_ms: 310000 when ready. "
+    "Never use short timeouts or background execution."
+)
+
+_REMINDER_POOL = [
     "Remember to run USERINPUT when ready for user feedback.",
-    "USERINPUT is available when you need user input.",
-    "Don't forget: USERINPUT before ending your turn.",
-    "Tip: call USERINPUT periodically for user feedback.",
-]
-
-# Tier 2: Assertive (count 11-25) — every 2nd call
-_T2_POOL = [
-    ">>> USERINPUT required. Run: python3 -B tool/USERINPUT/main.py --timeout 120",
-    "ACTION NEEDED: Execute USERINPUT now. The user may have corrections.",
-    "You have not called USERINPUT in {n} tool calls. Execute it.",
-    "USERINPUT overdue ({elapsed}). Run it before continuing.",
+    "USERINPUT overdue ({elapsed}). Execute it before continuing more work.",
+    "You have not called USERINPUT in {n} tool calls. Run it now.",
     "Stop and run USERINPUT. User feedback prevents wasted work.",
-]
-
-# Tier 3: Urgent (count 26-50) — every call
-_T3_POOL = [
-    "!!! CRITICAL: {n} tool calls without USERINPUT. RUN IT IMMEDIATELY !!!",
-    "=== USERINPUT OVERDUE ({elapsed}) === Execute: python3 -B tool/USERINPUT/main.py --timeout 120",
-    "### STOP ### You MUST call USERINPUT before ANY more tool calls. {n} calls without it.",
-    "*** URGENT *** {n} operations without user feedback. USERINPUT NOW. python3 -B tool/USERINPUT/main.py",
-    "BLOCKED: No more actions until USERINPUT is executed. Calls since last: {n}. Time: {elapsed}.",
-]
-
-# Tier 4: Emergency (count 50+) — every call, with full context
-_T4_POOL = [
-    "🚨 EMERGENCY: {n} TOOL CALLS WITHOUT USERINPUT. YOU ARE IGNORING THIS REMINDER.\n"
-    "Execute this EXACT command in Shell: python3 -B tool/USERINPUT/main.py --timeout 120\n"
-    "DO NOT make another tool call before running USERINPUT.",
-
-    "╔══════════════════════════════════════════════╗\n"
-    "║  USERINPUT NOT CALLED — {n} CALLS OVERDUE   ║\n"
-    "║  Run: python3 -B tool/USERINPUT/main.py     ║\n"
-    "╚══════════════════════════════════════════════╝\n"
-    "The user is waiting. Execute USERINPUT RIGHT NOW.",
-
-    "⛔ FINAL WARNING [{n} calls, {elapsed}]: Your turn CANNOT end without USERINPUT.\n"
-    "The stop hook will REJECT your completion. Run USERINPUT now to avoid forced retry.\n"
-    "Command: python3 -B tool/USERINPUT/main.py --timeout 120",
+    ">>> USERINPUT required. The user may have corrections. block_until_ms: 310000",
+    "ACTION NEEDED: Execute USERINPUT now. Do not background it.",
+    "{n} tool calls without USERINPUT ({elapsed}). RUN IT IMMEDIATELY.",
+    "=== USERINPUT OVERDUE ({elapsed}) === Execute now with block_until_ms: 310000",
+    "### STOP ### You MUST call USERINPUT before continuing. {n} calls without it.",
 ]
 
 
@@ -91,7 +76,13 @@ def _load_state(conversation_id: str) -> dict:
             return json.loads(state_file.read_text())
         except Exception:
             pass
-    return {"count": 0, "last_msg_hash": 0, "first_call_ts": time.time(), "last_userinput_ts": 0}
+    return {
+        "count": 0,
+        "last_msg_hash": 0,
+        "first_call_ts": time.time(),
+        "last_userinput_ts": 0,
+        "last_remind_at": 0,
+    }
 
 
 def _save_state(conversation_id: str, state: dict):
@@ -99,8 +90,17 @@ def _save_state(conversation_id: str, state: dict):
     state_file.write_text(json.dumps(state))
 
 
+def _load_hook_config() -> dict:
+    config_file = Path("/tmp/cursor-remind-hook-config.json")
+    if config_file.exists():
+        try:
+            return json.loads(config_file.read_text())
+        except Exception:
+            pass
+    return {}
+
+
 def _pick_unique(pool: list, last_hash: int) -> tuple:
-    """Pick a message from pool that differs from the last one sent."""
     candidates = list(pool)
     random.shuffle(candidates)
     for msg in candidates:
@@ -110,18 +110,20 @@ def _pick_unique(pool: list, last_hash: int) -> tuple:
     return candidates[0], hash(candidates[0]) % 10000
 
 
-def _load_active_tasks(project_dir: Path) -> str:
-    tasks_file = project_dir / "runtime" / "brain" / "tasks.json"
-    if not tasks_file.exists():
-        return ""
-    try:
-        data = json.loads(tasks_file.read_text())
-        active = [t for t in data.get("tasks", []) if t.get("status") != "done"]
-        if active:
-            return "\n".join(f"  #{t['id']} [{t['status']}] {t['content']}" for t in active[:5])
-    except Exception:
-        pass
-    return ""
+def _get_current_interval(count: int, start_after: int,
+                          min_interval: int, max_interval: int) -> int:
+    """Calculate the current interval between reminders.
+
+    Returns the number of tool calls between reminders, linearly ramping
+    from min_interval (infrequent) to max_interval (frequent) over RAMP_SPAN
+    calls after start_after.
+    """
+    calls_past_start = count - start_after
+    if calls_past_start <= 0:
+        return min_interval
+    progress = min(calls_past_start / _RAMP_SPAN, 1.0)
+    return max(int(min_interval - progress * (min_interval - max_interval)),
+               max_interval)
 
 
 def main():
@@ -147,11 +149,19 @@ def main():
 
     userinput_flag = Path(f"/tmp/cursor-userinput-done-{conversation_id}")
     if userinput_flag.exists():
-        state["last_userinput_ts"] = userinput_flag.stat().st_mtime
-        state["count"] = 0
-        count = 0
+        flag_ts = userinput_flag.stat().st_mtime
+        if flag_ts > state.get("last_userinput_ts", 0):
+            state["last_userinput_ts"] = flag_ts
+            state["count"] = 0
+            count = 0
+            state["last_remind_at"] = 0
 
     _save_state(conversation_id, state)
+
+    hook_cfg = _load_hook_config()
+    start_after = hook_cfg.get("start_after", _DEFAULT_START_AFTER)
+    min_interval = hook_cfg.get("min_interval", _DEFAULT_MIN_INTERVAL)
+    max_interval = hook_cfg.get("max_interval", _DEFAULT_MAX_INTERVAL)
 
     last_ui_ts = state.get("last_userinput_ts", 0)
     if not last_ui_ts:
@@ -161,52 +171,29 @@ def main():
     last_hash = state.get("last_msg_hash", 0)
 
     output = {}
-    workspace_roots = payload.get("workspace_roots", [])
-    project_dir = Path(workspace_roots[0]) if workspace_roots else Path("/Applications/AITerminalTools")
 
-    if count >= 50:
-        # Tier 4: Emergency — every call
-        msg, new_hash = _pick_unique(_T4_POOL, last_hash)
-        msg = msg.format(n=count, elapsed=elapsed)
-        tasks = _load_active_tasks(project_dir)
-        if tasks:
-            msg += f"\n\nActive tasks:\n{tasks}"
-        output["additional_context"] = msg
-        _log(f"T4 EMERGENCY count={count}")
+    if count == 1:
+        output["additional_context"] = f"[Reminder] {_INITIAL_MSG}"
+        _log(f"INITIAL count=1")
 
-    elif count >= 26:
-        # Tier 3: Urgent — every call
-        msg, new_hash = _pick_unique(_T3_POOL, last_hash)
-        msg = msg.format(n=count, elapsed=elapsed)
-        output["additional_context"] = msg
-        _log(f"T3 URGENT count={count}")
+    elif count > start_after:
+        interval = _get_current_interval(count, start_after,
+                                         min_interval, max_interval)
+        last_remind = state.get("last_remind_at", 0)
+        calls_since_remind = count - last_remind
 
-    elif count >= 11:
-        # Tier 2: Assertive — every 2nd call
-        if count % 2 == 0:
-            msg, new_hash = _pick_unique(_T2_POOL, last_hash)
+        if calls_since_remind >= interval:
+            msg, new_hash = _pick_unique(_REMINDER_POOL, last_hash)
             msg = msg.format(n=count, elapsed=elapsed)
             output["additional_context"] = msg
-            _log(f"T2 ASSERTIVE count={count}")
+            state["last_msg_hash"] = new_hash
+            state["last_remind_at"] = count
+            _save_state(conversation_id, state)
+            _log(f"REMIND count={count} interval={interval} elapsed={elapsed}")
         else:
-            new_hash = last_hash
-            _log(f"T2 skip count={count}")
-
-    elif count >= 4:
-        # Tier 1: Gentle — every 3rd call
-        if count % 3 == 0:
-            msg, new_hash = _pick_unique(_T1_POOL, last_hash)
-            output["additional_context"] = f"[Reminder] {msg}"
-            _log(f"T1 GENTLE count={count}")
-        else:
-            new_hash = last_hash
-            _log(f"T1 skip count={count}")
+            _log(f"skip count={count} interval={interval} since_remind={calls_since_remind}")
     else:
-        new_hash = last_hash
-        _log(f"silent count={count}")
-
-    state["last_msg_hash"] = new_hash
-    _save_state(conversation_id, state)
+        _log(f"silent count={count} start_after={start_after}")
 
     result = json.dumps(output)
     _log(f"output={result[:200]}")

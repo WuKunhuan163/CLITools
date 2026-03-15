@@ -13,16 +13,13 @@ _CACHE_FILE = _CACHE_DIR / "llm_models.json"
 _DEFAULT_TTL = 24 * 3600
 
 
+_CONFIG_FILE = Path(__file__).parent.parent / "data" / "config.json"
+
+
 def _get_api_key() -> str:
-    try:
-        from tool.ARTIFICIAL_ANALYSIS.logic import _config_key
-        return _config_key()
-    except Exception:
-        pass
-    cfg_path = Path(__file__).parent.parent / "tool.json"
-    if cfg_path.exists():
+    if _CONFIG_FILE.exists():
         try:
-            return json.loads(cfg_path.read_text()).get("config", {}).get("api_key", "")
+            return json.loads(_CONFIG_FILE.read_text()).get("api_key", "")
         except Exception:
             pass
     return os.environ.get("ARTIFICIAL_ANALYSIS_API_KEY", "")
@@ -58,7 +55,7 @@ def fetch_llm_models(force_refresh: bool = False, api_key: str = "") -> dict:
 
     key = api_key or _get_api_key()
     if not key:
-        return {"error": "No API key configured. Set it in tool.json or ARTIFICIAL_ANALYSIS_API_KEY env var."}
+        return {"error": "No API key configured. Set it in data/config.json or ARTIFICIAL_ANALYSIS_API_KEY env var."}
 
     url = f"{_API_BASE}/data/llms/models"
     req = Request(url, headers={"x-api-key": key, "Accept": "application/json"})

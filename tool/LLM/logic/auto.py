@@ -205,6 +205,7 @@ class AutoProvider(LLMProvider):
 
         chain = self._get_fallback_chain()
         previous = self._last_used
+        last_error = None
 
         for provider_name in chain:
             try:
@@ -225,6 +226,7 @@ class AutoProvider(LLMProvider):
                     if not chunk.get("ok"):
                         _health.record_error(provider_name)
                         error_seen = True
+                        last_error = chunk
                         break
                     yield chunk
 
@@ -234,12 +236,16 @@ class AutoProvider(LLMProvider):
 
                 previous = provider_name
 
-            except Exception:
+            except Exception as e:
                 _health.record_error(provider_name)
+                last_error = {"ok": False, "error": str(e)}
                 previous = provider_name
                 continue
 
-        yield {"ok": False, "error": "All providers failed"}
+        final = last_error or {"ok": False, "error": "No available providers"}
+        if "error_code" not in final:
+            final["error_code"] = 0
+        yield final
 
     def is_available(self) -> bool:
         return bool(self._get_fallback_chain())

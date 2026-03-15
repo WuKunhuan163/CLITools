@@ -229,11 +229,37 @@ BUILTIN_TOOLS = [
         "type": "function",
         "function": {
             "name": "exec",
-            "description": "Execute a shell command and return output. Use this to run CLI tools like BILIBILI, TOOL, GOOGLE, etc. Example: BILIBILI trending --limit 10",
+            "description": (
+                "Execute a shell command. By default blocks up to 30s (block_until_ms=30000). "
+                "If the command hasn't finished by then, it continues in the background and "
+                "the partial output so far is returned. Set block_until_ms=0 to run immediately "
+                "in background (for dev servers, watchers). Set higher values for long commands. "
+                "Use timeout_policy='error' if you need a non-zero exit on timeout."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "command": {"type": "string", "description": "Shell command, e.g. 'BILIBILI boot', 'BILIBILI trending --limit 10', 'TOOL --list'"},
+                    "command": {
+                        "type": "string",
+                        "description": "Shell command to execute",
+                    },
+                    "block_until_ms": {
+                        "type": "integer",
+                        "description": (
+                            "Max milliseconds to wait for completion. Default 30000 (30s). "
+                            "0 = run in background immediately. "
+                            "If the command finishes before this, the full output is returned."
+                        ),
+                    },
+                    "timeout_policy": {
+                        "type": "string",
+                        "enum": ["ok", "error"],
+                        "description": (
+                            "What to report when block_until_ms is exceeded: "
+                            "'ok' (default) returns ok=true with partial output, "
+                            "'error' returns ok=false."
+                        ),
+                    },
                 },
                 "required": ["command"],
             },
@@ -664,9 +690,14 @@ class ConversationManager:
 
     def _handle_exec(self, args: dict) -> dict:
         import subprocess
+        import threading
+
         cmd = args.get("command", "")
+        block_ms = args.get("block_until_ms", 30000)
+        timeout_policy = args.get("timeout_policy", "ok")
         cwd = self._get_cwd()
         project_root = _PROJECT_ROOT
+
         first_word = cmd.strip().split()[0] if cmd.strip() else "exec"
         exec_desc = f"Run {first_word}" if len(cmd) > 40 else cmd
         self._emit({"type": "tool", "name": "exec", "desc": exec_desc, "cmd": cmd})
@@ -683,34 +714,56 @@ class ConversationManager:
         if extra_paths:
             env["PATH"] = ":".join(extra_paths) + ":" + env.get("PATH", "")
 
-        env_obj = self._get_current_environment()
         try:
-            result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=60,
-                cwd=cwd, env=env,
+            proc = subprocess.Popen(
+                cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, cwd=cwd, env=env,
             )
-            output = result.stdout + result.stderr
-            ok = result.returncode == 0
-            self._emit({"type": "tool_result", "ok": ok, "output": output[:6000]})
-            if env_obj:
-                env_obj.record_result(cmd, ok, output[:300])
-                if not ok:
-                    env_obj.record_error(f"Command failed: {cmd}")
-            self._brain.learn_from_result(cmd, ok, output[:500])
-            return {"ok": ok, "output": output[:6000]}
-        except subprocess.TimeoutExpired:
-            self._emit({"type": "tool_result", "ok": False, "output": "Command timed out (60s)"})
-            if env_obj:
-                env_obj.record_result(cmd, False, "Timeout")
-                env_obj.record_error(f"Timeout: {cmd}")
-            self._brain.learn_from_result(cmd, False, "Timeout")
-            return {"ok": False, "output": "Timeout"}
+
+            if block_ms == 0:
+                ok = timeout_policy == "ok"
+                msg = f"[Started in background. pid={proc.pid}]"
+                self._emit({"type": "tool_result", "ok": ok, "output": msg,
+                             "pid": proc.pid, "running": True})
+                return {"ok": ok, "output": msg, "pid": proc.pid, "running": True}
+
+            block_s = block_ms / 1000.0
+            stdout_parts = []
+            stderr_parts = []
+            finished = threading.Event()
+
+            def _reader():
+                try:
+                    out, err = proc.communicate()
+                    stdout_parts.append(out or "")
+                    stderr_parts.append(err or "")
+                except Exception:
+                    pass
+                finally:
+                    finished.set()
+
+            t = threading.Thread(target=_reader, daemon=True)
+            t.start()
+
+            if finished.wait(timeout=block_s):
+                output = "".join(stdout_parts) + "".join(stderr_parts)
+                ok = proc.returncode == 0
+                self._emit({"type": "tool_result", "ok": ok, "output": output[:6000],
+                             "pid": proc.pid})
+                return {"ok": ok, "output": output[:6000],
+                        "pid": proc.pid, "exit_code": proc.returncode}
+
+            ok = timeout_policy == "ok"
+            msg = (
+                f"[Command still running after {block_ms}ms, moved to background. "
+                f"pid={proc.pid}]"
+            )
+            self._emit({"type": "tool_result", "ok": ok, "output": msg,
+                         "pid": proc.pid, "running": True})
+            return {"ok": ok, "output": msg, "pid": proc.pid, "running": True}
+
         except Exception as e:
             self._emit({"type": "tool_result", "ok": False, "output": str(e)})
-            if env_obj:
-                env_obj.record_result(cmd, False, str(e))
-                env_obj.record_error(str(e))
-            self._brain.learn_from_result(cmd, False, str(e))
             return {"ok": False, "output": str(e)}
 
     def _handle_read_file(self, args: dict) -> dict:
@@ -1688,6 +1741,15 @@ class ConversationManager:
                             _fallback_attempted = True
                             continue
 
+                    self._emit({
+                        "type": "llm_response_end",
+                        "round": round_num,
+                        "error": True,
+                        "error_code": error_code,
+                        "latency_s": 0,
+                        "has_tool_calls": False,
+                        "provider": failed_name,
+                    })
                     self._emit({"type": "text", "tokens": f"Error: {err}"})
                     self._emit({"type": "complete"})
                     session.status = "idle"

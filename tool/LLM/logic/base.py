@@ -176,6 +176,10 @@ class LLMProvider(ABC):
                 yield chunk
                 return
 
+            if chunk.get("_auto_switched"):
+                yield chunk
+                continue
+
             if chunk.get("usage"):
                 api_usage = chunk["usage"]
 

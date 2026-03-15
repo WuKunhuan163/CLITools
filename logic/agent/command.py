@@ -3,6 +3,9 @@
 Subcommands:
     prompt "..."              Start a new session and send initial prompt
     feed <SID> <CMD>          Send a follow-up command to an existing session
+    response <SID> <JSON>     Inject structured LLM response events into session
+    history [SID] [--limit N] Show recent N events for a session in CLI format
+    config [KEY] [VALUE]      View/set assistant configuration
     status [SID]              Show session status
     sessions                  List all sessions
     setup                     Configure LLM API keys
@@ -56,6 +59,12 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
     elif subcmd == "feed":
         _handle_feed(rest, tool_name, project_root, tool_dir, mode=mode,
                      dry_run=dry_run)
+    elif subcmd == "response":
+        _handle_response(rest, tool_name, project_root, tool_dir, mode=mode)
+    elif subcmd == "history":
+        _handle_history(rest, project_root)
+    elif subcmd == "config":
+        _handle_config(rest, project_root)
     elif subcmd == "status":
         _handle_status(rest, project_root)
     elif subcmd == "sessions":
@@ -96,6 +105,9 @@ Usage:
   {tool_name} {flag} --gui                   Open browser GUI (no initial prompt)
   {tool_name} {flag} feed <SESSION_ID> "Follow-up instruction"
   {tool_name} {flag} --dry-run feed <SID> "..."  Show feed prompt without calling LLM
+  {tool_name} {flag} response <SID> <json_file|json_string>
+  {tool_name} {flag} history [SESSION_ID] [--limit N]
+  {tool_name} {flag} config [KEY [VALUE]]
   {tool_name} {flag} status [SESSION_ID]
   {tool_name} {flag} sessions
   {tool_name} {flag} setup
@@ -403,6 +415,348 @@ def _handle_feed(args: list, tool_name: str, project_root: str,
     print(f"\n  {BOLD}Turn complete.{RESET} {DIM}ID: {session.id} | Messages: {session.message_count}{RESET}")
 
 
+def _handle_response(args: list, tool_name: str, project_root: str,
+                     tool_dir: str, mode: str = "agent"):
+    """Inject structured LLM response events into a session.
+
+    Accepts a sequence of JSON events (llm_response_start, text,
+    llm_response_end, tool_result, etc.) and feeds them into
+    the active ConversationManager session. After processing any
+    tool calls, prints the next LLM request payload.
+    """
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    DIM = get_color("DIM", "\033[2m")
+    CYAN = get_color("CYAN", "\033[36m")
+    YELLOW = get_color("YELLOW", "\033[33m")
+    RESET = get_color("RESET", "\033[0m")
+
+    if not args:
+        flag = f"--{mode}"
+        print(f"Usage: {flag} response <SESSION_ID> <json_file_or_string>")
+        print(f"  Provide either a path to a .json file or inline JSON.")
+        print(f"  The JSON should be an array of event objects or a single event.")
+        return
+
+    session_id = args[0]
+    json_input = " ".join(args[1:]) if len(args) > 1 else ""
+
+    if not json_input:
+        flag = f"--{mode}"
+        print(f"Usage: {flag} response {session_id} <json_file_or_string>")
+        return
+
+    if os.path.isfile(json_input):
+        with open(json_input, encoding="utf-8") as f:
+            json_input = f.read()
+
+    try:
+        data = json.loads(json_input)
+    except json.JSONDecodeError as e:
+        print(f"  {BOLD}Invalid JSON.{RESET} {DIM}{e}{RESET}")
+        return
+
+    events = data if isinstance(data, list) else [data]
+
+    try:
+        from tool.LLM.logic.gui.agent_server import AgentGUIEngine
+    except ImportError:
+        print(f"  {BOLD}LLM tool not available.{RESET}")
+        return
+
+    import urllib.request
+    port = _find_running_gui_port()
+    if not port:
+        print(f"  {BOLD}No running GUI server found.{RESET} Start one with --gui first.")
+        return
+
+    base_url = f"http://localhost:{port}"
+
+    sessions_resp = json.loads(
+        urllib.request.urlopen(f"{base_url}/api/sessions", timeout=5).read())
+    found = None
+    for s in sessions_resp.get("sessions", []):
+        if s.get("id", "").startswith(session_id):
+            found = s["id"]
+            break
+    if not found:
+        print(f"  {BOLD}Session not found.{RESET} {DIM}{session_id}{RESET}")
+        return
+
+    full_text = ""
+    tool_calls = []
+    has_tool_calls = False
+
+    for evt in events:
+        etype = evt.get("type", "")
+
+        if etype == "llm_response_start":
+            round_num = evt.get("round", "?")
+            print(f"  {CYAN}[R{round_num}]{RESET} Response start")
+
+        elif etype == "text":
+            tokens = evt.get("tokens", "")
+            full_text += tokens
+            sys.stdout.write(tokens)
+            sys.stdout.flush()
+
+        elif etype == "tool_call":
+            tc = evt
+            tool_calls.append(tc)
+            has_tool_calls = True
+            name = tc.get("name", tc.get("function", {}).get("name", "?"))
+            print(f"\n  {BOLD}> {name}{RESET}")
+
+        elif etype == "llm_response_end":
+            has_tool_calls = evt.get("has_tool_calls", has_tool_calls)
+            latency = evt.get("latency_s", 0)
+            provider = evt.get("provider", "?")
+            print(f"\n  {DIM}[{latency}s via {provider}]{RESET}")
+
+            if has_tool_calls and tool_calls:
+                print(f"\n  {YELLOW}{BOLD}Executing tool calls...{RESET}")
+                for tc in tool_calls:
+                    name = tc.get("name", tc.get("function", {}).get("name", "?"))
+                    tc_args = tc.get("arguments", tc.get("function", {}).get("arguments", {}))
+                    if isinstance(tc_args, str):
+                        try:
+                            tc_args = json.loads(tc_args)
+                        except json.JSONDecodeError:
+                            pass
+                    result = _execute_tool_via_api(base_url, found, name, tc_args)
+                    _print_event(result)
+
+            if full_text:
+                send_data = json.dumps({
+                    "session_id": found,
+                    "text": full_text,
+                    "turn_limit": 0,
+                }).encode()
+                # Don't actually send to LLM — instead show what would be sent
+                print(f"\n  {CYAN}{BOLD}═══ Context updated ═══{RESET}")
+                print(f"  {DIM}Full text ({len(full_text)} chars) added to session context.{RESET}")
+
+        elif etype == "tool_result":
+            _print_event(evt)
+
+    state_resp = json.loads(
+        urllib.request.urlopen(f"{base_url}/api/state", timeout=5).read())
+    state = state_resp.get("state", {})
+    active_sid = state.get("active_session")
+    status = state.get("status", "?")
+    print(f"\n  {BOLD}Session state.{RESET} {DIM}ID: {found} | Status: {status}{RESET}")
+
+
+def _find_running_gui_port() -> int:
+    """Find the port of a running LLM Agent GUI server."""
+    import urllib.request
+    for port in range(9780, 9800):
+        try:
+            resp = urllib.request.urlopen(
+                f"http://localhost:{port}/api/state", timeout=1)
+            if resp.status == 200:
+                return port
+        except Exception:
+            continue
+    return 0
+
+
+def _execute_tool_via_api(base_url: str, session_id: str,
+                          tool_name: str, tool_args: dict) -> dict:
+    """Execute a tool call via the GUI server's API (placeholder).
+
+    Currently, tool calls are handled by ConversationManager internally.
+    This sends the tool result back as a structured event.
+    """
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    DIM = get_color("DIM", "\033[2m")
+    RESET = get_color("RESET", "\033[0m")
+
+    from logic.assistant.std.registry import ToolContext, TOOL_HANDLERS
+    handler = TOOL_HANDLERS.get(tool_name)
+    if not handler:
+        return {"type": "tool_result", "ok": False,
+                "output": f"Unknown tool: {tool_name}"}
+
+    results = []
+    def emit(evt):
+        results.append(evt)
+        _print_event(evt)
+
+    cwd = os.getcwd()
+    ctx = ToolContext(
+        emit=emit,
+        cwd=cwd,
+        project_root=os.environ.get("PROJECT_ROOT", cwd),
+    )
+    result = handler(tool_args, ctx)
+    return {"type": "tool_result", "ok": result.get("ok", False),
+            "output": result.get("output", "")}
+
+
+def _handle_history(args: list, project_root: str):
+    """Show recent N events for a session in CLI format."""
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    DIM = get_color("DIM", "\033[2m")
+    CYAN = get_color("CYAN", "\033[36m")
+    RESET = get_color("RESET", "\033[0m")
+
+    limit = 20
+    session_id = None
+    i = 0
+    while i < len(args):
+        if args[i] == "--limit" and i + 1 < len(args):
+            try:
+                limit = int(args[i + 1])
+            except ValueError:
+                pass
+            i += 2
+        else:
+            if not session_id:
+                session_id = args[i]
+            i += 1
+
+    import urllib.request
+    port = _find_running_gui_port()
+    if not port:
+        if not session_id:
+            print(f"  {BOLD}No running GUI server.{RESET} Provide a session ID to load from disk.")
+            return
+        events = _load_events_from_disk(session_id, project_root)
+        if events is None:
+            print(f"  {BOLD}Session not found.{RESET} {DIM}{session_id}{RESET}")
+            return
+    else:
+        base_url = f"http://localhost:{port}"
+        if not session_id:
+            try:
+                state = json.loads(
+                    urllib.request.urlopen(f"{base_url}/api/state", timeout=3).read())
+                session_id = state.get("state", {}).get("active_session")
+                if not session_id:
+                    sessions = json.loads(
+                        urllib.request.urlopen(f"{base_url}/api/sessions", timeout=3).read())
+                    slist = sessions.get("sessions", [])
+                    if slist:
+                        session_id = slist[-1]["id"]
+            except Exception:
+                pass
+        if not session_id:
+            print(f"  {BOLD}No active session.{RESET}")
+            return
+
+        try:
+            full_sid = session_id
+            resp = json.loads(
+                urllib.request.urlopen(
+                    f"{base_url}/api/history/{session_id}", timeout=5).read())
+            events = resp.get("events", [])
+        except Exception:
+            events = _load_events_from_disk(session_id, project_root) or []
+
+    total = len(events)
+    recent = events[-limit:] if len(events) > limit else events
+    print(f"  {BOLD}History{RESET} for {DIM}{session_id}{RESET} "
+          f"({len(recent)}/{total} events)")
+    print()
+
+    text_buf = ""
+    for evt in recent:
+        etype = evt.get("type", "")
+        if etype == "text":
+            text_buf += evt.get("tokens", "")
+            continue
+        if text_buf:
+            for line in text_buf.strip().split("\n")[:30]:
+                print(f"  {line}")
+            text_buf = ""
+        _print_event(evt)
+    if text_buf:
+        for line in text_buf.strip().split("\n")[:30]:
+            print(f"  {line}")
+
+
+def _load_events_from_disk(session_id: str, project_root: str):
+    """Load events from a persisted session file."""
+    sessions_dir = os.path.join(project_root, "tool", "LLM", "data", "sessions")
+    if not os.path.isdir(sessions_dir):
+        return None
+    import glob
+    for path in glob.glob(os.path.join(sessions_dir, "*.json")):
+        basename = os.path.basename(path).replace(".json", "")
+        if basename.startswith(session_id):
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("events", [])
+    return None
+
+
+def _handle_config(args: list, project_root: str):
+    """View/set assistant configuration values."""
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    DIM = get_color("DIM", "\033[2m")
+    GREEN = get_color("GREEN", "\033[32m")
+    RESET = get_color("RESET", "\033[0m")
+
+    try:
+        from tool.LLM.logic.config import load_config, save_config
+    except ImportError:
+        print(f"  {BOLD}LLM tool not available.{RESET}")
+        return
+
+    cfg = load_config()
+
+    ASSISTANT_KEYS = {
+        "active_backend": "Active model/provider (e.g. zhipu-glm-4.7-flash, auto)",
+        "default_turn_limit": "Default max rounds per task (int, default: 10)",
+        "max_context_tokens": "Max context window tokens (int, default: 32000)",
+        "max_read_chars": "Max chars returned by read_file (int, default: 12000)",
+        "max_exec_chars": "Max chars returned by exec (int, default: 6000)",
+        "language": "System prompt language (zh/en, default: zh)",
+        "history_limit": "Default events shown by --history (int, default: 20)",
+    }
+
+    if not args:
+        print(f"  {BOLD}Assistant Configuration{RESET}")
+        print()
+        for key, desc in ASSISTANT_KEYS.items():
+            val = cfg.get(key, "")
+            if val:
+                print(f"  {BOLD}{key}{RESET} = {GREEN}{val}{RESET}")
+            else:
+                print(f"  {BOLD}{key}{RESET} = {DIM}(not set){RESET}")
+            print(f"    {DIM}{desc}{RESET}")
+        return
+
+    key = args[0]
+    if len(args) == 1:
+        val = cfg.get(key)
+        if val is not None:
+            print(f"  {BOLD}{key}{RESET} = {GREEN}{val}{RESET}")
+        else:
+            print(f"  {BOLD}{key}{RESET} = {DIM}(not set){RESET}")
+        if key in ASSISTANT_KEYS:
+            print(f"  {DIM}{ASSISTANT_KEYS[key]}{RESET}")
+        return
+
+    value = " ".join(args[1:])
+    int_keys = {"default_turn_limit", "max_context_tokens", "max_read_chars",
+                "max_exec_chars", "history_limit"}
+    if key in int_keys:
+        try:
+            value = int(value)
+        except ValueError:
+            print(f"  {BOLD}Invalid value.{RESET} {DIM}{key} requires an integer.{RESET}")
+            return
+
+    cfg[key] = value
+    save_config(cfg)
+    print(f"  {BOLD}Saved.{RESET} {DIM}{key} = {value}{RESET}")
+
+
 def _handle_status(args: list, project_root: str):
     """Show session status."""
     if args:
@@ -612,8 +966,26 @@ def _print_event(evt: dict):
     elif t == "ask_user":
         q = evt.get("question", "")
         print(f"\n  {BOLD}Agent asks:{RESET} {q}")
+    elif t == "llm_response_start":
+        r = evt.get("round", "?")
+        print(f"  {DIM}[Round {r} start]{RESET}")
     elif t == "llm_response_end":
         latency = evt.get("latency_s", 0)
         has_tc = evt.get("has_tool_calls", False)
+        provider = evt.get("provider", "")
         tc_label = " (tool calls)" if has_tc else ""
-        print(f"  {DIM}[{latency}s{tc_label}]{RESET}")
+        prov_label = f" via {provider}" if provider else ""
+        print(f"  {DIM}[{latency}s{tc_label}{prov_label}]{RESET}")
+    elif t == "user":
+        prompt = evt.get("prompt", "")
+        if prompt:
+            print(f"\n  {BOLD}User:{RESET} {prompt[:120]}")
+    elif t == "complete":
+        print(f"  {GREEN}{BOLD}Task completed.{RESET}")
+    elif t == "file_summary":
+        files = evt.get("files", [])
+        count = len(files)
+        print(f"  {DIM}[{count} file{'s' if count != 1 else ''} modified]{RESET}")
+    elif t == "experience":
+        lesson = evt.get("lesson", "")
+        print(f"  {DIM}[experience] {lesson[:100]}{RESET}")

@@ -8,7 +8,6 @@
     "python_packages": []
   },
   "config": {
-    "api_key": "",
     "cache_ttl_hours": 24
   }
 }

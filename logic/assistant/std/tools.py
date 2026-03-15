@@ -5,21 +5,32 @@ Each tool function takes (args: dict, ctx: ToolContext) -> dict.
 import os
 import subprocess
 import shutil
-from typing import Dict, List
+import threading
+import time
+from typing import List
 
 from logic.assistant.std.registry import register_tool, ToolContext
 
+_DEFAULT_BLOCK_MS = 30000
 
-@register_tool("exec")
-def handle_exec(args: dict, ctx: ToolContext) -> dict:
-    cmd = args.get("command", "")
-    first_word = cmd.strip().split()[0] if cmd.strip() else "exec"
-    exec_desc = f"Run {first_word}" if len(cmd) > 40 else cmd
-    ctx.emit({"type": "tool", "name": "exec", "desc": exec_desc, "cmd": cmd})
 
+def _get_limit(key: str, default: int) -> int:
+    """Read a configurable limit from LLM config, with fallback."""
+    try:
+        from tool.LLM.logic.config import get_config_value
+        val = get_config_value(key)
+        if val is not None:
+            return int(val)
+    except Exception:
+        pass
+    return default
+
+
+def _build_exec_env(project_root: str) -> dict:
+    """Build env dict with bin/ and homebrew paths prepended."""
     env = os.environ.copy()
     extra_paths = []
-    bin_dir = os.path.join(ctx.project_root, "bin")
+    bin_dir = os.path.join(project_root, "bin")
     if os.path.isdir(bin_dir):
         extra_paths.extend(
             os.path.join(bin_dir, d) for d in os.listdir(bin_dir)
@@ -28,43 +39,93 @@ def handle_exec(args: dict, ctx: ToolContext) -> dict:
     extra_paths.extend(p for p in homebrew_paths if os.path.isdir(p))
     if extra_paths:
         env["PATH"] = ":".join(extra_paths) + ":" + env.get("PATH", "")
+    return env
+
+
+@register_tool("exec")
+def handle_exec(args: dict, ctx: ToolContext) -> dict:
+    cmd = args.get("command", "")
+    block_ms = args.get("block_until_ms", _DEFAULT_BLOCK_MS)
+    timeout_policy = args.get("timeout_policy", "ok")
+
+    first_word = cmd.strip().split()[0] if cmd.strip() else "exec"
+    exec_desc = f"Run {first_word}" if len(cmd) > 40 else cmd
+    ctx.emit({"type": "tool", "name": "exec", "desc": exec_desc, "cmd": cmd})
+
+    env = _build_exec_env(ctx.project_root)
+    max_exec = _get_limit("max_exec_chars", 6000)
+
+    if block_ms == 0:
+        return _exec_background(cmd, env, ctx, max_exec, timeout_policy)
+
+    block_s = block_ms / 1000.0
 
     try:
-        result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=60,
-            cwd=ctx.cwd, env=env,
+        proc = subprocess.Popen(
+            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, cwd=ctx.cwd, env=env,
         )
-        output = result.stdout + result.stderr
-        ok = result.returncode == 0
-        ctx.emit({"type": "tool_result", "ok": ok, "output": output[:6000]})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(cmd, ok, output[:300])
-            if not ok:
-                ctx.env_obj.record_error(f"Command failed: {cmd}")
-        if ctx.brain:
-            ctx.brain.learn_from_result(cmd, ok, output[:500])
-        return {"ok": ok, "output": output[:6000]}
-    except subprocess.TimeoutExpired:
-        ctx.emit({"type": "tool_result", "ok": False, "output": "Command timed out (60s)"})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(cmd, False, "Timeout")
-            ctx.env_obj.record_error(f"Timeout: {cmd}")
-        if ctx.brain:
-            ctx.brain.learn_from_result(cmd, False, "Timeout")
-        return {"ok": False, "output": "Timeout"}
+        stdout_parts: List[str] = []
+        stderr_parts: List[str] = []
+        finished = threading.Event()
+
+        def _reader():
+            try:
+                out, err = proc.communicate()
+                stdout_parts.append(out or "")
+                stderr_parts.append(err or "")
+            except Exception:
+                pass
+            finally:
+                finished.set()
+
+        t = threading.Thread(target=_reader, daemon=True)
+        t.start()
+
+        if finished.wait(timeout=block_s):
+            output = "".join(stdout_parts) + "".join(stderr_parts)
+            ok = proc.returncode == 0
+            ctx.emit({"type": "tool_result", "ok": ok, "output": output[:max_exec],
+                       "pid": proc.pid, "elapsed_ms": int(block_s * 1000)})
+            return {"ok": ok, "output": output[:max_exec],
+                    "pid": proc.pid, "exit_code": proc.returncode}
+
+        ok = timeout_policy == "ok"
+        msg = (
+            f"[Command still running after {block_ms}ms, moved to background. "
+            f"pid={proc.pid}]"
+        )
+        ctx.emit({"type": "tool_result", "ok": ok, "output": msg,
+                   "pid": proc.pid, "running": True})
+        return {"ok": ok, "output": msg,
+                "pid": proc.pid, "running": True}
+
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(cmd, False, str(e))
-            ctx.env_obj.record_error(str(e))
-        if ctx.brain:
-            ctx.brain.learn_from_result(cmd, False, str(e))
+        return {"ok": False, "output": str(e)}
+
+
+def _exec_background(cmd: str, env: dict, ctx: ToolContext,
+                     max_exec: int, timeout_policy: str) -> dict:
+    """Immediately background the command (block_until_ms=0)."""
+    try:
+        proc = subprocess.Popen(
+            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, cwd=ctx.cwd, env=env,
+        )
+        ok = timeout_policy == "ok"
+        msg = f"[Started in background. pid={proc.pid}]"
+        ctx.emit({"type": "tool_result", "ok": ok, "output": msg,
+                   "pid": proc.pid, "running": True})
+        return {"ok": ok, "output": msg, "pid": proc.pid, "running": True}
+    except Exception as e:
+        ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
         return {"ok": False, "output": str(e)}
 
 
 @register_tool("read_file")
 def handle_read_file(args: dict, ctx: ToolContext) -> dict:
-    MAX_READ_CHARS = 12000
+    MAX_READ_CHARS = _get_limit("max_read_chars", 12000)
     path = args.get("path", "")
     start_line = args.get("start_line")
     end_line = args.get("end_line")
@@ -102,13 +163,9 @@ def handle_read_file(args: dict, ctx: ToolContext) -> dict:
                         f"{len(raw)} chars, {total_lines} lines. Use "
                         f"start_line/end_line to read specific sections.)")
         ctx.emit({"type": "tool_result", "ok": True, "output": content})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(f"read:{path}", True, content[:200])
         return {"ok": True, "output": content}
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(f"read:{path}", False, str(e))
         return {"ok": False, "output": str(e)}
 
 
@@ -133,14 +190,18 @@ def handle_search(args: dict, ctx: ToolContext) -> dict:
                    "-m", "10", pattern, path]
         result = subprocess.run(cmd, capture_output=True, timeout=15, cwd=ctx.cwd)
         output = result.stdout.decode("utf-8", errors="replace")[:2000] or "(no matches)"
+        abs_path = os.path.join(ctx.cwd, path) if not os.path.isabs(path) else path
+        if os.path.isfile(abs_path):
+            prefix = path + ":"
+            lines = output.split("\n")
+            output = "\n".join(
+                line[len(prefix):] if line.startswith(prefix) else line
+                for line in lines
+            )
         ctx.emit({"type": "tool_result", "ok": True, "output": output})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(f"search:{pattern}", True, output[:300])
         return {"ok": True, "output": output}
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(f"search:{pattern}", False, str(e))
         return {"ok": False, "output": str(e)}
 
 
@@ -218,13 +279,9 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
         result_msg += "\n" + preview
 
         ctx.emit({"type": "tool_result", "ok": True, "output": result_msg})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(f"write:{path}", True, f"{size} bytes")
         return {"ok": True, "output": result_msg}
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(f"write:{path}", False, str(e))
         return {"ok": False, "output": str(e)}
 
 
@@ -284,13 +341,9 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
             diff_lines.append(f"+{nl}")
         diff_preview = "\n".join(diff_lines)
         ctx.emit({"type": "tool_result", "ok": True, "output": diff_preview})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(f"edit:{path}", True, diff_preview)
         return {"ok": True, "output": f"Edit applied to {path}"}
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(f"edit:{path}", False, str(e))
         return {"ok": False, "output": str(e)}
 
 

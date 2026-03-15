@@ -182,6 +182,10 @@ class AgentGUIEngine {
     this._modifiedFiles = [];
     this._lastToolEvt = null;
 
+    this._taskFiles = {};
+    this._taskActive = false;
+    this._taskFileBarEl = null;
+
     this.sessions = {};
     this.activeSessionId = null;
     this._onSessionChange = null;
@@ -570,6 +574,11 @@ class AgentGUIEngine {
 
   _renderUser(evt) {
     const content = evt.prompt || evt.text || '';
+    if (!this._taskActive) {
+      this._taskFiles = {};
+      this._taskActive = true;
+      this._removeTaskFileBar();
+    }
     this._appendAnimated('div', 'msg-user', esc(content));
     return sleep(400);
   }
@@ -730,6 +739,23 @@ class AgentGUIEngine {
   _renderFileSummary(evt) {
     const files = evt.files || [];
     if (!files.length) return sleep(0);
+
+    for (const f of files) {
+      const key = f.path || f.name;
+      if (this._taskFiles[key]) {
+        this._taskFiles[key].added = f.added || 0;
+        this._taskFiles[key].removed = f.removed || 0;
+      } else {
+        this._taskFiles[key] = {
+          name: f.name, path: f.path || f.name,
+          type: f.type || 'edit',
+          added: f.added || 0, removed: f.removed || 0
+        };
+      }
+    }
+
+    this._updateTaskFileBar();
+
     const count = files.length;
     let filesHtml = files.map(f => {
       const icon = fileExtIcon(f.name);
@@ -765,6 +791,64 @@ class AgentGUIEngine {
       this._taskStartTime = null;
     }
     this._appendAnimated('div', 'task-complete', CHECK_SVG + ' Task completed' + timeLabel);
+    this._taskActive = false;
+    this._updateTaskFileBar(true);
+  }
+
+  /* ── Persistent File Bar ── */
+
+  _updateTaskFileBar(showActions = false) {
+    const files = Object.values(this._taskFiles);
+    if (!files.length) {
+      this._removeTaskFileBar();
+      return;
+    }
+
+    if (!this._taskFileBarEl) {
+      this._taskFileBarEl = document.createElement('div');
+      this._taskFileBarEl.className = 'task-file-bar';
+      const inputArea = this.chatArea.closest('.chat-container')
+        ? this.chatArea.closest('.chat-container').querySelector('.input-area')
+        : document.querySelector('.input-area');
+      if (inputArea) {
+        inputArea.parentElement.insertBefore(this._taskFileBarEl, inputArea);
+      } else {
+        this.chatArea.parentElement.appendChild(this._taskFileBarEl);
+      }
+    }
+
+    const count = files.length;
+    const filesHtml = files.map(f => {
+      const icon = fileExtIcon(f.name);
+      const tag = f.type === 'new' ? '<span class="file-tag-new">new</span>' : '';
+      const parts = [];
+      if (f.added) parts.push('<span class="added-count">+' + f.added + '</span>');
+      if (f.removed) parts.push('<span class="removed-count">-' + f.removed + '</span>');
+      const stat = parts.length ? '<span class="file-stat">' + parts.join(' ') + '</span>' : '';
+      return '<div class="file-summary-item"><i class="bx ' + icon + '"></i> ' + esc(f.name) + ' ' + tag + ' ' + stat + '</div>';
+    }).join('');
+
+    const actionsHtml = showActions
+      ? '<div class="task-file-actions">'
+        + '<button class="task-file-btn task-file-revert" onclick="window._taskFileRevert && window._taskFileRevert()">Revert all</button>'
+        + '<button class="task-file-btn task-file-save" onclick="window._taskFileSave && window._taskFileSave()">Save all</button>'
+        + '</div>'
+      : '';
+
+    this._taskFileBarEl.innerHTML =
+      '<div class="file-summary-header" onclick="this.parentElement.classList.toggle(\'expanded\')">'
+      + '<i class="bx bx-chevron-right file-summary-chevron"></i>'
+      + '<span>' + count + ' File' + (count > 1 ? 's' : '') + '</span>'
+      + actionsHtml
+      + '</div>'
+      + '<div class="file-summary-list">' + filesHtml + '</div>';
+  }
+
+  _removeTaskFileBar() {
+    if (this._taskFileBarEl) {
+      this._taskFileBarEl.remove();
+      this._taskFileBarEl = null;
+    }
   }
 
   /* ── LLM API Events ── */
@@ -793,7 +877,13 @@ class AgentGUIEngine {
   _renderLLMResponseEnd(evt) {
     if (this._llmRequestEl) {
       const spinner = this._llmRequestEl.querySelector('.model-spinner');
-      if (spinner) spinner.style.display = 'none';
+      if (spinner) {
+        if (evt.error) {
+          spinner.outerHTML = '<i class="bx bx-x-circle" style="color:var(--red);font-size:14px;"></i>';
+        } else {
+          spinner.style.display = 'none';
+        }
+      }
 
       const usage = evt.usage || {};
       const outTokens = usage.completion_tokens || 0;

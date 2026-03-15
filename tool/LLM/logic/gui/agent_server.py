@@ -103,6 +103,12 @@ def hello():
 - 修改后，立即重新运行测试验证。
 - assertIn(a, list)检查的是元素完全相等，不是子字符串匹配。
 
+## 测试编写规则
+- 测试的预期值必须与实现的文档行为完全匹配。例如：如果工具默认区分大小写，测试的预期输出也必须区分大小写。
+- 空字符串 `"".split("\n")` 结果是 `[""]`（长度1），不是 `[]`。检查空输出时用 `stdout.strip() == ""` 而不是 `len(lines) == 0`。
+- 编写测试前，先在脑中模拟工具对测试输入的精确输出，逐字验证。不要假设。
+- 测试失败2轮以上时，先检查测试的预期值是否合理，再检查实现。
+
 ## 用户反馈修正
 - 用户给出具体修改指令时（如"修改X为Y"），**立即执行**。不要重新分析整个项目。
 - 每一轮必须包含至少一个写入/编辑/执行操作。不要连续多轮只做read_file。
@@ -187,6 +193,12 @@ To append a new function: edit_file(path="file.py", old_text='    print("hello")
 - Before editing, use read_file to check the current file content and the full error message.
 - After editing, immediately re-run tests to verify.
 - assertIn(a, list) checks for exact element equality, NOT substring matching.
+
+## Test Writing Rules
+- Test expected values must exactly match the tool's documented behavior. If a tool is case-sensitive by default, test expectations must also be case-sensitive.
+- `"".split("\n")` produces `[""]` (length 1), not `[]`. To check empty output, use `stdout.strip() == ""` instead of `len(lines) == 0`.
+- Before writing a test, mentally simulate the tool's exact output for the test input. Verify character-by-character. Never assume.
+- If a test fails for 2+ rounds, check whether the test's expected values are reasonable FIRST, then check the implementation.
 
 ## Handling User Corrections
 - When the user gives specific fix instructions (e.g., "change X to Y"), **execute immediately**. Do NOT re-analyze the project.

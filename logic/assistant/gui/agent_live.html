@@ -316,6 +316,21 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .file-tag-new { font-size: 10px; color: var(--green); background: var(--green-dim); padding: 0 4px; border-radius: 3px; font-weight: 500; }
 .file-stat { font-size: 11px; color: var(--green); font-family: var(--mono); margin-left: auto; }
 
+/* ── Persistent Task File Bar ── */
+.task-file-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin: 0 28px 8px; overflow: hidden; }
+.task-file-bar .file-summary-header { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 12.5px; font-weight: 500; color: var(--text-2); cursor: pointer; user-select: none; }
+.task-file-bar .file-summary-header:hover { background: rgba(255,255,255,0.03); }
+.task-file-bar .file-summary-chevron { font-size: 14px; color: var(--text-3); transition: transform 0.2s; }
+.task-file-bar.expanded .file-summary-chevron { transform: rotate(90deg); }
+.task-file-bar .file-summary-list { display: none; padding: 4px 12px 8px; }
+.task-file-bar.expanded .file-summary-list { display: block; }
+.task-file-actions { display: flex; gap: 6px; margin-left: auto; }
+.task-file-btn { border: none; border-radius: 4px; padding: 3px 10px; font-size: 11px; cursor: pointer; font-weight: 500; }
+.task-file-revert { background: rgba(255,100,100,0.15); color: var(--red); }
+.task-file-revert:hover { background: rgba(255,100,100,0.25); }
+.task-file-save { background: rgba(100,255,100,0.15); color: var(--green); }
+.task-file-save:hover { background: rgba(100,255,100,0.25); }
+
 /* ── Block animations ── */
 .block-enter { opacity: 0; transform: translateY(8px); }
 .msg-user, .msg-group, .msg-text, .tool-call, .experience-block, .task-complete {
@@ -349,9 +364,10 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .input-field:focus { border-color: var(--accent); }
 .input-field::placeholder { color: var(--text-3); }
 .input-field:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-send { width: 44px; height: 44px; border: none; border-radius: var(--radius-lg); background: var(--accent); color: white; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.2s, transform 0.1s; }
+.btn-send { width: 44px; height: 44px; border: none; border-radius: var(--radius-lg); background: var(--accent); color: white; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.2s, transform 0.1s; position: relative; }
 .btn-send:hover { filter: brightness(1.15); }
 .btn-send:disabled { opacity: 0.35; cursor: default; }
+.queue-badge { position: absolute; top: -4px; right: -4px; background: var(--red); color: white; font-size: 10px; font-weight: 600; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
 /* ── Floating Stop Bar ── */
 .stop-bar { display: none; justify-content: center; padding: 8px 28px 0; flex-shrink: 0; }
 .stop-bar.visible { display: flex; }
@@ -415,6 +431,8 @@ body.debug-mode .debug-block { display: block; }
 .debug-block-header .debug-usage { color: var(--orange); font-weight: 600; font-size: 10px; white-space: nowrap; }
 .debug-block-header .debug-sep { color: var(--border-active); margin: 0 2px; }
 .debug-block-header .debug-chevron { margin-left: auto; font-size: 12px; transition: transform 0.15s; }
+.debug-copy { cursor: pointer; font-size: 13px; opacity: 0.5; transition: opacity 0.15s; flex-shrink: 0; }
+.debug-copy:hover { opacity: 1; color: var(--accent); }
 .debug-block.expanded .debug-chevron { transform: rotate(90deg); }
 .debug-block-body { display: none; padding: 6px 10px; font-family: var(--mono); font-size: 10.5px; line-height: 1.5; color: var(--text-3); white-space: pre-wrap; max-height: 200px; overflow-y: auto; border-top: 1px solid var(--border); background: var(--bg); }
 .debug-block.expanded .debug-block-body { display: block; }
@@ -826,15 +844,17 @@ function createDebugBlock(evt) {
     ? `<span class="debug-usage">${esc(usageLine)}</span><span class="debug-sep">·</span>`
     : '';
   const preview = JSON.stringify(evt).slice(0, 80);
+  const fullJson = JSON.stringify(evt, null, 2);
   div.innerHTML = `
     <div class="debug-block-inner">
       <div class="debug-block-header" onclick="this.parentElement.parentElement.classList.toggle('expanded')">
+        <i class="bx bx-clipboard debug-copy" title="Copy JSON" onclick="event.stopPropagation();navigator.clipboard.writeText(${esc(JSON.stringify(fullJson))});this.className='bx bx-check debug-copy';setTimeout(()=>this.className='bx bx-clipboard debug-copy',1200)"></i>
         ${usageHtml}
         <span class="debug-type">${typeName}</span>
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(preview)}</span>
         <span class="debug-chevron"><i class="bx bx-chevron-right"></i></span>
       </div>
-      <div class="debug-block-body">${esc(JSON.stringify(evt, null, 2))}</div>
+      <div class="debug-block-body">${esc(fullJson)}</div>
     </div>`;
   return div;
 }
@@ -898,14 +918,34 @@ $('input').addEventListener('input', function() {
 
 /* ── Send Message ── */
 let taskRunning = false;
-let _queuedMessage = null;
+let _messageQueue = [];
+
+function _updateQueueBadge() {
+  const btn = $('btn-send');
+  const badge = btn.querySelector('.queue-badge');
+  if (_messageQueue.length > 0 && taskRunning) {
+    if (!badge) {
+      const b = document.createElement('span');
+      b.className = 'queue-badge';
+      b.textContent = _messageQueue.length;
+      btn.appendChild(b);
+    } else {
+      badge.textContent = _messageQueue.length;
+    }
+    btn.querySelector('i').className = 'bx bx-list-plus';
+  } else {
+    if (badge) badge.remove();
+    btn.querySelector('i').className = 'bx bx-send';
+  }
+}
 
 function setStopMode(on) {
   taskRunning = on;
   $('stop-bar').classList.toggle('visible', on);
-  if (!on && _queuedMessage) {
-    const queued = _queuedMessage;
-    _queuedMessage = null;
+  _updateQueueBadge();
+  if (!on && _messageQueue.length > 0) {
+    const queued = _messageQueue.shift();
+    _updateQueueBadge();
     $('input').value = queued;
     sendMessage();
   }
@@ -923,10 +963,11 @@ async function sendMessage() {
   if (!text) return;
 
   if (taskRunning) {
-    _queuedMessage = text;
+    _messageQueue.push(text);
     input.value = '';
     input.style.height = 'auto';
-    input.placeholder = 'Queued: ' + (text.length > 40 ? text.slice(0, 37) + '...' : text);
+    input.placeholder = 'Queued (' + _messageQueue.length + '). Type another or wait...';
+    _updateQueueBadge();
     return;
   }
 
@@ -1087,6 +1128,21 @@ function renderSettingsTab() {
   }
 }
 
+function _settingsNumInput(key, defaultVal, min, max, desc) {
+  const saved = localStorage.getItem(key);
+  const val = saved ? parseInt(saved) : defaultVal;
+  return `<label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;">
+    <span style="flex:1"><strong>${key.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase())}</strong><br><span style="color:var(--text-3);font-size:11.5px;">${desc}</span></span>
+    <input type="number" min="${min}" max="${max}" value="${val}" style="width:70px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text);font-size:13px;text-align:center;font-family:var(--mono);" onchange="var v=Math.min(Math.max(parseInt(this.value)||${defaultVal},${min}),${max});this.value=v;localStorage.setItem('${key}',v);_saveAssistantConfig('${key}',v);">
+  </label>`;
+}
+
+async function _saveAssistantConfig(key, value) {
+  try {
+    await fetch('/api/send', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({_config: true, key, value}) });
+  } catch(e) {}
+}
+
 function renderGeneralView() {
   const histN = engine._maxRoundHistory || 16;
   const themeOpts = Object.entries(THEMES).map(([k, v]) =>
@@ -1108,6 +1164,14 @@ function renderGeneralView() {
         <span><strong>Language</strong></span>
         <select onchange="localStorage.setItem('guiLang',this.value);location.reload();" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:120px;">${langOpts}</select>
       </div>
+    </div>
+    <div class="settings-section-title" style="margin-top:16px;">Context & Limits</div>
+    <div class="settings-card" style="padding:16px;">
+      ${_settingsNumInput('max_context_tokens', 32000, 4000, 128000, 'Max context window tokens before trimming.')}
+      ${_settingsNumInput('default_turn_limit', 10, 1, 50, 'Default max rounds per task.')}
+      ${_settingsNumInput('max_read_chars', 12000, 2000, 50000, 'Max characters returned by read_file tool.')}
+      ${_settingsNumInput('max_exec_chars', 6000, 1000, 30000, 'Max characters returned by exec tool output.')}
+      ${_settingsNumInput('history_limit', 20, 5, 200, 'Default number of events shown by --history.')}
     </div>
     <div class="settings-section-title" style="margin-top:16px;">Debug</div>
     <div class="settings-card" style="padding:16px;">
