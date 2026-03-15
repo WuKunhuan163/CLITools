@@ -83,6 +83,14 @@ _ALIASES = {
     "glm-4-flash": "zhipu-glm-4-flash",
     "glm-4.7": "zhipu-glm-4.7",
     "glm-4.7-flash": "zhipu-glm-4.7-flash",
+    "gemini": "google-gemini-2.0-flash",
+    "gemini-flash": "google-gemini-2.0-flash",
+    "ernie": "baidu-ernie-speed-8k",
+    "ernie-speed": "baidu-ernie-speed-8k",
+    "hunyuan": "tencent-hunyuan-lite",
+    "hunyuan-lite": "tencent-hunyuan-lite",
+    "siliconflow": "siliconflow-qwen2.5-7b",
+    "qwen": "siliconflow-qwen2.5-7b",
     "auto": "auto",
 }
 
@@ -150,6 +158,18 @@ def _ensure_builtins():
     from tool.LLM.logic.models.glm_4_7_flash.providers.zhipu.interface import ZhipuGLM47FlashProvider
     from tool.LLM.logic.models.glm_4_7_flash.providers.zhipu.pipeline import ZhipuGLM47FlashPipeline
     register("zhipu-glm-4.7-flash", ZhipuGLM47FlashProvider, ZhipuGLM47FlashPipeline(), model="glm-4.7-flash")
+
+    from tool.LLM.logic.models.gemini_2_0_flash.providers.google.interface import GoogleGeminiFlashProvider
+    register("google-gemini-2.0-flash", GoogleGeminiFlashProvider, model="gemini-2.0-flash")
+
+    from tool.LLM.logic.models.ernie_speed_8k.providers.baidu.interface import BaiduERNIESpeedProvider
+    register("baidu-ernie-speed-8k", BaiduERNIESpeedProvider, model="ernie-speed-8k")
+
+    from tool.LLM.logic.models.hunyuan_lite.providers.tencent.interface import TencentHunyuanLiteProvider
+    register("tencent-hunyuan-lite", TencentHunyuanLiteProvider, model="hunyuan-lite")
+
+    from tool.LLM.logic.models.qwen25_7b.providers.siliconflow.interface import SiliconFlowQwenProvider
+    register("siliconflow-qwen2.5-7b", SiliconFlowQwenProvider, model="qwen2.5-7b")
 
     from tool.LLM.logic.auto import AutoProvider
     register("auto", AutoProvider)

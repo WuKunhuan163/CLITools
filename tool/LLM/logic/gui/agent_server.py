@@ -317,9 +317,51 @@ class AgentServer:
                 self._mgr.cancel_current()
                 return {"ok": True}
 
+            elif path == "/api/validate-key":
+                vendor = body.get("vendor", "").strip()
+                key = body.get("key", "").strip()
+                if not vendor or not key:
+                    return {"ok": False, "error": "Missing vendor or key"}
+                return self._validate_api_key(vendor, key)
+
+            elif path == "/api/save-key":
+                vendor = body.get("vendor", "").strip()
+                key = body.get("key", "").strip()
+                if not vendor or not key:
+                    return {"ok": False, "error": "Missing vendor or key"}
+                from tool.LLM.logic.config import set_config_value
+                set_config_value(f"{vendor}_api_key", key)
+                return {"ok": True}
+
             return {"ok": False, "error": "Unknown endpoint"}
 
         return {"ok": False, "error": "Method not allowed"}
+
+    @staticmethod
+    def _validate_api_key(vendor: str, key: str) -> dict:
+        """Validate an API key by making a minimal test request."""
+        VENDOR_PROVIDERS = {
+            "zhipu": "zhipu-glm-4.7-flash",
+            "google": "google-gemini-2.0-flash",
+            "baidu": "baidu-ernie-speed-8k",
+            "tencent": "tencent-hunyuan-lite",
+            "siliconflow": "siliconflow-qwen2.5-7b",
+            "nvidia": "nvidia-glm-4-7b",
+        }
+        provider_name = VENDOR_PROVIDERS.get(vendor)
+        if not provider_name:
+            return {"ok": False, "error": f"Unknown vendor: {vendor}"}
+        try:
+            from tool.LLM.logic.registry import get_provider
+            provider = get_provider(provider_name, api_key=key)
+            result = provider._send_request(
+                [{"role": "user", "content": "hi"}],
+                temperature=0.1, max_tokens=5)
+            if result.get("ok"):
+                return {"ok": True, "model": result.get("model", provider_name)}
+            return {"ok": False, "error": result.get("error", "Validation failed")}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def _push_sse(self, evt: dict):
         if self._server:

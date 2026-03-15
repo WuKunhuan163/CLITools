@@ -13,6 +13,15 @@ from logic.dev.commands import (
     dev_migrate_bin,
     dev_audit_archived,
 )
+from logic.dev.report import (
+    list_docs,
+    list_reports,
+    view_file,
+    create_report,
+    edit_doc,
+    find_provider_dir,
+    provider_report,
+)
 
 __all__ = [
     "dev_sync",
@@ -24,4 +33,11 @@ __all__ = [
     "dev_audit_bin",
     "dev_migrate_bin",
     "dev_audit_archived",
+    "list_docs",
+    "list_reports",
+    "view_file",
+    "create_report",
+    "edit_doc",
+    "find_provider_dir",
+    "provider_report",
 ]

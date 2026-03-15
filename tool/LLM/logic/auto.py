@@ -204,11 +204,21 @@ class AutoProvider(LLMProvider):
         from tool.LLM.logic.registry import get_provider
 
         chain = self._get_fallback_chain()
+        previous = self._last_used
 
         for provider_name in chain:
             try:
                 provider = get_provider(provider_name)
                 error_seen = False
+                self._last_used = provider_name
+
+                if previous and provider_name != previous:
+                    yield {
+                        "ok": True, "text": "",
+                        "_auto_switched": True,
+                        "_auto_from": previous,
+                        "_auto_to": provider_name,
+                    }
 
                 for chunk in provider.send_streaming(
                         messages, temperature, max_tokens, tools=tools):
@@ -220,11 +230,13 @@ class AutoProvider(LLMProvider):
 
                 if not error_seen:
                     _health.record_success(provider_name)
-                    self._last_used = provider_name
                     return
+
+                previous = provider_name
 
             except Exception:
                 _health.record_error(provider_name)
+                previous = provider_name
                 continue
 
         yield {"ok": False, "error": "All providers failed"}

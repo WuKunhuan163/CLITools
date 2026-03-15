@@ -163,7 +163,13 @@ def main():
     elif cmd == "migrate":
         cmd_migrate()
     else:
+        import difflib
+        known = ["list", "add", "done", "progress", "verify", "delete",
+                 "clear-done", "clear-all", "note", "migrate"]
+        matches = difflib.get_close_matches(cmd, known, n=2, cutoff=0.5)
         print(f"{BOLD}{RED}Unknown command{RESET}: {cmd}", file=sys.stderr)
+        if matches:
+            print(f"  Did you mean: {', '.join(matches)}?", file=sys.stderr)
         print(__doc__)
         sys.exit(1)
 

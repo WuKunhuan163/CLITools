@@ -92,6 +92,16 @@ def main():
     parts.extend(_load_lessons(project_dir))
     parts.extend(_load_ecosystem(project_dir))
 
+    cursor_userinput_rule = (
+        "\n\n## IMPORTANT: Cursor IDE + USERINPUT\n"
+        "Cursor may auto-disconnect during USERINPUT's long wait. "
+        "If you see 'Launching input GUI...' or '正在通过 GUI 等待 USERINPUT 反馈 (PID: XXXXX)(NNNs)...' "
+        "in the output, the user is still writing. Keep `sleep`-ing and waiting — do NOT give up. "
+        "If all three attempts fail, a fallback file path will be printed. "
+        "`sleep 30` then `cat <fallback_path>` to read the user's feedback.\n\n"
+        "You MUST call `USERINPUT` before ending your turn. No exceptions."
+    )
+
     output = {}
     if parts:
         output["additional_context"] = (
@@ -101,12 +111,14 @@ def main():
             "Read tasks above and continue where you left off. "
             "Update runtime/brain/tasks.md and runtime/brain/context.md as you work. "
             "Use 'SKILLS show <name>' to load relevant skills before starting new work."
+            + cursor_userinput_rule
         )
     else:
         output["additional_context"] = (
             "Agent brain at runtime/brain/ is empty. "
             "When the user gives you tasks, write them to runtime/brain/tasks.md immediately. "
             "Use 'SKILLS show <name>' to discover relevant skills."
+            + cursor_userinput_rule
         )
 
     print(json.dumps(output))

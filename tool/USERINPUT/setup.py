@@ -101,7 +101,34 @@ def main():
         except:
             return False
 
+    def inject_default_prompts(stage=None):
+        """Populate config.json with default system prompts if not already set."""
+        try:
+            from logic.setup.userinput import get_default_prompts
+            config = {}
+            if config_path.exists():
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+            if not config.get("system_prompt"):
+                config["system_prompt"] = get_default_prompts()
+                with open(config_path, 'w') as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+            return True
+        except Exception as e:
+            if stage:
+                stage.error_brief = str(e)
+            return False
+
     tm = ProgressTuringMachine(project_root=project_root, tool_name="USERINPUT")
+
+    tm.add_stage(TuringStage(
+        name="system prompts",
+        action=inject_default_prompts,
+        active_status="Configuring",
+        success_status="Configured",
+        fail_status="Failed to configure"
+    ))
+
     tm.add_stage(TuringStage(
         name=f"Python {version}",
         action=install_python,

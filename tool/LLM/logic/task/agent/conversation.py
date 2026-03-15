@@ -644,8 +644,10 @@ class ConversationManager:
 
     def _handle_search(self, args: dict) -> dict:
         import subprocess, shutil
-        pattern = args.get("pattern", "")
+        pattern = args.get("pattern", "").strip()
         path = args.get("path", ".")
+        if not pattern:
+            return {"ok": False, "output": "Error: search pattern cannot be empty. Provide a specific search term."}
         cwd = self._get_cwd()
         search_desc = f"Search for \"{pattern}\"" + (f" in {os.path.basename(path)}" if path != "." else "")
         self._emit({"type": "tool", "name": "search", "desc": search_desc, "cmd": f"search '{pattern}' {path}"})
@@ -1206,7 +1208,7 @@ class ConversationManager:
             from tool.LLM.logic.registry import get_pipeline
             pipeline = get_pipeline(self._provider_name)
 
-            max_tool_rounds = (turn_limit + 5) if turn_limit > 0 else 30
+            max_tool_rounds = (turn_limit + 2) if turn_limit > 0 else 30
             round_num = 0
             empty_retries = 0
             max_empty_retries = pipeline.get_max_retries()
@@ -1242,11 +1244,15 @@ class ConversationManager:
                         "have multiple parts to address, do them in this "
                         "round. Summarize your findings concisely.")
 
-                self._emit({
+                llm_req_evt = {
                     "type": "llm_request",
                     "provider": self._provider_name,
                     "round": round_num,
-                })
+                }
+                if self._provider_name == "auto" and hasattr(provider, '_last_used') and provider._last_used:
+                    llm_req_evt["auto_using"] = provider._last_used
+                    llm_req_evt["auto_chain"] = getattr(provider, '_get_fallback_chain', lambda: [])()
+                self._emit(llm_req_evt)
 
                 use_streaming = empty_retries == 0
 
@@ -1267,6 +1273,16 @@ class ConversationManager:
                         max_tokens=current_max_tokens,
                         tools=api_tools,
                     ):
+                        if chunk.get("_auto_switched"):
+                            from_m = chunk.get("_auto_from", "?")
+                            to_m = chunk.get("_auto_to", "?")
+                            self._emit({
+                                "type": "notice",
+                                "text": f"Switched to {to_m}",
+                                "detail": f"Fallback from {from_m}",
+                                "icon": "bx-transfer",
+                            })
+                            continue
                         if first_chunk and chunk.get("ok"):
                             first_chunk = False
                             self._emit({"type": "llm_response_start", "round": round_num})
@@ -1424,8 +1440,8 @@ class ConversationManager:
                                     "(all imports, all functions, everything) with "
                                     "your changes merged in.")
                             session.context.add_user(nudge)
-                            self._emit({"type": "text",
-                                         "tokens": "[Nudging agent...]\n"})
+                            self._emit({"type": "debug",
+                                         "text": "Nudging agent to apply changes"})
                             continue
 
                         unfixed = self._get_unfixed_quality_warnings()
@@ -1439,8 +1455,8 @@ class ConversationManager:
                                 "UNRESOLVED QUALITY ISSUES — fix these before "
                                 "finishing:\n" + "\n".join(parts))
                             session.context.add_user(fix_nudge)
-                            self._emit({"type": "text",
-                                         "tokens": "[Fixing quality issues...]\n"})
+                            self._emit({"type": "debug",
+                                         "text": "Nudging agent to fix quality issues"})
                             continue
 
                         if session.message_count >= 2:
@@ -1452,8 +1468,8 @@ class ConversationManager:
                                     f"confirm ALL requested changes are present: "
                                     + ", ".join(os.path.basename(p) for p in unverified[:3]))
                                 session.context.add_user(verify_nudge)
-                                self._emit({"type": "text",
-                                             "tokens": "[Verifying written files...]\n"})
+                                self._emit({"type": "debug",
+                                             "text": "Nudging agent to verify written files"})
                                 continue
                     elif tools and empty_retries < max_empty_retries:
                         empty_retries += 1
@@ -1532,8 +1548,8 @@ class ConversationManager:
                         "[System] You made 3+ rounds of tool calls without "
                         "any explanatory text. Write a text response describing "
                         "what you've found so far. What is the current status?")
-                    self._emit({"type": "text",
-                                 "tokens": "[Nudging for text explanation...]\n"})
+                    self._emit({"type": "debug",
+                                 "text": "Nudging for text explanation"})
                     _silent_tool_rounds = 0
 
                 if len(_tool_call_history) >= 4:
@@ -1545,10 +1561,10 @@ class ConversationManager:
                             "and SYNTHESIZE what you have learned so far. "
                             "Respond to the user with your findings now.")
                         session.context.add_user(loop_nudge)
-                        self._emit({"type": "text",
-                                     "tokens": "[Loop detected — nudging synthesis...]\n"})
+                        self._emit({"type": "debug",
+                                     "text": "Loop detected — nudging synthesis"})
 
-                if turn_limit > 0 and round_num >= turn_limit + 3:
+                if turn_limit > 0 and round_num >= turn_limit + 1:
                     _force_no_tools = True
                     session.context.add_user(
                         "STOP making tool calls. You have exceeded the turn limit. "

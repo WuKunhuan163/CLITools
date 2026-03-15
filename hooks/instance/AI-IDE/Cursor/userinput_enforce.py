@@ -33,11 +33,12 @@ def main():
                 has_tasks = content and "No active tasks" not in content
 
             msg = (
-                "You stopped without calling USERINPUT. "
-                "Execute USERINPUT now to maintain the feedback loop."
+                "⛔ STOP — You have NOT called USERINPUT yet. "
+                "You MUST execute `USERINPUT` as a shell command RIGHT NOW. "
+                "Do not do anything else first. Just run: USERINPUT"
             )
             if has_tasks:
-                msg += " Also update runtime/brain/tasks.md and runtime/brain/context.md."
+                msg += "\nThen update runtime/brain/tasks.md."
 
             output["followup_message"] = msg
 

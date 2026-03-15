@@ -127,6 +127,16 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .settings-key-mask { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-key-label { font-size: 10px; color: var(--text-3); font-family: var(--font); }
 .settings-empty { text-align: center; padding: 30px; color: var(--text-3); font-size: 13px; }
+.settings-add-key { margin-top: 6px; }
+.settings-add-key-btn { background: none; border: 1px dashed var(--border); color: var(--text-3); font-size: 11px; padding: 4px 10px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+.settings-add-key-btn:hover { border-color: var(--accent); color: var(--accent); }
+.settings-key-form { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.settings-key-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-size: 12px; font-family: var(--mono); color: var(--text-1); outline: none; }
+.settings-key-input:focus { border-color: var(--accent); }
+.settings-validate-btn { background: var(--accent); color: #fff; border: none; border-radius: 4px; padding: 5px 12px; font-size: 11px; cursor: pointer; white-space: nowrap; }
+.settings-validate-btn:hover { opacity: 0.9; }
+.settings-validate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.settings-key-status { font-size: 11px; white-space: nowrap; }
 
 /* ── Pinned Panels ── */
 .pinned-panels { margin: 0 24px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0; }
@@ -174,11 +184,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .todo-item .todo-delete:hover { color: var(--red); }
 
 /* ── Messages ── */
-.messages { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 0; }
+.messages { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 24px 28px; display: flex; flex-direction: column; gap: 0; }
 .messages > * { flex-shrink: 0; }
 .msg-group { display: flex; flex-direction: column; animation: fadeIn 0.3s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-.msg-user { align-self: flex-end; max-width: 65%; background: var(--accent); color: white; padding: 10px 16px; border-radius: 18px 18px 4px 18px; font-size: 14px; line-height: 1.55; margin-bottom: 8px; }
+.msg-user { align-self: flex-end; max-width: 65%; background: var(--accent); color: white; padding: 10px 16px; border-radius: 18px 18px 4px 18px; font-size: 14px; line-height: 1.55; margin-bottom: 8px; word-break: break-word; overflow-wrap: break-word; }
 .msg-text { padding: 12px 0 4px 0; font-size: 14px; line-height: 1.7; color: var(--text); max-width: 90%; }
 .msg-text .md-h1 { font-size: 20px; font-weight: 600; margin: 16px 0 8px; color: var(--text); line-height: 1.3; }
 .msg-text .md-h2 { font-size: 17px; font-weight: 600; margin: 14px 0 6px; color: var(--text); line-height: 1.3; }
@@ -309,8 +319,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .stop-bar-btn i { font-size: 14px; }
 .shortcut-hint { font-size: 10px; color: var(--text-3); text-align: center; padding-top: 6px; }
 .shortcut-hint kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 3px; padding: 1px 4px; font-family: var(--mono); font-size: 9px; color: var(--text-2); }
-.shortcut-hint kbd::selection { color: white; }
-.shortcut-hint::selection { color: white; }
+.shortcut-hint kbd::selection { color: white; background: var(--accent); }
+.shortcut-hint::selection { color: white; background: var(--accent); }
 
 /* ── Scroll-to-Bottom ── */
 .scroll-to-bottom { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%) scale(0.8); opacity: 0; pointer-events: none; width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface-2); color: var(--text-2); font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: opacity 0.2s ease, transform 0.2s ease; z-index: 10; }
@@ -346,7 +356,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .welcome-text { font-size: 14px; }
 
 /* ── Debug Toggle ── */
-.debug-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 11px; color: var(--text-3); padding: 4px 10px; border-radius: 6px; border: 1px solid transparent; transition: all var(--transition); }
+.debug-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 12px; color: var(--text-2); padding: 4px 10px; border-radius: 6px; border: 1px solid transparent; transition: all var(--transition); }
 .debug-toggle:hover { color: var(--text-2); border-color: var(--border); }
 .debug-toggle.active { color: var(--orange); border-color: rgba(251,191,36,0.3); background: var(--orange-dim); }
 .debug-toggle .toggle-track { width: 28px; height: 14px; border-radius: 7px; background: var(--surface-3); position: relative; transition: background 0.2s ease; }
@@ -383,13 +393,22 @@ body.debug-mode .debug-block { display: block; }
 .llm-status-text strong { color: var(--text-2); font-weight: 600; }
 
 /* ── Model Info Line ── */
-.model-info { display: flex; align-items: center; gap: 7px; padding: 4px 0; margin: 8px 0 2px; font-size: 11.5px; color: var(--text-3); animation: fadeIn 0.2s ease; }
-.model-info img { width: 16px; height: 16px; border-radius: 3px; }
+.model-info { display: flex; align-items: center; gap: 7px; padding: 4px 0; margin: 8px 0 2px; font-size: 11.5px; color: var(--text-3); animation: fadeIn 0.2s ease; white-space: nowrap; flex-wrap: nowrap; overflow: hidden; }
+.model-info img { width: 16px; height: 16px; border-radius: 3px; opacity: 1 !important; filter: brightness(1.5) contrast(1.2); }
 .model-info .model-name { font-weight: 600; color: var(--text-2); }
 .model-info .model-latency { font-family: var(--mono); font-size: 10.5px; }
 .model-info .model-round { font-family: var(--mono); font-size: 10px; color: var(--text-3); }
 .model-info .model-sep { color: var(--border-active); }
 .model-info .model-spinner { display: inline-block; vertical-align: middle; }
+.debug-link { cursor: pointer; transition: color 0.15s; }
+.debug-link:hover { color: var(--accent); }
+.round-detail-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+.round-detail-overlay.open { opacity: 1; pointer-events: auto; }
+.round-detail-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; min-width: 340px; max-width: 480px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+.round-detail-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.round-detail-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.round-detail-table td:first-child { color: var(--text-3); font-weight: 500; width: 40%; }
+.round-detail-table td:last-child { font-family: var(--mono); font-size: 11.5px; }
 
 /* ── Mode/Model Selector ── */
 .input-selectors { display: flex; align-items: center; gap: 8px; padding-top: 8px; }
@@ -402,7 +421,7 @@ body.debug-mode .debug-block { display: block; }
 .pill-select { position: relative; display: inline-flex; }
 .pill-btn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font-size: 12px; font-family: var(--font); cursor: pointer; outline: none; white-space: nowrap; transition: all var(--transition); }
 .pill-btn:hover { border-color: var(--text-3); color: var(--text); }
-.pill-btn img { width: 14px; height: 14px; border-radius: 3px; }
+.pill-btn img { width: 14px; height: 14px; border-radius: 3px; opacity: 1 !important; filter: brightness(1.5) contrast(1.2); }
 .pill-btn i { font-size: 14px; }
 .pill-btn .pill-chevron { font-size: 10px; color: var(--text-3); margin-left: 2px; }
 .pill-menu { display: none; position: absolute; bottom: calc(100% + 4px); left: 0; min-width: 160px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 100; overflow: hidden; animation: fadeIn 0.15s ease; }
@@ -410,7 +429,7 @@ body.debug-mode .debug-block { display: block; }
 .pill-option { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: background 0.1s; }
 .pill-option:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 .pill-option.active { color: var(--accent); }
-.pill-option img { width: 14px; height: 14px; border-radius: 3px; }
+.pill-option img { width: 14px; height: 14px; border-radius: 3px; opacity: 1 !important; filter: brightness(1.5) contrast(1.2); }
 .pill-option i.bx { font-size: 15px; }
 
 /* ── Ask User ── */
@@ -432,9 +451,11 @@ body.debug-mode .debug-block { display: block; }
 .tool-code-preview code { font-family: var(--mono); font-size: 11.5px; color: var(--text); white-space: pre; line-height: 1.5; }
 .tool-write-result { font-size: 12px; color: var(--text-3); padding: 6px 0; }
 
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 6px; height: 0; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.tool-terminal::-webkit-scrollbar, .md-codeblock::-webkit-scrollbar, .tool-code-preview::-webkit-scrollbar { height: 4px; }
+.tool-terminal::-webkit-scrollbar-thumb, .md-codeblock::-webkit-scrollbar-thumb, .tool-code-preview::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 </style>
 </head>
 <body>
@@ -452,6 +473,9 @@ body.debug-mode .debug-block { display: block; }
   <div class="main-header">
     <div class="main-title" id="main-title">New Task</div>
     <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+      <div class="debug-toggle" id="theme-toggle" onclick="toggleTheme()" title="Switch between dark and light mode">
+        <i class="bx bx-sun" id="theme-icon" style="font-size:14px;"></i>
+      </div>
       <div class="debug-toggle" id="debug-toggle" onclick="toggleDebug()" title="Show raw LLM events and system feeds">
         <span>Debug</span>
         <div class="toggle-track"><div class="toggle-knob"></div></div>
@@ -537,11 +561,19 @@ let currentModel = 'zhipu-glm-4.7-flash';
 let currentTurnLimit = 10;
 
 const ZHIPU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/zhipu.svg';
+const GOOGLE_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/gemini.svg';
+const BAIDU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/wenxin.svg';
+const TENCENT_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/hunyuan.svg';
+const SILICONFLOW_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/siliconcloud.svg';
 const MODEL_LOGOS = {
   'zhipu-glm-4.7-flash': ZHIPU_LOGO,
   'zhipu-glm-4-flash': ZHIPU_LOGO,
   'zhipu-glm-4.7': ZHIPU_LOGO,
   'nvidia-glm-4-7b': 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/nvidia.svg',
+  'google-gemini-2.0-flash': GOOGLE_LOGO,
+  'baidu-ernie-speed-8k': BAIDU_LOGO,
+  'tencent-hunyuan-lite': TENCENT_LOGO,
+  'siliconflow-qwen2.5-7b': SILICONFLOW_LOGO,
   'auto': ZHIPU_LOGO,
 };
 
@@ -550,16 +582,29 @@ const MODEL_DISPLAY_NAMES = {
   'zhipu-glm-4.7-flash': 'GLM-4.7-Flash',
   'zhipu-glm-4-flash': 'GLM-4-Flash',
   'zhipu-glm-4.7': 'GLM-4.7',
+  'google-gemini-2.0-flash': 'Gemini 2.0 Flash',
+  'baidu-ernie-speed-8k': 'ERNIE Speed 8K',
+  'tencent-hunyuan-lite': 'Hunyuan Lite',
+  'siliconflow-qwen2.5-7b': 'Qwen 2.5 7B',
 };
 
 const MODE_ICONS = { agent: 'bx-bot', plan: 'bx-edit', ask: 'bx-chat' };
 const MODE_LABELS = { agent: 'Agent', plan: 'Plan', ask: 'Ask' };
 
 const MODEL_OPTIONS = [
+  { value: 'auto', label: 'Auto' },
   { value: 'zhipu-glm-4.7-flash', label: 'GLM-4.7-Flash' },
   { value: 'zhipu-glm-4-flash', label: 'GLM-4-Flash' },
   { value: 'zhipu-glm-4.7', label: 'GLM-4.7' },
-];
+  { value: 'google-gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+  { value: 'baidu-ernie-speed-8k', label: 'ERNIE Speed 8K' },
+  { value: 'tencent-hunyuan-lite', label: 'Hunyuan Lite' },
+  { value: 'siliconflow-qwen2.5-7b', label: 'Qwen 2.5 7B' },
+].sort((a, b) => {
+  if (a.value === 'auto') return -1;
+  if (b.value === 'auto') return 1;
+  return a.label.localeCompare(b.label);
+});
 
 function buildPillSelect(container, options, currentValue, onChange) {
   function render() {
@@ -644,6 +689,25 @@ function toggleDebug() {
   engine.setDebugMode(debugMode, createDebugBlock);
 }
 
+function toggleTheme() {
+  lightMode = !lightMode;
+  document.body.classList.toggle('light-mode', lightMode);
+  const icon = $('theme-icon');
+  if (icon) icon.className = lightMode ? 'bx bx-moon' : 'bx bx-sun';
+  const toggle = $('theme-toggle');
+  if (toggle) toggle.classList.toggle('active', lightMode);
+  localStorage.setItem('theme', lightMode ? 'light' : 'dark');
+}
+
+(function initTheme() {
+  if (lightMode) {
+    const icon = document.getElementById('theme-icon');
+    if (icon) icon.className = 'bx bx-moon';
+    const toggle = document.getElementById('theme-toggle');
+    if (toggle) toggle.classList.add('active');
+  }
+})();
+
 function formatDebugUsage(evt) {
   const parts = [];
   const usage = evt.usage || {};
@@ -700,6 +764,7 @@ const engine = new AgentGUIEngine({
   sessionListEl: $('session-list'),
 });
 engine.setDebugMode(false, createDebugBlock);
+{ const saved = parseInt(localStorage.getItem('maxRoundHistory')); if (saved > 0) engine.setMaxRoundHistory(saved); }
 
 const modePill = buildPillSelect(
   $('mode-pill'),
@@ -898,7 +963,7 @@ async function loadOlderEvents() {
 /* ── Settings Panel ── */
 let settingsTab = 'general';
 let usageData = { models: {}, providers: {}, calls: [] };
-let lightMode = localStorage.getItem('lightMode') === 'true';
+let lightMode = localStorage.getItem('theme') === 'light';
 if (lightMode) document.body.classList.add('light-mode');
 
 function openSettings() {
@@ -935,19 +1000,21 @@ function renderSettingsTab() {
 
 function renderGeneralView() {
   const checked = lightMode ? 'checked' : '';
+  const histN = engine._maxRoundHistory || 10;
   return `<div class="settings-section-title">Appearance</div>
     <div class="settings-card" style="padding:16px;">
       <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:13px;">
-        <input type="checkbox" ${checked} onchange="toggleTheme(this.checked)" style="accent-color:var(--accent);width:16px;height:16px;">
+        <input type="checkbox" ${checked} onchange="toggleTheme()" style="accent-color:var(--accent);width:16px;height:16px;">
         <span><strong>Light Mode</strong><br><span style="color:var(--text-3);font-size:11.5px;">Switch between dark and light appearance</span></span>
       </label>
+    </div>
+    <div class="settings-section-title" style="margin-top:16px;">Debug</div>
+    <div class="settings-card" style="padding:16px;">
+      <label style="display:flex;align-items:center;gap:12px;font-size:13px;">
+        <span><strong>Round History</strong><br><span style="color:var(--text-3);font-size:11.5px;">Max rounds retained for token/context detail inspection</span></span>
+        <input type="number" min="1" max="100" value="${histN}" style="width:60px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text);font-size:13px;text-align:center;font-family:var(--mono);" onchange="engine.setMaxRoundHistory(parseInt(this.value)||10);localStorage.setItem('maxRoundHistory',this.value);">
+      </label>
     </div>`;
-}
-
-function toggleTheme(isLight) {
-  lightMode = isLight;
-  document.body.classList.toggle('light-mode', isLight);
-  localStorage.setItem('lightMode', isLight);
 }
 
 function renderModelsView() {
@@ -1011,6 +1078,14 @@ function renderProvidersView() {
       ${modelChips ? '<div style="margin-top:8px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;">Models</div><div class="settings-provider-list">' + modelChips + '</div>' : ''}
       <div style="margin-top:10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;">API Keys</div>
       ${keysHtml}
+      <div class="settings-add-key" data-vendor="${esc(name)}">
+        <button class="settings-add-key-btn" onclick="toggleKeyInput(this)"><i class="bx bx-plus"></i> Add Key</button>
+        <div class="settings-key-form" style="display:none;">
+          <input type="password" placeholder="Paste API key..." class="settings-key-input">
+          <button class="settings-validate-btn" onclick="validateAndSaveKey(this)">Validate & Save</button>
+          <span class="settings-key-status"></span>
+        </div>
+      </div>
       ${renderCallsTable(provCalls)}
     </div>`;
   }
@@ -1036,6 +1111,44 @@ function renderCallsTable(calls) {
 function fmtTokens(n) { return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n); }
 function fmtTime(ts) { if (!ts) return '-'; const d = new Date(ts * 1000); return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
 function maskKey(k) { if (!k || k.length < 8) return '••••'; return k.slice(0, 4) + '••••' + k.slice(-4); }
+
+function toggleKeyInput(btn) {
+  const form = btn.parentElement.querySelector('.settings-key-form');
+  form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+  if (form.style.display === 'flex') form.querySelector('.settings-key-input').focus();
+}
+
+async function validateAndSaveKey(btn) {
+  const form = btn.closest('.settings-key-form');
+  const container = btn.closest('.settings-add-key');
+  const vendor = container.dataset.vendor;
+  const input = form.querySelector('.settings-key-input');
+  const status = form.querySelector('.settings-key-status');
+  const key = input.value.trim();
+  if (!key) { status.innerHTML = '<span style="color:var(--red)">Enter a key</span>'; return; }
+  btn.disabled = true;
+  status.innerHTML = '<span style="color:var(--text-3)">Validating...</span>';
+  try {
+    const res = await fetch('/api/validate-key', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor, key}) });
+    const data = await res.json();
+    if (data.ok) {
+      const saveRes = await fetch('/api/save-key', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor, key}) });
+      const saveData = await saveRes.json();
+      if (saveData.ok) {
+        status.innerHTML = '<span style="color:var(--green)"><i class="bx bx-check"></i> Saved</span>';
+        input.value = '';
+        setTimeout(() => { form.style.display = 'none'; status.innerHTML = ''; }, 1500);
+      } else {
+        status.innerHTML = `<span style="color:var(--red)">Save failed: ${esc(saveData.error)}</span>`;
+      }
+    } else {
+      status.innerHTML = `<span style="color:var(--red)"><i class="bx bx-x"></i> ${esc(data.error)}</span>`;
+    }
+  } catch (e) {
+    status.innerHTML = `<span style="color:var(--red)">Network error</span>`;
+  }
+  btn.disabled = false;
+}
 
 /* ── SSE Connection ── */
 function connectSSE() {
@@ -1120,12 +1233,16 @@ function handleSSEEvent(evt) {
       break;
     }
 
-    case 'error':
-      engine.enqueueEvent({ type: 'text', tokens: 'Error: ' + (evt.message || 'Unknown') });
+    case 'error': {
+      const errMsg = evt.message || 'Unknown error';
+      engine.renderCenterNotice(`<i class="bx bx-x-circle" style="color:var(--red);font-size:16px;vertical-align:middle;"></i> <strong style="color:var(--red);">Error</strong>: ${esc(errMsg)}`);
       $('input').disabled = false;
       $('btn-send').disabled = false;
       sending = false;
+      setStopMode(false);
+      if (activeSessionId) engine.setSessionStatus(activeSessionId, 'idle');
       break;
+    }
 
     default:
       engine.enqueueEvent(evt);

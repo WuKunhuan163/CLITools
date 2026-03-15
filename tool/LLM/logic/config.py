@@ -25,6 +25,10 @@ _CONFIG_PATH = _DATA_DIR / "llm_config.json"
 _LEGACY_KEY_MAP = {
     "zhipu_api_key": ("zhipu", "api_key"),
     "nvidia_api_key": ("nvidia", "api_key"),
+    "google_api_key": ("google", "api_key"),
+    "baidu_api_key": ("baidu", "api_key"),
+    "tencent_api_key": ("tencent", "api_key"),
+    "siliconflow_api_key": ("siliconflow", "api_key"),
 }
 
 

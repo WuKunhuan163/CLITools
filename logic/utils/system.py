@@ -239,6 +239,42 @@ def get_cpu_percent(interval=0.1):
     except Exception:
         return 0.0
 
+def detect_ide() -> str:
+    """Detect the current IDE/editor environment.
+
+    Returns one of: 'cursor', 'vscode', 'terminal', 'unknown'.
+    Detection is based on environment variables and filesystem markers.
+    """
+    if os.environ.get("CURSOR_AGENT") or os.environ.get("CURSOR_TRACE_ID"):
+        return "cursor"
+
+    for key in os.environ:
+        if key.startswith("CURSOR_"):
+            return "cursor"
+
+    term_program = os.environ.get("TERM_PROGRAM", "").lower()
+    if term_program == "vscode":
+        vscode_ipc = os.environ.get("VSCODE_IPC_HOOK", "")
+        if "cursor" in vscode_ipc.lower():
+            return "cursor"
+        return "vscode"
+
+    if os.environ.get("VSCODE_PID") or os.environ.get("VSCODE_IPC_HOOK_CLI"):
+        return "vscode"
+
+    return "terminal"
+
+
+def is_cursor_ide() -> bool:
+    """Check if running inside Cursor IDE."""
+    return detect_ide() == "cursor"
+
+
+def is_vscode() -> bool:
+    """Check if running inside VS Code (not Cursor)."""
+    return detect_ide() == "vscode"
+
+
 def get_variable_from_file(file_path, var_name, default=None):
     """Extract a top-level variable value from a Python file using AST."""
     import ast

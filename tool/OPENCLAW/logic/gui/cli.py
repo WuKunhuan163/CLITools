@@ -166,6 +166,89 @@ class _Spinner:
         sys.stdout.flush()
 
 
+class _ToolBlock:
+    """Renders a tool call as a rounded terminal box with blinking indicator.
+
+    During execution, ▫ blinks on the top border line (0.5s on/off).
+    On completion, becomes ▪ in green (success) or red (failure),
+    optional content lines are added, and the box is closed.
+
+    Usage::
+
+        block = _ToolBlock("ls -la", log_ref="s1")
+        block.start()
+        result = execute_command(...)
+        block.end(ok=True, lines=["total 48", "drwxr-xr-x ..."])
+    """
+
+    _PENDING = "\u25AB"  # ▫
+    _DONE = "\u25AA"     # ▪
+
+    def __init__(self, label: str, log_ref: str = ""):
+        self.width = min(_term_width(), 100)
+        max_label = self.width - 20
+        self.label = label[:max_label] if len(label) > max_label else label
+        self.log_ref = log_ref
+        self._blinking = False
+        self._blink_thread: Optional[threading.Thread] = None
+
+    def _top(self, indicator: str, ind_color: str = "") -> str:
+        h = "\u2500"
+        ind_display = f"{ind_color}{indicator}{RESET}" if ind_color else indicator
+        before_vis = f"\u256D\u2500 {indicator} {self.label} "
+        ref_str = f"[{self.log_ref}] " if self.log_ref else ""
+        suffix_vis = f"{ref_str}\u256E"
+        fill = max(1, self.width - len(before_vis) - len(suffix_vis))
+        return (
+            f"{DIM}\u256D\u2500{RESET} {ind_display} {self.label} "
+            f"{DIM}{h * fill}{ref_str}\u256E{RESET}"
+        )
+
+    def _content(self, text: str) -> str:
+        inner = self.width - 4
+        t = text[:inner] if len(text) > inner else text
+        pad = max(0, inner - len(t))
+        return f"{DIM}\u2502{RESET}  {t}{' ' * pad} {DIM}\u2502{RESET}"
+
+    def _bottom(self) -> str:
+        h = "\u2500"
+        return f"{DIM}\u2570{h * (self.width - 2)}\u256F{RESET}"
+
+    def start(self):
+        """Print the top border (no trailing newline) and begin blinking."""
+        sys.stdout.write(self._top(self._PENDING))
+        sys.stdout.flush()
+        self._blinking = True
+        self._blink_thread = threading.Thread(target=self._blink, daemon=True)
+        self._blink_thread.start()
+
+    def _blink(self):
+        show = True
+        while self._blinking:
+            ind = self._PENDING if show else " "
+            sys.stdout.write(f"\r\033[K{self._top(ind)}")
+            sys.stdout.flush()
+            show = not show
+            time.sleep(0.5)
+
+    def stop_blink(self):
+        """Stop blinking without finalizing the box."""
+        self._blinking = False
+        if self._blink_thread:
+            self._blink_thread.join(timeout=1)
+            self._blink_thread = None
+
+    def end(self, ok: bool, lines: list = None):
+        """Stop blinking, finalize with colored ▪, optional content, and bottom border."""
+        self.stop_blink()
+        color = f"{GREEN}{BOLD}" if ok else f"{RED}{BOLD}"
+        sys.stdout.write(f"\r\033[K{self._top(self._DONE, color)}\n")
+        for ln in (lines or []):
+            sys.stdout.write(self._content(ln) + "\n")
+        sys.stdout.write(self._bottom() + "\n")
+        sys.stdout.flush()
+
+
 _CMD_REGISTRY = [
     ("/help",       "",                  "cmd_help_desc",       "Show this help."),
     ("/setup",      "",                  "cmd_setup_desc",      "Configure LLM provider and API key."),
@@ -227,6 +310,7 @@ class OpenClawCLI:
         self._iteration = 0
         self._prompt_state = "idle"  # idle, running, done, error
         self._spinner: Optional[_Spinner] = None
+        self._tool_block: Optional[_ToolBlock] = None
         self._breakpoint_exit = False
         self._dev_breakpoint = True  # DEV: set to False to disable pre-exec breakpoint
         self._session_line: Optional[str] = None
@@ -437,6 +521,8 @@ class OpenClawCLI:
 
     _IDLE = "\u25A1"    # □
     _ACTIVE = "\u25A0"  # ■
+    _ROUND_WAIT = "\u25CB"   # ○ — waiting for agent response
+    _ROUND_RECV = "\u25CF"   # ● — response received
 
     def _prompt(self) -> str:
         """Show idle prompt and wait for user input or injected command.
@@ -973,6 +1059,25 @@ class OpenClawCLI:
         return truncate_to_width(
             f"    {DIM}{text}{RESET}", _get_configured_width())
 
+    def _system_notice(self, text: str, highlight: str = ""):
+        """Print a centered gray system notice (e.g. 'Switched to zhipu-glm-4.7')."""
+        w = min(_term_width(), 100)
+        if highlight:
+            full = f"{text} {highlight}"
+        else:
+            full = text
+        padding = max(0, (w - len(full)) // 2)
+        if highlight:
+            print(f"{' ' * padding}{DIM}{text}{RESET} {highlight}")
+        else:
+            print(f"{' ' * padding}{DIM}{full}{RESET}")
+
+    def _debug_log(self, text: str, log_id: str = ""):
+        """Print a compact debug log line (gray, first 20 chars + log id)."""
+        preview = text[:20].replace("\n", " ")
+        ref = f" [{log_id}]" if log_id else ""
+        print(f"{DIM}{preview}{'...' if len(text) > 20 else ''}{ref}{RESET}")
+
     def _tool_call(self, text: str, log_ref: str = "") -> str:
         """Format a tool call line (bullet, with optional log reference)."""
         ref = f" {DIM}[{log_ref}]{RESET}" if log_ref else ""
@@ -1123,6 +1228,8 @@ class OpenClawCLI:
                 print(self._detail(f"{YELLOW}{dur_err}{RESET}", styled=True))
                 return False
 
+            print(f"\n  {self._ROUND_WAIT} {DIM}Round {self._iteration}{RESET}")
+
             if self._iteration == 1:
                 send_label = _("send_task_label", "Sending task")
                 print(self._stage(send_label, "done"))
@@ -1271,16 +1378,14 @@ class OpenClawCLI:
 
                     cmd = seg["content"]
                     executed_cmd = cmd
-                    cmd_label = _("executing_command", "Executing command")
                     log_ref = op_log.ref if hasattr(op_log, 'ref') else ""
-                    print(self._tool_call(cmd, log_ref=log_ref))
-                    print(self._stage(cmd_label, "active", desc=cmd))
+
                     exec_tracker = _OutputTracker(sys.stdout)
                     sys.stdout = exec_tracker
 
-                    exec_spinner = _Spinner(_("running", "Running"), prefix=self._DETAIL)
-                    self._spinner = exec_spinner
-                    exec_spinner.start()
+                    block = _ToolBlock(cmd, log_ref=log_ref)
+                    self._tool_block = block
+                    block.start()
 
                     cmd_result = execute_command(cmd)
                     _dev_log("exec", {
@@ -1299,37 +1404,38 @@ class OpenClawCLI:
                     })
 
                     cmd_ok = cmd_result.get("ok", False)
+                    content_lines = []
                     if cmd_ok:
-                        exec_spinner.stop(
-                            f"{GREEN}{_('exec_completed', 'Completed (exit {code}).', code=cmd_result.get('exit_code', 0))}{RESET}")
                         output = cmd_result.get("output", "")
                         if output:
-                            truncated = _truncate(output, 15)
-                            for line in truncated.split("\n"):
-                                print(self._detail(line))
+                            out_lines = output.split("\n")
+                            for ln in out_lines[:5]:
+                                content_lines.append(ln)
+                            if len(out_lines) > 5:
+                                content_lines.append(
+                                    f"{DIM}... ({len(out_lines) - 5} more lines){RESET}")
                         if "--openclaw-write-file" in cmd:
                             guardrails.record_write(cmd)
                     else:
                         error = cmd_result.get("error", "")
-                        brief = error.split("\n")[0][:120] if error else ""
-                        fail_msg = f"{RED}{_('exec_failed', 'Failed.')}{RESET} {brief}" if brief else f"{RED}{_('exec_failed', 'Failed.')}{RESET}"
-                        exec_spinner.stop(fail_msg)
+                        if error:
+                            content_lines.append(
+                                f"{RED}{error.split(chr(10))[0][:100]}{RESET}")
                         guardrails.record_command_failure()
 
+                    block.end(ok=cmd_ok, lines=content_lines)
+                    self._tool_block = None
+
                     sys.stdout = exec_tracker._wrapped
-                    recolor_status = "done" if cmd_ok else "error"
-                    n = exec_tracker.lines
-                    if n > 0:
-                        recolored = self._stage(cmd_label, recolor_status, desc=cmd)
-                        sys.stdout.write(
-                            f"\033[{n + 1}A\033[K{recolored}\n"
-                            f"\033[{n}B")
-                        sys.stdout.flush()
 
                     self.session_mgr.add_message(
                         self.session.id, "system", f"[Exec] {cmd}")
                     feedback = build_feedback_message(cmd, cmd_result)
                     feedback_parts.append(feedback)
+
+            # Round completion
+            tokens_info = f" \u2014 {tokens_used:,} tokens" if tokens_used else ""
+            print(f"  {self._ROUND_RECV} {DIM}Round {self._iteration}{tokens_info}{RESET}")
 
             # Check task completion
             if task_complete:
@@ -1562,6 +1668,9 @@ class OpenClawCLI:
                         if self._spinner:
                             self._spinner.stop()
                             self._spinner = None
+                        if self._tool_block:
+                            self._tool_block.stop_blink()
+                            self._tool_block = None
                         success = False
                     finally:
                         sys.stdout = tracker._wrapped
@@ -1572,6 +1681,9 @@ class OpenClawCLI:
             if self._spinner:
                 self._spinner.stop()
                 self._spinner = None
+            if self._tool_block:
+                self._tool_block.stop_blink()
+                self._tool_block = None
             print(f"\n{DIM}{_('interrupted', 'Interrupted.')}{RESET}\n")
         finally:
             self._cleanup_run_files()

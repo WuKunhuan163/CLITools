@@ -302,6 +302,31 @@ def _tool_dev_handler(dev_args):
                 branch = l.get("branch", "?")
                 size = l.get("size_mb", 0)
                 print(f"  {BOLD}{l['key']}{RESET}: branch={branch}, size={size}MB")
+    elif subcmd == "docs":
+        from logic.dev.report import list_docs
+        scope = rest[0] if rest else "root"
+        docs = list_docs(scope)
+        print(f"  {BOLD}Docs at{RESET} {DIM}{docs['path']}{RESET}")
+        print(f"  README:    {docs['readme'] or DIM + 'none' + RESET}")
+        print(f"  for_agent: {docs['for_agent'] or DIM + 'none' + RESET}")
+        reports = docs['reports']
+        if reports:
+            print(f"  Reports ({len(reports)}):")
+            for r in reports[:15]:
+                print(f"    {DIM}{r['name']}{RESET}")
+        else:
+            print(f"  Reports:   {DIM}none{RESET}")
+    elif subcmd == "report":
+        if not rest:
+            print(f"Usage: TOOL --dev report <scope> <topic>")
+            print(f"  scope: root, tool/LLM, provider/zhipu, etc.")
+            print(f"  topic: short description (becomes filename)")
+            return
+        scope = rest[0]
+        topic = " ".join(rest[1:]) if len(rest) > 1 else "untitled"
+        from logic.dev.report import create_report
+        path = create_report(scope, topic, f"# {topic}\n\n## Summary\n\n(Fill in)\n\n## Changes Made\n\n## Issues Found & Fixed\n\n## Next Steps\n")
+        print(f"  {BOLD}{GREEN}Created{RESET} {DIM}{path}{RESET}")
     else:
         print(f"Usage: TOOL --dev <command>")
         print(f"\n{BOLD}Available commands:{RESET}")
@@ -317,6 +342,8 @@ def _tool_dev_handler(dev_args):
         print(f"  install-hooks                     Install git post-checkout hook")
         print(f"  uninstall-hooks                   Remove git post-checkout hook")
         print(f"  locker                            List persistence lockers")
+        print(f"  docs [scope]                      List README/for_agent/reports at scope")
+        print(f"  report <scope> <topic>            Create a new report")
 
 
 def _tool_test_handler(test_args):

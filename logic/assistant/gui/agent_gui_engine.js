@@ -159,6 +159,11 @@ class AgentGUIEngine {
     this._eventQueue = [];
     this._processing = false;
     this._sandboxPolicy = 'auto_run';
+    this._activeTextEl = null;
+    this._activeTextGrp = null;
+    this._activeTextBuf = '';
+    this._roundHistory = [];
+    this._maxRoundHistory = 10;
 
     this._registerDefaults();
     this._initScrollToBottom();
@@ -186,6 +191,7 @@ class AgentGUIEngine {
     this.registerBlock('llm_response_end', (evt) => this._renderLLMResponseEnd(evt));
     this.registerBlock('ask_user', (evt) => this._renderAskUser(evt));
     this.registerBlock('notice', (evt) => this._renderNotice(evt));
+    this.registerBlock('debug', (evt) => this._renderDebugNotice(evt));
     this.registerBlock('file_summary', (evt) => this._renderFileSummary(evt));
   }
 
@@ -201,6 +207,9 @@ class AgentGUIEngine {
   /* ── Process a single protocol event ── */
 
   async processEvent(evt) {
+    if (evt.type !== 'text') {
+      this._clearActiveText();
+    }
     if (this._createDebugBlock) {
       const debugEl = this._createDebugBlock(evt);
       if (debugEl) this.chatArea.appendChild(debugEl);
@@ -208,7 +217,7 @@ class AgentGUIEngine {
     const handler = this.blockRegistry[evt.type];
     if (handler) {
       await handler(evt);
-      this._appendSpacer();
+      if (evt.type !== 'text') this._appendSpacer();
     }
   }
 
@@ -566,10 +575,25 @@ class AgentGUIEngine {
   }
 
   async _renderText(evt) {
+    if (this._activeTextEl && this._activeTextGrp && this._activeTextGrp.parentNode === this.chatArea) {
+      this._activeTextBuf += evt.tokens;
+      this._activeTextEl.innerHTML = md(this._activeTextBuf);
+      this._scrollEnd();
+      return;
+    }
     const grp = this._appendAnimated('div', 'msg-group');
     const el = this._appendEl('div', 'msg-text', '', grp);
+    this._activeTextGrp = grp;
+    this._activeTextEl = el;
+    this._activeTextBuf = evt.tokens;
     await this._streamText(el, evt.tokens, 10);
     await sleep(200);
+  }
+
+  _clearActiveText() {
+    this._activeTextEl = null;
+    this._activeTextGrp = null;
+    this._activeTextBuf = '';
   }
 
   async _streamText(el, tokens, delay) {
@@ -577,10 +601,10 @@ class AgentGUIEngine {
       el.innerHTML = md(tokens);
       return;
     }
-    let buf = '';
-    for (const ch of tokens) {
-      buf += ch;
-      el.innerHTML = md(buf);
+    let buf = this._activeTextBuf || '';
+    const startAt = buf.length - tokens.length;
+    for (let i = 0; i < tokens.length; i++) {
+      el.innerHTML = md(buf.slice(0, startAt + i + 1));
       this._scrollEnd();
       await sleep(delay);
     }
@@ -710,33 +734,102 @@ class AgentGUIEngine {
       const spinner = this._llmRequestEl.querySelector('.model-spinner');
       if (spinner) spinner.style.display = 'none';
 
-      const parts = [];
       const usage = evt.usage || {};
       const outTokens = usage.completion_tokens || 0;
       const ctxTokens = usage.prompt_tokens || 0;
       const totalTokens = usage.total_tokens || (ctxTokens + outTokens);
-      parts.push(outTokens + ' tokens');
-      if (usage.cost != null) {
-        const currency = this._costCurrency || '$';
-        parts.push(currency + usage.cost.toFixed(4));
-      } else {
-        parts.push('$0.00');
-      }
-      if (evt.latency_s) parts.push(evt.latency_s + 's');
-      if (ctxTokens > 0) {
-        const ctxK = ctxTokens >= 1000
-          ? (ctxTokens / 1000).toFixed(1) + 'k ctx'
-          : ctxTokens + ' ctx';
-        parts.push(ctxK);
+
+      const roundData = {
+        round: evt.round,
+        provider: evt.provider || '',
+        model: evt.model || '',
+        output_tokens: outTokens,
+        context_tokens: ctxTokens,
+        total_tokens: totalTokens,
+        latency_s: evt.latency_s || 0,
+        cost: usage.cost || 0,
+        timestamp: Date.now(),
+        usage_raw: usage,
+      };
+      this._roundHistory.push(roundData);
+      if (this._roundHistory.length > this._maxRoundHistory) {
+        this._roundHistory.shift();
       }
 
+      const ridx = this._roundHistory.length - 1;
+      const tokenLabel = outTokens + ' tokens';
+      const costLabel = usage.cost != null
+        ? (this._costCurrency || '$') + usage.cost.toFixed(4)
+        : '$0.00';
+      const latLabel = evt.latency_s ? evt.latency_s + 's' : '';
+      const ctxLabel = ctxTokens > 0
+        ? (ctxTokens >= 1000 ? (ctxTokens / 1000).toFixed(1) + 'k ctx' : ctxTokens + ' ctx')
+        : '';
+
       const latency = this._llmRequestEl.querySelector('.model-latency');
-      if (latency) latency.textContent = parts.join(' · ') || (evt.latency_s ? evt.latency_s + 's' : '');
+      if (latency) {
+        latency.innerHTML = '';
+        const makeLink = (text, idx) => {
+          const a = document.createElement('span');
+          a.textContent = text;
+          a.className = 'debug-link';
+          a.dataset.roundIdx = idx;
+          a.addEventListener('click', () => this._showRoundDetail(idx));
+          return a;
+        };
+        const sep = () => { const s = document.createElement('span'); s.textContent = ' · '; s.className = 'model-sep'; return s; };
+        latency.appendChild(makeLink(tokenLabel, ridx));
+        latency.appendChild(sep());
+        latency.appendChild(document.createTextNode(costLabel));
+        if (latLabel) { latency.appendChild(sep()); latency.appendChild(document.createTextNode(latLabel)); }
+        if (ctxLabel) { latency.appendChild(sep()); latency.appendChild(makeLink(ctxLabel, ridx)); }
+      }
 
       this._lastLLMResponseEnd = evt;
       this._llmRequestEl = null;
     }
     return sleep(100);
+  }
+
+  setMaxRoundHistory(n) {
+    this._maxRoundHistory = n;
+    while (this._roundHistory.length > n) this._roundHistory.shift();
+  }
+
+  _showRoundDetail(idx) {
+    const data = this._roundHistory[idx];
+    if (!data) return;
+    let overlay = document.getElementById('round-detail-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'round-detail-overlay';
+      overlay.className = 'round-detail-overlay';
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
+      document.body.appendChild(overlay);
+    }
+    const u = data.usage_raw || {};
+    overlay.innerHTML = `<div class="round-detail-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <strong style="font-size:14px;">Round ${data.round} Detail</strong>
+        <span style="cursor:pointer;font-size:18px;color:var(--text-3);" onclick="this.closest('.round-detail-overlay').classList.remove('open')">&times;</span>
+      </div>
+      <table class="round-detail-table">
+        <tr><td>Provider</td><td>${esc(data.provider)}</td></tr>
+        <tr><td>Model</td><td>${esc(data.model)}</td></tr>
+        <tr><td>Output Tokens</td><td>${data.output_tokens.toLocaleString()}</td></tr>
+        <tr><td>Context Tokens</td><td>${data.context_tokens.toLocaleString()}</td></tr>
+        <tr><td>Total Tokens</td><td>${data.total_tokens.toLocaleString()}</td></tr>
+        <tr><td>Latency</td><td>${data.latency_s}s</td></tr>
+        <tr><td>Cost</td><td>${(this._costCurrency || '$') + data.cost.toFixed(6)}</td></tr>
+        <tr><td>Time</td><td>${new Date(data.timestamp).toLocaleTimeString()}</td></tr>
+        ${u.prompt_tokens_details ? `<tr><td>Prompt Details</td><td><pre style="margin:0;font-size:11px;">${esc(JSON.stringify(u.prompt_tokens_details, null, 2))}</pre></td></tr>` : ''}
+        ${u.completion_tokens_details ? `<tr><td>Completion Details</td><td><pre style="margin:0;font-size:11px;">${esc(JSON.stringify(u.completion_tokens_details, null, 2))}</pre></td></tr>` : ''}
+      </table>
+      <div style="margin-top:12px;font-size:11px;color:var(--text-3);">
+        History: ${this._roundHistory.length} / ${this._maxRoundHistory} rounds retained
+      </div>
+    </div>`;
+    overlay.classList.add('open');
   }
 
   setCostCurrency(symbol) {
@@ -767,6 +860,17 @@ class AgentGUIEngine {
     const icon = evt.icon ? '<i class="bx ' + evt.icon + '"></i> ' : '';
     this.renderCenterNotice(icon + esc(evt.text || ''));
     return sleep(200);
+  }
+
+  _renderDebugNotice(evt) {
+    if (!this._debugMode) return;
+    const el = document.createElement('div');
+    el.className = 'debug-block';
+    el.style.display = 'block';
+    el.innerHTML = `<div class="debug-block-inner"><div class="debug-block-header"><span class="debug-type" style="color:var(--orange);">NUDGE</span><span class="debug-sep">\u00b7</span><span>${esc(evt.text || '')}</span></div></div>`;
+    this.chatArea.appendChild(el);
+    this._scrollEnd();
+    return sleep(100);
   }
 
   _renderAskUser(evt) {

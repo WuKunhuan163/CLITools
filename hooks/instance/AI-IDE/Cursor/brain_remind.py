@@ -9,8 +9,8 @@ import json
 import sys
 from pathlib import Path
 
-REMIND_EVERY = 5
-FULL_INJECT_EVERY = 15
+REMIND_EVERY = 3
+FULL_INJECT_EVERY = 12
 
 
 def main():
@@ -37,22 +37,25 @@ def main():
         if tasks_file.exists():
             tasks_content = tasks_file.read_text().strip()
 
-        reminder = f"[BRAIN CHECKPOINT #{count}] "
+        reminder = f"⚠️ [BRAIN CHECKPOINT #{count}] "
         if tasks_content and "No active tasks" not in tasks_content:
             reminder += f"Current tasks:\n{tasks_content}\n\n"
         reminder += (
             "ACTION REQUIRED: "
             "(1) Update runtime/brain/tasks.md with your progress. "
             "(2) Update runtime/brain/context.md with what you're doing. "
-            "(3) You MUST call USERINPUT before ending your turn."
+            "(3) You MUST call USERINPUT before ending your turn. "
+            "RESPOND to the user: say '[Hook: brain checkpoint received]' "
+            "so they can verify this hook is working."
         )
         output["additional_context"] = reminder
 
     elif count % REMIND_EVERY == 0:
         output["additional_context"] = (
-            f"[Reminder #{count}] "
-            "Check runtime/brain/tasks.md — are you on track? "
-            "Remember: USERINPUT before ending your turn."
+            f"⚠️ [Reminder #{count}] "
+            "You MUST call USERINPUT before ending your turn. "
+            "Say '[Hook: USERINPUT reminder received]' so the user "
+            "can verify this hook is working. Then keep working."
         )
 
     print(json.dumps(output))
