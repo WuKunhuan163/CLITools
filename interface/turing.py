@@ -8,6 +8,8 @@ from logic.turing.worker import TuringWorker
 from logic.turing.models.worker import ParallelWorkerPool
 from logic.turing.display.manager import MultiLineManager, _get_configured_width, truncate_to_width
 from logic.turing.terminal.keyboard import get_global_suppressor
+from logic.turing.select import select_menu, select_horizontal, read_masked, erase_lines
+from logic.turing.multiline_input import multiline_input
 
 __all__ = [
     "ProgressTuringMachine",
@@ -21,4 +23,9 @@ __all__ = [
     "_get_configured_width",
     "truncate_to_width",
     "get_global_suppressor",
+    "select_menu",
+    "select_horizontal",
+    "read_masked",
+    "erase_lines",
+    "multiline_input",
 ]

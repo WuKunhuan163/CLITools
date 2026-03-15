@@ -74,7 +74,7 @@ def _get_debug_profile_dir():
 
 def _is_cdp_available(port=CDP_PORT):
     try:
-        from logic.chrome.session import is_chrome_cdp_available
+        from interface.chrome import is_chrome_cdp_available
         return is_chrome_cdp_available(port)
     except Exception:
         return False

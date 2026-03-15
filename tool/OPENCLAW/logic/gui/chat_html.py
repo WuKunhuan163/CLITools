@@ -7,7 +7,7 @@ Supports two backends:
 """
 from typing import Optional
 
-from logic.gui.html.blueprint.chatbot.server import ChatbotServer
+from interface.gui import ChatbotServer
 from tool.OPENCLAW.logic.session import SessionManager
 
 

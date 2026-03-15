@@ -61,7 +61,7 @@ def _resolve_folder_id(path_spec):
 
 def _is_cdp_available():
     try:
-        from logic.chrome.session import is_chrome_cdp_available
+        from interface.chrome import is_chrome_cdp_available
         from tool.GOOGLE.interface.main import find_colab_tab
         if not is_chrome_cdp_available():
             return False
@@ -128,7 +128,7 @@ def run_mcp_create(file_type, folder_spec="~", filename=None, as_json=False):
                 print(f"{BOLD}{RED}Failed to create{RESET} {file_type}. {result.get('error', '')}")
             return 1
 
-    from logic.mcp.drive_create import build_create_workflow, get_supported_types
+    from interface.mcp import build_create_workflow, get_supported_types
     supported = get_supported_types()
     workflow = build_create_workflow(folder_id, file_type, filename)
 
@@ -229,7 +229,7 @@ def run_mcp_upload(folder_spec="~", as_json=False):
             print(f"{BOLD}{RED}Failed to resolve{RESET} folder '{folder_spec}'.")
         return 1
 
-    from logic.mcp.drive_create import build_upload_workflow
+    from interface.mcp import build_upload_workflow
     workflow = build_upload_workflow(folder_id)
 
     if as_json:

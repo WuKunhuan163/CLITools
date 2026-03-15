@@ -23,8 +23,8 @@ import time
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from logic.chrome.session import CDPSession, CDP_PORT, capture_screenshot
-from logic.cdmcp_loader import (
+from interface.chrome import CDPSession, CDP_PORT, capture_screenshot
+from interface.cdmcp import (
     load_cdmcp_overlay,
     load_cdmcp_sessions,
     load_cdmcp_interact,
@@ -189,7 +189,7 @@ def get_session_status(port: int = CDP_PORT) -> Dict[str, Any]:
     session = _get_or_create_session(port)
     result = machine.to_dict()
     result["session_alive"] = session is not None
-    from logic.chrome.session import is_chrome_cdp_available
+    from interface.chrome import is_chrome_cdp_available
     result["cdp_available"] = is_chrome_cdp_available(port)
     return result
 

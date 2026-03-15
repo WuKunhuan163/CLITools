@@ -15,7 +15,7 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
 from interface.config import get_color
@@ -45,7 +45,7 @@ def run_setup_tutorial():
 
     # Step 1: Check Chrome CDP
     print(f"  {BOLD}Step 1:{RESET} Checking Chrome CDP availability...")
-    from logic.chrome.session import is_chrome_cdp_available, CDP_PORT
+    from interface.chrome import is_chrome_cdp_available, CDP_PORT
     cdp_ok = is_chrome_cdp_available(CDP_PORT)
     _check("Chrome CDP on port 9222", cdp_ok,
            "Running" if cdp_ok else "Start Chrome with --remote-debugging-port=9222 --remote-allow-origins=*")
@@ -63,7 +63,7 @@ def run_setup_tutorial():
 
     # Step 2: List existing tabs
     print(f"  {BOLD}Step 2:{RESET} Checking existing browser tabs...")
-    from logic.chrome.session import list_tabs
+    from interface.chrome import list_tabs
     tabs = list_tabs(CDP_PORT)
     page_tabs = [t for t in tabs if t.get("type") == "page"]
     _check(f"Found {len(page_tabs)} open tabs", len(page_tabs) > 0)
@@ -74,7 +74,7 @@ def run_setup_tutorial():
     # Step 3: Test overlay injection
     print(f"  {BOLD}Step 3:{RESET} Testing overlay injection...")
     if page_tabs:
-        from logic.cdmcp_loader import load_cdmcp_overlay
+        from interface.cdmcp import load_cdmcp_overlay
         _ov = load_cdmcp_overlay()
         get_session = _ov.get_session
         inject_badge = _ov.inject_badge

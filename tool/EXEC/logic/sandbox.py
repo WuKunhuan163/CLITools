@@ -222,8 +222,8 @@ def prompt_permission(cmd: str, default_idx: int = 2) -> str:
     Returns ``'allow_always'``, ``'allow_once'``, or ``'deny'``.
     """
     try:
-        from logic.turing.select import select_horizontal
-        from logic.config import get_color
+        from interface.turing import select_horizontal
+        from interface.config import get_color
         BOLD = get_color("BOLD")
         RESET = get_color("RESET")
 

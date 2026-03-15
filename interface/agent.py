@@ -29,6 +29,8 @@ from logic.agent.tools import (  # noqa: F401
     BUILTIN_TOOL_DEFS,
     ToolHandlers,
     get_tool_defs_for_mode,
+    _is_readonly_safe,
+    _is_plan_safe,
 )
 from logic.agent.quality import check_write_quality  # noqa: F401
 from logic.agent.nudge import should_nudge, build_nudge_message  # noqa: F401
@@ -43,3 +45,10 @@ from logic.agent.brain import (  # noqa: F401
 )
 from logic.agent.export import export_session, import_session  # noqa: F401
 from logic.agent.memory import MemoryHandlers, MEMORY_TOOL_DEFS  # noqa: F401
+from logic.agent.ecosystem import (  # noqa: F401
+    build_ecosystem_info,
+    build_system_state,
+    build_contextual_suggestions,
+)
+from logic.assistant.std import STANDARD_TOOLS, ToolContext  # noqa: F401
+from logic.search.knowledge import KnowledgeManager  # noqa: F401

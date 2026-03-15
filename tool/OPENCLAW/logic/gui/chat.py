@@ -7,7 +7,7 @@ this module only provides the glue logic.
 from pathlib import Path
 from typing import Optional
 
-from logic.gui.tkinter.blueprint.chatbot.gui import ChatbotWindow
+from interface.gui import ChatbotWindow
 from tool.OPENCLAW.logic.session import SessionManager
 from tool.OPENCLAW.logic.pipeline import Pipeline
 

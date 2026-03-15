@@ -20,6 +20,8 @@ from logic.gui.engine import (
 from logic.gui.manager import run_gui_subprocess, handle_gui_remote_command
 from logic.serve.html_server import LocalHTMLServer, find_free_port
 from logic.gui.tkinter.widget.text import UndoableText
+from logic.gui.html.blueprint.chatbot.server import ChatbotServer
+from logic.gui.tkinter.blueprint.chatbot.gui import ChatbotWindow
 
 __all__ = [
     "ButtonBarWindow",
@@ -45,4 +47,6 @@ __all__ = [
     "LocalHTMLServer",
     "find_free_port",
     "UndoableText",
+    "ChatbotServer",
+    "ChatbotWindow",
 ]

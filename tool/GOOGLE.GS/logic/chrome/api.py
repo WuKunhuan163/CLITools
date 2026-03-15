@@ -22,8 +22,8 @@ import importlib.util as _ilu
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
-from logic.chrome.session import CDPSession, CDP_PORT, capture_screenshot
-from logic.cdmcp_loader import (
+from interface.chrome import CDPSession, CDP_PORT, capture_screenshot
+from interface.cdmcp import (
     load_cdmcp_overlay,
     load_cdmcp_sessions,
     load_cdmcp_interact,

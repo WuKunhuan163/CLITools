@@ -20,8 +20,8 @@ _project_root = _find_root()
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from logic.mcp.config import MCPToolConfig
-from logic.mcp.browser import BrowserMCPConfig
+from interface.mcp import MCPToolConfig
+from interface.mcp import BrowserMCPConfig
 
 
 def get_mcp_config():

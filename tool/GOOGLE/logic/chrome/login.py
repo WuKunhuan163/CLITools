@@ -12,7 +12,7 @@ import json
 import time
 from typing import Optional, Callable, Dict
 
-from logic.chrome.session import (
+from interface.chrome import (
     CDPSession, CDP_PORT, list_tabs, open_tab,
 )
 

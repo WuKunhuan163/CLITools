@@ -9,6 +9,7 @@ from logic.audit.code_quality import (
     AuditReport,
     Finding,
 )
+from logic.audit.utils import AuditManager
 from logic.lang.audit_imports import (
     audit_all_tools as audit_imports_all,
     audit_tool as audit_imports_tool,
@@ -41,4 +42,5 @@ __all__ = [
     "audit_skills",
     "format_quality_report",
     "quality_to_json",
+    "AuditManager",
 ]

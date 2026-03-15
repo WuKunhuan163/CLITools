@@ -781,7 +781,7 @@ class AgentServer:
 
     def start(self, open_browser: bool = True):
         """Start the live agent server."""
-        from logic.serve.html_server import LocalHTMLServer
+        from interface.gui import LocalHTMLServer
 
         html_path = str(_root / "logic" / "assistant" / "gui" / "agent_live.html")
 

@@ -51,7 +51,7 @@ try:
     from interface.turing import TuringWorker
     from interface.turing import TuringTask, StepResult, WorkerState
     from interface.turing import MultiLineManager
-    from logic.audit.utils import AuditManager
+    from interface.audit import AuditManager
     
     from tool.PYTHON.logic.config import DATA_DIR, AUDIT_DIR, RESOURCE_ROOT, TMP_INSTALL_DIR, PROJECT_ROOT, DEFAULT_CONCURRENCY
 except ImportError:

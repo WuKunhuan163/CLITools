@@ -22,9 +22,9 @@ try:
 except ImportError:
     pass
 
-from logic.config import get_color
-from logic.lang.utils import get_translation
-from logic.turing.display.manager import truncate_to_width, _get_configured_width
+from interface.config import get_color
+from interface.lang import get_translation
+from interface.turing import truncate_to_width, _get_configured_width
 from interface.status import fmt_status, fmt_detail, fmt_stage
 from tool.OPENCLAW.logic.session import SessionManager, Session
 
@@ -417,7 +417,7 @@ class OpenClawCLI:
         Esc at any step returns to the previous step.
         """
         from tool.LLM.interface.main import list_providers
-        from logic.turing.select import select_menu
+        from interface.turing import select_menu
         from tool.LLM.interface.main import (
             get_api_key as get_zhipu_key, save_api_key as save_zhipu_key,
         )
@@ -452,7 +452,7 @@ class OpenClawCLI:
                 }
                 save_map = {"zhipu": save_zhipu_key, "nvidia": save_nvidia_key}
 
-                from logic.turing.select import read_masked
+                from interface.turing import read_masked
                 current_key_map = {"zhipu": current_zhipu, "nvidia": current_nvidia}
                 existing = current_key_map.get(selected["value"])
 
@@ -471,7 +471,7 @@ class OpenClawCLI:
                         f"{BOLD}{_('enter_api_key_label', 'Enter API key')}{RESET}:")
 
                 if api_key is None:
-                    from logic.turing.select import erase_lines
+                    from interface.turing import erase_lines
                     erase_lines(3)  # confirmation + URL hint + API key prompt
                     step = 1
                     continue
@@ -531,7 +531,7 @@ class OpenClawCLI:
         to submit.  Periodically checks the control file for injection.
         """
         try:
-            from logic.turing.multiline_input import multiline_input
+            from interface.turing import multiline_input
             text = multiline_input(
                 prompt=f"\n{self._IDLE} ",
                 continuation="\u2551 ",
@@ -636,7 +636,7 @@ class OpenClawCLI:
         if not self.session:
             print(f"  {DIM}{_('no_active_session', 'No active session.')}{RESET}")
             return
-        from logic.turing.select import select_horizontal
+        from interface.turing import select_horizontal
         sid = self.session.id
         msgs = len(self.session.messages)
         print(f"  {DIM}{_('session_info', 'Session {sid} ({msgs} messages)', sid=sid, msgs=msgs)}{RESET}")
@@ -688,7 +688,7 @@ class OpenClawCLI:
 
     def _delete_session(self, target_id: str):
         """Delete a session with user confirmation."""
-        from logic.turing.select import select_horizontal
+        from interface.turing import select_horizontal
         s = self.session_mgr.get_session(target_id)
         if not s:
             print(fmt_status(_('session_not_found_label', 'Session not found.'), dim=target_id))
@@ -739,7 +739,7 @@ class OpenClawCLI:
     def _show_models(self):
         """Show all models with config status, allow switching."""
         from tool.LLM.interface.main import list_providers
-        from logic.turing.select import select_menu
+        from interface.turing import select_menu
 
         providers = list_providers()
         ready = [p for p in providers if p["available"]]
@@ -779,7 +779,7 @@ class OpenClawCLI:
         No args: full interactive editor (up/down to select, left/right to toggle).
         With args: directly set a command's policy.
         """
-        from logic.turing.select import _read_key
+        from interface.turing import _read_key
 
         if direct_cmd:
             if direct_policy not in ("allow", "deny", "remove"):
@@ -834,7 +834,7 @@ class OpenClawCLI:
             _render()
             return
 
-        from logic.turing.terminal.keyboard import get_global_suppressor
+        from interface.turing import get_global_suppressor
         suppressor = get_global_suppressor()
         suppressor.start()
 
@@ -895,7 +895,7 @@ class OpenClawCLI:
     def _launch_dashboard(self):
         """Launch the LLM dashboard as a persistent local server."""
         from tool.LLM.interface.main import generate_dashboard as generate
-        from logic.serve.html_server import LocalHTMLServer
+        from interface.gui import LocalHTMLServer
 
         path = generate()
         server = LocalHTMLServer(
@@ -918,7 +918,7 @@ class OpenClawCLI:
             backend=self.backend,
         )
         html_gui.server = None
-        from logic.gui.html.blueprint.chatbot.server import ChatbotServer
+        from interface.gui import ChatbotServer
         server = ChatbotServer(
             title="OPENCLAW",
             on_send=html_gui._on_send,

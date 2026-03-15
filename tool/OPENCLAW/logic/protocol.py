@@ -292,7 +292,7 @@ def build_agent_state() -> str:
         pass
 
     try:
-        from logic.config import get_global_config
+        from interface.config import get_global_config
         lang = get_global_config("language", "en")
         state_lines.append(f"language: {lang}")
     except Exception:

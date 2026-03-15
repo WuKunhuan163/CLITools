@@ -19,6 +19,6 @@ All LLM logic lives in `tool/LLM/logic/`. See `tool/LLM/README.md` for full docu
 
 ## Adding New Providers
 
-1. Create `tool/LLM/logic/providers/<name>/interface/__init__.py` implementing `LLMProvider._send_request()`.
-2. Create `tool/LLM/logic/providers/<name>/pipeline/context.py` for model-specific quirks.
+1. Create `tool/LLM/logic/models/<model>/providers/<vendor>/interface/__init__.py` implementing `LLMProvider._send_request()`.
+2. Create `tool/LLM/logic/models/<model>/providers/<vendor>/pipeline/context.py` for model-specific quirks.
 3. Register in `tool/LLM/logic/registry.py`'s `_ensure_builtins()`.

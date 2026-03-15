@@ -38,7 +38,7 @@ from tool.LLM.logic.session_context import SessionContext
 
 _LLM_TOOL_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..')
 try:
-    from logic.hooks.engine import HooksEngine
+    from interface.hooks import HooksEngine
     _HOOKS_AVAILABLE = True
 except ImportError:
     _HOOKS_AVAILABLE = False
@@ -466,7 +466,7 @@ class ConversationManager:
             return (f"BLOCKED: {tool_name} is not available in {mode} mode. "
                     f"Only read-only operations are permitted.")
         if tool_name == "exec" and mode in ("ask", "plan"):
-            from logic.agent.tools import _is_readonly_safe, _is_plan_safe
+            from interface.agent import _is_readonly_safe, _is_plan_safe
             cmd = args.get("command", "")
             checker = _is_plan_safe if mode == "plan" else _is_readonly_safe
             if not checker(cmd):
@@ -635,7 +635,7 @@ class ConversationManager:
 
     def _register_default_tool_handlers(self):
         try:
-            from logic.assistant.std import STANDARD_TOOLS, ToolContext
+            from interface.agent import STANDARD_TOOLS, ToolContext
             self._std_tools = STANDARD_TOOLS
             self._ToolContext = ToolContext
         except ImportError:
@@ -1198,7 +1198,7 @@ class ConversationManager:
         if not lesson:
             return {"ok": False, "error": "lesson is required"}
         try:
-            from logic.search.knowledge import KnowledgeManager
+            from interface.agent import KnowledgeManager
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(
                 os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))
             km = KnowledgeManager(project_root)
@@ -1635,7 +1635,7 @@ class ConversationManager:
             system_state = {"nudge_triggered": False}
             contextual = {}
             try:
-                from logic.agent.ecosystem import build_ecosystem_info, build_system_state, build_contextual_suggestions
+                from interface.agent import build_ecosystem_info, build_system_state, build_contextual_suggestions
                 _proj = getattr(self, "_project_root", None) or _PROJECT_ROOT
                 ecosystem = build_ecosystem_info(str(_proj))
                 contextual = build_contextual_suggestions(str(_proj), text, top_k=3)

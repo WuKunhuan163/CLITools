@@ -19,7 +19,7 @@ from typing import List, Dict, Optional, Any
 try:
     from interface.utils import get_system_tag, regularize_version_name, truncate_to_display_width
     from interface.turing import ProgressTuringMachine, TuringStage
-    from logic.audit.utils import AuditManager
+    from interface.audit import AuditManager
     from tool.PYTHON.logic.config import DATA_DIR, AUDIT_DIR, PROJECT_ROOT
 except ImportError:
     # Basic fallbacks for standalone usage/testing

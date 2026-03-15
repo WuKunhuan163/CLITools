@@ -12,7 +12,7 @@ import hashlib
 import importlib.util
 from pathlib import Path
 
-from logic.chrome.session import (
+from interface.chrome import (
     CDPSession, CDP_PORT,
 )
 

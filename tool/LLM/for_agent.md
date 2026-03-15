@@ -212,7 +212,7 @@ When making improvements to provider behavior (prompt engineering, pipeline fixe
 quality feedback mechanisms), document findings in:
 
 ```
-tool/LLM/logic/providers/<model_name>/report/YYYY-MM-DD_topic.md
+tool/LLM/logic/models/<model_name>/providers/<vendor>/report/YYYY-MM-DD_topic.md
 ```
 
 Follow the `development-report` skill for naming and content structure. Reports should

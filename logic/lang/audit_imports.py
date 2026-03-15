@@ -54,15 +54,22 @@ def _is_entry_point(filepath: Path, tool_dir: Path) -> bool:
     return True
 
 
+def _is_in_tool_logic(filepath: Path, tool_dir: Path) -> bool:
+    """Check if a file is inside a tool's logic/ directory."""
+    rel = filepath.relative_to(tool_dir)
+    return len(rel.parts) >= 2 and rel.parts[0] == "logic"
+
+
 class ImportAuditor(ast.NodeVisitor):
     """AST visitor that collects import quality issues for a single file."""
 
     def __init__(self, filepath: Path, tool_name: str, project_root: Path,
-                 is_entry_point: bool = False):
+                 is_entry_point: bool = False, is_in_tool_logic: bool = False):
         self.filepath = filepath
         self.tool_name = tool_name
         self.project_root = project_root
         self.is_entry_point = is_entry_point
+        self.is_in_tool_logic = is_in_tool_logic
         self.issues: List[ImportIssue] = []
         self._source_lines: List[str] = []
         self._uses_toolbase = False
@@ -95,6 +102,12 @@ class ImportAuditor(ast.NodeVisitor):
                       f"Entry point imports from '{mod}' — "
                       f"use interface.* instead")
 
+        # Rule IMP006: Tool logic importing from shared root logic.*
+        if self.is_in_tool_logic and mod.startswith("logic."):
+            self._add(node.lineno, Severity.ERROR, "IMP006",
+                      f"Tool logic imports from shared root '{mod}' — "
+                      f"use interface.* instead")
+
         self.generic_visit(node)
 
     def check_source_lines(self, source: str):
@@ -119,8 +132,10 @@ def audit_tool(tool_dir: Path, project_root: Path) -> List[ImportIssue]:
             continue
 
         entry = _is_entry_point(py_file, tool_dir)
+        in_tool_logic = _is_in_tool_logic(py_file, tool_dir)
         visitor = ImportAuditor(py_file, tool_name, project_root,
-                                is_entry_point=entry)
+                                is_entry_point=entry,
+                                is_in_tool_logic=in_tool_logic)
         visitor.visit(tree)
         visitor.check_source_lines(source)
         issues.extend(visitor.issues)
@@ -240,6 +255,7 @@ def format_report(results: Dict[str, List[ImportIssue]],
         lines.append(f"\033[1mFix priority:\033[0m")
         lines.append("  IMP001: Cross-tool imports → use tool.X.interface.main")
         lines.append("  IMP005: Entry point imports from logic.* → use interface.*")
+        lines.append("  IMP006: Tool logic imports from shared root logic.* → use interface.*")
 
     return "\n".join(lines)
 
