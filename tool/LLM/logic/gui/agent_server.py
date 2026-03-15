@@ -562,6 +562,11 @@ class AgentServer:
                 )
 
             import time
+            try:
+                from interface.utils import get_rate
+                usd_rate = get_rate("CNY")
+            except Exception:
+                usd_rate = 7.25
             self._usage_calls.append({
                 "timestamp": time.time(),
                 "model": evt.get("model", self.provider_name),
@@ -570,6 +575,7 @@ class AgentServer:
                 "output_tokens": evt.get("usage", {}).get("completion_tokens", 0),
                 "latency_s": evt.get("latency_s", 0),
                 "ok": not evt.get("error"),
+                "exchange_rate_cny": usd_rate,
             })
         self._push_sse(evt)
 
@@ -647,13 +653,12 @@ class AgentServer:
         try:
             from tool.LLM.logic.config import get_config_value
             SESSION_DEFAULTS = {
-                "default_turn_limit": 20,
-                "max_input_tokens": 65536,
-                "max_output_tokens": 16384,
-                "max_context_tokens": 1048576,
-                "max_read_chars": 12000,
-                "max_exec_chars": 6000,
-                "history_limit": 20,
+                "default_turn_limit": 64,
+                "max_read_chars": 16384,
+                "max_exec_chars": 8192,
+                "max_edit_chars": 8192,
+                "history_round_limit": 64,
+                "debug_tokens_round_limit": 64,
             }
             config = {}
             for key, default in SESSION_DEFAULTS.items():
@@ -672,6 +677,8 @@ class AgentServer:
         providers = {}
         from tool.LLM.logic.registry import list_models, list_providers as list_reg_providers
         from tool.LLM.logic.config import get_api_keys
+        from interface.utils import to_usd, get_rates
+        rates = get_rates()
 
         for m in list_models():
             mid = m["model"]
@@ -691,13 +698,17 @@ class AgentServer:
                     free_tier = cost_info.get("free_tier", False)
                 except Exception:
                     pass
+            orig_currency = cost_info.get("currency", "USD")
+            raw_input = cost_info.get("input_per_1m", cost_info.get("input_per_1k", 0) * 1000)
+            raw_output = cost_info.get("output_per_1m", cost_info.get("output_per_1k", 0) * 1000)
             models[mid] = {
                 "display_name": m.get("display_name", mid),
                 "providers": m.get("providers", []),
+                "capabilities": cap,
                 "free_tier": free_tier,
-                "input_price": cost_info.get("input_per_1m", cost_info.get("input_per_1k", 0) * 1000),
-                "output_price": cost_info.get("output_per_1m", cost_info.get("output_per_1k", 0) * 1000),
-                "currency": cost_info.get("currency", "USD"),
+                "input_price": to_usd(raw_input, orig_currency, rates),
+                "output_price": to_usd(raw_output, orig_currency, rates),
+                "currency": "USD",
                 "benchmarks": bench_info,
                 "total_calls": 0, "input_tokens": 0, "output_tokens": 0, "total_cost": 0,
             }

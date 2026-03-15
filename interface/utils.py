@@ -34,6 +34,7 @@ from logic.utils.system import (
     get_tool_bin_path,
 )
 from logic.utils.display import save_list_report, set_rtl_mode
+from logic.utils.exchange import get_rates, to_usd, get_rate
 
 __all__ = [
     # Preflight checks
@@ -76,4 +77,8 @@ __all__ = [
     "get_tool_bin_path",
     "save_list_report",
     "set_rtl_mode",
+    # Exchange rates
+    "get_rates",
+    "to_usd",
+    "get_rate",
 ]
