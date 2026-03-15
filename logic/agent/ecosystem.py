@@ -58,131 +58,136 @@ def build_ecosystem_info(
     tool_count = len(installed_tools)
     top_tools = installed_tools[:20]
 
-    # -- Project summary --
+    # -- Project summary (compact) --
     project_summary = (
-        "AITerminalTools is a modular terminal tool framework for AI agents and developers. "
-        "It provides standardized lifecycle management, GUI integration, multi-language "
-        "localization, and isolated Python runtimes for 40+ tools. "
-        "Core philosophy: Symmetrical Design — shared logic in root logic/, stable facade "
-        "in interface/, each tool in tool/<NAME>/ with its own logic/ and interface/. "
-        "In the terminal, every tool name IS a command (e.g. GIT, PYTHON, BILIBILI). "
-        "The ecosystem is designed so AI agents can autonomously discover, use, and fix tools."
+        f"AITerminalTools: {tool_count}+ terminal tools for AI agents. "
+        "Tool name = command (GIT, PYTHON, SEARCH). "
+        "Architecture: tool/<NAME>/{{main.py, logic/, interface/}}. "
+        "Shared: logic/ (internal), interface/ (facade). "
+        "Docs: README.md (usage), for_agent.md (internals)."
     )
 
-    # -- Exploration guide --
-    exploration = {
-        "tool_discovery": (
-            "exec(command='TOOL --search tools \"keyword\"') — semantic search across all tools. "
-            "exec(command='TOOL --search interfaces \"capability\"') — find cross-tool APIs. "
-            "exec(command='TOOL status') — show all installed tools and their health."
-        ),
-        "skill_discovery": (
-            "exec(command='SKILLS search \"topic\"') — semantic search skills. "
-            "exec(command='SKILLS show <name>') — read a specific skill guide. "
-            "exec(command='SKILLS list') — list all available skills."
-        ),
-        "documentation_pattern": (
-            "Every tool has two key docs: "
-            "README.md (usage, commands, examples) and for_agent.md (architecture, internals). "
-            "Read them via: read_file(path='tool/<NAME>/README.md') or "
-            "read_file(path='tool/<NAME>/for_agent.md'). "
-            "The project root for_agent.md is the master reference for the entire framework."
-        ),
-        "installed_tools": (
-            f"{tool_count} tools installed. "
-            f"Examples: {', '.join(top_tools[:10])}."
-            + (f" ... and {tool_count - 10} more." if tool_count > 10 else "")
-        ),
-    }
+    # -- Exploration guide (compact) --
+    exploration = (
+        "Search anything: exec 'TOOL --search all \"query\"'. "
+        "Search tools: exec 'TOOL --search tools \"keyword\"'. "
+        "Load skill: exec 'SKILLS show <name>'. "
+        "Read docs: read_file('tool/<NAME>/for_agent.md'). "
+        f"Installed: {', '.join(top_tools[:8])}"
+        + (f" +{tool_count - 8} more" if tool_count > 8 else "")
+        + "."
+    )
 
-    # -- Rationale (mental models) --
+    # -- Rationale (compact mental models) --
     rationale = {
-        "tool_is_command": (
-            "In the terminal, tool name = command. 'GIT push' calls the GIT tool. "
-            "'BILIBILI --mcp-search query' calls the BILIBILI tool."
-        ),
-        "what_is_a_tool": (
-            "A 'tool' is an integrated automated workflow: a Python package under "
-            "tool/<NAME>/ with main.py entry point, logic/ for implementation, "
-            "interface/main.py for cross-tool API, hooks/ for event callbacks, "
-            "test/ for unit tests. Tools are installable via 'TOOL install <NAME>'."
-        ),
-        "documentation_hierarchy": (
-            "README.md = user-facing usage docs. "
-            "for_agent.md = AI-agent-facing architecture guide. "
-            "SKILL.md = structured best-practice guide for specific patterns. "
-            "Every non-trivial capability should be discoverable from for_agent.md."
-        ),
-        "import_convention": (
-            "Tools import shared utilities from interface.* (stable facade), "
-            "never from logic.* directly. Cross-tool imports go through "
-            "tool/<NAME>/interface/main.py."
-        ),
-        "tools_may_be_buggy": (
-            "Tools may have bugs. When a tool errors, read its source code, "
-            "fix the bug directly, then retry. Record the fix as a lesson "
-            "via 'SKILLS learn \"description\" --tool NAME'."
-        ),
-        "evolution_cycle": (
-            "Errors -> Lessons (runtime/experience/lessons.jsonl) -> "
-            "Skills (skills/core/) -> Infrastructure (interface.*) -> "
-            "Better code. Each fix makes the ecosystem smarter."
-        ),
+        "tools": "Tool = integrated workflow (tool/<NAME>/{main.py, logic/, interface/}). Name IS the command. Fix bugs directly, don't work around them.",
+        "docs": "README.md=usage, for_agent.md=architecture, SKILL.md=best practice. Import from interface.*, never logic.* directly.",
+        "memory": "Persistent lessons in runtime/experience/. Search: exec 'TOOL --search lessons \"keywords\"'. Record: experience(lesson=..., tool=...).",
+        "evolution": "Errors -> Lessons -> Skills -> Infrastructure -> Better Tools. Each fix makes the ecosystem permanently smarter.",
     }
 
-    # -- Standard tools available to the agent --
+    # -- Standard tools (compact: name=description) --
     has_vision = _has_capability(provider_capabilities, "supports_vision")
-    standard_tools = [
-        {"name": "exec", "desc": "Run shell commands. Tools are commands (e.g. exec 'GIT status'). Timeout auto-backgrounds."},
-        {"name": "read_file", "desc": "Read file contents. Use to inspect code, docs, configs."},
-        {"name": "write_file", "desc": "Create or overwrite a file. Content must be the complete file."},
-        {"name": "edit_file", "desc": "Replace specific text in a file. First read_file, then precise replacement."},
-        {"name": "search", "desc": "Search for text/code patterns across the project."},
-        {"name": "todo", "desc": "Manage task lists: create, update, delete items."},
-        {"name": "ask_user", "desc": "Ask the user a question. User will respond in a follow-up message."},
-    ]
+    standard_tools = "exec (shell commands; tools=commands), read_file, write_file, edit_file, search, todo, ask_user, experience (record lesson to runtime/experience/)"
     if has_vision:
-        standard_tools.append(
-            {"name": "read_image", "desc": "Read and analyze image files (requires vision model)."}
-        )
+        standard_tools += ", read_image (vision)"
 
-    # -- Skills hints --
-    skills = {
-        "key_skills": [
-            "tool-development-workflow — creating and deploying tools",
-            "code-quality-review — static analysis and quality auditing",
-            "error-recovery-patterns — retry, fallback, partial failure handling",
-            "exploratory-testing — investigating unknown APIs via tmp/ scripts",
-            "turing-machine-development — progress display system",
-            "openclaw — self-improvement loop: lesson -> skill -> infrastructure",
-        ],
-        "how_to_use": "exec(command='SKILLS show <name>') to load any skill.",
-    }
+    # -- Skills (now provided via skill_catalog; just keep the command) --
+    skills_usage = "Load any skill: exec 'SKILLS show <name>'. Search: exec 'TOOL --search skills \"topic\"'."
 
-    # -- Expected agent behaviors --
-    agent_behaviors = {
-        "act_first": "Use tools immediately. Don't just describe changes — apply them.",
-        "explore_then_fix": "When stuck, search for existing tools/skills/code before writing new.",
-        "fix_bugs": "If a tool errors, read its source, fix the bug, then retry.",
-        "complete_all_tasks": "Ensure ALL requested tasks are done before stopping.",
-        "verify_work": "After writing files, optionally read_file to verify. Run tests if applicable.",
-        "use_userinput": "After completing tasks, the orchestrator will collect user feedback.",
-        "record_lessons": "After non-trivial fixes, record lessons via SKILLS learn.",
-        "encapsulate_patterns": "Repeated patterns should become skills or infrastructure.",
-    }
+    # -- Expected agent behaviors (compact) --
+    agent_behaviors = [
+        "BEFORE any task: exec 'TOOL --search all \"task keywords\"' to find tools/lessons/skills. Never code blindly.",
+        "Search before creating: no duplicate tools, skills, or lessons. Improve existing ones.",
+        "Act immediately. Interleave actions with 1-line status: 'Reading config... Found 3 endpoints. Testing...'",
+        "If a tool errors: read source, fix bug directly, retry. Record: experience(lesson=..., tool=...).",
+        "Promote knowledge: 3+ lessons on same theme -> create skill. Accumulated skills -> infrastructure.",
+        "After changes: update tool's README.md + for_agent.md. Document new infrastructure.",
+        "Complete ALL tasks before stopping. User must confirm satisfaction.",
+        "Prefer tool calls over reading files. exec 'TOOL --search all X' finds anything.",
+    ]
 
     # -- User-defined rationale (empty by default; OpenClaw will populate) --
     user_rationale = ""
+
+    # -- Skill catalog (Level 1: names + descriptions only) --
+    skill_catalog = []
+    recent_lessons = []
+    try:
+        from logic.search.knowledge import KnowledgeManager
+        km = KnowledgeManager(root)
+        for s in km.get_skill_summary(top_k=20):
+            entry = s["name"]
+            if s.get("description"):
+                entry += f" — {s['description'][:80]}"
+            if s.get("tool"):
+                entry += f" (tool: {s['tool']})"
+            skill_catalog.append(entry)
+        for le in km.get_lessons(last_n=5):
+            tool_tag = f"[{le['tool']}] " if le.get("tool") else ""
+            recent_lessons.append(f"{tool_tag}{le['lesson'][:100]}")
+    except Exception:
+        pass
 
     return {
         "project_summary": project_summary,
         "exploration": exploration,
         "rationale": rationale,
         "standard_tools": standard_tools,
-        "skills": skills,
+        "skills_usage": skills_usage,
+        "skill_catalog": skill_catalog,
+        "recent_lessons": recent_lessons,
         "agent_behaviors": agent_behaviors,
         "user_rationale": user_rationale,
     }
+
+
+def build_contextual_suggestions(
+    project_root: str,
+    user_prompt: str,
+    top_k: int = 3,
+) -> Dict[str, Any]:
+    """Generate per-turn contextual suggestions based on the user's prompt.
+
+    Performs a lightweight semantic search to surface the most relevant
+    tools, skills, and lessons for the current task. This gives the agent
+    an immediate head start without manual discovery.
+
+    Returns a compact dict suitable for injection into the system feed.
+    """
+    suggestions: Dict[str, Any] = {}
+    if not user_prompt or len(user_prompt.strip()) < 3:
+        return suggestions
+
+    try:
+        from logic.search.knowledge import KnowledgeManager
+        km = KnowledgeManager(project_root)
+        results = km.search(user_prompt, scope="all", top_k=top_k * 2)
+
+        tools_found = []
+        skills_found = []
+        lessons_found = []
+
+        for r in results:
+            meta = r.get("meta", {})
+            rtype = meta.get("type", "")
+            if rtype == "tool" and len(tools_found) < top_k:
+                tools_found.append(f"{r['id']} — {meta.get('description', '')[:60]}")
+            elif rtype == "skill" and len(skills_found) < top_k:
+                skills_found.append(r["id"])
+            elif rtype == "lesson" and len(lessons_found) < 2:
+                lessons_found.append(meta.get("lesson", "")[:80])
+
+        if tools_found:
+            suggestions["relevant_tools"] = tools_found
+        if skills_found:
+            suggestions["relevant_skills"] = skills_found
+        if lessons_found:
+            suggestions["relevant_lessons"] = lessons_found
+    except Exception:
+        pass
+
+    return suggestions
 
 
 def build_system_state(
@@ -242,12 +247,12 @@ def format_ecosystem_for_prompt(ecosystem: Dict[str, Any]) -> str:
     if ecosystem.get("project_summary"):
         parts.append(f"[Project] {ecosystem['project_summary']}")
 
-    exploration = ecosystem.get("exploration", {})
+    exploration = ecosystem.get("exploration", "")
     if isinstance(exploration, dict):
         for key, val in exploration.items():
             parts.append(f"[{key}] {val}")
     elif exploration:
-        parts.append(f"[Exploration] {exploration}")
+        parts.append(f"[Explore] {exploration}")
 
     rationale = ecosystem.get("rationale", {})
     if isinstance(rationale, dict):
@@ -256,21 +261,28 @@ def format_ecosystem_for_prompt(ecosystem: Dict[str, Any]) -> str:
 
     tools = ecosystem.get("standard_tools", [])
     if isinstance(tools, list) and tools:
-        tool_lines = [f"  - {t['name']}: {t['desc']}" for t in tools]
-        parts.append("[Standard tools]\n" + "\n".join(tool_lines))
+        tool_lines = [f"  {t['name']}: {t['desc']}" for t in tools]
+        parts.append("[Tools] " + " | ".join(f"{t['name']}" for t in tools))
 
-    skills = ecosystem.get("skills", {})
-    if isinstance(skills, dict) and skills.get("key_skills"):
-        parts.append("[Key skills] " + "; ".join(skills["key_skills"]))
-        if skills.get("how_to_use"):
-            parts.append(f"[Skills usage] {skills['how_to_use']}")
+    if ecosystem.get("skills_usage"):
+        parts.append(f"[Skills] {ecosystem['skills_usage']}")
 
-    behaviors = ecosystem.get("agent_behaviors", {})
-    if isinstance(behaviors, dict):
+    catalog = ecosystem.get("skill_catalog", [])
+    if catalog:
+        parts.append("[Skill catalog] " + "; ".join(catalog[:10]))
+
+    lessons = ecosystem.get("recent_lessons", [])
+    if lessons:
+        parts.append("[Recent lessons] " + " | ".join(lessons[:3]))
+
+    behaviors = ecosystem.get("agent_behaviors", [])
+    if isinstance(behaviors, list):
+        parts.append("[Behaviors] " + " ".join(f"({i+1}) {b}" for i, b in enumerate(behaviors)))
+    elif isinstance(behaviors, dict):
         beh_lines = [f"  - {k}: {v}" for k, v in behaviors.items()]
-        parts.append("[Expected behaviors]\n" + "\n".join(beh_lines))
+        parts.append("[Behaviors]\n" + "\n".join(beh_lines))
 
     if ecosystem.get("user_rationale"):
-        parts.append(f"[User rationale] {ecosystem['user_rationale']}")
+        parts.append(f"[User] {ecosystem['user_rationale']}")
 
     return "\n\n".join(parts) if parts else ""

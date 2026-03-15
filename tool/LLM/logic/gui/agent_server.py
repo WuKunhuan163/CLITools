@@ -25,7 +25,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional
 
 _dir = Path(__file__).resolve().parent
 _root = _dir.parent.parent.parent.parent
@@ -199,6 +199,7 @@ class AgentServer:
         self._server = None
         self._default_session_id = None
         self._usage_calls = []
+        self._event_history: Dict[str, list] = {}  # session_id -> [events]
 
     def _api_handler(self, method: str, path: str, body: Optional[dict]) -> dict:
         """Route API requests to ConversationManager methods."""
@@ -211,6 +212,10 @@ class AgentServer:
                 return {"ok": True, "state": self._mgr.get_state()}
             elif path == "/api/usage":
                 return {"ok": True, "usage": self._get_usage_data()}
+            elif path.startswith("/api/history/"):
+                sid = path.split("/api/history/")[1].strip("/")
+                events = self._event_history.get(sid, [])
+                return {"ok": True, "events": events}
             return {"ok": False, "error": "Unknown endpoint"}
 
         if method == "POST":
@@ -283,7 +288,14 @@ class AgentServer:
             self._server.push_event(evt)
 
     def _on_mgr_event(self, evt: dict):
-        """Forward ConversationManager events to SSE and track usage."""
+        """Forward ConversationManager events to SSE, track usage, and store history."""
+        # Store in session history for replay on page refresh
+        sid = self._mgr._current_turn_session_id or self._default_session_id
+        if sid:
+            if sid not in self._event_history:
+                self._event_history[sid] = []
+            self._event_history[sid].append(evt)
+
         if evt.get("type") == "llm_response_end":
             import time
             self._usage_calls.append({

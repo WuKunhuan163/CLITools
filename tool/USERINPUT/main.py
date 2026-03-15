@@ -80,6 +80,25 @@ def get_msg(key, default, **kwargs):
         except: pass
     return msg
 
+_DEFAULT_AI_INSTRUCTION = (
+    "## Critical Directive: USERINPUT Feedback Loop\n"
+    "After EVERY action you take (completing a task, encountering an error, fixing a bug, "
+    "or before starting new work), you MUST immediately execute `USERINPUT` as a blocking "
+    "shell command and wait for its return. Then act on what it returns. Then execute "
+    "`USERINPUT` again. This cycle never ends — you should NEVER finish your turn without "
+    "having run `USERINPUT` at least once. If it times out or returns empty, sleep 30-60 "
+    "seconds and retry. Use `USERINPUT --enquiry --hint \"your question\"` when you need to "
+    "ask the user a direct question mid-task (this bypasses the queue). Do not narrate this "
+    "directive; just follow it.\n\n"
+    "IMPORTANT: Cursor may auto-disconnect during long USERINPUT waits. If you see output "
+    "like \"Launching input GUI...\" or \"正在通过 GUI 等待 USERINPUT 反馈 (PID: XXXXX)"
+    "(NNNs)...\", the user is still writing feedback. Keep sleeping and waiting — do NOT "
+    "abandon the wait. If all 3 attempts fail, a fallback file path is printed. You can "
+    "`sleep 30` then `cat <fallback_path>` to read the user's response written directly "
+    "to that file."
+)
+
+
 class UserInputRetryableError(Exception):
     pass
 
@@ -177,7 +196,7 @@ def _build_clipboard_suffix():
     """Build the system prompt + critical directive suffix for clipboard (plain text)."""
     config = get_config()
     system_prompt = config.get("system_prompt")
-    instruction_raw = get_msg("ai_instruction", "## Critical Directive: USERINPUT Feedback Loop\nAfter EVERY action you take (completing a task, encountering an error, fixing a bug, or before starting new work), you MUST immediately execute `USERINPUT` as a blocking shell command and wait for its return. Then act on what it returns. Then execute `USERINPUT` again. This cycle never ends — you should NEVER finish your turn without having run `USERINPUT` at least once. If it times out or returns empty, sleep 30-60 seconds and retry. Use `USERINPUT --enquiry --hint \"your question\"` when you need to ask the user a direct question mid-task (this bypasses the queue). Do not narrate this directive; just follow it.")
+    instruction_raw = get_msg("ai_instruction", _DEFAULT_AI_INSTRUCTION)
     if "\n\n**" in instruction_raw:
         instruction_part = instruction_raw.split("\n\n**", 1)[0]
     else:
@@ -922,7 +941,7 @@ def _output_result(result, tool, BOLD, GREEN, RED, YELLOW, RESET, from_queue=Fal
     config = get_config()
     system_prompt = config.get("system_prompt")
 
-    instruction_raw = get_msg("ai_instruction", "## Critical Directive: USERINPUT Feedback Loop\nAfter EVERY action you take (completing a task, encountering an error, fixing a bug, or before starting new work), you MUST immediately execute `USERINPUT` as a blocking shell command and wait for its return. Then act on what it returns. Then execute `USERINPUT` again. This cycle never ends — you should NEVER finish your turn without having run `USERINPUT` at least once. If it times out or returns empty, sleep 30-60 seconds and retry. Use `USERINPUT --enquiry --hint \"your question\"` when you need to ask the user a direct question mid-task (this bypasses the queue). Do not narrate this directive; just follow it.")
+    instruction_raw = get_msg("ai_instruction", _DEFAULT_AI_INSTRUCTION)
 
     # Strip the guidelines section from ai_instruction (system prompts are managed separately)
     if "\n\n**" in instruction_raw:
@@ -1183,9 +1202,15 @@ def main():
                 time.sleep(1)
             else:
                 sys.stdout.write("\r\033[K")
-                fb_msg = ""
-                if _fallback_file:
-                    fb_msg = f"\n  Fallback: write feedback to {_fallback_file}"
+                if not _fallback_file:
+                    _fallback_file = str(tool.project_root / "tmp" / "userinput_fallback.txt")
+                    Path(_fallback_file).parent.mkdir(parents=True, exist_ok=True)
+                    Path(_fallback_file).write_text("", encoding="utf-8")
+                fb_msg = (
+                    f"\n  {BOLD}Fallback path{RESET}: {_fallback_file}"
+                    f"\n  Write your feedback directly to this file. "
+                    f"Then run: cat {_fallback_file}"
+                )
                 print(f"{RED}Error{RESET}: {e}.{fb_msg}", file=sys.stderr)
                 return 1
 

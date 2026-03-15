@@ -43,6 +43,16 @@ result = retry_on_transient(
 |------|-------|---------|------------|-----|---------|
 | `nvidia-glm-4-7b` | z-ai/glm4.7 | integrate.api.nvidia.com/v1/chat/completions | `nvidia_api_key` / `NVIDIA_API_KEY` | 30 | 131K |
 | `zhipu-glm-4-flash` | glm-4-flash | open.bigmodel.cn/api/paas/v4/chat/completions | `zhipu_api_key` / `ZHIPU_API_KEY` | 30 | 128K |
+| `zhipu-glm-4.7-flash` | glm-4.7-flash | open.bigmodel.cn/api/paas/v4/chat/completions | `zhipu_api_key` / `ZHIPU_API_KEY` | 10 | 128K |
+| `auto` | (auto-select) | — | — | — | — |
+
+### Auto Model Selection
+
+Use `auto` as the provider name for automatic model selection with fallback. The Auto provider:
+- Ranks available models by stability (free-tier preference, RPM headroom, recent error rate)
+- Falls back to the next model on 429/500/502/503 errors
+- Tracks per-provider health in a 10-minute sliding window
+- Implemented in `tool/LLM/logic/auto.py`
 
 ## Live Agent GUI
 
@@ -145,7 +155,7 @@ get_agent_gui_engine_path()    # → path to agent_gui_engine.js
 
 Feed events via `engine.processEvent(evt)` or SSE at `/api/events`:
 
-- `user { prompt, ecosystem?, user_rationale?, system_state? }` — User message (prompt replaces text)
+- `user { prompt, ecosystem, user_rationale, system_state }` — User message. `ecosystem` contains: project_summary, exploration (tool/skill/doc discovery commands), rationale (mental models), standard_tools (available tool list), skills (key skills + usage), agent_behaviors (expected patterns). `system_state` contains: nudge_triggered, quality_warnings, recent_results, discovered_tools.
 - `thinking { tokens }` — Streaming thinking block
 - `text { tokens }` — Markdown assistant text
 - `tool { name, desc, cmd, file }` — Tool call (exec/edit/read/search)

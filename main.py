@@ -535,12 +535,27 @@ def _tool_search_handler(search_args):
     skp.add_argument("-n", "--top", type=int, default=5, help="Max results")
     skp.add_argument("--tool", dest="skill_tool", default=None, help="Scope to a specific tool")
 
+    lp = sub.add_parser("lessons", help="Search lessons by semantic similarity")
+    lp.add_argument("query", nargs="+", help="Search query")
+    lp.add_argument("-n", "--top", type=int, default=5, help="Max results")
+    lp.add_argument("--tool", dest="lesson_tool", default=None, help="Scope to a specific tool")
+
+    dip = sub.add_parser("discoveries", help="Search discoveries")
+    dip.add_argument("query", nargs="+", help="Search query")
+    dip.add_argument("-n", "--top", type=int, default=5, help="Max results")
+    dip.add_argument("--tool", dest="discovery_tool", default=None, help="Scope to a specific tool")
+
+    allp = sub.add_parser("all", help="Search across all knowledge (tools, skills, lessons, discoveries)")
+    allp.add_argument("query", nargs="+", help="Search query")
+    allp.add_argument("-n", "--top", type=int, default=10, help="Max results")
+    allp.add_argument("--tool", dest="all_tool", default=None, help="Scope to a specific tool")
+
     parsed = sp.parse_args(search_args)
     if not parsed.search_target:
         sp.print_help()
         return
 
-    from interface.search import search_tools, search_interfaces, search_skills, search_tools_deep
+    from interface.search import search_tools, search_interfaces, search_skills, search_tools_deep, search_lessons, search_discoveries, search_all
 
     query = " ".join(parsed.query)
     top_k = parsed.top
@@ -554,6 +569,15 @@ def _tool_search_handler(search_args):
     elif parsed.search_target == "skills":
         tool_name = getattr(parsed, "skill_tool", None)
         results = search_skills(ROOT_PROJECT_ROOT, query, top_k=top_k, tool_name=tool_name)
+    elif parsed.search_target == "lessons":
+        tool_name = getattr(parsed, "lesson_tool", None)
+        results = search_lessons(ROOT_PROJECT_ROOT, query, top_k=top_k, tool=tool_name)
+    elif parsed.search_target == "discoveries":
+        tool_name = getattr(parsed, "discovery_tool", None)
+        results = search_discoveries(ROOT_PROJECT_ROOT, query, top_k=top_k, tool=tool_name)
+    elif parsed.search_target == "all":
+        tool_name = getattr(parsed, "all_tool", None)
+        results = search_all(ROOT_PROJECT_ROOT, query, top_k=top_k, tool=tool_name)
     else:
         sp.print_help()
         return
@@ -605,6 +629,19 @@ def _tool_search_handler(search_args):
             tool_tag = f" (tool: {meta['tool']})" if meta.get("tool") else ""
             print(f"  {BOLD}{i}. {r['id']}{RESET}{tool_tag} ({score_pct}%)")
             print(f"     {DIM}{meta.get('path', '')}{RESET}")
+        elif rtype == "lesson":
+            sev = meta.get("severity", "info")
+            tool_tag = f" [{meta['tool']}]" if meta.get("tool") else ""
+            lesson_text = meta.get("lesson", "")[:120]
+            ts = meta.get("timestamp", "")[:10]
+            print(f"  {BOLD}{i}. Lesson{RESET}{tool_tag} ({score_pct}%) [{sev}] {ts}")
+            print(f"     {lesson_text}")
+        elif rtype == "discovery":
+            tool_tag = f" [{meta['tool']}]" if meta.get("tool") else ""
+            content = meta.get("content", "")[:120]
+            ts = meta.get("timestamp", "")[:10]
+            print(f"  {BOLD}{i}. Discovery{RESET}{tool_tag} ({score_pct}%) {ts}")
+            print(f"     {content}")
 
 
 # Maps --flag to handler function
@@ -638,7 +675,7 @@ def _print_tool_help():
     print(f"  --lang <sub>             Language management (audit, list)")
     print(f"  --audit <sub>            Code quality audits (imports, quality, code)")
     print(f"  --rule <sub>             AI rule management (create, inject)")
-    print(f"  --search <sub> <query>  Semantic search (tools, interfaces, skills)")
+    print(f"  --search <sub> <query>  Semantic search (tools, interfaces, skills, lessons, discoveries, all)")
     print(f"  --dev <sub>              Developer commands")
     print(f"  --test <sub>             Run tests")
     print(f"\nUse TOOL --<command> --help for details on each command.")

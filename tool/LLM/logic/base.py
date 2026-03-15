@@ -7,10 +7,11 @@ The base class handles:
   - Cost estimation
   - Rate limiting hooks
 """
+import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 
 @dataclass
@@ -48,6 +49,11 @@ class CostModel:
                 + completion_tokens * self.completion_price_per_m / 1_000_000)
 
 
+class ProviderNotImplementedError(NotImplementedError):
+    """Raised when a provider directory exists (with assets) but has no implementation yet."""
+    pass
+
+
 class LLMProvider(ABC):
     """Abstract base for LLM backends.
 
@@ -63,6 +69,22 @@ class LLMProvider(ABC):
     name: str = "base"
     cost_model: CostModel = CostModel()
     capabilities: ModelCapabilities = ModelCapabilities()
+
+    @classmethod
+    def icon_path(cls) -> Optional[str]:
+        """Return absolute path to this provider's logo SVG, or None."""
+        mod_file = getattr(cls, "_module_file", None)
+        if mod_file:
+            assets_dir = os.path.join(os.path.dirname(mod_file), "assets")
+        else:
+            import inspect
+            try:
+                src = inspect.getfile(cls)
+                assets_dir = os.path.join(os.path.dirname(src), "assets")
+            except (TypeError, OSError):
+                return None
+        logo = os.path.join(assets_dir, "logo.svg")
+        return logo if os.path.isfile(logo) else None
 
     @abstractmethod
     def _send_request(self, messages: List[Dict[str, str]],
@@ -263,6 +285,33 @@ class LLMProvider(ABC):
                 "max_output_tokens": self.capabilities.max_output_tokens,
             },
         }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Lightweight health check — minimal cost probe.
+
+        Sends a tiny request to verify API key validity and service availability.
+        Override in subclasses for provider-specific checks. Default sends a
+        1-token completion request.
+
+        Returns:
+            {"healthy": bool, "latency_ms": int, "error": str|None}
+        """
+        t0 = time.time()
+        try:
+            result = self._send_request(
+                [{"role": "user", "content": "hi"}],
+                temperature=0,
+                max_tokens=1,
+            )
+            latency_ms = int((time.time() - t0) * 1000)
+            return {
+                "healthy": result.get("ok", False),
+                "latency_ms": latency_ms,
+                "error": result.get("error"),
+            }
+        except Exception as e:
+            latency_ms = int((time.time() - t0) * 1000)
+            return {"healthy": False, "latency_ms": latency_ms, "error": str(e)}
 
     def get_daily_cost(self) -> float:
         """Calculate today's estimated cost from usage records."""

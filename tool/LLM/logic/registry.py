@@ -83,6 +83,7 @@ _ALIASES = {
     "glm-4-flash": "zhipu-glm-4-flash",
     "glm-4.7": "zhipu-glm-4.7",
     "glm-4.7-flash": "zhipu-glm-4.7-flash",
+    "auto": "auto",
 }
 
 
@@ -149,3 +150,6 @@ def _ensure_builtins():
     from tool.LLM.logic.models.glm_4_7_flash.providers.zhipu.interface import ZhipuGLM47FlashProvider
     from tool.LLM.logic.models.glm_4_7_flash.providers.zhipu.pipeline import ZhipuGLM47FlashPipeline
     register("zhipu-glm-4.7-flash", ZhipuGLM47FlashProvider, ZhipuGLM47FlashPipeline(), model="glm-4.7-flash")
+
+    from tool.LLM.logic.auto import AutoProvider
+    register("auto", AutoProvider)

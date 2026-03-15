@@ -28,9 +28,11 @@ from logic.search.tools import (
     build_interface_index,
     build_skill_index,
 )
+from logic.search.knowledge import KnowledgeManager
 
 __all__ = [
     "SemanticIndex",
+    "KnowledgeManager",
     "search_tools",
     "search_interfaces",
     "search_skills",

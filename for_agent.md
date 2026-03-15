@@ -145,6 +145,8 @@ Agent infrastructure lives in `logic/agent/` (core) and `interface/agent.py` (fa
 
 Default LLM provider: `zhipu-glm-4.7` (GLM-4.7 via Zhipu AI). Configure via `--agent setup`.
 
+**Auto Model Selection**: Use provider name `auto` for automatic model selection with fallback. The Auto provider ranks available models by stability (free-tier preference, RPM headroom, error rate tracking) and automatically falls back to the next model on 429/500 errors. Implemented in `tool/LLM/logic/auto.py`.
+
 ### Exec Timeout & Background Execution
 
 The agent's `exec` tool has a configurable foreground timeout (default: 30s). When a command exceeds this timeout, it automatically moves to background execution:

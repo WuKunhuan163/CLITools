@@ -278,6 +278,22 @@ BUILTIN_TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "experience",
+            "description": "Record a lesson learned during this task. Lessons persist across sessions and help you avoid repeating mistakes. Use after fixing bugs, discovering non-obvious behavior, or learning a workaround.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lesson": {"type": "string", "description": "What you learned (specific and actionable)"},
+                    "severity": {"type": "string", "enum": ["info", "warning", "critical"], "description": "info=convention, warning=bug-prone pattern, critical=data-loss/security"},
+                    "tool": {"type": "string", "description": "Tool name if the lesson is tool-specific (e.g. 'GIT', 'PYTHON')"},
+                },
+                "required": ["lesson"],
+            },
+        },
+    },
 ]
 
 
@@ -416,6 +432,7 @@ class ConversationManager:
         self._tool_handlers["write_file"] = self._handle_write_file
         self._tool_handlers["edit_file"] = self._handle_edit_file
         self._tool_handlers["ask_user"] = self._handle_ask_user
+        self._tool_handlers["experience"] = self._handle_experience
 
     def _get_cwd(self) -> str:
         """Return working directory: session codebase or project root."""
@@ -768,6 +785,40 @@ class ConversationManager:
         self._emit({"type": "ask_user", "question": question})
         return {"ok": True, "output": f"[Question sent to user: {question}] The user will respond in a follow-up message. For now, continue with your best judgment or wait."}
 
+    def _handle_experience(self, args: dict) -> dict:
+        lesson = args.get("lesson", "")
+        if not lesson:
+            return {"ok": False, "error": "lesson is required"}
+        try:
+            from logic.search.knowledge import KnowledgeManager
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))
+            km = KnowledgeManager(project_root)
+            km.add_lesson(
+                lesson,
+                tool=args.get("tool"),
+                severity=args.get("severity", "info"),
+                context=args.get("context", ""),
+            )
+        except Exception:
+            import json as _json
+            from datetime import datetime
+            entry = {
+                "timestamp": datetime.now().isoformat(),
+                "lesson": lesson,
+                "severity": args.get("severity", "info"),
+            }
+            if args.get("tool"):
+                entry["tool"] = args["tool"]
+            lessons_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))),
+                "runtime", "experience", "lessons.jsonl")
+            os.makedirs(os.path.dirname(lessons_path), exist_ok=True)
+            with open(lessons_path, "a", encoding="utf-8") as f:
+                f.write(_json.dumps(entry, ensure_ascii=False) + "\n")
+        self._emit({"type": "experience", "lesson": lesson, "severity": args.get("severity", "info")})
+        return {"ok": True, "output": f"Lesson recorded: {lesson}"}
+
     @staticmethod
     def _parse_text_tool_calls(text: str):
         """Parse tool calls embedded in text (e.g. <tool_call>func(args)</tool_call>).
@@ -939,10 +990,12 @@ class ConversationManager:
         # Build user event with prompt + ecosystem context + system state
         ecosystem = {}
         system_state = {"nudge_triggered": False}
+        contextual = {}
         try:
-            from logic.agent.ecosystem import build_ecosystem_info, build_system_state
+            from logic.agent.ecosystem import build_ecosystem_info, build_system_state, build_contextual_suggestions
             _proj = getattr(self, "_project_root", None) or _PROJECT_ROOT
             ecosystem = build_ecosystem_info(str(_proj))
+            contextual = build_contextual_suggestions(str(_proj), text, top_k=3)
             system_state = build_system_state(
                 session_env=session.environment,
                 nudge_triggered=False,
@@ -958,6 +1011,8 @@ class ConversationManager:
             "user_rationale": ecosystem.get("user_rationale", ""),
             "system_state": system_state,
         }
+        if contextual:
+            user_evt["suggestions"] = contextual
         self._emit(user_evt)
 
         if session.context.needs_compression(trigger_ratio=0.6):

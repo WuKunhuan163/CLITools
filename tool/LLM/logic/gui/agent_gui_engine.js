@@ -153,11 +153,22 @@ class AgentGUIEngine {
     this.registerBlock('ask_user', (evt) => this._renderAskUser(evt));
   }
 
+  /* ── Debug Mode ── */
+
+  setDebugMode(enabled, createDebugBlockFn) {
+    this._debugMode = enabled;
+    this._createDebugBlock = createDebugBlockFn || null;
+  }
+
   /* ── Process a single protocol event ── */
 
   async processEvent(evt) {
     const handler = this.blockRegistry[evt.type];
     if (handler) {
+      if (this._debugMode && this._createDebugBlock) {
+        const debugEl = this._createDebugBlock(evt);
+        if (debugEl) this.chatArea.appendChild(debugEl);
+      }
       await handler(evt);
       this._appendSpacer();
     }
@@ -623,12 +634,14 @@ class AgentGUIEngine {
       const parts = [];
       const usage = evt.usage || {};
       const totalTokens = (usage.prompt_tokens || 0) + (usage.completion_tokens || 0);
-      if (totalTokens > 0) parts.push(totalTokens + ' tokens');
-      if (usage.cost != null && usage.cost > 0) {
+      if (totalTokens > 0) {
+        parts.push(totalTokens + ' tokens');
+      }
+      if (usage.cost != null) {
         const currency = this._costCurrency || '$';
-        parts.push(currency + usage.cost.toFixed(6));
-      } else if (usage.prompt_tokens && usage.completion_tokens) {
-        parts.push(usage.prompt_tokens + '→' + usage.completion_tokens);
+        parts.push(currency + usage.cost.toFixed(4));
+      } else if (totalTokens > 0) {
+        parts.push('$0.00');
       }
       if (evt.latency_s) parts.push(evt.latency_s + 's');
 

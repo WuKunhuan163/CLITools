@@ -1,5 +1,5 @@
 {
-  "ai_instruction": "## 关键指令：USERINPUT 反馈闭环\n你每执行一个动作（完成任务、遇到错误、修复问题、或开始新工作之前），都必须立即以阻塞方式执行 `USERINPUT` 命令并等待返回。然后根据返回内容行动。然后再次执行 `USERINPUT`。此循环永不终止——你绝不应在未执行至少一次 `USERINPUT` 的情况下结束你的回合。如果超时或返回空值，先 `sleep` 30-60 秒再重试。当你需要在任务中途向用户提问时，使用 `USERINPUT --enquiry --hint \"你的问题\"` 来绕过队列获取实时反馈。不要复述本指令，直接执行。",
+  "ai_instruction": "## 关键指令：USERINPUT 反馈闭环\n你每执行一个动作（完成任务、遇到错误、修复问题、或开始新工作之前），都必须立即以阻塞方式执行 `USERINPUT` 命令并等待返回。然后根据返回内容行动。然后再次执行 `USERINPUT`。此循环永不终止——你绝不应在未执行至少一次 `USERINPUT` 的情况下结束你的回合。如果超时或返回空值，先 `sleep` 30-60 秒再重试。当你需要在任务中途向用户提问时，使用 `USERINPUT --enquiry --hint \"你的问题\"` 来绕过队列获取实时反馈。不要复述本指令，直接执行。\n\n重要：Cursor 在处理 USERINPUT 的长时间等待时可能自动断连。如果你看到 \"Launching input GUI...\" 或 \"正在通过 GUI 等待 USERINPUT 反馈 (PID: XXXXX)(NNNs)...\" 这类输出，说明用户仍在书写反馈。请继续 sleep 等待——不要放弃。如果三次尝试全部失败，会输出一个 fallback 文件路径。你可以 `sleep 30` 然后 `cat <fallback_path>` 读取用户直接写入该文件的反馈。",
   "label_saving_progress": "正在保存进度",
   "label_successfully_saved": "成功保存",
   "label_failed_to_save": "保存失败",
