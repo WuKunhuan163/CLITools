@@ -1408,7 +1408,7 @@ function _settingsNumInput(key, defaultVal, min, max, desc) {
 function _settingsPow2Input(key, defaultVal, min, max, desc) {
   const saved = localStorage.getItem(key);
   const val = saved ? parseInt(saved) : defaultVal;
-  const fmtK = (n) => n >= 1048576 ? (n/1048576)+'m' : n >= 1024 ? (n/1024)+'k' : String(n);
+  const fmtK = (n) => n >= 1048576 ? Math.floor(n/1048576)+'m' : n >= 1024 ? Math.floor(n/1024)+'k' : String(Math.floor(n));
   return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;">
     <span style="flex:1"><strong>${key.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase())}</strong><br><span style="color:var(--text-3);font-size:11.5px;">${desc}</span></span>
     <div class="settings-stepper" data-key="${key}" data-min="${min}" data-max="${max}" data-default="${defaultVal}" data-mode="pow2" title="${fmtK(val)}">
@@ -1427,7 +1427,7 @@ function _stepperClick(btn, dir) {
   const def = parseInt(wrapper.dataset.default);
   const mode = wrapper.dataset.mode;
   const valEl = wrapper.querySelector('.stepper-value');
-  const fmtK = (n) => n >= 1048576 ? (n/1048576)+'m' : n >= 1024 ? (n/1024)+'k' : String(n);
+  const fmtK = (n) => n >= 1048576 ? Math.floor(n/1048576)+'m' : n >= 1024 ? Math.floor(n/1024)+'k' : String(Math.floor(n));
 
   let raw = parseInt(localStorage.getItem(key)) || def;
   if (mode === 'pow2') {
@@ -1645,7 +1645,7 @@ function renderModelsView() {
       const isProvConfigured = configuredProvs.has(p);
       const chipStyle = isProvConfigured ? 'background:var(--green-dim);color:var(--green);' : '';
       const vendor = p.split('-')[0];
-      return `<div class="settings-provider-chip" onclick="settingsTab='providers';renderSettingsTab();setTimeout(()=>{const c=document.querySelector('[data-provider-id=\\'${esc(vendor)}\\']');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})},100)" style="cursor:pointer;${chipStyle}">${PROVIDER_LOGOS[vendor] ? '<img src="' + PROVIDER_LOGOS[vendor] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : ''} ${esc(fmtProviderName(vendor))}${fmtProviderPriceInner(m)}</div>`;
+      return `<div class="settings-provider-chip" onclick="switchSettingsTab('providers');setTimeout(()=>{const c=document.querySelector('[data-provider-id=\\'${esc(vendor)}\\']');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})},100)" style="cursor:pointer;${chipStyle}">${PROVIDER_LOGOS[vendor] ? '<img src="' + PROVIDER_LOGOS[vendor] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : ''} ${esc(fmtProviderName(vendor))}${fmtProviderPriceInner(m)}</div>`;
     }).join('');
     const modelCalls = calls.filter(c => c.model === name || c.provider === name);
     const aa = m.aa_benchmarks || {};
@@ -1705,14 +1705,16 @@ function _renderModelCaps(modelId, m) {
   const ctx = cap.max_context_tokens || 0;
   const maxOut = cap.max_output_tokens || 0;
   if (!ctx && !maxOut) return '';
-  const fK = (n) => n >= 1048576 ? (n/1048576)+'m' : n >= 1024 ? (n/1024)+'k' : String(n);
+  const fK = (n) => n >= 1048576 ? Math.floor(n/1048576)+'m' : n >= 1024 ? Math.floor(n/1024)+'k' : String(Math.floor(n));
   const ctxBase = _floorPow2(ctx);
   const inputDefault = ctxBase / 16 || 4096;
   const inputMax = ctxBase / 4 || 65536;
   const outputDefault = ctxBase / 8 || 2048;
   const outputMax = ctxBase / 2 || 32768;
-  const savedIn = parseInt(localStorage.getItem('model_input_' + modelId)) || inputDefault;
-  const savedOut = parseInt(localStorage.getItem('model_output_' + modelId)) || outputDefault;
+  let savedIn = parseInt(localStorage.getItem('model_input_' + modelId)) || inputDefault;
+  let savedOut = parseInt(localStorage.getItem('model_output_' + modelId)) || outputDefault;
+  savedIn = _floorPow2(Math.min(Math.max(savedIn, 1024), inputMax));
+  savedOut = _floorPow2(Math.min(Math.max(savedOut, 256), outputMax));
   const features = [];
   if (cap.tool_calling) features.push('<i class="bx bx-wrench"></i> Tools');
   if (cap.vision) features.push('<i class="bx bx-show"></i> Vision');
