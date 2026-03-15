@@ -353,6 +353,9 @@ class AgentServer:
                 self._push_sse({"type": "settings_changed", "action": "key_deleted", "vendor": vendor})
                 return {"ok": True}
 
+            elif path == "/api/revert-hunk":
+                return self._revert_hunk(body)
+
             elif path == "/api/queue":
                 sid = body.get("session_id") or self._default_session_id
                 action = body.get("action", "list")
@@ -484,6 +487,36 @@ class AgentServer:
                         "label": m.get("display_name", mid),
                     })
             return {"ok": True, "models": configured}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _revert_hunk(self, body: dict) -> dict:
+        """Revert a single diff hunk by applying the inverse edit."""
+        path = body.get("path", "").strip()
+        old_text = body.get("old_text", "")
+        new_text = body.get("new_text", "")
+
+        if not path:
+            return {"ok": False, "error": "Missing path"}
+
+        import os
+        if not os.path.isabs(path):
+            cwd = self._mgr._get_cwd() if hasattr(self._mgr, '_get_cwd') else os.getcwd()
+            path = os.path.join(cwd, path)
+
+        try:
+            content = open(path, encoding='utf-8', errors='replace').read()
+            if old_text and old_text in content:
+                new_content = content.replace(old_text, new_text, 1)
+                with open(path, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+                return {"ok": True, "path": path}
+            elif not old_text and new_text:
+                return {"ok": False, "error": "Cannot revert: added text not found in file"}
+            else:
+                return {"ok": False, "error": "Text to revert not found in file"}
+        except FileNotFoundError:
+            return {"ok": False, "error": f"File not found: {path}"}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 

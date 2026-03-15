@@ -144,11 +144,14 @@ function _renderSearchOutput(raw) {
   }).join('');
 }
 
-function renderDiffOutput(raw) {
+let _diffHunkId = 0;
+function renderDiffOutput(raw, enableHunkActions) {
   const lines = raw.split('\n');
   let html = '';
   let contextBuf = [];
+  let hunkBuf = [];
   let addCount = 0, removeCount = 0;
+  let hunkAddCount = 0, hunkRemoveCount = 0;
   const CONTEXT_LIMIT = 3;
 
   function flushContext() {
@@ -166,19 +169,43 @@ function renderDiffOutput(raw) {
     contextBuf = [];
   }
 
+  function flushHunk() {
+    if (!hunkBuf.length) return;
+    if (enableHunkActions) {
+      const hid = 'dhunk-' + (++_diffHunkId);
+      html += '<div class="diff-hunk" id="' + hid + '" data-removed="' + esc(hunkBuf.filter(l=>l.t==='-').map(l=>l.s).join('\n')) + '" data-added="' + esc(hunkBuf.filter(l=>l.t==='+').map(l=>l.s).join('\n')) + '">';
+      html += '<div class="diff-hunk-actions">'
+        + '<button class="diff-hunk-btn accept" title="Accept this change" onclick="window._diffHunkAction(this,\'accept\')"><i class="bx bx-check"></i></button>'
+        + '<button class="diff-hunk-btn reject" title="Reject this change" onclick="window._diffHunkAction(this,\'reject\')"><i class="bx bx-x"></i></button>'
+        + '</div>';
+    }
+    hunkBuf.forEach(h => {
+      const cls = h.t === '+' ? 'added' : 'removed';
+      html += '<div class="diff-line ' + cls + '">' + esc(h.s) + '</div>';
+    });
+    if (enableHunkActions) html += '</div>';
+    hunkBuf = [];
+    hunkAddCount = 0;
+    hunkRemoveCount = 0;
+  }
+
   for (const line of lines) {
     if (line.startsWith('+')) {
-      if (contextBuf.length) flushContext();
+      if (contextBuf.length) { flushHunk(); flushContext(); }
       addCount++;
-      html += '<div class="diff-line added">' + esc(stripDiffPrefix(line)) + '</div>';
+      hunkAddCount++;
+      hunkBuf.push({ t: '+', s: stripDiffPrefix(line) });
     } else if (line.startsWith('-')) {
-      if (contextBuf.length) flushContext();
+      if (contextBuf.length) { flushHunk(); flushContext(); }
       removeCount++;
-      html += '<div class="diff-line removed">' + esc(stripDiffPrefix(line)) + '</div>';
+      hunkRemoveCount++;
+      hunkBuf.push({ t: '-', s: stripDiffPrefix(line) });
     } else {
+      flushHunk();
       contextBuf.push(stripDiffPrefix(line));
     }
   }
+  flushHunk();
   if (contextBuf.length) flushContext();
   return { html, addCount, removeCount };
 }
@@ -1119,7 +1146,7 @@ class AgentGUIEngine {
       const short = fname.split('/').pop() || 'file';
       const cleanDesc = desc ? desc.replace(/^Read\s+/i, '') : '';
       const displayLabel = cleanDesc || short;
-      return { label: 'Read ' + displayLabel, icon: 'bx-file', expandable: false, isRead: true, fname: fname, readLabel: displayLabel };
+      return { label: 'Read ' + displayLabel, icon: fileExtIcon(fname), expandable: true, isRead: true, fname: fname, readLabel: displayLabel };
     }
     if (name === 'write_file' || name === 'edit_file' || name === 'edit') {
       const fname = file || cmd || '';
@@ -1162,7 +1189,7 @@ class AgentGUIEngine {
       headerContent =
         '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
         + '<div class="tool-icon edit">' + iconHtml + '</div>'
-        + '<span class="tool-desc tool-file-link" data-op="edit">' + escWbr('Edited ' + short) + '</span>'
+        + '<span class="tool-desc">Edited <span class="tool-file-link" data-op="edit">' + escWbr(short) + '</span></span>'
         + newTag
         + '<span class="diff-stats" data-tc="diffstats"></span>'
         + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
@@ -1173,7 +1200,8 @@ class AgentGUIEngine {
       headerContent =
         '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
         + readIconHtml
-        + '<span class="tool-desc tool-file-link" data-op="read">' + escWbr('Read ' + (info.readLabel || '')) + '</span>'
+        + '<span class="tool-desc">Read <span class="tool-file-link" data-op="read">' + escWbr(info.readLabel || '') + '</span></span>'
+        + '<span class="diff-stats" data-tc="diffstats"></span>'
         + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
     } else {
       const otherIconHtml = info.icon && info.icon.startsWith('_devicon_:')
@@ -1187,11 +1215,11 @@ class AgentGUIEngine {
         + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
     }
 
-    const bodyContent = info.isEdit
+    const bodyContent = (info.isEdit || info.isRead)
       ? '<div class="tool-terminal" data-tc="output" style="background:transparent;max-height:400px"></div>'
       : '<div class="tool-terminal" data-tc="output"></div>';
 
-    const expandable = info.isEdit || info.expandable;
+    const expandable = info.isEdit || info.isRead || info.expandable;
     const el = this._appendAnimated('div', 'tool-call' + (expandable ? '' : ' no-expand'),
       '<div class="tool-call-header" onclick="' + (expandable ? "this.parentElement.classList.toggle('expanded')" : '') + '">'
       + headerContent + '</div>'
@@ -1222,7 +1250,7 @@ class AgentGUIEngine {
             const stats = el.querySelector('[data-tc=diffstats]');
             if (stats) stats.innerHTML = '<span style="color:var(--text-3);font-style:italic;">(The assistant made no edit)</span>';
           } else {
-          const diff = renderDiffOutput(output);
+          const diff = renderDiffOutput(output, true);
           const stats = el.querySelector('[data-tc=diffstats]');
           if (stats) {
             let parts = [];
@@ -1249,7 +1277,24 @@ class AgentGUIEngine {
           } else {
             out.textContent = output;
           }
-        } else if (el.dataset.toolType === 'search' && output) {
+        } else if (toolType === 'read') {
+          const readLines = output.split('\n');
+          const stats = el.querySelector('[data-tc=diffstats]');
+          const lineCount = readLines.length;
+          if (stats) stats.innerHTML = '<span style="color:var(--text-3);font-size:11px;">' + lineCount + ' lines</span>';
+          let readHtml = '';
+          const lineNumMatch = readLines[0] && readLines[0].match(/^\s*(\d+)\|/);
+          if (lineNumMatch) {
+            readHtml = readLines.map(l => {
+              const m = l.match(/^(\s*\d+)\|(.*)/);
+              if (m) return '<div class="diff-line read-line"><span class="read-lineno">' + m[1] + '</span>' + esc(m[2]) + '</div>';
+              return '<div class="diff-line read-line">' + esc(l) + '</div>';
+            }).join('');
+          } else {
+            readHtml = readLines.map(l => '<div class="diff-line read-line">' + esc(l) + '</div>').join('');
+          }
+          out.innerHTML = '<div class="diff-view">' + readHtml + '</div>';
+        } else if (toolType === 'search' && output) {
           out.innerHTML = _renderSearchOutput(output);
         } else {
           out.textContent = output;

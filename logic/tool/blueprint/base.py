@@ -415,12 +415,49 @@ class ToolBase:
             tests = list(test_dir.glob("test_*.py")) if test_dir.exists() else []
             print(f"  tests:           {len(tests)} file(s)")
             print()
+        elif subcmd == "migrate":
+            self._handle_dev_migrate(args[1:])
         else:
             print(f"Usage: {self.tool_name} --dev <command>")
             print(f"\n{BOLD}Available commands:{RESET}")
             print(f"  sanity-check [--fix]   Check tool structure")
             print(f"  audit-test [--fix]     Audit unit test naming")
             print(f"  info                   Show tool developer info")
+            print(f"  migrate <target>       Sync asset resources (logos, filetypes, all)")
+
+    def _handle_dev_migrate(self, args):
+        """Download/sync remote asset resources to local storage."""
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        DIM = get_color("DIM", "\033[2m")
+        GREEN = get_color("GREEN", "\033[32m")
+        RED = get_color("RED", "\033[31m")
+        RESET = get_color("RESET", "\033[0m")
+
+        target = args[0] if args else ""
+        force = "--force" in args
+
+        if target not in ("logos", "filetypes", "all"):
+            print(f"Usage: {self.tool_name} --dev migrate <logos|filetypes|all> [--force]")
+            print(f"\n  {BOLD}logos{RESET}       Download LLM model & provider logos (lobehub)")
+            print(f"  {BOLD}filetypes{RESET}   Download file type icons (devicon)")
+            print(f"  {BOLD}all{RESET}         Download everything")
+            print(f"  {BOLD}--force{RESET}     Re-download existing files")
+            return
+
+        from logic.asset.migrate import migrate_logos, migrate_filetypes, migrate_all
+
+        if target == "logos":
+            d, s, e = migrate_logos(force)
+        elif target == "filetypes":
+            d, s, e = migrate_filetypes(force)
+        else:
+            result = migrate_all(force)
+            d, s, e = result["downloaded"], result["skipped"], result["errors"]
+
+        print(f"  {BOLD}{GREEN}Downloaded{RESET} {d} files, {DIM}skipped {s}{RESET}")
+        if e:
+            print(f"  {BOLD}{RED}Failed{RESET} {len(e)}: {DIM}{', '.join(e[:10])}{RESET}")
 
     def _handle_default_test(self, args):
         """Built-in --test handler: run this tool's unit tests."""

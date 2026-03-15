@@ -302,8 +302,8 @@ Key patterns:
 
 ## 7. Critical Directives
 As an AI agent, you MUST follow these operational rules:
-- **Command Entry**: Always prefer using absolute paths for tool call arguments.
-- **Feedback Acquisition**: After completing any task, you **MUST** execute the literal command `USERINPUT` in the terminal to obtain user feedback. This is a mandatory safety and synchronization check.
+- **Command Entry**: Always prefer using absolute paths for tool call arguments. All installed tools are standalone terminal commands — call them directly by name (e.g., `USERINPUT`, `GIT`, `PYTHON`, `LLM`). Their executables live in `bin/<NAME>/<NAME>` and are auto-added to `PATH` by `setup.py`. This is the universal mechanism for the entire project.
+- **Feedback Acquisition**: After completing any task, you **MUST** execute `USERINPUT` directly in the terminal (it is a standalone command, not a subcommand of `main.py`). Example: `USERINPUT --hint "Task done"`. Do not redirect stderr. This is a mandatory safety and synchronization check.
 - **Safety**: Never commit code with syntax errors. Always use `read_lints` before finishing.
 - **Avoid Background Tests**: Never execute `TOOL test PYTHON` (or other core tests) in the background. Background execution of complex test suites can cause agent calling loops and system instability. Always ask the user to run tests if needed.
 - **Branch Management**: `TOOL test` automatically records your current branch and restores it after tests finish, even if tests fail. This prevents you from accidentally remaining on the `test` branch after a failure. ALWAYS verify your current branch with `git branch` before committing, especially after running sync or test commands.

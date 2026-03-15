@@ -18,18 +18,20 @@ Clone the repository and run the setup script to create the `TOOL` shortcut and 
 - Run `python setup.py` from PowerShell or Git Bash.
 
 ### 2. Install Your First Tool
-Once setup is complete, you can use the `TOOL` command directly. The `USERINPUT` tool is highly recommended for obtaining interactive feedback from users.
+Once setup is complete, you can use the `TOOL` command directly. Every tool, once installed, becomes a **standalone terminal command** — its executable is placed in `bin/<TOOL_NAME>/` and automatically added to your system `PATH`. This is the core design: tools are CLI-first and callable directly from any terminal.
 
 ```bash
 TOOL install USERINPUT
 ```
 
 ### 3. Run the Tool
-Now you can call the tool by its name from any terminal:
+After installation, call any tool by its name directly from the terminal:
 
 ```bash
 USERINPUT --hint "Hello! AITerminalTools is now operational."
 ```
+
+This works because `setup.py` adds `bin/` to your `PATH`. Each tool's executable at `bin/<NAME>/<NAME>` bootstraps the project environment and delegates to `tool/<NAME>/main.py`. This mechanism is universal — **every installed tool** follows the same pattern: `TOOL_NAME [--flags] [command] [args]`.
 
 ---
 

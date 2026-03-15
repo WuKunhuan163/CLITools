@@ -263,6 +263,21 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .diff-line { padding: 0 14px; white-space: pre-wrap; }
 .diff-line.added { background: rgba(74,222,128,0.08); color: var(--green); }
 .diff-line.removed { background: rgba(248,113,113,0.08); color: var(--red); }
+.diff-line.read-line { background: transparent; color: var(--text-2); }
+.read-lineno { display: inline-block; min-width: 36px; text-align: right; color: var(--text-3); margin-right: 8px; user-select: none; opacity: 0.5; }
+.diff-hunk { position: relative; border-left: 2px solid transparent; }
+.diff-hunk:hover { border-left-color: var(--accent); }
+.diff-hunk-actions { position: absolute; right: 4px; top: 2px; display: none; gap: 2px; z-index: 2; }
+.diff-hunk:hover .diff-hunk-actions { display: flex; }
+.diff-hunk-btn { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface-2); color: var(--text-2); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; padding: 0; }
+.diff-hunk-btn.accept:hover { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+.diff-hunk-btn.reject:hover { background: rgba(248,113,113,0.1); color: var(--red); border-color: var(--red); }
+.diff-hunk.accepted { opacity: 0.5; border-left-color: var(--green); }
+.diff-hunk.accepted .diff-hunk-actions { display: none !important; }
+.diff-hunk.rejected .diff-line.added { display: none; }
+.diff-hunk.rejected .diff-line.removed { text-decoration: none; opacity: 1; }
+.diff-hunk.rejected { border-left-color: var(--red); opacity: 0.6; }
+.diff-hunk.rejected .diff-hunk-actions { display: none !important; }
 .diff-line.context { color: var(--text-3); }
 .diff-hidden { padding: 4px 14px; color: var(--text-3); font-size: 11px; font-style: italic; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); margin: 2px 0; text-align: center; cursor: pointer; user-select: none; }
 .diff-hidden:hover { background: rgba(255,255,255,0.03); }
@@ -284,8 +299,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .tool-icon.search { background: var(--orange-dim); color: var(--orange); }
 .tool-icon.think { background: var(--purple-dim); color: var(--purple); }
 .tool-desc { color: var(--text); font-size: 12.5px; font-weight: 500; overflow-wrap: anywhere; word-break: break-word; }
-.tool-file-link { cursor: pointer; }
-.tool-file-link:hover { color: var(--accent); }
+.tool-file-link { cursor: pointer; border-radius: 2px; padding: 0 1px; }
+.tool-file-link:hover { color: var(--accent); text-decoration: underline; }
 .tool-cmd-inline { color: var(--text-3); font-family: var(--mono); font-size: 11.5px; font-weight: 400; margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
 .tool-label { color: var(--text-3); font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.3px; flex-shrink: 0; }
 .diff-stats { font-family: var(--mono); font-size: 11.5px; font-weight: 500; margin-left: auto; flex-shrink: 0; display: flex; gap: 6px; }
@@ -1698,6 +1713,62 @@ async function deleteApiKey(vendor, btn) {
     }
   } catch (e) { console.warn('Delete key failed:', e); }
 }
+
+/* ── Diff Hunk Actions ── */
+window._diffHunkAction = async function(btn, action) {
+  const hunk = btn.closest('.diff-hunk');
+  if (!hunk) return;
+
+  const toolCall = hunk.closest('.tool-call');
+  if (!toolCall) return;
+
+  const sid = toolCall.dataset.sid;
+  const fname = toolCall.dataset.toolCmd || '';
+  const cleanPath = fname.replace(/^(write|edit)\s+/, '');
+
+  if (action === 'accept') {
+    hunk.classList.add('accepted');
+    hunk.classList.remove('rejected');
+  } else if (action === 'reject') {
+    const removed = hunk.dataset.removed || '';
+    const added = hunk.dataset.added || '';
+    try {
+      const res = await fetch('/api/revert-hunk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sid,
+          path: cleanPath,
+          old_text: added,
+          new_text: removed,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        hunk.classList.add('rejected');
+        hunk.classList.remove('accepted');
+        const stats = toolCall.querySelector('[data-tc=diffstats]');
+        if (stats) {
+          const remaining = toolCall.querySelectorAll('.diff-hunk:not(.rejected)');
+          let a = 0, r = 0;
+          remaining.forEach(h => {
+            a += (h.querySelectorAll('.diff-line.added') || []).length;
+            r += (h.querySelectorAll('.diff-line.removed') || []).length;
+          });
+          let parts = [];
+          if (a) parts.push('<span class="added-count">+' + a + '</span>');
+          if (r) parts.push('<span class="removed-count">-' + r + '</span>');
+          if (!parts.length) parts.push('<span style="color:var(--text-3);font-style:italic">reverted</span>');
+          stats.innerHTML = parts.join(' ');
+        }
+      } else {
+        console.warn('Revert failed:', data.error);
+      }
+    } catch (e) {
+      console.warn('Revert error:', e);
+    }
+  }
+};
 
 /* ── SSE Connection ── */
 function connectSSE() {
