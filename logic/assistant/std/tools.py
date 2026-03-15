@@ -312,7 +312,9 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
         if old_content_for_diff is not None and old_content_for_diff != content:
             gui_output = _compute_write_diff(old_content_for_diff, content)
             ctx.emit({"type": "tool_result", "ok": True,
-                      "output": gui_output, "_is_diff": True})
+                      "output": gui_output, "_is_diff": True,
+                      "name": "write_file", "_path": path,
+                      "_old_text": old_content_for_diff, "_new_text": content})
         else:
             all_lines = content.split('\n')
             gui_limit = 2000
@@ -321,7 +323,8 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
             else:
                 gui_preview = content
             ctx.emit({"type": "tool_result", "ok": True,
-                      "output": base_msg + warn_suffix + "\n" + gui_preview})
+                      "output": base_msg + warn_suffix + "\n" + gui_preview,
+                      "name": "write_file", "_path": path})
         if ctx.env_obj:
             ctx.env_obj.record_result(f"write:{path}", True, f"{size} bytes")
 
@@ -418,7 +421,9 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
         if remaining > 0:
             diff_lines.append(f"@@hide {remaining}")
         diff_preview = "\n".join(diff_lines)
-        ctx.emit({"type": "tool_result", "ok": True, "output": diff_preview})
+        ctx.emit({"type": "tool_result", "ok": True, "output": diff_preview,
+                  "name": "edit_file", "_path": path,
+                  "_old_text": old_text, "_new_text": new_text})
         if ctx.env_obj:
             ctx.env_obj.record_result(f"edit:{path}", True, diff_preview)
         rs = getattr(ctx, 'round_store', None)

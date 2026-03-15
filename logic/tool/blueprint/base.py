@@ -1043,7 +1043,13 @@ class ToolBase:
         subcmd = filtered[0] if filtered else ""
         rest = filtered[1:]
 
-        if subcmd in ("agent", "ask", "plan"):
+        gui_api_cmds = {"list", "state", "history", "send", "model",
+                        "edits", "accept", "revert", "accept-all",
+                        "revert-all", "new", "clear", "cancel"}
+        if subcmd in gui_api_cmds:
+            from logic.agent.command import handle_session_command
+            handle_session_command(filtered, self.tool_name)
+        elif subcmd in ("agent", "ask", "plan"):
             self._handle_agent(rest, mode=subcmd)
         elif subcmd == "checkout":
             self._handle_session_checkout(rest)

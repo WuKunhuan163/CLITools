@@ -1275,3 +1275,261 @@ def _print_event(evt: dict):
     elif t == "experience":
         lesson = evt.get("lesson", "")
         print(f"  {DIM}[experience] {lesson[:100]}{RESET}")
+
+
+# ─── --session CLI: wraps GUI HTTP API for programmatic control ───────────
+
+def _session_api(port: int, method: str, path: str, body: dict = None) -> dict:
+    """Call the GUI API and return parsed JSON response."""
+    import urllib.request
+    url = f"http://localhost:{port}{path}"
+    data = json.dumps(body).encode() if body else None
+    req = urllib.request.Request(url, data=data, method=method,
+                                headers={"Content-Type": "application/json"})
+    try:
+        resp = urllib.request.urlopen(req, timeout=30)
+        return json.loads(resp.read())
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def handle_session_command(args: list, tool_name: str = "TOOL"):
+    """Handle --session subcommands that control the GUI via HTTP API.
+
+    Subcommands:
+        list                         List sessions
+        state [SID]                  Show session state
+        history <SID> [--limit N]    Show event history
+        send <SID> "prompt"          Send a message
+        model <model_id>             Switch model
+        accept <SID> <hunk_index>    Accept an edit hunk
+        revert <SID> <hunk_index>    Revert an edit hunk
+        accept-all <SID>             Accept all undecided hunks
+        revert-all <SID>             Revert all undecided hunks
+        edits <SID>                  List edit blocks
+        new [title]                  Create new session
+        delete <SID>                 Delete session
+        clear                        Delete all sessions + create fresh one
+        cancel                       Cancel running task
+    """
+    port = _find_running_gui_port()
+    if not port:
+        print("No GUI server found. Start with: TOOL --agent --gui")
+        return
+
+    if not args:
+        _session_help(tool_name)
+        return
+
+    subcmd = args[0]
+    rest = args[1:]
+
+    if subcmd == "list":
+        r = _session_api(port, "GET", "/api/sessions")
+        if r.get("ok"):
+            for s in r.get("sessions", []):
+                status = s.get("status", "?")
+                print(f"  {s['id']}  {status:<8}  {s.get('title', '')}")
+        else:
+            print(f"Error: {r.get('error')}")
+
+    elif subcmd == "state":
+        sid = rest[0] if rest else ""
+        r = _session_api(port, "GET", "/api/state")
+        if r.get("ok"):
+            state = r["state"]
+            sessions = state.get("sessions", {})
+            if sid and sid in sessions:
+                s = sessions[sid]
+                print(json.dumps(s, indent=2, ensure_ascii=False))
+            elif sid:
+                print(f"Session {sid} not found")
+            else:
+                print(json.dumps(state, indent=2, ensure_ascii=False))
+        else:
+            print(f"Error: {r.get('error')}")
+
+    elif subcmd == "history":
+        if not rest:
+            print("Usage: --session history <SID> [--limit N]")
+            return
+        sid = rest[0]
+        limit = 50
+        if "--limit" in rest:
+            idx = rest.index("--limit")
+            if idx + 1 < len(rest):
+                limit = int(rest[idx + 1])
+        r = _session_api(port, "GET", f"/api/history/{sid}")
+        if r.get("ok"):
+            events = r.get("events", [])
+            for evt in events[-limit:]:
+                t = evt.get("type", "")
+                if t == "user":
+                    print(f"  USER: {evt.get('prompt', '')[:120]}")
+                elif t == "text":
+                    pass
+                elif t == "tool":
+                    print(f"  TOOL: {evt.get('name', '')} | {evt.get('desc', '')[:80]}")
+                elif t == "tool_result":
+                    ok = evt.get("ok")
+                    name = evt.get("name", "")
+                    out = (evt.get("output", "") or "")[:100]
+                    print(f"  RESULT: ok={ok} name={name} | {out}")
+                elif t in ("llm_request", "llm_response_end", "model_info"):
+                    model = evt.get("model", "")
+                    tokens = evt.get("tokens", "")
+                    if t == "model_info":
+                        print(f"  MODEL: {model} {tokens}tok")
+                    elif t == "llm_response_end":
+                        print(f"  LLM_END: {model}")
+                elif t in ("task_completed", "task_cancelled"):
+                    print(f"  {t.upper()}")
+                elif t == "file_summary":
+                    files = evt.get("files", [])
+                    print(f"  FILE_SUMMARY: {len(files)} files")
+        else:
+            print(f"Error: {r.get('error')}")
+
+    elif subcmd == "send":
+        if len(rest) < 2:
+            print("Usage: --session send <SID> \"prompt text\"")
+            return
+        sid = rest[0]
+        text = " ".join(rest[1:])
+        r = _session_api(port, "POST", "/api/send",
+                         {"session_id": sid, "text": text})
+        print(json.dumps(r, ensure_ascii=False))
+
+    elif subcmd == "model":
+        if not rest:
+            print("Usage: --session model <model_id>")
+            return
+        model = rest[0]
+        r = _session_api(port, "POST", "/api/model", {"model": model})
+        print(json.dumps(r, ensure_ascii=False))
+
+    elif subcmd == "edits":
+        if not rest:
+            print("Usage: --session edits <SID>")
+            return
+        sid = rest[0]
+        r = _session_api(port, "POST", "/api/edit-blocks",
+                         {"session_id": sid})
+        if r.get("ok"):
+            blocks = r.get("blocks", [])
+            print(f"Edit blocks: {len(blocks)}")
+            for b in blocks:
+                status = b.get("decision") or "undecided"
+                path = b.get("path", "")
+                print(f"  [{b['index']}] {status:<10} {b['tool']:<10} {path}")
+                if b.get("old_text_preview"):
+                    print(f"       old: {b['old_text_preview']}")
+                if b.get("new_text_preview"):
+                    print(f"       new: {b['new_text_preview']}")
+        else:
+            print(f"Error: {r.get('error')}")
+
+    elif subcmd == "accept":
+        if len(rest) < 2:
+            print("Usage: --session accept <SID> <hunk_index>")
+            return
+        sid = rest[0]
+        idx = int(rest[1])
+        r = _session_api(port, "POST", "/api/accept-hunk",
+                         {"session_id": sid, "hunk_index": idx})
+        print(json.dumps(r, ensure_ascii=False))
+
+    elif subcmd == "revert":
+        if len(rest) < 2:
+            print("Usage: --session revert <SID> <hunk_index>")
+            return
+        sid = rest[0]
+        idx = int(rest[1])
+        r = _session_api(port, "POST", "/api/revert-hunk",
+                         {"session_id": sid, "hunk_index": idx})
+        print(json.dumps(r, ensure_ascii=False))
+
+    elif subcmd == "accept-all":
+        if not rest:
+            print("Usage: --session accept-all <SID>")
+            return
+        sid = rest[0]
+        edits = _session_api(port, "POST", "/api/edit-blocks",
+                             {"session_id": sid})
+        if not edits.get("ok"):
+            print(f"Error: {edits.get('error')}")
+            return
+        accepted = 0
+        for b in edits.get("blocks", []):
+            if not b["decided"]:
+                r = _session_api(port, "POST", "/api/accept-hunk",
+                                 {"session_id": sid, "hunk_index": b["index"]})
+                if r.get("ok"):
+                    accepted += 1
+        print(f"Accepted {accepted} hunks")
+
+    elif subcmd == "revert-all":
+        if not rest:
+            print("Usage: --session revert-all <SID>")
+            return
+        sid = rest[0]
+        edits = _session_api(port, "POST", "/api/edit-blocks",
+                             {"session_id": sid})
+        if not edits.get("ok"):
+            print(f"Error: {edits.get('error')}")
+            return
+        reverted = 0
+        for b in reversed(edits.get("blocks", [])):
+            if not b["decided"]:
+                r = _session_api(port, "POST", "/api/revert-hunk",
+                                 {"session_id": sid, "hunk_index": b["index"]})
+                if r.get("ok"):
+                    reverted += 1
+        print(f"Reverted {reverted} hunks")
+
+    elif subcmd == "new":
+        title = " ".join(rest) if rest else "New Task"
+        r = _session_api(port, "POST", "/api/session", {"title": title})
+        print(json.dumps(r, ensure_ascii=False))
+
+    elif subcmd == "delete":
+        if not rest:
+            print("Usage: --session delete <SID>")
+            return
+        r = _session_api(port, "POST", "/api/delete",
+                         {"session_id": rest[0]})
+        print(json.dumps(r, ensure_ascii=False))
+
+    elif subcmd == "clear":
+        r = _session_api(port, "POST", "/api/clear_all", {})
+        print(json.dumps(r, ensure_ascii=False))
+
+    elif subcmd == "cancel":
+        r = _session_api(port, "POST", "/api/cancel", {})
+        print(json.dumps(r, ensure_ascii=False))
+
+    else:
+        print(f"Unknown --session subcommand: {subcmd}")
+        _session_help(tool_name)
+
+
+def _session_help(tool_name: str = "TOOL"):
+    print(f"""
+Session Control (wraps GUI HTTP API)
+
+Usage:
+  {tool_name} --session list                         List sessions
+  {tool_name} --session state [SID]                  Show session state
+  {tool_name} --session history <SID> [--limit N]    Show event history
+  {tool_name} --session send <SID> "prompt"          Send a message
+  {tool_name} --session model <model_id>             Switch model (e.g. zhipu-glm-4.7-flash)
+  {tool_name} --session edits <SID>                  List edit blocks and states
+  {tool_name} --session accept <SID> <index>         Accept an edit hunk
+  {tool_name} --session revert <SID> <index>         Revert an edit hunk
+  {tool_name} --session accept-all <SID>             Accept all undecided hunks
+  {tool_name} --session revert-all <SID>             Revert all undecided hunks
+  {tool_name} --session new [title]                  Create new session
+  {tool_name} --session delete <SID>                 Delete session
+  {tool_name} --session clear                        Delete all + create fresh
+  {tool_name} --session cancel                       Cancel running task
+""")

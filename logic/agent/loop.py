@@ -346,32 +346,11 @@ class AgentLoop:
 
     @staticmethod
     def _parse_tool_args(raw: str) -> dict:
-        """Parse tool arguments with fallback for malformed JSON from models."""
-        raw = raw.strip()
-        if raw.endswith('}"'):
-            raw = raw[:-1]
-        if raw.endswith("}'"):
-            raw = raw[:-1]
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError:
-            pass
-        import re
-        args = {}
-        for key in ("path", "command", "pattern", "old_text", "new_text",
-                     "content", "question", "thought", "action", "items",
-                     "start_line", "end_line"):
-            pattern = rf'"{key}"\s*:\s*"((?:[^"\\]|\\.)*)"'
-            m = re.search(pattern, raw)
-            if m:
-                val = m.group(1)
-                val = val.replace("\\n", "\n").replace("\\t", "\t").replace('\\"', '"').replace("\\\\", "\\")
-                args[key] = val
-            else:
-                pattern_sq = rf'"{key}"\s*:\s*\'((?:[^\'\\]|\\.)*)\''
-                m2 = re.search(pattern_sq, raw)
-                if m2:
-                    val = m2.group(1)
-                    val = val.replace("\\n", "\n").replace("\\t", "\t").replace("\\'", "'").replace("\\\\", "\\")
-                    args[key] = val
-        return args
+        """Enterprise-grade JSON parser with multi-layer repair for LLM outputs.
+
+        Layer 1: Direct json.loads
+        Layer 2: Structural repair (strip special tokens, fix common issues)
+        Layer 3: Regex key-value extraction (last resort)
+        """
+        from logic.agent._json_repair import repair_and_parse
+        return repair_and_parse(raw)

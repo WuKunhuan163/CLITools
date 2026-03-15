@@ -69,10 +69,18 @@ function md(text) {
 }
 
 function inlineMd(text) {
-  return text
+  const inlineCode = [];
+  let safe = text.replace(/`(.+?)`/g, (_, code) => {
+    const idx = inlineCode.length;
+    inlineCode.push(`<code class="md-inline-code">${esc(code)}</code>`);
+    return `\x01IC${idx}\x01`;
+  });
+  safe = esc(safe);
+  safe = safe
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code class="md-inline-code">$1</code>');
+    .replace(/\*(.+?)\*/g, '<em>$1</em>');
+  safe = safe.replace(/\x01IC(\d+)\x01/g, (_, idx) => inlineCode[+idx]);
+  return safe;
 }
 
 let _replayMode = false;
@@ -317,6 +325,7 @@ class AgentGUIEngine {
   /* ── Process a single protocol event ── */
 
   async processEvent(evt) {
+    try {
     const isStreamDelta = evt.type === 'tool_stream_delta';
     if (evt.type !== 'text' && !isStreamDelta) {
       this._clearActiveText();
@@ -329,6 +338,9 @@ class AgentGUIEngine {
     if (handler) {
       await handler(evt);
       if (evt.type !== 'text' && !isStreamDelta) this._appendSpacer();
+    }
+    } catch (err) {
+      console.error('[AgentGUIEngine] processEvent error:', err, 'evt:', evt);
     }
   }
 
