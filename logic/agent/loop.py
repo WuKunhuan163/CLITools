@@ -336,12 +336,42 @@ class AgentLoop:
     def _execute_tool_call(self, tool_call: dict) -> dict:
         func = tool_call.get("function", {})
         name = func.get("name", "")
-        try:
-            args = json.loads(func.get("arguments", "{}"))
-        except Exception:
-            args = {}
+        raw_args = func.get("arguments", "{}")
+        args = self._parse_tool_args(raw_args)
         handler = self._tool_handlers.get(name)
         if handler:
             return handler(args)
         self._emit({"type": "text", "tokens": f"Unknown tool: {name}"})
         return {"ok": False, "output": f"Unknown tool: {name}"}
+
+    @staticmethod
+    def _parse_tool_args(raw: str) -> dict:
+        """Parse tool arguments with fallback for malformed JSON from models."""
+        raw = raw.strip()
+        if raw.endswith('}"'):
+            raw = raw[:-1]
+        if raw.endswith("}'"):
+            raw = raw[:-1]
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            pass
+        import re
+        args = {}
+        for key in ("path", "command", "pattern", "old_text", "new_text",
+                     "content", "question", "thought", "action", "items",
+                     "start_line", "end_line"):
+            pattern = rf'"{key}"\s*:\s*"((?:[^"\\]|\\.)*)"'
+            m = re.search(pattern, raw)
+            if m:
+                val = m.group(1)
+                val = val.replace("\\n", "\n").replace("\\t", "\t").replace('\\"', '"').replace("\\\\", "\\")
+                args[key] = val
+            else:
+                pattern_sq = rf'"{key}"\s*:\s*\'((?:[^\'\\]|\\.)*)\''
+                m2 = re.search(pattern_sq, raw)
+                if m2:
+                    val = m2.group(1)
+                    val = val.replace("\\n", "\n").replace("\\t", "\t").replace("\\'", "'").replace("\\\\", "\\")
+                    args[key] = val
+        return args
