@@ -1,0 +1,41 @@
+# Agent Brain — Persistent Task & Context Memory
+
+At the start of every session, read your brain files to understand your current tasks and context:
+
+1. `runtime/brain/tasks.md` — Active task list (the "todo brain"). Contains tasks with status, priority, and notes.
+2. `runtime/brain/context.md` — Working context. What was the agent last doing? Where did it leave off?
+3. `runtime/experience/lessons.jsonl` — Recent experience lessons (the "experience brain").
+
+## Rules
+
+1. **Read brain first.** Before starting any work, read `runtime/brain/tasks.md` and `runtime/brain/context.md`. If a Cursor hook already injected brain content via `additional_context`, you still benefit from re-reading files for full detail.
+2. **Update brain regularly.** After completing a significant step (finishing a task, fixing a bug, reaching a milestone), update `runtime/brain/tasks.md` (mark done, add new tasks) and `runtime/brain/context.md` (what you just did, what's next).
+3. **Save brain before ending.** Before your turn ends, update both files so the next agent session can continue seamlessly — even if context was summarized or a new agent takes over.
+4. **Experience brain.** When you learn something non-obvious (a gotcha, a workaround, a project-specific fact), record it via `SKILLS learn "lesson text"` or append to `runtime/experience/lessons.jsonl`.
+5. **Multi-task tracking.** When the user gives you multiple tasks at once, write ALL of them into `runtime/brain/tasks.md` immediately with status `pending`. Work through them one by one, updating status as you go. This prevents forgetting tasks after context summarization.
+
+## Brain File Formats
+
+### tasks.md
+```markdown
+# Active Tasks
+
+- [x] Task that's done
+- [ ] **IN_PROGRESS** Current task description
+- [ ] Pending task description
+  - Notes: any relevant details
+```
+
+### context.md
+```markdown
+# Current Context
+
+**Last updated:** YYYY-MM-DD HH:MM
+**Working on:** Brief description of current work
+**Next step:** What to do next
+**Blocked on:** Any blockers (or "none")
+```
+
+## When Brain Is Empty
+
+If `runtime/brain/tasks.md` is empty or doesn't exist, create it from the user's current request. Don't wait to be reminded.

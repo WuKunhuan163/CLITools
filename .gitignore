@@ -18,6 +18,7 @@
 !/skills/
 !/research/
 !/runtime/
+!/hooks/
 
 # --- Transient Directories ---
 **/data/

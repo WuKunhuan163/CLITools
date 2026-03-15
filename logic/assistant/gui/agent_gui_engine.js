@@ -715,13 +715,11 @@ class AgentGUIEngine {
       const outTokens = usage.completion_tokens || 0;
       const ctxTokens = usage.prompt_tokens || 0;
       const totalTokens = usage.total_tokens || (ctxTokens + outTokens);
-      if (totalTokens > 0) {
-        parts.push(outTokens + ' tokens');
-      }
+      parts.push(outTokens + ' tokens');
       if (usage.cost != null) {
         const currency = this._costCurrency || '$';
         parts.push(currency + usage.cost.toFixed(4));
-      } else if (totalTokens > 0) {
+      } else {
         parts.push('$0.00');
       }
       if (evt.latency_s) parts.push(evt.latency_s + 's');

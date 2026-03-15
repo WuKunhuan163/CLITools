@@ -322,7 +322,10 @@ class ZhipuGLM4Provider(LLMProvider):
                     chunk = json.loads(data_str)
                     if chunk.get("usage"):
                         last_usage = chunk["usage"]
-                    delta = chunk.get("choices", [{}])[0].get("delta", {})
+                    choices = chunk.get("choices", [])
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta", {})
                     content = delta.get("content", "")
                     tc = delta.get("tool_calls")
                     if tc:

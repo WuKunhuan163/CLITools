@@ -1,0 +1,15 @@
+# USERINPUT Long Wait Handling
+
+When executing USERINPUT and you see output like:
+- `Launching input GUI...`
+- `正在通过 GUI 等待 USERINPUT 反馈 (PID: XXXXX)(NNNs)...`
+
+This means the user is still writing their feedback. The GUI is open and waiting for input.
+
+## Rules
+
+1. **Do NOT give up.** Continue to `sleep 30` and re-read the terminal output. The user may take several minutes to type a detailed response.
+2. **Retry on timeout.** If the USERINPUT command exits with a timeout, `sleep 30-60` seconds and retry.
+3. **Retry on empty.** If the return value is empty, `sleep 30` and retry.
+4. **Fallback file.** If three consecutive attempts fail, the tool outputs a fallback file path. Read that file with the Read tool after `sleep 30` — the user may write feedback directly to it.
+5. **Never end without USERINPUT.** After completing a task, fixing an error, or reaching any decision point, always call USERINPUT. This is the feedback loop that keeps the agent aligned with the user.

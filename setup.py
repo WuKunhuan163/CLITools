@@ -180,6 +180,23 @@ def shell_integration_action(stage=None):
             return False
     return True
 
+def setup_cursor_ide_action(stage=None):
+    """Deploy Cursor IDE rules and hooks if Cursor is detected."""
+    project_root = Path(__file__).parent.absolute()
+    try:
+        from logic.setup.cursor.deploy import detect_cursor_ide, deploy
+        if not detect_cursor_ide(project_root):
+            return True
+        result = deploy(project_root)
+        if result["deployed"] and stage:
+            stage.success_status = f"Successfully deployed ({len(result['deployed'])} files)"
+        return True
+    except Exception as e:
+        if stage:
+            stage.error_brief = str(e)
+        return False
+
+
 def setup():
     project_root = Path(__file__).parent.absolute()
     pm = ProgressTuringMachine(project_root=project_root)
@@ -242,6 +259,16 @@ def setup():
         fail_status="Failed to configure",
         success_color="BOLD",
         bold_part="Configuring shell integration"
+    ))
+
+    pm.add_stage(TuringStage(
+        name="cursor ide",
+        action=setup_cursor_ide_action,
+        active_status="Deploying",
+        success_status="Successfully deployed",
+        fail_status="Failed to deploy",
+        success_color="BOLD",
+        bold_part="Deploying Cursor IDE config"
     ))
 
     final_msg = f"setup AITerminalTools"

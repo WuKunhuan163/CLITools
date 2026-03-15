@@ -153,6 +153,7 @@ class NvidiaGLM47Provider(LLMProvider):
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": True,
+            "stream_options": {"include_usage": True},
         }
         if tools:
             payload["tools"] = tools
@@ -174,6 +175,7 @@ class NvidiaGLM47Provider(LLMProvider):
             yield {"ok": False, "error": str(e)}
             return
 
+        last_usage = {}
         try:
             for raw_line in resp:
                 line = raw_line.decode("utf-8").strip()
@@ -184,7 +186,12 @@ class NvidiaGLM47Provider(LLMProvider):
                     break
                 try:
                     chunk = json.loads(data_str)
-                    delta = chunk.get("choices", [{}])[0].get("delta", {})
+                    if chunk.get("usage"):
+                        last_usage = chunk["usage"]
+                    choices = chunk.get("choices", [])
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta", {})
                     content = delta.get("content", "")
                     tc = delta.get("tool_calls")
                     if tc:
@@ -193,5 +200,7 @@ class NvidiaGLM47Provider(LLMProvider):
                         yield {"ok": True, "text": content}
                 except Exception:
                     continue
+            if last_usage:
+                yield {"ok": True, "text": "", "usage": last_usage}
         finally:
             resp.close()

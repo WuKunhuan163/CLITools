@@ -1,0 +1,32 @@
+---
+description: Standard file reading commands across platforms. Never use `strings` for text files.
+globs:
+alwaysApply: true
+---
+
+# File Reading Commands
+
+## Rules
+
+1. **Never use `strings` to read text files.** `strings` is designed for extracting printable strings from binary files. When used on text files (especially those containing ANSI escape codes), it silently drops content without raising an error, causing missed data.
+
+2. **Use `cat` as the default file reading command** on all platforms:
+
+   | OS / Shell     | Read command       | Notes                                      |
+   |----------------|--------------------|---------------------------------------------|
+   | macOS (bash/zsh) | `cat`            | Default. Always available.                  |
+   | Linux (bash/zsh) | `cat`            | Default. Always available.                  |
+   | Windows (PowerShell) | `Get-Content` (or `gc`) | `cat` is aliased to `Get-Content`.  |
+   | Windows (cmd)  | `type`             | `cat` is not available in cmd.              |
+
+3. **For searching within files**, use `grep` (or `rg` if available):
+   - macOS/Linux: `grep -n "pattern" file` or `rg "pattern" file`
+   - Windows PowerShell: `Select-String -Pattern "pattern" -Path file`
+
+4. **For reading the end of a file** (e.g., logs): use `tail -n 50 file` (macOS/Linux).
+
+5. **For reading terminal output files** (which contain ANSI escape codes): always use `cat`. The escape codes will be interpreted correctly by the terminal.
+
+## Lesson
+
+This rule was created because `strings` was used to read terminal output files, which silently dropped ANSI-encoded content and error output. The command produced no error, making it appear that files were empty when they were not.
