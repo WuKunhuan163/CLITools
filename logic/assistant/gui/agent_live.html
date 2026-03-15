@@ -641,7 +641,7 @@ body.debug-mode .debug-block { display: block; }
   </div>
 
   <div class="float-actions" id="float-actions">
-    <button class="float-action-btn" id="btn-scroll-bottom" onclick="document.getElementById('chat').scrollTo({top:document.getElementById('chat').scrollHeight,behavior:'smooth'})"><i class="bx bx-chevron-down"></i></button>
+    <button class="float-action-btn" id="btn-scroll-bottom" onclick="document.getElementById('chat-area').scrollTo({top:document.getElementById('chat-area').scrollHeight,behavior:'smooth'})"><i class="bx bx-chevron-down"></i></button>
     <button class="float-action-btn stop-btn" id="btn-stop" onclick="cancelTask()"><i class="bx bx-stop-circle"></i> <span data-i18n="Stop">Stop</span></button>
   </div>
 
@@ -1154,6 +1154,8 @@ $('input').addEventListener('input', function() {
 
 /* ── Send Message ── */
 let taskRunning = false;
+let _userScrolledAt = 0;
+let _autoScrollIdleS = parseInt(localStorage.getItem('auto_scroll_idle_s')) || 30;
 let _messageQueue = [];
 
 function _updateQueueBadge() {
@@ -1179,7 +1181,7 @@ function _updateFloatPanel() {
   const panel = $('float-actions');
   const stopBtn = $('btn-stop');
   const scrollBtn = $('btn-scroll-bottom');
-  const chat = $('chat');
+  const chat = $('chat-area');
   const atBottom = chat ? (chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80) : true;
 
   stopBtn.style.display = taskRunning ? '' : 'none';
@@ -1488,9 +1490,17 @@ function renderGeneralView() {
         <span><strong>${_('Language')}</strong></span>
         <select onchange="_guiLang=this.value;localStorage.setItem('guiLang',this.value);_applyLang();" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:120px;">${langOpts}</select>
       </div>
-      <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+      <div style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:12px;">
         <span><strong>${_('Currency')}</strong></span>
         <select id="currency-select" onchange="_setCurrency(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:180px;">${_currencyOpts()}</select>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+        <span style="flex:1"><strong>${_('Auto-scroll Idle')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Seconds of inactivity before auto-scrolling to bottom (0 to disable).</span></span>
+        <div class="settings-stepper" data-key="auto_scroll_idle_s" data-min="0" data-max="300" data-default="30" data-mode="linear" data-step="5">
+          <button class="stepper-btn down" onclick="_stepperClick(this,-1)">\u25BC</button>
+          <span class="stepper-value">${_autoScrollIdleS}</span>
+          <button class="stepper-btn up" onclick="_stepperClick(this,1)">\u25B2</button>
+        </div>
       </div>
     </div>
     <div class="settings-section-title" style="margin-top:16px;">${_('Runtime Limits')}</div>
@@ -2528,9 +2538,24 @@ async function init() {
     if (chatArea.scrollTop <= 0 && _pendingOlderEvents.length > 0) {
       loadOlderEvents();
     }
+    _updateFloatPanel();
+    _userScrolledAt = Date.now();
   });
 
   $('input').focus();
+
+  setInterval(() => {
+    const idleS = parseInt(localStorage.getItem('auto_scroll_idle_s')) || 30;
+    if (idleS <= 0) return;
+    const chat = $('chat-area');
+    if (!chat) return;
+    const atBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+    if (atBottom) return;
+    const idleMs = Date.now() - _userScrolledAt;
+    if (idleMs >= idleS * 1000) {
+      chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+    }
+  }, 5000);
 }
 
 init();
