@@ -32,7 +32,7 @@ def _git_bin():
 try:
     from interface.config import get_color
     from interface.lang import get_translation
-    from logic.tool.blueprint.base import ToolBase
+    from interface.tool import ToolBase
 except ImportError:
     def get_color(name, default="\033[0m"): return default
     def get_translation(d, k, default): return default

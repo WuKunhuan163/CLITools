@@ -142,7 +142,7 @@ class LLMProvider(ABC):
         """
         t0 = time.time()
         full_text_parts = []
-        tool_calls_accum = []
+        tool_calls_by_index: Dict[int, Dict[str, Any]] = {}
         chunk_count = 0
         ttft = None
 
@@ -155,10 +155,28 @@ class LLMProvider(ABC):
 
             tc = chunk.get("tool_calls")
             if tc:
-                tool_calls_accum.extend(tc)
+                for delta in tc:
+                    idx = delta.get("index", 0)
+                    if idx not in tool_calls_by_index:
+                        tool_calls_by_index[idx] = {
+                            "id": delta.get("id", ""),
+                            "type": delta.get("type", "function"),
+                            "function": {
+                                "name": delta.get("function", {}).get("name", ""),
+                                "arguments": delta.get("function", {}).get("arguments", ""),
+                            },
+                        }
+                    else:
+                        existing = tool_calls_by_index[idx]
+                        if delta.get("id"):
+                            existing["id"] = delta["id"]
+                        fn_delta = delta.get("function", {})
+                        if fn_delta.get("name"):
+                            existing["function"]["name"] = fn_delta["name"]
+                        if fn_delta.get("arguments"):
+                            existing["function"]["arguments"] += fn_delta["arguments"]
                 if ttft is None:
                     ttft = time.time() - t0
-                yield {"ok": True, "tool_calls": tc}
                 continue
 
             text = chunk.get("text", "")
@@ -171,6 +189,7 @@ class LLMProvider(ABC):
 
         latency = time.time() - t0
         full_text = "".join(full_text_parts)
+        merged_tool_calls = [tool_calls_by_index[k] for k in sorted(tool_calls_by_index)]
 
         estimated_tokens = len(full_text) // 4
         usage = {"completion_tokens": estimated_tokens, "total_tokens": estimated_tokens}
@@ -197,8 +216,8 @@ class LLMProvider(ABC):
             "chunk_count": chunk_count,
             "estimated_cost_usd": self.cost_model.estimate_cost(0, estimated_tokens),
         }
-        if tool_calls_accum:
-            done_chunk["tool_calls"] = tool_calls_accum
+        if merged_tool_calls:
+            done_chunk["tool_calls"] = merged_tool_calls
         yield done_chunk
 
     def send_streaming(self, messages: List[Dict[str, str]],

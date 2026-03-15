@@ -29,10 +29,30 @@ _STOP_WORDS = frozenset(
 )
 
 
+_CJK_RANGES = (
+    "\u4e00-\u9fff"   # CJK Unified Ideographs
+    "\u3400-\u4dbf"   # CJK Extension A
+    "\uf900-\ufaff"   # CJK Compatibility
+)
+
+_CJK_STOP = frozenset("的 了 在 是 我 有 和 就 不 人 都 一 个 上 也 很 到 说 要 去 你 会 着 没有 看 好 自己 这".split())
+
+
 def _tokenize(text: str) -> List[str]:
-    """Lowercase, split on non-alphanumeric, filter stop words and short tokens."""
-    tokens = re.findall(r"[a-z0-9]+", text.lower())
-    return [t for t in tokens if t not in _STOP_WORDS and len(t) > 1]
+    """Tokenize text: Latin words + CJK bigrams/chars."""
+    latin = re.findall(r"[a-z0-9]+", text.lower())
+    latin = [t for t in latin if t not in _STOP_WORDS and len(t) > 1]
+
+    cjk_chars = re.findall(f"[{_CJK_RANGES}]", text)
+    cjk_tokens = []
+    for ch in cjk_chars:
+        if ch not in _CJK_STOP:
+            cjk_tokens.append(ch)
+    for i in range(len(cjk_chars) - 1):
+        bigram = cjk_chars[i] + cjk_chars[i + 1]
+        cjk_tokens.append(bigram)
+
+    return latin + cjk_tokens
 
 
 class SemanticIndex:

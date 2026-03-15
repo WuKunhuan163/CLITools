@@ -2,18 +2,16 @@
 
 ## Overview
 
-Shared LLM provider infrastructure for all tools. Use the registry to
-get a provider, then call `send()` with an OpenAI-format messages array.
+Shared LLM provider infrastructure for all tools. **Import from `tool.LLM.interface.main`**, not from `logic.llm`.
 
 ## API
 
 ### Registry
 ```python
-from logic.llm.registry import get_provider, list_providers, get_default_provider
+from tool.LLM.interface.main import get_provider, list_providers
 
 providers = list_providers()
-provider = get_provider("nvidia-glm-4-7b")
-provider = get_default_provider()
+provider = get_provider("zhipu-glm-4.7")
 ```
 
 ### LLMProvider.send()
@@ -28,7 +26,7 @@ result = provider.send(
 
 ### SessionContext
 ```python
-from logic.llm.session_context import SessionContext
+from tool.LLM.interface.main import SessionContext
 
 ctx = SessionContext("system prompt", max_context_tokens=32000)
 ctx.add_user("question")
@@ -37,19 +35,11 @@ result = provider.send(msgs)
 ctx.add_assistant(result["text"])
 ```
 
-### RateLimiter
-```python
-from logic.llm.rate_limiter import RateLimiter
-
-rl = RateLimiter(rpm=30, min_interval_s=2.0, jitter_s=1.0)
-rl.wait()  # blocks until next request is permitted
-```
-
 ## Config
 
-API keys stored in `data/llm_config.json`:
+API keys stored in `tool/LLM/data/llm_config.json` (per-provider nested format):
 ```json
-{"nvidia_api_key": "nvapi-..."}
+{"providers": {"zhipu": {"api_key": "..."}, "nvidia": {"api_key": "..."}}}
 ```
 
-Also reads from `NVIDIA_API_KEY` environment variable.
+Also reads from `ZHIPU_API_KEY` / `NVIDIA_API_KEY` environment variables.

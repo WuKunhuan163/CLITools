@@ -10,10 +10,10 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.blueprint.base import ToolBase
+from interface.tool import ToolBase
 from interface.config import get_color
 
 
@@ -121,7 +121,7 @@ def main():
             # Without CDP: print workflow instructions for agent
             _cdp_ok = False
             try:
-                from logic.chrome.session import is_chrome_cdp_available
+                from interface.chrome import is_chrome_cdp_available
                 _cdp_ok = is_chrome_cdp_available()
             except Exception:
                 pass

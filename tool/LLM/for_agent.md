@@ -49,10 +49,10 @@ result = retry_on_transient(
 Start the live agent server with:
 
 ```bash
-LLM agent                            # Start with default provider
-LLM agent --provider nvidia-glm-4-7b # Specific provider
-LLM agent --tools                    # Enable tool calling
+LLM agent                            # Start with auto-detected provider
+LLM agent --tools                    # Enable tool calling (exec, search, etc.)
 LLM agent --port 8100 --no-open      # Custom port, no browser
+LLM agent --agent-provider zhipu-glm-4-flash  # Specific provider
 ```
 
 The live server provides:
@@ -60,28 +60,52 @@ The live server provides:
 - HTTP API for programmatic control (send messages, create sessions)
 - Auto-generated conversation titles on first message
 - `Ctrl+D` or `Enter` to send messages
-- Single-line input field
+- Single-line input field with overflow ellipsis
+
+### Tool Calling via exec
+
+When `--tools` is enabled, the agent can use the `exec` tool to call any
+installed CLI tool. The agent discovers tools via `TOOL --list` and reads
+their `for_agent.md` for usage. Example flow:
+
+```
+User: "帮我查找Bilibili播放量最大的10个视频"
+Agent calls: exec(command="BILIBILI trending --limit 10")
+→ Browser opens, navigates to Bilibili trending page, extracts video data
+→ Agent formats and presents results to user
+```
+
+The system prompt guides the agent to use exec for tool calls. Any tool
+in the `bin/` directory (BILIBILI, GOOGLE, GIT, etc.) can be called.
 
 ### Programmatic Control (MCP-compatible injection)
 
 ```python
 from tool.LLM.interface.main import start_agent_server
 
-agent = start_agent_server(port=8100)
+agent = start_agent_server(port=8100, enable_tools=True)
 
 # Inject text into input box (types character by character, then auto-sends)
 import requests
 requests.post(f"{agent.url}api/input", json={
     "session_id": agent.default_session_id,
-    "text": "Build a REST API with JWT auth"
+    "text": "帮我查找Bilibili播放量最大的10个视频"
 })
 
 # Or send directly (bypasses input box animation)
 requests.post(f"{agent.url}api/send", json={
     "session_id": agent.default_session_id,
-    "text": "Build a REST API with JWT auth"
+    "text": "帮我查找Bilibili播放量最大的10个视频"
 })
 ```
+
+### Agent Discovery Pattern
+
+A context-free agent discovers tools through this sequence:
+1. `exec(command="TOOL --list")` → discovers BILIBILI, GOOGLE, etc.
+2. `exec(command="cat tool/BILIBILI/for_agent.md")` → reads BILIBILI docs
+3. `exec(command="BILIBILI boot")` → starts browser session
+4. `exec(command="BILIBILI trending --limit 10")` → real browser automation
 
 ## Key Modules
 
@@ -171,6 +195,21 @@ When using the live GUI server, these API endpoints are available:
 - `POST /api/delete` — `{"session_id": "..."}` Delete session
 - `GET /api/sessions` — List all sessions
 - `GET /api/state` — Full state dump
+
+## Provider Reports
+
+When making improvements to provider behavior (prompt engineering, pipeline fixes,
+quality feedback mechanisms), document findings in:
+
+```
+tool/LLM/logic/providers/<model_name>/report/YYYY-MM-DD_topic.md
+```
+
+Follow the `development-report` skill for naming and content structure. Reports should
+include before/after metrics, root cause analysis, and lessons learned.
+
+Existing reports:
+- `providers/zhipu_glm4/report/2026-03-08_quality-feedback-loop.md` — Quality feedback loop infrastructure
 
 ## Dependencies
 

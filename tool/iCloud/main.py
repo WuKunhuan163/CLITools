@@ -27,7 +27,7 @@ except ImportError:
     # print("DEBUG: logic not found in sys.path")
     pass
 
-from logic.tool.blueprint.base import ToolBase
+from interface.tool import ToolBase
 from interface.config import get_color
 from interface.gui import get_safe_python_for_gui
 

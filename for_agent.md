@@ -51,9 +51,10 @@ tool/<NAME>/           # e.g., tool/iCloud/ or tool/iCloud.iCloudPD/
 
 ## 3. The Tool Blueprint (`ToolBase`)
 All tools inherit from `logic.tool.base.ToolBase`. Key features:
-- **`handle_command_line(parser, dev_handler, test_handler)`**: Standardizes argument processing. Handles `setup`, `install`, `uninstall`, `rule`, `config`, `skills`, `--dev`, `--test` commands automatically. Custom `dev_handler` and `test_handler` callbacks can extend the built-in developer commands.
+- **`handle_command_line(parser, dev_handler, test_handler)`**: Standardizes argument processing. Handles `setup`, `install`, `uninstall`, `rule`, `config`, `skills`, `--dev`, `--test`, `--agent`, `--ask`, `--plan` commands automatically. Custom `dev_handler` and `test_handler` callbacks can extend the built-in developer commands.
 - **`--dev` Support**: Every tool supports `TOOL_NAME --dev <command>`. Built-in commands: `sanity-check [--fix]`, `audit-test [--fix]`, `info`. Tools can pass a custom `dev_handler` to `handle_command_line()` for tool-specific dev commands.
 - **`--test` Support**: Every tool supports `TOOL_NAME --test [options]`. Runs the tool's unit tests with `--range`, `--max`, `--timeout`, `--list` options.
+- **`--agent`/`--ask`/`--plan` Support**: Every tool supports three agent modes. `--agent` (full), `--ask` (read-only), `--plan` (read-only + no scripts). See Agent Mode section below.
 - **Help Support**: Every tool MUST support `-h` and `--help`.
 - **Python Runtime**: If `PYTHON` is a dependency, ToolBase ensures the isolated Python environment is used.
 - **System Fallback**: Unrecognized commands delegate to system equivalents (e.g., `GIT` → `/usr/bin/git`).
@@ -98,6 +99,87 @@ Testing commands (both styles supported):
 - **`TOOL_NAME --test --list`**: List available tests.
 - **`TOOL_NAME --test --range 0 5`**: Run specific test range.
 
+## Agent Mode
+
+Every tool supports three interaction modes, mirroring AI IDE patterns:
+
+| Flag | Mode | Capabilities |
+|------|------|-------------|
+| `--agent` | Agent | Full access: read, write, exec, edit |
+| `--ask` | Ask | Read-only: read_file, search, read-only exec (ls, cat, grep, git log) |
+| `--plan` | Plan | Read-only + no scripts: same as Ask but exec blocks script execution entirely |
+
+```bash
+# Agent mode — full capabilities
+TOOL_NAME --agent prompt "Build a feature that..."
+TOOL_NAME --agent feed <SESSION_ID> "Now add tests for it"
+
+# Ask mode — read-only exploration
+TOOL_NAME --ask prompt "How does the search function work?"
+
+# Plan mode — read-only analysis and design
+TOOL_NAME --plan prompt "Design an approach for adding caching"
+
+# Shared subcommands
+TOOL_NAME --agent status [SESSION_ID]
+TOOL_NAME --agent sessions
+TOOL_NAME --agent setup
+```
+
+### Session Management (`--session`)
+
+`--session` is the unified session interface. `--agent`, `--ask`, `--plan` are shortcuts:
+
+```bash
+# Equivalent pairs:
+TOOL_NAME --session agent prompt "..."    ≡  TOOL_NAME --agent prompt "..."
+TOOL_NAME --session ask prompt "..."      ≡  TOOL_NAME --ask prompt "..."
+TOOL_NAME --session plan prompt "..."     ≡  TOOL_NAME --plan prompt "..."
+
+# Session checkout — switch active session or create new
+TOOL_NAME --session checkout              # Create new session
+TOOL_NAME --session checkout <SID>        # Switch to existing session
+```
+
+Agent infrastructure lives in `logic/agent/` (core) and `interface/agent.py` (facade). Each tool can extend agent behavior via `tool/<NAME>/logic/agent/`. Three assistance tiers: 0 (minimal, for AI IDEs), 1 (standard), 2 (full with nudges and quality checks).
+
+Default LLM provider: `zhipu-glm-4.7` (GLM-4.7 via Zhipu AI). Configure via `--agent setup`.
+
+### Read-Only Sandbox
+
+Ask and Plan modes enforce a read-only sandbox at the tool handler level:
+- `write_file` and `edit_file` are removed from the tool definitions entirely
+- `exec` only allows read-only commands; write/modify commands are blocked
+- Plan mode additionally blocks all script execution (python3 script.py, etc.)
+- The sandbox is enforced in `logic/agent/tools.py` via `_is_readonly_safe()` and `_is_plan_safe()`
+
+Session IDs use the format `YYYYMMDD-HHMMSS-<6hex>` for chronological sorting.
+
+### USERINPUT Feedback Loop
+
+When calling USERINPUT, **never** set `--timeout` below the default (300s). See the `userinput-feedback-loop` skill for details.
+
+**IMPORTANT for skills discoverability**: If a user asks you to locate a skill and you cannot find it, you should create a new skill and adjust relevant README.md / for_agent.md files to improve discoverability for future agents.
+
+### Brain Types & Memory
+
+Agents accumulate experience via "brain types" — named collections of personality, memory, and user context stored in `experience/<brain_type>/`:
+
+```
+experience/default/
+    SOUL.md        — Agent personality, communication style, values
+    IDENTITY.md    — Agent name, role, goals
+    USER.md        — User preferences
+    MEMORY.md      — Long-term persistent facts
+    daily/         — Daily working logs (YYYY-MM-DD.md)
+```
+
+Manage brains: `TOOL_NAME --agent brain [list|init <name>|show <name>]`
+
+In Tier 2, bootstrap files are injected into the system prompt automatically. Memory tools (`write_memory`, `write_daily`, `recall_memory`) are available in agent mode for persistent knowledge.
+
+Session export/import enables knowledge transfer: `--agent export <SID>` creates a portable `.tar.gz`, and `--agent import <archive> [brain_type]` restores it.
+
 ## 4. Progress Display Patterns
 
 Run `SKILLS show turing-machine-development` for comprehensive guidance on the Turing Machine system.
@@ -132,8 +214,8 @@ As an AI agent, you MUST follow these operational rules:
 - **Avoid Background Tests**: Never execute `TOOL test PYTHON` (or other core tests) in the background. Background execution of complex test suites can cause agent calling loops and system instability. Always ask the user to run tests if needed.
 - **Branch Management**: `TOOL test` automatically records your current branch and restores it after tests finish, even if tests fail. This prevents you from accidentally remaining on the `test` branch after a failure. ALWAYS verify your current branch with `git branch` before committing, especially after running sync or test commands.
 - **Binary Files**: If you must track binary files (like in `tool/PYTHON/data/install/`), ensure they are marked as `binary` in `.gitattributes` to prevent corruption by line-ending conversion.
-- **Shadowing**: When developing tools, use the Universal Path Resolver (`from logic.resolve import setup_paths; setup_paths(__file__)`) to ensure the project root is at `sys.path[0]`. This prevents a tool's local `logic/` from shadowing the root `logic/`.
-- **Import facade**: Tools MUST import from `interface.*`, not `logic.*`. See Section 1 and `interface/for_agent.md`.
+- **Shadowing**: When developing tools, use the Universal Path Resolver (`from interface.resolve import setup_paths; setup_paths(__file__)`) to ensure the project root is at `sys.path[0]`. This prevents a tool's local `logic/` from shadowing the root `logic/`.
+- **Import facade**: All code outside `logic/` and `interface/` MUST import from `interface.*`, never from `logic.*` directly. This includes `main.py`, `setup.py`, hooks, and tests. Only code inside `logic/` may call other `logic/` modules. Run `TOOL --audit imports` to check compliance. See the `code-quality-review` skill for the full rule set (IMP001-IMP005).
 - **`.gitignore` is auto-generated**: Never edit `.gitignore` directly. Modify `GitIgnoreManager.base_patterns` in `logic/git/manager.py` instead. See Section 9.
 - **TM hygiene**: Never use `print()` inside a `TuringStage` action. Use `stage.refresh()` if you need live updates, or rely on the stage success/fail messages. Inner prints break the erasable line tracking.
 - **Keyboard Cancellation**: When a user cancels an operation (Ctrl+C or USERINPUT Cancel button), the system prints a red bold "**Operation cancelled** by user." message, ensures keyboard suppression is released, and exits with code 130 (POSIX SIGINT convention). USERINPUT's Cancel button produces the same exit code 130, so the Turing Machine's `INTERRUPTED` state handles both uniformly.
@@ -153,23 +235,23 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 ```
 
 **In modules already managed by ToolBase** (sys.path is already set):
 ```python
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 ROOT = setup_paths(__file__)
 ```
 
 The resolver ensures the project root is at `sys.path[0]` and removes conflicting entries (like a tool's own directory). This prevents the `logic/tool/` package from shadowing the top-level `tool/` package.
 
 ### Cross-Tool Imports
-Tools within the `tool/GOOGLE/` package can be imported directly:
+Cross-tool imports use the interface layer:
 ```python
-from tool.GOOGLE.logic.chrome.session import CDPSession, CDP_PORT
-from tool.GOOGLE.logic.chrome.colab import inject_and_execute
+from interface.chrome import CDPSession, CDP_PORT
+from tool.GOOGLE.interface.main import inject_and_execute
 ```
 
 Tools with dots in their name (e.g., `GOOGLE.GCS`, `GOOGLE.GD`) cannot be imported as Python packages. Use their `interface/main.py` for the public API, or import from the parent tool's modules.
@@ -450,6 +532,7 @@ Agent self-improvement loop (inspired by OpenClaw). Brain data in `runtime/exper
 - `turing-machine-development`: Progress display system.
 - `tool-interface`: Cross-tool `interface/` communication pattern.
 - `setup-tutorial-creation`: Interactive setup wizards.
+- `development-report`: Naming and content structure for `tool/<NAME>/data/report/` reports.
 - `openclaw`: Self-improvement loop with lesson capture and enforcement hooks.
 - `development-report`: Writing detailed reports in `data/report/`.
 - `avoid-duplicate-implementations`: Detecting and eliminating duplicate code.
@@ -470,8 +553,8 @@ For full guidance, read `SKILLS show mcp-development` and `SKILLS show cdmcp-web
 
 ### Session Boot Pattern
 ```python
-from logic.cdmcp_loader import load_cdmcp_sessions
-from logic.chrome.session import CDPSession
+from interface.cdmcp import load_cdmcp_sessions
+from interface.chrome import CDPSession
 sm = load_cdmcp_sessions()
 boot_result = sm.boot_tool_session(session_name, timeout_sec=86400, port=9222)
 session = boot_result["session"]

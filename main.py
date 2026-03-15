@@ -18,10 +18,10 @@ else:
 if str(ROOT_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT_PROJECT_ROOT))
 
-# Import colors and shared utils from logic
-from logic.config import get_color, get_setting, get_global_config
-from logic.lang.utils import get_translation
-from logic.utils import get_logic_dir, set_rtl_mode
+# Import colors and shared utils via interface
+from interface.config import get_color, get_setting, get_global_config
+from interface.lang import get_translation
+from interface.utils import get_logic_dir, set_rtl_mode
 
 RESET = get_color("RESET", "\033[0m")
 GREEN = get_color("GREEN", "\033[32m")
@@ -40,28 +40,28 @@ def _(translation_key, default, **kwargs):
 
 # --- Lifecycle Commands ---
 def install_tool(tool_name):
-    from logic.lifecycle import install_tool as _install
+    from interface.lifecycle import install_tool as _install
     return _install(tool_name, ROOT_PROJECT_ROOT)
 
 def reinstall_tool(tool_name):
-    from logic.lifecycle import reinstall_tool as _reinstall
+    from interface.lifecycle import reinstall_tool as _reinstall
     return _reinstall(tool_name, ROOT_PROJECT_ROOT)
 
 def uninstall_tool(tool_name, force_yes=False):
-    from logic.lifecycle import uninstall_tool as _uninstall
+    from interface.lifecycle import uninstall_tool as _uninstall
     return _uninstall(tool_name, ROOT_PROJECT_ROOT, force_yes=force_yes, translation_func=_)
 
 def _list_tools(force=False):
-    from logic.lifecycle import list_tools
+    from interface.lifecycle import list_tools
     list_tools(ROOT_PROJECT_ROOT, force=force, translation_func=_)
 
 # --- Config Commands ---
 def _print_width_check(width, is_auto=False, actual_detected=True):
-    from logic.config.manager import print_width_check
+    from interface.config import print_width_check
     print_width_check(width, is_auto=is_auto, actual_detected=actual_detected, project_root=ROOT_PROJECT_ROOT, translation_func=_)
 
 def update_config(key, value):
-    from logic.config.main import set_global_config
+    from interface.config import set_global_config
     if key == "language":
         lang = value.lower()
         if lang != "en":
@@ -178,66 +178,66 @@ def _show_status():
 
 # --- Dev Commands ---
 def _dev_sync(quiet=False):
-    from logic.dev.commands import dev_sync
+    from interface.dev import dev_sync
     return dev_sync(ROOT_PROJECT_ROOT, quiet=quiet, translation_func=_)
 
 def _dev_reset():
-    from logic.dev.commands import dev_reset
+    from interface.dev import dev_reset
     dev_reset(ROOT_PROJECT_ROOT, SHARED_LOGIC_DIR, translation_func=_)
 
 def _dev_enter(branch, force=False):
-    from logic.dev.commands import dev_enter
+    from interface.dev import dev_enter
     dev_enter(branch, ROOT_PROJECT_ROOT, force=force, translation_func=_)
 
 def _dev_create(tool_name):
-    from logic.dev.commands import dev_create
+    from interface.dev import dev_create
     dev_create(tool_name, ROOT_PROJECT_ROOT, translation_func=_)
 
 def _dev_sanity_check(tool_name, fix=False):
-    from logic.dev.commands import dev_sanity_check
+    from interface.dev import dev_sanity_check
     return dev_sanity_check(tool_name, ROOT_PROJECT_ROOT, fix=fix, translation_func=_)
 
 def _dev_audit_test(tool_name, fix=False):
-    from logic.dev.commands import dev_audit_test
+    from interface.dev import dev_audit_test
     return dev_audit_test(tool_name, ROOT_PROJECT_ROOT, fix=fix)
 
 def _dev_audit_bin(fix=False):
-    from logic.dev.commands import dev_audit_bin
+    from interface.dev import dev_audit_bin
     return dev_audit_bin(ROOT_PROJECT_ROOT, fix=fix)
 
 def _dev_migrate_bin():
-    from logic.dev.commands import dev_migrate_bin
+    from interface.dev import dev_migrate_bin
     return dev_migrate_bin(ROOT_PROJECT_ROOT)
 
 def _dev_audit_archived():
-    from logic.dev.commands import dev_audit_archived
+    from interface.dev import dev_audit_archived
     return dev_audit_archived(ROOT_PROJECT_ROOT)
 
 # --- Test Commands ---
 def _test_tool_with_args(args):
-    from logic.test.manager import test_tool_with_args
+    from interface.test import test_tool_with_args
     test_tool_with_args(args, ROOT_PROJECT_ROOT, translation_func=_)
 
 # --- Lang Commands ---
 def _audit_lang(lang_code, force=False, turing=False):
-    from logic.lang.commands import audit_lang
+    from interface.lang import audit_lang
     audit_lang(lang_code, ROOT_PROJECT_ROOT, force=force, turing=turing, translation_func=_)
 
 def _list_languages():
-    from logic.lang.commands import list_languages
+    from interface.lang import list_languages
     list_languages(ROOT_PROJECT_ROOT, translation_func=_)
 
 # --- Rule Commands ---
 def _show_rule():
-    from logic.config.rule.manager import generate_ai_rule
+    from interface.config import generate_ai_rule
     generate_ai_rule(ROOT_PROJECT_ROOT)
 
 def _inject_rule():
-    from logic.config.rule.manager import inject_rule
+    from interface.config import inject_rule
     inject_rule(ROOT_PROJECT_ROOT)
 
 def _generate_ai_rule(name, description, globs, always_apply):
-    from logic.config.rule.manager import generate_ai_rule
+    from interface.config import generate_ai_rule
     generate_ai_rule(name, description, globs, always_apply, ROOT_PROJECT_ROOT)
 
 def _tool_dev_handler(dev_args):
@@ -280,19 +280,19 @@ def _tool_dev_handler(dev_args):
     elif subcmd == "migrate-bin":
         _dev_migrate_bin()
     elif subcmd == "install-hooks":
-        from logic.git.hooks import install_hooks
+        from interface.git import install_hooks
         if install_hooks(ROOT_PROJECT_ROOT):
             print(f"  {BOLD}{GREEN}Installed{RESET} post-checkout hook.")
         else:
             print(f"  {BOLD}{YELLOW}Skipped{RESET}: hook already exists or .git not found.")
     elif subcmd == "uninstall-hooks":
-        from logic.git.hooks import uninstall_hooks
+        from interface.git import uninstall_hooks
         if uninstall_hooks(ROOT_PROJECT_ROOT):
             print(f"  {BOLD}{GREEN}Removed{RESET} post-checkout hook.")
         else:
             print(f"  {BOLD}{YELLOW}Skipped{RESET}: no AITerminalTools hook found.")
     elif subcmd == "locker":
-        from logic.git.persistence import get_persistence_manager
+        from interface.git import get_persistence_manager
         pm = get_persistence_manager(ROOT_PROJECT_ROOT)
         lockers = pm.list_lockers()
         if not lockers:
@@ -406,6 +406,7 @@ def _tool_audit_handler(audit_args):
     ip.add_argument("--tool", help="Audit specific tool only")
     ip.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
     ip.add_argument("--exclude", help="Comma-separated tool names to skip")
+    ip.add_argument("--docs", action="store_true", help="Also audit documentation files")
     qp = audit_sub.add_parser("quality", help="Audit hooks, interfaces, and skills")
     qp.add_argument("--tool", help="Audit specific tool only")
     qp.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
@@ -419,21 +420,28 @@ def _tool_audit_handler(audit_args):
     root = Path(__file__).resolve().parent
 
     if parsed.audit_command == "imports":
-        from logic.lang.audit_imports import audit_all_tools, audit_tool, format_report, to_json
+        from interface.audit import (
+            audit_imports_all, audit_imports_tool, audit_imports_docs,
+            format_imports_report, imports_to_json,
+        )
         exclude = [x.strip() for x in (parsed.exclude or "").split(",") if x.strip()]
         if parsed.tool:
             tool_dir = root / "tool" / parsed.tool
             if not tool_dir.exists():
                 print(f"Tool not found: {parsed.tool}")
             else:
-                issues = audit_tool(tool_dir, root)
+                issues = audit_imports_tool(tool_dir, root)
                 results = {parsed.tool: issues} if issues else {}
-                print(to_json(results) if parsed.as_json else format_report(results))
+                print(imports_to_json(results) if parsed.as_json else format_imports_report(results))
         else:
-            results = audit_all_tools(root, exclude=exclude or ["GOOGLE.CDMCP"])
-            print(to_json(results) if parsed.as_json else format_report(results))
+            results = audit_imports_all(root, exclude=exclude or ["GOOGLE.CDMCP"])
+            if getattr(parsed, "docs", False):
+                doc_issues = audit_imports_docs(root)
+                if doc_issues:
+                    results["__docs__"] = doc_issues
+            print(imports_to_json(results) if parsed.as_json else format_imports_report(results))
     elif parsed.audit_command == "quality":
-        from logic.audit.hooks import (
+        from interface.audit import (
             audit_all_quality, audit_tool_quality, audit_skills,
             format_quality_report, quality_to_json,
         )
@@ -453,7 +461,7 @@ def _tool_audit_handler(audit_args):
             print(quality_to_json(results, skills_issues) if parsed.as_json
                   else format_quality_report(results, skills_issues))
     elif parsed.audit_command == "code":
-        from logic.audit.code_quality import run_full_audit, print_report
+        from interface.audit import run_full_audit, print_report
         targets = parsed.targets or None
         report = run_full_audit(targets=targets, auto_fix=parsed.fix)
         print_report(report)
@@ -514,6 +522,10 @@ def _tool_search_handler(search_args):
     tp.add_argument("query", nargs="+", help="Search query")
     tp.add_argument("-n", "--top", type=int, default=5, help="Max results")
 
+    dp = sub.add_parser("tools-deep", help="Search tools at section/command level")
+    dp.add_argument("query", nargs="+", help="Search query")
+    dp.add_argument("-n", "--top", type=int, default=10, help="Max results")
+
     ip = sub.add_parser("interfaces", help="Search tool interfaces")
     ip.add_argument("query", nargs="+", help="Search query")
     ip.add_argument("-n", "--top", type=int, default=5, help="Max results")
@@ -528,13 +540,15 @@ def _tool_search_handler(search_args):
         sp.print_help()
         return
 
-    from logic.search.tools import search_tools, search_interfaces, search_skills
+    from interface.search import search_tools, search_interfaces, search_skills, search_tools_deep
 
     query = " ".join(parsed.query)
     top_k = parsed.top
 
     if parsed.search_target == "tools":
         results = search_tools(ROOT_PROJECT_ROOT, query, top_k=top_k)
+    elif parsed.search_target == "tools-deep":
+        results = search_tools_deep(ROOT_PROJECT_ROOT, query, top_k=top_k)
     elif parsed.search_target == "interfaces":
         results = search_interfaces(ROOT_PROJECT_ROOT, query, top_k=top_k)
     elif parsed.search_target == "skills":
@@ -565,6 +579,25 @@ def _tool_search_handler(search_args):
             if desc:
                 print(f"     {desc}")
             print(f"     {DIM}{meta.get('path', '')}{RESET}")
+        elif rtype == "section":
+            tool_name = meta.get("tool", "?")
+            heading = meta.get("heading", "")
+            preview = meta.get("preview", "")[:100]
+            src = meta.get("source", "")
+            file_path = meta.get("path", "")
+            print(f"  {BOLD}{i}. {tool_name}{RESET} > {heading} ({score_pct}%) [{src}]")
+            if preview:
+                print(f"     {DIM}{preview}{RESET}")
+            if file_path:
+                print(f"     {DIM}-> {file_path}{RESET}")
+        elif rtype == "command":
+            tool_name = meta.get("tool", "?")
+            cmd = meta.get("command", "")
+            file_path = meta.get("path", "")
+            print(f"  {BOLD}{i}. {tool_name}{RESET} ({score_pct}%)")
+            print(f"     {DIM}$ {cmd}{RESET}")
+            if file_path:
+                print(f"     {DIM}-> {file_path}{RESET}")
         elif rtype == "interface":
             print(f"  {BOLD}{i}. {r['id']}{RESET} interface ({score_pct}%)")
             print(f"     {DIM}{meta.get('path', '')}{RESET}")
@@ -634,7 +667,7 @@ def main():
         return
 
     user_cmd = stripped_argv[0]
-    from logic.utils.fuzzy import suggest_commands
+    from interface.utils import suggest_commands
     flags = list(_TOOL_FLAG_HANDLERS.keys())
     bare_names = [f.lstrip("-") for f in flags]
     candidates = flags + bare_names
@@ -644,7 +677,7 @@ def main():
         canon = f"--{m}" if not m.startswith("-") else m
         if canon not in normalized:
             normalized.append(canon)
-    from logic.config import get_color
+    from interface.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
     DIM = get_color("DIM", "\033[2m")
     RESET = get_color("RESET", "\033[0m")

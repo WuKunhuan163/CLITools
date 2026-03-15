@@ -12,9 +12,9 @@ project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from logic.turing.models.progress import ProgressTuringMachine
-from logic.turing.logic import TuringStage
-from logic.turing.terminal.keyboard import get_global_suppressor
+from interface.turing import ProgressTuringMachine
+from interface.turing import TuringStage
+from interface.turing import get_global_suppressor
 
 def test_keyboard_suppression_release():
     """

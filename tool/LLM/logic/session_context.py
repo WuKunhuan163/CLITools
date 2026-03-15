@@ -42,6 +42,11 @@ class SessionContext:
         self._messages.append({"role": role, "content": content})
         self._trim()
 
+    def add_raw_message(self, message: Dict[str, Any]):
+        """Add a pre-structured message dict (e.g. assistant with tool_calls, or tool result)."""
+        self._messages.append(message)
+        self._trim()
+
     def get_messages_for_api(self) -> List[Dict[str, str]]:
         """Return the current messages array for sending to the API."""
         return list(self._messages)
@@ -49,7 +54,11 @@ class SessionContext:
     def _estimate_tokens(self) -> int:
         total = 0
         for m in self._messages:
-            total += len(m.get("content", "")) // APPROX_CHARS_PER_TOKEN + 4
+            content = m.get("content") or ""
+            total += len(content) // APPROX_CHARS_PER_TOKEN + 4
+            if "tool_calls" in m:
+                import json
+                total += len(json.dumps(m["tool_calls"])) // APPROX_CHARS_PER_TOKEN
         return total
 
     def _trim(self):

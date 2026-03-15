@@ -5,8 +5,8 @@ import stat
 import json
 import subprocess
 from pathlib import Path
-from logic.turing.models.progress import ProgressTuringMachine
-from logic.turing.logic import TuringStage
+from interface.turing import ProgressTuringMachine
+from interface.turing import TuringStage
 
 # Colors
 BOLD = "\033[1m"
@@ -79,10 +79,10 @@ def setup_keyboard_access_action(stage=None):
     if platform.system() != "Darwin":
         return True
     try:
-        from logic.accessibility.keyboard.monitor import check_accessibility_trusted
+        from interface.accessibility import check_accessibility_trusted
         if check_accessibility_trusted():
             return True
-        from logic.accessibility.keyboard.monitor import request_accessibility_permission
+        from interface.accessibility import request_accessibility_permission
         request_accessibility_permission()
         return True
     except Exception:
@@ -100,7 +100,7 @@ def install_core_tools_action(stage=None):
         
         tool_deps = registry.get("tool_dependencies", [])
         if tool_deps:
-            from logic.setup.engine import ToolEngine
+            from interface.tool import ToolEngine
             for tool_name in tool_deps:
                 engine = ToolEngine(tool_name, project_root)
                 if not engine.is_installed():
@@ -246,7 +246,7 @@ def setup():
 
     final_msg = f"setup AITerminalTools"
     if pm.run(ephemeral=True, final_msg=""):
-        from logic.utils import print_success_status
+        from interface.utils import print_success_status
         print_success_status(final_msg)
 
 if __name__ == "__main__":

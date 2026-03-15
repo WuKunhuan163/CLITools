@@ -17,7 +17,7 @@ if str(project_root) in sys.path:
     sys.path.remove(str(project_root))
 sys.path.insert(0, str(project_root))
 
-from logic.tool.blueprint.base import ToolBase
+from interface.tool import ToolBase
 from tool.GIT.logic.engine import GitEngine
 from interface.config import get_color
 

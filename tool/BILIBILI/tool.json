@@ -1,8 +1,8 @@
 {
   "name": "BILIBILI",
   "version": "1.0.0",
-  "description": "Template tool BILIBILI",
-  "purpose": "Showcase tool development guidelines",
+  "description": "Bilibili video platform automation via browser (CDMCP)",
+  "purpose": "Search, browse, and interact with Bilibili videos, live streams, and content via automated browser control.",
   "dependencies": [
     "PYTHON",
     "GOOGLE.CDMCP"

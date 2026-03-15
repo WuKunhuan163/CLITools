@@ -26,7 +26,7 @@ class OpenClawChatHTML:
         """Create the appropriate pipeline based on backend selection."""
         if self.backend in ("nvidia-glm-4-7b", "nvidia_glm47"):
             from tool.OPENCLAW.logic.pipeline_api import APIPipeline
-            from tool.LLM.logic.providers.nvidia_glm47 import NvidiaGLM47Provider
+            from tool.LLM.interface.main import NvidiaGLM47Provider
             provider = NvidiaGLM47Provider()
             return APIPipeline(
                 session_mgr=self.session_mgr,

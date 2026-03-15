@@ -22,11 +22,11 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.blueprint.base import ToolBase
-from logic.config import get_color
+from interface.tool import ToolBase
+from interface.config import get_color
 
 
 def cmd_setup(args):
@@ -43,7 +43,7 @@ def cmd_setup(args):
         print(f"  Get your free API key from: https://build.nvidia.com/z-ai/glm4_7")
         print()
 
-        from tool.LLM.logic.providers.nvidia_glm47 import get_api_key, save_api_key
+        from tool.LLM.logic.providers.nvidia_glm47.interface import get_api_key, save_api_key
 
         current = get_api_key()
         if current:
@@ -301,7 +301,7 @@ def cmd_agent(args):
     else:
         from tool.LLM.logic.registry import list_providers
         available = [p["name"] for p in list_providers() if p.get("available")]
-        provider_name = available[0] if available else getattr(args, "provider", "zhipu-glm-4-flash")
+        provider_name = available[0] if available else getattr(args, "provider", "zhipu-glm-4.7")
 
     port = getattr(args, "port", 0) or 0
     no_open = getattr(args, "no_open", False)

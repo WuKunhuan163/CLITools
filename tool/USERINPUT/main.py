@@ -42,7 +42,7 @@ current_dir = Path(__file__).resolve().parent
 
 try:
     # Root logic imports
-    from logic.tool.blueprint.base import ToolBase
+    from interface.tool import ToolBase
     from interface.gui import setup_gui_environment, get_safe_python_for_gui, is_sandboxed, get_sandbox_type
     from interface.lang import get_translation
     from interface.utils import get_logic_dir, cleanup_old_files
@@ -455,8 +455,20 @@ if __name__ == "__main__":
         tmp.write(tkinter_script)
         tmp_path = tmp.name
 
+    _dbg_log_path = Path(project_root) / "tmp" / "userinput_timing.log"
+    def _dbg_inner(msg):
+        try:
+            ts = time.strftime("%H:%M:%S")
+            ms = int((time.time() % 1) * 1000)
+            with open(_dbg_log_path, "a") as f:
+                f.write(f"[{ts}.{ms:03d}]   tkinter: {msg}\n")
+        except Exception:
+            pass
+
+    _dbg_inner("run_gui_with_fallback BEGIN")
     try:
         res = tool.run_gui_with_fallback(python_exe, tmp_path, timeout, custom_id, hint=hint_text)
+        _dbg_inner(f"run_gui_with_fallback END status={res.get('status')}")
         
         if res.get("status") == "success":
             if res.get("data") == 'USER_SUBMITTED_EMPTY':
@@ -1089,23 +1101,45 @@ def main():
             return _output_result(queued, tool, BOLD, GREEN, RED, YELLOW, RESET, from_queue=True, queue_remaining=remaining)
 
     hint_text = args.hint
+    _fallback_file = None
+
+    _dbg_log = tool.project_root / "tmp" / "userinput_timing.log"
+    def _dbg(msg):
+        try:
+            ts = time.strftime("%H:%M:%S")
+            ms = int((time.time() % 1) * 1000)
+            with open(_dbg_log, "a") as f:
+                f.write(f"[{ts}.{ms:03d}] {msg}\n")
+        except Exception:
+            pass
+
+    _dbg("=== USERINPUT main() start ===")
 
     # Fire on_interaction_start hooks (includes auto-save-remote if enabled)
+    _dbg("fire_hook(on_interaction_start) BEGIN")
     try:
         tool.fire_hook("on_interaction_start", hint=hint_text or "", mode="gui")
     except Exception:
         pass
+    _dbg("fire_hook(on_interaction_start) END")
 
-    _fallback_file = None
-
-    # Bridge the gap between hooks finishing and GUI appearing
+    # Bridge gap: show Turing stage while GUI subprocess starts
+    _dbg("gui_launch Turing stage BEGIN")
     try:
-        from logic.turing.status import fmt_status
-        sys.stdout.write(f"\r\033[K{fmt_status(get_msg('label_launching_gui', 'Launching input GUI'), indent=0)}")
-        sys.stdout.flush()
+        from interface.turing import TuringStage
+        _gui_stage = TuringStage(
+            "gui_launch", lambda stage=None: True,
+            active_status=get_msg("label_launching_gui", "Launching input GUI"),
+            active_name="",
+            bold_part=get_msg("label_launching_gui", "Launching input GUI"),
+        )
+        pm_gui = tool.create_progress_machine([_gui_stage])
+        pm_gui.run(ephemeral=True, final_newline=False, final_msg="")
     except Exception:
         pass
+    _dbg("gui_launch Turing stage END")
 
+    _dbg("get_user_input_tkinter retry loop BEGIN")
     for attempt in range(3):
         try:
             if attempt > 0 and _fallback_file and Path(_fallback_file).exists():

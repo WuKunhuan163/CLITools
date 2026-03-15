@@ -6,7 +6,7 @@ kwargs:
     tool: ToolBase instance
     reason: str ("closed" | "cancelled" | "escaped")
 """
-from logic.hooks.engine import HookInterface
+from interface.hooks import HookInterface
 
 
 class OnUserCancel(HookInterface):

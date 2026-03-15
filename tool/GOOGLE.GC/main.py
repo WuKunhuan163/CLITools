@@ -10,10 +10,10 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.blueprint.mcp import MCPToolBase
+from interface.tool import MCPToolBase
 from interface.config import get_color
 
 
@@ -96,7 +96,7 @@ class GCTool(MCPToolBase):
 
     def _collect_mcp_state(self, session=None, tab_label: str = ""):
         """Collect Google Colab notebook state via CDP."""
-        from logic.chrome.session import CDPSession, is_chrome_cdp_available
+        from interface.chrome import CDPSession, is_chrome_cdp_available
         import json as _json
 
         state = {
@@ -236,7 +236,7 @@ def _run_cell_action(tool, args):
     Uses CDMCP session.require_tab() for tab lifecycle management:
     if the Colab tab is missing, CDMCP auto-opens it in the session window.
     """
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     getattr(args, "cell_action", None) or "add"
     cell_text = getattr(args, "text", "") or ""
@@ -324,7 +324,7 @@ def _run_cell_edit(tool, args):
       --line N --insert T  Insert text at end of line N
       --line N --col C --insert T  Insert text at line N, column C
     """
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     cell_idx = getattr(args, "index", 0)
     do_clear = getattr(args, "clear", False)
@@ -406,7 +406,7 @@ def _run_cell_edit(tool, args):
             if ov:
                 ov.set_lock_passthrough(cdp, True)
 
-            from logic.chrome.session import insert_text as _insert_text, dispatch_key as _dispatch_key
+            from interface.chrome import insert_text as _insert_text, dispatch_key as _dispatch_key
             char_delay = max(0.01, min(0.04, 2.0 / max(len(type_text), 1)))
             for ch in type_text:
                 if ch == "\n":
@@ -558,7 +558,7 @@ def _run_cell_edit(tool, args):
 
 def _run_cell_execute(tool, args):
     """Handle 'GOOGLE.GC cell run' — click the run button and wait for completion."""
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     cell_idx = getattr(args, "index", 0)
     max_wait = getattr(args, "wait", 120)
@@ -689,13 +689,13 @@ def _colab_connect_stages():
            "session": None}
 
     def stage_connect(stage=None):
-        from logic.chrome.session import is_chrome_cdp_available, list_tabs as _list_tabs
+        from interface.chrome import is_chrome_cdp_available, list_tabs as _list_tabs
         if not is_chrome_cdp_available():
             if stage:
                 stage.error_brief = "Chrome CDP not available."
             return False
         try:
-            from logic.cdmcp_loader import (
+            from interface.cdmcp import (
                 load_cdmcp_overlay, load_cdmcp_interact, load_cdmcp_sessions,
             )
             ctx["overlay"] = load_cdmcp_overlay()
@@ -720,7 +720,7 @@ def _colab_connect_stages():
         return True
 
     def stage_find_tab(stage=None):
-        from logic.chrome.session import CDPSession
+        from interface.chrome import CDPSession
         session = ctx["session"]
         sm = ctx["session_mgr"]
         ov = ctx["overlay"]
@@ -778,7 +778,7 @@ def _colab_connect_stages():
 def _run_cell_delete(tool, args):
     """Handle 'GOOGLE.GC cell delete --index N'."""
     import time
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     cell_idx = getattr(args, "index", -1)
     ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
@@ -845,7 +845,7 @@ def _run_cell_delete(tool, args):
 def _run_cell_move(tool, args):
     """Handle 'GOOGLE.GC cell move --index N --direction up/down'."""
     import time
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     cell_idx = getattr(args, "index", 0)
     direction = getattr(args, "direction", "up")
@@ -921,7 +921,7 @@ def _run_cell_move(tool, args):
 def _run_runtime_action(tool, args):
     """Handle 'GOOGLE.GC runtime <action>' — run-all, interrupt, restart."""
     import time
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     action = getattr(args, "rt_action", None) or "run-all"
     ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
@@ -1008,7 +1008,7 @@ def _run_runtime_action(tool, args):
 def _run_notebook_action(tool, args):
     """Handle 'GOOGLE.GC notebook <action>' — save, clear-outputs."""
     import time
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     action = getattr(args, "nb_action", None) or "save"
     ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
@@ -1189,7 +1189,7 @@ def _focus_and_hover_cell(cdp, cell_idx: int):
     Returns True if the toolbar appeared on the target cell.
     """
     import time, json as _json
-    from logic.chrome.session import real_click
+    from interface.chrome import real_click
 
     cdp.evaluate(
         f"(function(){{ var c = colab.global.notebook.cells;"
@@ -1294,7 +1294,7 @@ def _click_cell_more_menu_item(cdp, menu_text: str, cell_idx: int = -1):
     )
     result = cdp.evaluate(click_js)
     if result == "no_item":
-        from logic.chrome.session import dispatch_key
+        from interface.chrome import dispatch_key
         dispatch_key(cdp, "Escape")
         return "no_item"
 
@@ -1305,7 +1305,7 @@ def _click_cell_more_menu_item(cdp, menu_text: str, cell_idx: int = -1):
 def _run_cell_focus(tool, args):
     """Handle 'GOOGLE.GC cell focus --index N [--toolbar-click BUTTON] [--menu-click ITEM]'."""
     import time
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     cell_idx = getattr(args, "index", 0)
     tb_click = getattr(args, "toolbar_click", "")
@@ -1448,7 +1448,7 @@ def _run_cell_focus(tool, args):
 def _run_toolbar_action(tool, args):
     """Handle 'GOOGLE.GC toolbar <button>'."""
     import time
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     button_name = getattr(args, "button", "")
     btn_info = _TOOLBAR_BUTTONS.get(button_name, {})
@@ -1477,7 +1477,7 @@ def _run_toolbar_action(tool, args):
                     stage.error_brief = f"Button '{button_name}' not found in shadow DOM."
                 return False
             import json as _json
-            from logic.chrome.session import real_click
+            from interface.chrome import real_click
             coords = _json.loads(coords_raw)
             if ov:
                 ov.inject_highlight(cdp, sel, label=btn_info["label"], color="#1a73e8")
@@ -1524,7 +1524,7 @@ def _run_toolbar_action(tool, args):
 def _run_menu_action(tool, args):
     """Handle 'GOOGLE.GC menu <menu_name> [--item TEXT]'."""
     import time
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     menu_name = getattr(args, "menu_name", "")
     item_text = getattr(args, "item", "")
@@ -1629,7 +1629,7 @@ def _run_menu_action(tool, args):
 def _run_bottom_action(tool, args):
     """Handle 'GOOGLE.GC bottom <panel>'."""
     import time
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     panel = getattr(args, "panel", "")
     panel_info = _BOTTOM_BAR_BUTTONS.get(panel, {})
@@ -1637,7 +1637,7 @@ def _run_bottom_action(tool, args):
 
     def stage_click_panel(stage=None):
         import json as _json
-        from logic.chrome.session import real_click
+        from interface.chrome import real_click
 
         cdp = ctx["cdp"]
         ov = ctx["overlay"]
@@ -1717,7 +1717,7 @@ _SETTINGS_PREFS = {
 def _run_settings_action(tool, args):
     """Handle 'GOOGLE.GC settings <action>'."""
     import time
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     action = getattr(args, "settings_action", "show")
     tab_name = getattr(args, "tab", "")
@@ -1870,7 +1870,7 @@ def _run_settings_action(tool, args):
             return True
 
         elif action == "cancel":
-            from logic.chrome.session import dispatch_key
+            from interface.chrome import dispatch_key
             dispatch_key(cdp, "Escape")
             return True
 
@@ -1915,7 +1915,7 @@ def _run_settings_action(tool, args):
 def _run_sidebar_action(tool, args):
     """Handle 'GOOGLE.GC sidebar <panel>'."""
     import time
-    from logic.turing.logic import TuringStage
+    from interface.turing import TuringStage
 
     panel = getattr(args, "panel", "toc")
     ctx, stage_connect, stage_find_tab, stage_cleanup = _colab_connect_stages()
@@ -2123,7 +2123,7 @@ def main():
     BLUE = get_color("BLUE")
     RESET = get_color("RESET")
 
-    from logic.chrome.session import is_chrome_cdp_available, CDPSession, CDP_PORT, list_tabs
+    from interface.chrome import is_chrome_cdp_available, CDPSession, CDP_PORT, list_tabs
     from tool.GOOGLE.logic.chrome.colab import find_colab_tab, inject_and_execute
     from tool.GOOGLE.logic.chrome.oauth import handle_oauth_if_needed
 
@@ -2232,7 +2232,7 @@ def main():
         else:
             open_url = _get_colab_open_url() or "https://colab.research.google.com/"
         try:
-            from logic.cdmcp_loader import (
+            from interface.cdmcp import (
                 load_cdmcp_overlay, load_cdmcp_sessions,
             )
             sm = load_cdmcp_sessions()
@@ -2302,7 +2302,7 @@ def main():
         _login_log = lambda m: print(f"  {BOLD}{BLUE}[GC login]{RESET} {m}")
         email = getattr(args, "email", None)
         try:
-            from logic.cdmcp_loader import load_cdmcp_overlay, load_cdmcp_sessions, load_cdmcp_interact
+            from interface.cdmcp import load_cdmcp_overlay, load_cdmcp_sessions, load_cdmcp_interact
             import time as _time
             sm = load_cdmcp_sessions()
             session = sm.get_any_active_session()

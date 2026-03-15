@@ -16,7 +16,7 @@ def on_checkout(source_branch: str, target_branch: str, project_root: str):
     if source_branch == "dev" and target_branch != "dev":
         key = pm.save_tools_data(branch="dev")
         if key:
-            from logic.config import get_color
+            from interface.config import get_color
             BOLD = get_color("BOLD")
             RESET = get_color("RESET")
             print(f"  {BOLD}Locker saved{RESET} (dev branch data).")
@@ -25,7 +25,7 @@ def on_checkout(source_branch: str, target_branch: str, project_root: str):
         key = pm.find_locker_for_branch("dev")
         if key:
             pm.restore(key)
-            from logic.config import get_color
+            from interface.config import get_color
             BOLD = get_color("BOLD")
             GREEN = get_color("GREEN")
             RESET = get_color("RESET")

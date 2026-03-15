@@ -6,7 +6,7 @@ kwargs:
     tool: ToolBase instance
     window_id: str (tkinter window identifier, or "")
 """
-from logic.hooks.engine import HookInterface
+from interface.hooks import HookInterface
 
 
 class OnGuiPostShow(HookInterface):

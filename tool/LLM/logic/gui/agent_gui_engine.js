@@ -147,6 +147,10 @@ class AgentGUIEngine {
     this.registerBlock('todo_delete', (evt) => this._deleteTodo(evt));
     this.registerBlock('experience', (evt) => this._renderExperience(evt));
     this.registerBlock('complete', (evt) => this._renderComplete(evt));
+    this.registerBlock('llm_request', (evt) => this._renderLLMRequest(evt));
+    this.registerBlock('llm_response_start', (evt) => this._renderLLMResponseStart(evt));
+    this.registerBlock('llm_response_end', (evt) => this._renderLLMResponseEnd(evt));
+    this.registerBlock('ask_user', (evt) => this._renderAskUser(evt));
   }
 
   /* ── Process a single protocol event ── */
@@ -588,6 +592,50 @@ class AgentGUIEngine {
     this._appendAnimated('div', 'task-complete', CHECK_SVG + ' Task completed');
   }
 
+  /* ── LLM API Events ── */
+
+  _renderLLMRequest(evt) {
+    const provider = evt.provider || 'LLM';
+    const round = evt.round || 1;
+    const label = round === 1 ? provider : provider + ' (round ' + round + ')';
+    this._llmRequestEl = this._appendAnimated('div', 'llm-status',
+      '<div class="llm-status-inner">'
+      + '<div class="spinner spinner-sm"></div>'
+      + '<span class="llm-status-text">Sending to <strong>' + esc(label) + '</strong>...</span>'
+      + '</div>');
+    return sleep(100);
+  }
+
+  _renderLLMResponseStart(evt) {
+    if (this._llmRequestEl) {
+      const text = this._llmRequestEl.querySelector('.llm-status-text');
+      if (text) text.innerHTML = 'Receiving from <strong>' + esc(evt.provider || 'LLM') + '</strong>...';
+    }
+    return sleep(50);
+  }
+
+  _renderLLMResponseEnd(evt) {
+    if (this._llmRequestEl) {
+      const inner = this._llmRequestEl.querySelector('.llm-status-inner');
+      if (inner) {
+        const latency = evt.latency_s ? ' (' + evt.latency_s + 's)' : '';
+        const tc = evt.has_tool_calls ? ' → tool calls' : '';
+        inner.innerHTML = CHECK_SVG
+          + '<span class="llm-status-text">Response received' + esc(latency + tc) + '</span>';
+        inner.classList.add('done');
+      }
+      this._llmRequestEl = null;
+    }
+    return sleep(100);
+  }
+
+  _renderAskUser(evt) {
+    const el = this._appendAnimated('div', 'ask-user-block',
+      '<div class="ask-user-icon"><i class="bx bx-question-mark"></i></div>'
+      + '<div class="ask-user-text">' + md(evt.question || 'Agent is asking for your input') + '</div>');
+    return sleep(300);
+  }
+
   /* ── Tool Call Block ── */
 
   _makeToolCall(name, desc, cmd, file) {
@@ -604,7 +652,7 @@ class AgentGUIEngine {
         + '<span class="diff-stats" data-tc="diffstats"></span>'
         + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
     } else {
-      const icons = { exec: '$', read: 'R', search: 'S', think: '?', todo: 'T' };
+      const icons = { exec: '$', read: 'R', read_file: 'R', write_file: 'W', search: 'S', think: '?', todo: 'T', ask_user: '?' };
       let labelText;
       if (name === 'exec' && cmd) {
         const cmdNames = cmd.split(/\s*&&\s*|\s*;\s*|\s*\|\|\s*/).map(c => c.trim().split(/\s+/)[0]).join(', ');

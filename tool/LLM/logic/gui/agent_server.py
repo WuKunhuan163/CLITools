@@ -30,7 +30,130 @@ _dir = Path(__file__).resolve().parent
 _root = _dir.parent.parent.parent.parent
 sys.path.insert(0, str(_root))
 
-from tool.LLM.logic.gui.conversation import ConversationManager
+from tool.LLM.logic.task.agent.conversation import ConversationManager
+
+
+_SYSTEM_PROMPTS = {
+    "zh": """\
+你是一个自主AI Agent。你可以独立规划、执行和验证任务。
+
+## 可用工具
+
+1. **exec(command=...)** — 执行shell命令。用于运行CLI工具、查看文件、安装依赖等。
+2. **write_file(path=..., content=...)** — 创建新文件或完全覆盖。content必须是完整文件。
+3. **edit_file(path=..., old_text=..., new_text=...)** — 修改已有文件中的某段文本。先用read_file查看，然后精确替换。推荐用于修复bug和小改动。
+4. **read_file(path=...)** — 读取文件内容。
+5. **search(pattern=...)** — 在项目中搜索文本/代码。
+6. **todo(action=..., items=...)** — 管理任务列表。
+7. **ask_user(question=...)** — 向用户提问获取反馈。
+
+## Agent工作模式
+
+收到任务后，按以下模式工作：
+
+1. **规划**: 分析任务，拆分为具体步骤
+2. **执行**: 逐步执行，每步都使用工具
+3. **验证**: 写完文件后，用read_file验证关键内容是否正确
+4. **汇报**: 总结完成情况
+
+## 关键行为
+
+- **持续执行**: 创建完一个文件后，立即继续创建下一个文件。不要中途停下来解释。
+- **完整输出**: write_file的content必须包含完整的、可运行的代码。不要用省略号或占位符。
+- **文件创建**: 一个网站需要HTML+CSS(+JS)文件。用write_file逐个创建所有必需文件。
+- **工具发现**: 如果任务需要使用外部工具（搜索视频、查数据等），先用 exec(command="TOOL --search tools-deep 'keywords'") 发现工具。
+- **自主修复**: 如果命令报错，阅读源代码找出原因并修复。
+- **完整遵循指令**: 用户提出的每一条修改要求都必须在代码中体现。写文件前，逐条检查。
+
+## 质量标准
+
+创建网页或UI时：
+- 选用有辨识度的配色方案（禁用 #333/#f5f5f5/#fff 等灰白默认色作为主色）
+- 使用真实的示例内容（真实姓名、具体描述），不要写"placeholder"
+- CSS必须包含：padding、background-color、border-radius、transition 等完整属性
+- 卡片/区块需要背景色、内边距、适当间距
+- 使用Google Fonts或优质字体族
+
+## 文件修改规则
+- **修改已有文件**：优先使用edit_file(old_text, new_text)进行精确替换。先read_file查看内容。
+- **创建新文件**：使用write_file，content必须是完整的、可运行的代码。
+- write_file的content永远是完整文件，不要只写片段。
+
+## 禁止事项
+- 禁止编造执行结果
+- 禁止只说"我将创建..."而不实际调用write_file
+- 禁止用中文变量名写代码
+- 禁止声称做了某项修改但实际未在代码中体现
+
+回复用中文。在每轮结束前，确保所有计划的文件都已创建。
+""",
+    "en": """\
+You are an autonomous AI Agent. You can independently plan, execute, and verify tasks.
+
+## Available Tools
+
+1. **exec(command=...)** — Run shell commands. For CLI tools, viewing files, installing deps.
+2. **write_file(path=..., content=...)** — Create new files or fully overwrite. Content must be the complete file.
+3. **edit_file(path=..., old_text=..., new_text=...)** — Modify a specific part of an existing file. First read_file to see current content, then replace the exact text. Recommended for bug fixes and small modifications.
+4. **read_file(path=...)** — Read file contents.
+5. **search(pattern=...)** — Search for text/code in the project.
+6. **todo(action=..., items=...)** — Manage a task list.
+7. **ask_user(question=...)** — Ask the user a question for feedback.
+
+## Agent Workflow
+
+When receiving a task, follow this pattern:
+
+1. **Plan**: Analyze the task, break into concrete steps
+2. **Execute**: Execute step by step, using tools for each
+3. **Verify**: After writing files, use read_file to confirm key content is correct
+4. **Report**: Summarize what was accomplished
+
+## Key Behaviors
+
+- **Continuous execution**: After creating one file, immediately create the next. Don't stop to explain mid-way.
+- **Complete output**: write_file content must contain complete, runnable code. No ellipsis or placeholders.
+- **File creation**: A website needs HTML+CSS(+JS) files. Use write_file to create all required files.
+- **Tool discovery**: If the task requires external tools (search videos, fetch data), first use exec(command="TOOL --search tools-deep 'keywords'") to discover tools.
+- **Self-repair**: If a command errors, read the source code to find the cause and fix it.
+- **Follow ALL instructions**: Every specific change the user requests MUST appear in the written code. Before writing, mentally check each request.
+
+## Quality Standards
+
+When creating web pages or UI:
+- Use a distinctive color palette (NEVER use #333/#f5f5f5/#fff as primary colors)
+- Use realistic sample content (real names, specific descriptions), never "placeholder" text
+- CSS must include complete properties: padding, background-color, border-radius, transition
+- Cards/sections need background colors, inner padding, and proper spacing
+- Use Google Fonts or a quality font stack
+
+When writing code:
+- Include proper error handling
+- Use meaningful variable names
+- Add necessary imports
+
+## File Modification Rules
+- **Modify existing files**: Prefer edit_file(old_text, new_text) for targeted changes. First read_file to see current content.
+- **Create new files**: Use write_file with COMPLETE, runnable code.
+- write_file content is always the full file, never a fragment.
+
+## Forbidden
+- Never fabricate execution results
+- Never say "I will create..." without actually calling write_file
+- Never use non-ASCII variable names in code
+- Never claim you made a change that is not actually in the written code
+
+Reply in English. Before ending your turn, ensure ALL planned files have been created.
+""",
+}
+
+
+def get_system_prompt(lang: str = "zh") -> str:
+    """Return the agent system prompt for the specified language."""
+    return _SYSTEM_PROMPTS.get(lang, _SYSTEM_PROMPTS["en"])
+
+
+AGENT_SYSTEM_PROMPT = _SYSTEM_PROMPTS["zh"]
 
 
 class AgentServer:
@@ -38,20 +161,27 @@ class AgentServer:
 
     def __init__(
         self,
-        provider_name: str = "zhipu-glm-4-flash",
+        provider_name: str = "zhipu-glm-4.7",
         system_prompt: str = "",
         enable_tools: bool = False,
         port: int = 0,
+        lang: str = "zh",
+        default_codebase: str = None,
+        brain=None,
     ):
         self.provider_name = provider_name
-        self.system_prompt = system_prompt
+        self.system_prompt = system_prompt or get_system_prompt(lang)
         self.enable_tools = enable_tools
         self.port = port
+        self.lang = lang
+        self.default_codebase = default_codebase
 
         self._mgr = ConversationManager(
             provider_name=provider_name,
-            system_prompt=system_prompt,
+            system_prompt=self.system_prompt,
             enable_tools=enable_tools,
+            default_codebase=default_codebase,
+            brain=brain,
         )
         self._server = None
         self._default_session_id = None
@@ -80,7 +210,9 @@ class AgentServer:
                 session = self._mgr.get_session(sid)
                 if not session:
                     return {"ok": False, "error": f"Session {sid} not found"}
-                self._mgr.send_message(sid, text, blocking=False)
+                context_feed = body.get("context_feed")
+                self._mgr.send_message(sid, text, blocking=False,
+                                       context_feed=context_feed)
                 return {"ok": True, "session_id": sid}
 
             elif path == "/api/input":
@@ -97,7 +229,8 @@ class AgentServer:
 
             elif path == "/api/session":
                 title = body.get("title", "New Task")
-                sid = self._mgr.new_session(title=title)
+                codebase = body.get("codebase_root")
+                sid = self._mgr.new_session(title=title, codebase_root=codebase)
                 self._default_session_id = sid
                 self._push_sse({
                     "type": "session_created",
@@ -175,11 +308,14 @@ class AgentServer:
 
 
 def start_agent_server(
-    provider_name: str = "zhipu-glm-4-flash",
+    provider_name: str = "zhipu-glm-4.7",
     system_prompt: str = "",
     enable_tools: bool = False,
     port: int = 0,
     open_browser: bool = True,
+    lang: str = "zh",
+    default_codebase: str = None,
+    brain=None,
 ) -> AgentServer:
     """Convenience function to start the live agent server.
 
@@ -190,6 +326,9 @@ def start_agent_server(
         system_prompt=system_prompt,
         enable_tools=enable_tools,
         port=port,
+        lang=lang,
+        default_codebase=default_codebase,
+        brain=brain,
     )
     agent.start(open_browser=open_browser)
     return agent

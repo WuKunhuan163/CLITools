@@ -12,12 +12,12 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
 
 def _cdp_enabled():
-    from logic.chrome.session import is_chrome_cdp_available
+    from interface.chrome import is_chrome_cdp_available
     return is_chrome_cdp_available()
 
 

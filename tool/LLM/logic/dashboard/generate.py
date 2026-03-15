@@ -49,6 +49,7 @@ def _get_api_keys() -> Dict[str, str]:
     key_map = {
         "nvidia-glm-4-7b": "nvidia_api_key",
         "zhipu-glm-4-flash": "zhipu_api_key",
+        "zhipu-glm-4.7": "zhipu_api_key",
     }
     for provider, cfg_key in key_map.items():
         key = cfg.get(cfg_key, "")

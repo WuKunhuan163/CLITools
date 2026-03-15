@@ -14,11 +14,11 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.chrome.session import is_chrome_cdp_available, find_tab, open_tab
-from logic.cdmcp_loader import load_cdmcp_overlay
+from interface.chrome import is_chrome_cdp_available, find_tab, open_tab
+from interface.cdmcp import load_cdmcp_overlay
 _ov = load_cdmcp_overlay()
 get_session = _ov.get_session
 get_session_for_url = _ov.get_session_for_url
@@ -47,7 +47,7 @@ EXPECTED_CPU_LIMIT = 40.0
 
 def _ensure_test_tab():
     """Open a test tab and ensure it loads example.com correctly."""
-    from logic.chrome.session import CDPSession as _CDP
+    from interface.chrome import CDPSession as _CDP
     tab = find_tab(TEST_DOMAIN)
     if tab:
         ws = tab.get("webSocketDebuggerUrl")

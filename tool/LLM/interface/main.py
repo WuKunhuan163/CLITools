@@ -9,20 +9,29 @@ from tool.LLM.logic.session_context import SessionContext  # noqa: F401
 from tool.LLM.logic.registry import (  # noqa: F401
     get_provider,
     get_default_provider,
+    get_pipeline,
     list_providers,
     register,
+    _ALIASES as provider_aliases,
 )
-from tool.LLM.logic.providers.nvidia_glm47 import (  # noqa: F401
+from tool.LLM.logic.pipeline import ContextPipeline  # noqa: F401
+from tool.LLM.logic.providers.nvidia_glm47.interface import (  # noqa: F401
     NvidiaGLM47Provider,
+    get_api_key as get_nvidia_api_key,
+    save_api_key as save_nvidia_api_key,
 )
-from tool.LLM.logic.providers.zhipu_glm4 import (  # noqa: F401
+from tool.LLM.logic.providers.zhipu_glm4.interface import (  # noqa: F401
     ZhipuGLM4Provider,
+    get_api_key as get_zhipu_api_key,
+    save_api_key as save_zhipu_api_key,
 )
 from tool.LLM.logic.config import (  # noqa: F401
     load_config,
     save_config,
     get_config_value,
     set_config_value,
+    get_provider_config,
+    set_provider_config,
 )
 from tool.LLM.logic.usage import (  # noqa: F401
     record_usage,
@@ -98,7 +107,7 @@ def get_conversation_manager():
         from tool.LLM.interface.main import get_conversation_manager
         ConversationManager = get_conversation_manager()
 
-        mgr = ConversationManager(provider_name="zhipu-glm-4-flash")
+        mgr = ConversationManager(provider_name="zhipu-glm-4.7")
         mgr.on_event(lambda evt: push_to_gui(evt))
         sid = mgr.new_session()
         mgr.send_message(sid, "Hello!")
@@ -106,7 +115,7 @@ def get_conversation_manager():
     Returns:
         The ``ConversationManager`` class.
     """
-    from tool.LLM.logic.gui.conversation import ConversationManager
+    from tool.LLM.logic.task.agent.conversation import ConversationManager
     return ConversationManager
 
 
@@ -120,8 +129,31 @@ def get_agent_live_path() -> str:
     return str(Path(__file__).resolve().parent.parent / "logic" / "gui" / "agent_live.html")
 
 
-def start_agent_server(provider_name="zhipu-glm-4-flash", port=0,
-                       open_browser=True, enable_tools=False):
+def get_brain(data_dir=None):
+    """Get a Brain instance for LLM memory management.
+
+    The Brain manages memory across sessions:
+    - Working memory (AgentEnvironment)
+    - Short-term memory (SessionContext)
+    - Long-term memory (MemoryStore)
+
+    Override in Openclaw for self-evolving capabilities.
+
+    Parameters
+    ----------
+    data_dir : Path, optional
+        Directory for persistent memory storage.
+
+    Returns:
+        A ``Brain`` instance.
+    """
+    from tool.LLM.logic.brain import Brain
+    return Brain(data_dir=data_dir)
+
+
+def start_agent_server(provider_name="zhipu-glm-4.7", port=0,
+                       open_browser=True, enable_tools=False,
+                       default_codebase=None, brain=None):
     """Start the live LLM Agent server.
 
     Returns an ``AgentServer`` instance with the server already running.
@@ -132,7 +164,15 @@ def start_agent_server(provider_name="zhipu-glm-4-flash", port=0,
         port=port,
         open_browser=open_browser,
         enable_tools=enable_tools,
+        default_codebase=default_codebase,
+        brain=brain,
     )
+
+
+def generate_dashboard():
+    """Generate the LLM usage dashboard data."""
+    from tool.LLM.logic.dashboard.generate import generate
+    return generate()
 
 
 def get_dashboard_path() -> str:

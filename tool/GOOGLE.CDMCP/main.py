@@ -18,10 +18,10 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.blueprint.base import ToolBase
+from interface.tool import ToolBase
 from interface.config import get_color
 
 _TOOL_DIR = Path(__file__).resolve().parent
@@ -704,7 +704,7 @@ def _load_myaccount_mod():
 def _run_scan(api, args, BOLD, GREEN, RED, BLUE, RESET):
     """Scan a tab for all interactive elements."""
     import time
-    from logic.chrome.session import (
+    from interface.chrome import (
         CDPSession, capture_screenshot, find_tab,
     )
 
@@ -982,7 +982,7 @@ _AUTH_COOKIE_FILE = Path(__file__).resolve().parent / "data" / "config" / "saved
 def _save_auth_cookies():
     """Save all Google cookies via Network.getAllCookies."""
     import json
-    from logic.chrome.session import CDPSession, list_tabs, CDP_PORT
+    from interface.chrome import CDPSession, list_tabs, CDP_PORT
     tabs = list_tabs(CDP_PORT)
     for t in tabs:
         ws = t.get("webSocketDebuggerUrl")
@@ -1007,7 +1007,7 @@ def _save_auth_cookies():
 def _restore_auth_cookies():
     """Restore saved Google cookies via Network.setCookie."""
     import json
-    from logic.chrome.session import CDPSession, list_tabs, CDP_PORT
+    from interface.chrome import CDPSession, list_tabs, CDP_PORT
     if not _AUTH_COOKIE_FILE.exists():
         return {"ok": False, "error": "No saved cookies. Run save-auth first."}
     with open(_AUTH_COOKIE_FILE) as f:
@@ -1046,7 +1046,7 @@ def _restore_auth_cookies():
 
 def _unlock_tab_for_user(tab_id, tip_text="Please sign in to your Google account below"):
     """Remove lock, inject tip banner, focus the tab, and alert with a bell."""
-    from logic.chrome.session import CDPSession, list_tabs, CDP_PORT
+    from interface.chrome import CDPSession, list_tabs, CDP_PORT
     tabs = list_tabs(CDP_PORT)
     for t in tabs:
         if t.get("id") == tab_id:
@@ -1107,7 +1107,7 @@ def _validate_session_tabs(context=""):
     Prints detailed diagnostics on any violation. Returns True if valid.
     """
     from interface.config import get_color
-    from logic.chrome.session import list_tabs, CDP_PORT
+    from interface.chrome import list_tabs, CDP_PORT
     BOLD, RED, YELLOW, GREEN, RESET = (
         get_color("BOLD"), get_color("RED"), get_color("YELLOW"),
         get_color("GREEN"), get_color("RESET"))
@@ -1160,7 +1160,7 @@ def _close_google_auth_tabs(primary_tab_id, port):
     Does NOT close general Google pages (e.g. user-opened myaccount.google.com).
     """
     from interface.config import get_color
-    from logic.chrome.session import list_tabs, close_tab
+    from interface.chrome import list_tabs, close_tab
     BOLD, RESET = get_color("BOLD"), get_color("RESET")
     _AUTH_URL_PATTERNS = (
         "accounts.google.com/signin",
@@ -1196,7 +1196,7 @@ def _poll_login(tab_id, timeout=300):
     """Synchronous poll for login completion. Closes the tab on success."""
     import time as _t
     from interface.config import get_color
-    from logic.chrome.session import CDPSession, list_tabs, CDP_PORT
+    from interface.chrome import CDPSession, list_tabs, CDP_PORT
     auth_mod = _load_auth_mod()
     BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
     completed = False
@@ -1250,7 +1250,7 @@ def _poll_logout(tab_id, timeout=60):
     """Synchronous poll for logout completion. Locks tab, clicks Continue, closes tab."""
     import time as _t
     from interface.config import get_color
-    from logic.chrome.session import CDPSession, list_tabs, CDP_PORT
+    from interface.chrome import CDPSession, list_tabs, CDP_PORT
     auth_mod = _load_auth_mod()
     BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
     clicked = False

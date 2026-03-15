@@ -7,10 +7,10 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.setup.engine import ToolEngine
+from interface.tool import ToolEngine
 
 def setup():
     engine = ToolEngine("INTERCOM", _r)

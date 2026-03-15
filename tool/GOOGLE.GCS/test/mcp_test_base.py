@@ -17,7 +17,7 @@ def is_mcp_available():
     """Check if MCP (CDP) is available for automated testing."""
     try:
         sys.path.insert(0, str(PROJECT_ROOT))
-        from logic.chrome.session import is_chrome_cdp_available
+        from interface.chrome import is_chrome_cdp_available
         from tool.GOOGLE.logic.chrome.colab import find_colab_tab
         if not is_chrome_cdp_available():
             return False

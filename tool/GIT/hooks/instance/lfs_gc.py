@@ -17,7 +17,7 @@ silently unless it fails.
 import subprocess
 from pathlib import Path
 
-from logic.hooks.engine import HookInstance
+from interface.hooks import HookInstance
 
 
 def _git_bin():

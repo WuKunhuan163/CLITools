@@ -9,12 +9,12 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
 
 def main():
-    from logic.tool.blueprint.base import ToolBase
+    from interface.tool import ToolBase
     ToolBase("GOOGLE.GS")
     print("GOOGLE.GS setup complete. Requires GOOGLE.CDMCP and Chrome with CDP.")
 

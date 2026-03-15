@@ -18,7 +18,7 @@ def _git_bin():
         return "/usr/bin/git"
 import time
 
-from logic.hooks.engine import HookInstance
+from interface.hooks import HookInstance
 
 
 class AutoSaveRemote(HookInstance):
@@ -209,6 +209,48 @@ class AutoSaveRemote(HookInstance):
 
         from interface.turing import TuringStage
 
+        _dbg_log = project_root / "tmp" / "userinput_timing.log"
+        def _dbg(msg):
+            try:
+                ts = time.strftime("%H:%M:%S")
+                ms = int((time.time() % 1) * 1000)
+                with open(_dbg_log, "a") as f:
+                    f.write(f"[{ts}.{ms:03d}]   hook: {msg}\n")
+            except Exception:
+                pass
+
+        _orig_save = do_save
+        _orig_maint = do_maintenance
+        _orig_backup = do_backup
+        _orig_lfs = do_lfs_gc
+
+        def do_save_dbg(stage=None):
+            _dbg("stage:save BEGIN")
+            r = _orig_save(stage)
+            _dbg(f"stage:save END result={r}")
+            return r
+        def do_maint_dbg(stage=None):
+            _dbg("stage:maint BEGIN")
+            r = _orig_maint(stage)
+            _dbg(f"stage:maint END result={r}")
+            return r
+        def do_backup_dbg(stage=None):
+            _dbg("stage:backup BEGIN")
+            r = _orig_backup(stage)
+            _dbg(f"stage:backup END result={r}")
+            return r
+        def do_lfs_gc_dbg(stage=None):
+            _dbg("stage:lfs_gc BEGIN")
+            r = _orig_lfs(stage)
+            _dbg(f"stage:lfs_gc END result={r}")
+            return r
+
+        do_save = do_save_dbg
+        do_maintenance = do_maint_dbg
+        do_backup = do_backup_dbg
+        do_lfs_gc = do_lfs_gc_dbg
+
+        _dbg("pm.run BEGIN")
         pm = tool.create_progress_machine([
             TuringStage(
                 "save", do_save,
@@ -258,16 +300,20 @@ class AutoSaveRemote(HookInstance):
             ),
             TuringStage(
                 "lfs_gc", do_lfs_gc,
-                active_status="Pruning LFS",
+                active_status=get_msg(
+                    "label_pruning_lfs", "Pruning LFS objects"),
                 active_name="",
-                success_status="Pruned LFS",
-                success_name="objects",
-                fail_status="Failed to prune",
+                success_status=get_msg(
+                    "label_pruned_lfs", "Pruned LFS"),
+                success_name=get_msg("label_objects", "objects"),
+                fail_status=get_msg(
+                    "label_failed_to_prune", "Failed to prune"),
                 fail_name="LFS",
                 fail_color="YELLOW",
-                stealth=True,
-                bold_part="Pruning LFS",
+                bold_part=get_msg(
+                    "label_pruning_lfs", "Pruning LFS objects"),
             ),
         ])
         pm.run(ephemeral=True, final_newline=False, final_msg="")
+        _dbg("pm.run END")
         return {"ok": True, "tag": tag_str}

@@ -210,7 +210,7 @@ class OpenClawCLI:
             if saved:
                 self.backend = saved
             else:
-                from tool.LLM.logic.registry import list_providers
+                from tool.LLM.interface.main import list_providers
                 ready = [p for p in list_providers() if p["available"]]
                 if len(ready) == 1:
                     self.backend = ready[0]["name"]
@@ -240,19 +240,19 @@ class OpenClawCLI:
 
     @staticmethod
     def _load_saved_backend() -> Optional[str]:
-        from tool.LLM.logic.config import get_config_value
-        from tool.LLM.logic.registry import _ALIASES
+        from tool.LLM.interface.main import get_config_value
+        from tool.LLM.interface.main import provider_aliases as _ALIASES
         name = get_config_value("active_backend")
         if name and name in _ALIASES:
             resolved = _ALIASES[name]
-            from tool.LLM.logic.config import set_config_value
+            from tool.LLM.interface.main import set_config_value
             set_config_value("active_backend", resolved)
             return resolved
         return name
 
     @staticmethod
     def _save_backend(name: str):
-        from tool.LLM.logic.config import set_config_value
+        from tool.LLM.interface.main import set_config_value
         set_config_value("active_backend", name)
 
     def _write_state(self, status: str, detail: str = ""):
@@ -297,7 +297,7 @@ class OpenClawCLI:
             pass
 
     def _init_provider(self):
-        from tool.LLM.logic.registry import get_provider
+        from tool.LLM.interface.main import get_provider
         try:
             self._provider = get_provider(self.backend)
             from tool.OPENCLAW.logic.tool_schemas import get_tool_schemas
@@ -332,12 +332,12 @@ class OpenClawCLI:
 
         Esc at any step returns to the previous step.
         """
-        from tool.LLM.logic.registry import list_providers
+        from tool.LLM.interface.main import list_providers
         from logic.turing.select import select_menu
-        from tool.LLM.logic.providers.zhipu_glm4 import (
+        from tool.LLM.interface.main import (
             get_api_key as get_zhipu_key, save_api_key as save_zhipu_key,
         )
-        from tool.LLM.logic.providers.nvidia_glm47 import (
+        from tool.LLM.interface.main import (
             get_api_key as get_nvidia_key, save_api_key as save_nvidia_key,
         )
 
@@ -652,7 +652,7 @@ class OpenClawCLI:
 
     def _show_models(self):
         """Show all models with config status, allow switching."""
-        from tool.LLM.logic.registry import list_providers
+        from tool.LLM.interface.main import list_providers
         from logic.turing.select import select_menu
 
         providers = list_providers()
@@ -808,7 +808,7 @@ class OpenClawCLI:
 
     def _launch_dashboard(self):
         """Launch the LLM dashboard as a persistent local server."""
-        from tool.LLM.logic.dashboard.generate import generate
+        from tool.LLM.interface.main import generate_dashboard as generate
         from logic.serve.html_server import LocalHTMLServer
 
         path = generate()
@@ -1070,7 +1070,7 @@ class OpenClawCLI:
 
     def _run_pipeline(self, user_task: str) -> bool:
         """Run the agent pipeline. Returns True on success, False on error."""
-        from tool.LLM.logic.session_context import SessionContext
+        from tool.LLM.interface.main import SessionContext
 
         self._ensure_session()
         self.session_mgr.add_message(self.session.id, "user", user_task)

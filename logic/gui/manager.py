@@ -101,6 +101,11 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     env = os.environ.copy()
     env["TK_SILENCE_DEPRECATION"] = "1"
     env["GDS_GUI_MANAGED"] = "1"
+
+    project_root = str(getattr(tool_instance, "project_root", ""))
+    if project_root:
+        existing = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = f"{project_root}:{existing}" if existing else project_root
     
     cmd = [python_exe, script_path]
     if args:

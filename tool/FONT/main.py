@@ -26,7 +26,7 @@ project_root = script_dir.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from logic.tool.blueprint.base import ToolBase
+from interface.tool import ToolBase
 from interface.config import get_color
 class FontTool(ToolBase):
     def __init__(self):

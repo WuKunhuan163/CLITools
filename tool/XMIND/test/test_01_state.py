@@ -4,13 +4,13 @@ from pathlib import Path
 
 _PROJ = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(_PROJ))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(str(_PROJ / "tool" / "XMIND" / "main.py"))
 
 import pytest
 
 try:
-    from logic.chrome.session import is_chrome_cdp_available
+    from interface.chrome import is_chrome_cdp_available
     CDP_AVAILABLE = is_chrome_cdp_available()
 except Exception:
     CDP_AVAILABLE = False

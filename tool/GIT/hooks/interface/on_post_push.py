@@ -3,7 +3,7 @@
 Fired after a successful ``git push`` operation.
 Implementations receive the project root, branch, and remote name.
 """
-from logic.hooks.engine import HookInterface
+from interface.hooks import HookInterface
 
 
 class OnPostPush(HookInterface):

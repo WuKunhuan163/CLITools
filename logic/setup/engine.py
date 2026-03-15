@@ -346,31 +346,10 @@ class ToolEngine:
             return True
         except: return False
 
-    def handle_pip_deps(self, stage=None):
-        # Merge requirements.txt and tool.json pip_dependencies
-        pip_deps = []
-        tool_json_path = self.tool_dir / "tool.json"
-        if tool_json_path.exists():
-            try:
-                with open(tool_json_path, 'r') as f:
-                    data = json.load(f)
-                    pip_deps.extend(data.get("pip_dependencies", []))
-            except: pass
-            
-        req_path = self.tool_internal / "requirements.txt"
-        if not req_path.exists(): req_path = self.tool_dir / "requirements.txt"
-        if req_path.exists():
-            try:
-                with open(req_path, 'r') as f:
-                    pip_deps.extend([l.strip() for l in f if l.strip() and not l.startswith("#")])
-            except: pass
-            
-        if not pip_deps: return True
-        
-        # Resolve python
+    def _resolve_python_exec(self):
+        """Resolve the managed Python executable."""
         python_tool_dir = self.project_root / "tool" / "PYTHON"
-        python_exec = sys.executable # Default fallback
-        
+        python_exec = sys.executable
         if python_tool_dir.exists():
             from logic.utils import get_logic_dir
             utils_path = get_logic_dir(python_tool_dir) / "utils.py"
@@ -380,24 +359,65 @@ class ToolEngine:
                     spec = importlib.util.spec_from_file_location("py_utils", str(utils_path))
                     mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
                     python_exec = mod.get_python_exec()
-                except: pass
-        
+                except Exception:
+                    pass
+        return python_exec
+
+    def handle_pip_deps(self, stage=None):
+        pip_deps = []
+        optional_deps = []
+        tool_json_path = self.tool_dir / "tool.json"
+        if tool_json_path.exists():
+            try:
+                with open(tool_json_path, 'r') as f:
+                    data = json.load(f)
+                    pip_deps.extend(data.get("pip_dependencies", []))
+                    optional_deps.extend(data.get("pip_dependencies_optional", []))
+            except Exception:
+                pass
+
+        req_path = self.tool_internal / "requirements.txt"
+        if not req_path.exists(): req_path = self.tool_dir / "requirements.txt"
+        if req_path.exists():
+            try:
+                with open(req_path, 'r') as f:
+                    pip_deps.extend([l.strip() for l in f if l.strip() and not l.startswith("#")])
+            except Exception:
+                pass
+
+        if not pip_deps and not optional_deps:
+            return True
+
+        python_exec = self._resolve_python_exec()
         from logic.turing.display.manager import _get_configured_width, truncate_to_width
         width = _get_configured_width()
-        
+
         for package in pip_deps:
-            # Update status message for each package
-            # "Installing pip dependency" is bold blue, package name is bold white
             prefix = self._("label_installing_pip_dependency", "Installing pip dependency")
             msg = f"\r\033[K{self.BOLD}{self.BLUE}{prefix}{self.RESET}: {self.BOLD}{self.WHITE}{package}{self.RESET}..."
             sys.stdout.write(truncate_to_width(msg, width))
             sys.stdout.flush()
-            
+
             cmd = [python_exec, "-m", "pip", "install", package]
             res = subprocess.run(cmd, capture_output=True, text=True)
             if res.returncode != 0:
                 if stage: stage.error_brief = res.stderr.strip().splitlines()[-1] if res.stderr.strip() else f"pip install {package} failed"
                 return False
+
+        for package in optional_deps:
+            prefix = self._("label_installing_pip_dependency", "Installing pip dependency")
+            suffix = self._("label_optional", "(optional)")
+            msg = f"\r\033[K{self.BOLD}{self.BLUE}{prefix}{self.RESET}: {self.BOLD}{self.WHITE}{package}{self.RESET} {suffix}..."
+            sys.stdout.write(truncate_to_width(msg, width))
+            sys.stdout.flush()
+
+            cmd = [python_exec, "-m", "pip", "install", package]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            if res.returncode != 0:
+                skip_msg = f"\r\033[K  {self.YELLOW}Skipped{self.RESET} {package} (optional, install failed)\n"
+                sys.stdout.write(skip_msg)
+                sys.stdout.flush()
+
         return True
 
     def create_shortcut(self, stage=None):

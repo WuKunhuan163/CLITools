@@ -257,6 +257,26 @@ class ToolBase:
             self.run_setup()
             return True
 
+        agent_args = _extract_flag_args("--agent")
+        if agent_args is not None:
+            self._handle_agent(agent_args)
+            return True
+
+        ask_args = _extract_flag_args("--ask")
+        if ask_args is not None:
+            self._handle_agent(ask_args, mode="ask")
+            return True
+
+        plan_args = _extract_flag_args("--plan")
+        if plan_args is not None:
+            self._handle_agent(plan_args, mode="plan")
+            return True
+
+        session_args = _extract_flag_args("--session")
+        if session_args is not None:
+            self._handle_session(session_args)
+            return True
+
         if _extract_flag_args("--rule") is not None:
             self.print_rule()
             return True
@@ -739,6 +759,86 @@ class ToolBase:
             print(interruption_hint)
         
         print("--------------------------")
+
+    def _handle_agent(self, args, mode="agent"):
+        """Dispatch --agent/--ask/--plan subcommands to the agent infrastructure."""
+        from logic.agent.command import handle_agent_command
+        handle_agent_command(
+            args=args,
+            tool_name=self.tool_name,
+            project_root=str(self.project_root),
+            tool_dir=str(self.tool_dir),
+            mode=mode,
+        )
+
+    def _handle_session(self, args):
+        """Dispatch --session subcommands.
+
+        Maps --session agent/ask/plan to --agent/--ask/--plan equivalents.
+        Also handles --session checkout for switching active sessions.
+        """
+        if not args:
+            self._handle_agent([], mode="agent")
+            return
+
+        subcmd = args[0]
+        rest = args[1:]
+
+        if subcmd in ("agent", "ask", "plan"):
+            self._handle_agent(rest, mode=subcmd)
+        elif subcmd == "checkout":
+            self._handle_session_checkout(rest)
+        else:
+            self._handle_agent(args, mode="agent")
+
+    def _handle_session_checkout(self, args):
+        """Switch the current tool's active session or create a new one."""
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        DIM = get_color("DIM", "\033[2m")
+        RESET = get_color("RESET", "\033[0m")
+
+        from logic.agent.state import (
+            AgentSession, save_session, load_session, list_sessions,
+        )
+        project_root = str(self.project_root)
+
+        if args:
+            sid = args[0]
+            session = load_session(sid, project_root)
+            if session:
+                self._save_active_session_id(sid)
+                print(f"  {BOLD}Checked out.{RESET} {DIM}{sid} ({session.tool_name}, "
+                      f"{session.message_count} msgs, mode={session.mode}){RESET}")
+            else:
+                print(f"  Session {sid} not found.")
+        else:
+            session = AgentSession(
+                tool_name=self.tool_name,
+                codebase_root=str(self.tool_dir),
+                tier=2,
+            )
+            save_session(session, project_root)
+            self._save_active_session_id(session.id)
+            print(f"  {BOLD}New session created.{RESET} {DIM}{session.id}{RESET}")
+
+    def _save_active_session_id(self, session_id: str):
+        """Persist the active session ID for this tool."""
+        import json
+        config_path = self.get_data_dir() / "active_session.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(json.dumps({"session_id": session_id}))
+
+    def _get_active_session_id(self) -> str:
+        """Read the active session ID for this tool, or empty string."""
+        import json
+        config_path = self.get_data_dir() / "active_session.json"
+        if config_path.exists():
+            try:
+                return json.loads(config_path.read_text()).get("session_id", "")
+            except Exception:
+                pass
+        return ""
 
     def run_setup(self):
         """Execute the tool's setup.py script using ProgressTuringMachine."""

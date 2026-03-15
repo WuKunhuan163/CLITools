@@ -7,7 +7,7 @@ Since tool/GOOGLE.CDMCP/ has a dot in its name (not importable as a Python
 package), consumer tools should use the loader helper::
 
     # In any tool that depends on GOOGLE.CDMCP:
-    from logic.cdmcp_loader import load_cdmcp
+    from interface.cdmcp import load_cdmcp
     cdmcp = load_cdmcp()
     session = cdmcp.create_session("my_tool")
     session.boot("https://example.com")
@@ -16,7 +16,7 @@ package), consumer tools should use the loader helper::
 
 Or load specific modules directly::
 
-    from logic.cdmcp_loader import load_cdmcp_overlay, load_cdmcp_sessions
+    from interface.cdmcp import load_cdmcp_overlay, load_cdmcp_sessions
     overlay = load_cdmcp_overlay()
     sessions = load_cdmcp_sessions()
 """

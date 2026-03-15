@@ -33,7 +33,7 @@ from logic.utils.system import (
     get_logic_dir,
     get_tool_bin_path,
 )
-from logic.utils.display import save_list_report
+from logic.utils.display import save_list_report, set_rtl_mode
 
 __all__ = [
     # Preflight checks
@@ -75,4 +75,5 @@ __all__ = [
     "get_logic_dir",
     "get_tool_bin_path",
     "save_list_report",
+    "set_rtl_mode",
 ]

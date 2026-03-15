@@ -30,7 +30,7 @@ if project_root:
         sys.path.remove(root_str)
     sys.path.insert(0, root_str)
 
-from logic.tool.blueprint.base import ToolBase
+from interface.tool import ToolBase
 from interface.config import get_color
 from interface.utils import format_table
 

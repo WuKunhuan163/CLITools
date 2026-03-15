@@ -22,11 +22,11 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.blueprint.base import ToolBase
-from logic.config import get_color
+from interface.tool import ToolBase
+from interface.config import get_color
 from interface.status import fmt_status, fmt_detail, fmt_warning
 
 

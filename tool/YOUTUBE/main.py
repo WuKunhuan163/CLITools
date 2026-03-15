@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+import json
 import argparse
 from pathlib import Path
 
@@ -8,22 +9,43 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.blueprint.base import ToolBase
+from interface.tool import ToolBase
 from interface.config import get_color
+
+
+def _load_config(tool):
+    config_path = Path(tool.tool_dir) / "data" / "config.json"
+    if config_path.exists():
+        try:
+            return json.loads(config_path.read_text())
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_config(tool, config):
+    config_path = Path(tool.tool_dir) / "data" / "config.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(json.dumps(config, indent=2))
 
 
 def main():
     tool = ToolBase("YOUTUBE")
 
     parser = argparse.ArgumentParser(
-        description="YouTube automation via CDMCP",
-        epilog="MCP commands use --mcp- prefix: e.g., YOUTUBE --mcp-boot, YOUTUBE --mcp-play",
+        description="YouTube — video search, info, subtitles via API; browser automation via CDMCP",
+        epilog="API commands (search, info, comments, subtitles) use YouTube Data API v3.\n"
+               "Browser commands (boot, play, seek, etc.) use CDMCP.",
         add_help=False,
     )
-    sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")
+    sub = parser.add_subparsers(dest="command")
+
+    # Config
+    p_config = sub.add_parser("config", help="Configure YouTube API key")
+    p_config.add_argument("--api-key", help="YouTube Data API v3 key")
 
     sub.add_parser("boot", help="Boot YouTube session in dedicated window")
     sub.add_parser("session", help="Show session and state machine status")
@@ -170,7 +192,25 @@ def main():
     RED = get_color("RED")
     YELLOW = get_color("YELLOW")
     BLUE = get_color("BLUE")
+    DIM = get_color("DIM", "\033[2m")
     RESET = get_color("RESET")
+
+    if args.command == "config":
+        config = _load_config(tool)
+        if args.api_key:
+            config["api_key"] = args.api_key
+            _save_config(tool, config)
+            masked = args.api_key[:8] + "..." + args.api_key[-4:] if len(args.api_key) > 12 else "***"
+            print(f"  {BOLD}{GREEN}Saved API key{RESET} {DIM}({masked}){RESET}")
+        elif config.get("api_key"):
+            key = config["api_key"]
+            masked = key[:8] + "..." + key[-4:] if len(key) > 12 else "***"
+            print(f"  API key: {masked}")
+        else:
+            print(f"  {BOLD}{RED}No API key configured.{RESET}")
+            print(f"  Get one at: https://console.cloud.google.com/apis/credentials")
+            print(f"  Then run:   YOUTUBE config --api-key <YOUR_KEY>")
+        return
 
     from tool.YOUTUBE.logic.chrome import api
 
@@ -274,10 +314,14 @@ def main():
             print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
 
     elif args.command == "search":
-        r = api.search_videos(args.query, limit=args.limit)
+        from tool.YOUTUBE.logic.youtube_api import search_videos as api_search
+        r = api_search(args.query, limit=args.limit)
+        if not r.get("ok"):
+            print(f"  {DIM}API unavailable, falling back to CDMCP...{RESET}")
+            r = api.search_videos(args.query, limit=args.limit)
         if r.get("ok"):
             results = r.get("results", [])
-            print(f"  Search '{r.get('query','')}': {r.get('count', 0)} results")
+            print(f"  Search '{r.get('query', args.query)}': {r.get('count', 0)} results")
             for i, v in enumerate(results):
                 dur = f" [{v['duration']}]" if v.get("duration") else ""
                 print(f"  [{i+1:2d}]{dur} {v.get('title', '?')[:70]}")
@@ -290,17 +334,27 @@ def main():
             print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
 
     elif args.command == "info":
-        r = api.get_video_info(video_url=args.url)
+        from tool.YOUTUBE.logic.youtube_api import get_video_info as api_info, extract_video_id
+        vid_id = extract_video_id(args.url) if args.url else None
+        r = None
+        if vid_id:
+            r = api_info(vid_id)
+        if not r or not r.get("ok"):
+            if r and not r.get("ok"):
+                print(f"  {DIM}API unavailable, falling back to CDMCP...{RESET}")
+            r = api.get_video_info(video_url=args.url)
         if r.get("ok"):
             print(f"  Title:    {r.get('title', '?')}")
             print(f"  Channel:  {r.get('channel', '?')}")
             print(f"  Views:    {r.get('views', '?')}")
             if r.get("likes"):
                 print(f"  Likes:    {r['likes']}")
-            if r.get("date"):
-                print(f"  Date:     {r['date']}")
-            if r.get("subscribers"):
-                print(f"  Subs:     {r['subscribers']}")
+            if r.get("duration"):
+                print(f"  Duration: {r['duration']}")
+            if r.get("publishedAt") or r.get("date"):
+                print(f"  Date:     {r.get('publishedAt', r.get('date', '?'))}")
+            if r.get("comments"):
+                print(f"  Comments: {r['comments']}")
             if r.get("description"):
                 print(f"  Desc:     {r['description'][:200]}")
             if r.get("videoId"):
@@ -327,9 +381,15 @@ def main():
             print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
 
     elif args.command == "subtitles":
-        r = api.fetch_subtitles_api(args.video_id)
+        from tool.YOUTUBE.logic.youtube_api import fetch_captions
+        r = fetch_captions(args.video_id)
+        if not r.get("ok"):
+            print(f"  {DIM}Timedtext unavailable, trying CDMCP...{RESET}")
+            r = api.fetch_subtitles_api(args.video_id)
         if r.get("ok"):
-            print(f"  Language: {r.get('languageName', r.get('language', '?'))}")
+            lang = r.get("languageName", r.get("language", ""))
+            if lang:
+                print(f"  Language: {lang}")
             print(f"  Segments: {r.get('segments', 0)}")
             langs = r.get("availableLanguages", [])
             if langs:
@@ -475,15 +535,31 @@ def main():
             print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")
 
     elif args.command == "comments":
-        r = api.get_comments(limit=args.limit)
+        from tool.YOUTUBE.logic.youtube_api import get_video_comments, extract_video_id
+        vid_id = None
+        try:
+            page_r = api.get_page_info()
+            if page_r.get("ok") and page_r.get("url"):
+                vid_id = extract_video_id(page_r["url"])
+        except Exception:
+            pass
+        r = None
+        if vid_id:
+            r = get_video_comments(vid_id, limit=args.limit)
+        if not r or not r.get("ok"):
+            if r and not r.get("ok"):
+                print(f"  {DIM}API unavailable, falling back to CDMCP...{RESET}")
+            r = api.get_comments(limit=args.limit)
         if r.get("ok"):
             for c in r.get("comments", []):
-                print(f"  {BOLD}{c.get('author', '?')}{RESET} ({c.get('time', '?')})")
+                author = c.get("author", "?")
+                time_str = c.get("time", c.get("publishedAt", "?"))
+                print(f"  {BOLD}{author}{RESET} ({time_str})")
                 print(f"    {c.get('text', '')[:120]}")
                 likes = c.get("likes", "0")
                 replies = c.get("reply_count", "")
                 if likes or replies:
-                    print(f"    👍 {likes}  {'💬 ' + replies if replies else ''}")
+                    print(f"    +{likes}  {replies + ' replies' if replies else ''}")
                 print()
         else:
             print(f"  {BOLD}{RED}Error{RESET}: {r.get('error', 'Unknown')}")

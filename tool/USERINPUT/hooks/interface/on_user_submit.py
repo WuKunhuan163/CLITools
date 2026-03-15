@@ -7,7 +7,7 @@ kwargs:
     user_text: str
     elapsed_sec: float (time from GUI show to submit)
 """
-from logic.hooks.engine import HookInterface
+from interface.hooks import HookInterface
 
 
 class OnUserSubmit(HookInterface):

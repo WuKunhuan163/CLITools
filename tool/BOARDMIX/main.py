@@ -8,10 +8,10 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.blueprint.base import ToolBase
+from interface.tool import ToolBase
 from interface.config import get_color
 
 
@@ -63,7 +63,7 @@ def main():
 
 
 def _cmd_boot(tool):
-    from logic.cdmcp_loader import load_cdmcp_sessions, load_cdmcp_overlay
+    from interface.cdmcp import load_cdmcp_sessions, load_cdmcp_overlay
     BOLD = get_color("BOLD")
     GREEN = get_color("GREEN")
     RED = get_color("RED")
@@ -93,7 +93,7 @@ def _cmd_boot(tool):
     )
 
     if tab_info and tab_info.get("ws"):
-        from logic.chrome.session import CDPSession
+        from interface.chrome import CDPSession
         try:
             ov = load_cdmcp_overlay()
             cdp = CDPSession(tab_info["ws"], timeout=10)
@@ -112,7 +112,7 @@ def _cmd_boot(tool):
 
 
 def _cmd_status(tool):
-    from logic.chrome.session import CDPSession, is_chrome_cdp_available
+    from interface.chrome import CDPSession, is_chrome_cdp_available
     BOLD = get_color("BOLD")
     get_color("GREEN")
     RED = get_color("RED")
@@ -140,7 +140,7 @@ def _cmd_status(tool):
 
 def _cmd_state(tool):
     import json
-    from logic.chrome.session import CDPSession, is_chrome_cdp_available
+    from interface.chrome import CDPSession, is_chrome_cdp_available
 
     state = {"cdp_available": False, "boardmix_tab": None, "page": {}}
 
@@ -177,7 +177,7 @@ def _cmd_state(tool):
 
 def _cmd_session(tool):
     try:
-        from logic.cdmcp_loader import load_cdmcp_sessions
+        from interface.cdmcp import load_cdmcp_sessions
         smod = load_cdmcp_sessions()
     except ImportError as e:
         print(f"{get_color('BOLD')}{get_color('RED')}Error{get_color('RESET')}: {e}")
@@ -193,7 +193,7 @@ def _cmd_session(tool):
 
 
 def _cmd_boards(tool):
-    from logic.chrome.session import CDPSession
+    from interface.chrome import CDPSession
     tab = _find_tab()
     if not tab:
         print(f"{get_color('BOLD')}{get_color('RED')}No Boardmix tab{get_color('RESET')} found.")
@@ -230,7 +230,7 @@ def _cmd_boards(tool):
 
 
 def _cmd_explore(tool):
-    from logic.chrome.session import CDPSession, capture_screenshot
+    from interface.chrome import CDPSession, capture_screenshot
     tab = _find_tab()
     if not tab:
         print(f"{get_color('BOLD')}{get_color('RED')}No Boardmix tab{get_color('RESET')} found.")
@@ -287,7 +287,7 @@ def _cmd_explore(tool):
 
 
 def _find_tab():
-    from logic.chrome.session import list_tabs
+    from interface.chrome import list_tabs
     try:
         for t in list_tabs(9222):
             if t.get("type") == "page" and _URL_PATTERN in (t.get("url", "") or ""):

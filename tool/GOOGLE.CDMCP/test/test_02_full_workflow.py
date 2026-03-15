@@ -14,13 +14,13 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.chrome.session import (
+from interface.chrome import (
     is_chrome_cdp_available, find_tab, open_tab,
 )
-from logic.cdmcp_loader import load_cdmcp_overlay
+from interface.cdmcp import load_cdmcp_overlay
 _ov = load_cdmcp_overlay()
 get_session = _ov.get_session
 inject_badge = _ov.inject_badge

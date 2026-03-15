@@ -45,23 +45,24 @@ class ImportIssue:
         return f"[{self.severity.upper():5s}] {self.code} {self.file}:{self.line} — {self.message}"
 
 
-_RAW_CDP_TAB_OPS = frozenset({"find_tab", "open_tab", "list_tabs"})
-
-_CDMCP_HARDCODE_PATTERNS = (
-    "_CDMCP_TOOL_DIR",
-    "_OVERLAY_PATH",
-    "_SESSION_MGR_PATH",
-    "_INTERACT_PATH",
-)
+def _is_entry_point(filepath: Path, tool_dir: Path) -> bool:
+    """Check if a file is a tool entry point (not inside logic/ or interface/)."""
+    rel = filepath.relative_to(tool_dir)
+    parts = rel.parts
+    if parts[0] in ("logic", "interface"):
+        return False
+    return True
 
 
 class ImportAuditor(ast.NodeVisitor):
     """AST visitor that collects import quality issues for a single file."""
 
-    def __init__(self, filepath: Path, tool_name: str, project_root: Path):
+    def __init__(self, filepath: Path, tool_name: str, project_root: Path,
+                 is_entry_point: bool = False):
         self.filepath = filepath
         self.tool_name = tool_name
         self.project_root = project_root
+        self.is_entry_point = is_entry_point
         self.issues: List[ImportIssue] = []
         self._source_lines: List[str] = []
         self._uses_toolbase = False
@@ -88,57 +89,17 @@ class ImportAuditor(ast.NodeVisitor):
                                   f"Cross-tool internal import: 'from {mod}' — "
                                   f"must import from tool.{other_tool}.interface.main")
 
-        # Rule IMP002: Raw CDP tab ops (should use CDMCP session.require_tab)
-        if mod == "logic.chrome.session":
-            bad = _RAW_CDP_TAB_OPS.intersection(names)
-            if bad:
-                self._add(node.lineno, Severity.ERROR, "IMP002",
-                          f"Raw CDP tab operations imported: {sorted(bad)} — "
-                          f"use CDMCP session.require_tab() for tab management")
-
-        # Rule IMP003: Not using cdmcp_loader for CDMCP access
-        # (detected by absence; we check in finalize)
-
-        # Rule IMP004: ToolBase vs MCPToolBase (only for tools that use CDP/CDMCP)
-        if mod == "logic.tool.blueprint.base" and "ToolBase" in names:
-            self._uses_toolbase = True
+        # Rule IMP005: Entry point importing from logic.* instead of interface.*
+        if self.is_entry_point and mod.startswith("logic."):
+            self._add(node.lineno, Severity.ERROR, "IMP005",
+                      f"Entry point imports from '{mod}' — "
+                      f"use interface.* instead")
 
         self.generic_visit(node)
 
     def check_source_lines(self, source: str):
         """Scan raw source for patterns not easily detected via AST."""
         self._source_lines = source.split("\n")
-        has_cdmcp_loader = "cdmcp_loader" in source
-        uses_cdmcp = False
-        has_chrome_dep = ("logic.chrome" in source or "cdmcp" in source.lower()
-                          or "CDPSession" in source or "find_tab" in source)
-
-        for i, line in enumerate(self._source_lines, 1):
-            stripped = line.strip()
-
-            # Rule IMP003: Hardcoded CDMCP tool paths
-            for pattern in _CDMCP_HARDCODE_PATTERNS:
-                if pattern in stripped and "=" in stripped and "#" not in stripped[:stripped.index(pattern)]:
-                    if "CDMCP" in stripped:
-                        uses_cdmcp = True
-                        self._add(i, Severity.ERROR, "IMP003",
-                                  f"Hardcoded CDMCP path: '{stripped[:80]}' — "
-                                  f"use 'from logic.cdmcp_loader import ...' instead")
-
-            # Rule IMP003b: spec_from_file_location pointing to CDMCP
-            if "spec_from_file_location" in stripped and "CDMCP" in stripped:
-                uses_cdmcp = True
-                self._add(i, Severity.ERROR, "IMP003",
-                          "spec_from_file_location to CDMCP — use cdmcp_loader")
-
-        if uses_cdmcp and not has_cdmcp_loader:
-            self._add(1, Severity.WARNING, "IMP003",
-                      "File uses CDMCP but does not import from cdmcp_loader")
-
-        if getattr(self, "_uses_toolbase", False) and has_chrome_dep:
-            self._add(1, Severity.WARNING, "IMP004",
-                      "Uses ToolBase with Chrome/CDP — MCP-enabled tools should "
-                      "use MCPToolBase from logic.tool.blueprint.mcp")
 
 
 def audit_tool(tool_dir: Path, project_root: Path) -> List[ImportIssue]:
@@ -157,7 +118,9 @@ def audit_tool(tool_dir: Path, project_root: Path) -> List[ImportIssue]:
         except (SyntaxError, UnicodeDecodeError):
             continue
 
-        visitor = ImportAuditor(py_file, tool_name, project_root)
+        entry = _is_entry_point(py_file, tool_dir)
+        visitor = ImportAuditor(py_file, tool_name, project_root,
+                                is_entry_point=entry)
         visitor.visit(tree)
         visitor.check_source_lines(source)
         issues.extend(visitor.issues)
@@ -165,12 +128,69 @@ def audit_tool(tool_dir: Path, project_root: Path) -> List[ImportIssue]:
     return issues
 
 
+def audit_docs(project_root: Path) -> List[ImportIssue]:
+    """Audit documentation files for non-compliant import examples."""
+    issues: List[ImportIssue] = []
+    doc_files = list(project_root.glob("*.md"))
+    doc_files.extend(project_root.glob("tool/*/for_agent.md"))
+    doc_files.extend(project_root.glob("tool/*/README.md"))
+
+    import re
+    pattern = re.compile(
+        r'from\s+(tool\.\w+\.logic\.\S+|logic\.(?:resolve|tool|setup|hooks|config|'
+        r'turing|mcp|chrome|cdmcp)\S*)\s+import'
+    )
+
+    for doc_file in doc_files:
+        try:
+            content = doc_file.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+        in_code_block = False
+        for i, line in enumerate(content.split("\n"), 1):
+            if line.strip().startswith("```"):
+                in_code_block = not in_code_block
+                continue
+            if in_code_block and pattern.search(line):
+                mod = pattern.search(line).group(1)
+                issues.append(ImportIssue(
+                    file=str(doc_file.relative_to(project_root)),
+                    line=i, severity=Severity.WARNING, code="DOC001",
+                    message=f"Documentation shows non-compliant import: '{mod}' — "
+                            f"update example to use interface.*",
+                ))
+    return issues
+
+
+def audit_root_files(project_root: Path) -> List[ImportIssue]:
+    """Audit root-level Python files (setup.py, main.py) for IMP005."""
+    issues: List[ImportIssue] = []
+    for name in ("setup.py", "main.py"):
+        py_file = project_root / name
+        if not py_file.exists():
+            continue
+        try:
+            source = py_file.read_text(encoding="utf-8", errors="ignore")
+            tree = ast.parse(source, filename=str(py_file))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        visitor = ImportAuditor(py_file, "__root__", project_root,
+                                is_entry_point=True)
+        visitor.visit(tree)
+        issues.extend(visitor.issues)
+    return issues
+
+
 def audit_all_tools(project_root: Path,
                     exclude: Optional[List[str]] = None) -> Dict[str, List[ImportIssue]]:
-    """Audit all tools under project_root/tool/."""
+    """Audit all tools under project_root/tool/ and root entry points."""
     tool_base = project_root / "tool"
     exclude = set(exclude or [])
     results: Dict[str, List[ImportIssue]] = {}
+
+    root_issues = audit_root_files(project_root)
+    if root_issues:
+        results["__root__"] = root_issues
 
     for tool_dir in sorted(tool_base.iterdir()):
         if not tool_dir.is_dir():
@@ -219,9 +239,7 @@ def format_report(results: Dict[str, List[ImportIssue]],
         lines.append(f"\n{'=' * 60}")
         lines.append(f"\033[1mFix priority:\033[0m")
         lines.append("  IMP001: Cross-tool imports → use tool.X.interface.main")
-        lines.append("  IMP002: Raw CDP tab ops → use CDMCP session.require_tab()")
-        lines.append("  IMP003: Hardcoded CDMCP paths → use logic.cdmcp_loader")
-        lines.append("  IMP004: ToolBase → MCPToolBase for MCP tools")
+        lines.append("  IMP005: Entry point imports from logic.* → use interface.*")
 
     return "\n".join(lines)
 

@@ -102,7 +102,7 @@ class OpenClawCore:
 
     def init_provider(self):
         """Initialize or reinitialize the LLM provider."""
-        from tool.LLM.logic.registry import get_provider
+        from tool.LLM.interface.main import get_provider
         self._provider = get_provider(self.backend)
 
     @property
@@ -115,7 +115,7 @@ class OpenClawCore:
 
     def set_backend(self, name: str):
         """Switch the active LLM backend."""
-        from tool.LLM.logic.config import set_config_value
+        from tool.LLM.interface.main import set_config_value
         self.backend = name
         set_config_value("active_backend", name)
         self.init_provider()
@@ -137,7 +137,7 @@ class OpenClawCore:
     def get_context(self, session_id: str):
         """Get or create a SessionContext for a session."""
         if session_id not in self._contexts:
-            from tool.LLM.logic.session_context import SessionContext
+            from tool.LLM.interface.main import SessionContext
             project_summary = get_project_summary()
             system_prompt = build_system_prompt(project_summary)
             self._contexts[session_id] = SessionContext(

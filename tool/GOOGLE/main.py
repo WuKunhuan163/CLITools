@@ -10,10 +10,10 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 ROOT_PROJECT_ROOT = setup_paths(__file__)
 
-from logic.tool.blueprint.base import ToolBase
+from interface.tool import ToolBase
 from interface.config import get_color
 
 class GoogleTool(ToolBase):
@@ -100,7 +100,7 @@ class GoogleTool(ToolBase):
         BLUE = get_color("BLUE")
         RESET = get_color("RESET")
 
-        from logic.chrome.session import is_chrome_cdp_available
+        from interface.chrome import is_chrome_cdp_available
         if not is_chrome_cdp_available():
             print(f"{BOLD}{RED}Failed{RESET} Chrome CDP not available.")
             return
@@ -125,7 +125,7 @@ class GoogleTool(ToolBase):
         BLUE = get_color("BLUE")
         RESET = get_color("RESET")
 
-        from logic.chrome.session import is_chrome_cdp_available
+        from interface.chrome import is_chrome_cdp_available
         if not is_chrome_cdp_available():
             print(f"{BOLD}{RED}Failed{RESET} Chrome CDP not available.")
             return
@@ -146,7 +146,7 @@ class GoogleTool(ToolBase):
         BLUE = get_color("BLUE")
         RESET = get_color("RESET")
 
-        from logic.chrome.session import is_chrome_cdp_available
+        from interface.chrome import is_chrome_cdp_available
         if is_chrome_cdp_available():
             print(f"{BOLD}{GREEN}Already running{RESET} Chrome CDP is available.")
             return
@@ -156,7 +156,7 @@ class GoogleTool(ToolBase):
             from tool.GOOGLE_CDMCP.logic.cdp.session_manager import ensure_chrome
             result = ensure_chrome()
         except ImportError:
-            from logic.chrome.session import CDP_PORT
+            from interface.chrome import CDP_PORT
             import subprocess as _sp
             chrome_paths = [
                 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -204,7 +204,7 @@ class GoogleTool(ToolBase):
         if not url.startswith(("http://", "https://", "about:", "chrome:")):
             url = "https://" + url
 
-        from logic.chrome.session import is_chrome_cdp_available, open_tab
+        from interface.chrome import is_chrome_cdp_available, open_tab
         if not is_chrome_cdp_available():
             print(f"  Chrome CDP not available, booting...")
             self._handle_boot()
@@ -224,7 +224,7 @@ class GoogleTool(ToolBase):
         RED = get_color("RED")
         RESET = get_color("RESET")
 
-        from logic.chrome.session import is_chrome_cdp_available
+        from interface.chrome import is_chrome_cdp_available
         if not is_chrome_cdp_available():
             print(f"{BOLD}{RED}Failed{RESET} Chrome CDP not available.")
             return
@@ -266,7 +266,7 @@ class GoogleTool(ToolBase):
             from tool.GOOGLE.logic.mcp.login import run_mcp_login
             return run_mcp_login(email=login_args.email, as_json=True)
 
-        from logic.chrome.session import is_chrome_cdp_available
+        from interface.chrome import is_chrome_cdp_available
         if not is_chrome_cdp_available():
             print(f"{BOLD}{RED}Failed{RESET} Chrome CDP not available.")
             print("  Start Chrome with remote debugging: chrome --remote-debugging-port=9222")

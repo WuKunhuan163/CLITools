@@ -24,11 +24,11 @@ while _r != _r.parent:
     if (_r / "bin" / "TOOL").exists(): break
     _r = _r.parent
 sys.path.insert(0, str(_r))
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.tool.blueprint.base import ToolBase
-from logic.config import get_color
+from interface.tool import ToolBase
+from interface.config import get_color
 
 VALID_BACKENDS = ("nvidia-glm-4-7b", "zhipu-glm-4-flash")
 
@@ -62,7 +62,7 @@ def cmd_setup_llm(args):
     print(f"  Get your API key from: https://build.nvidia.com/z-ai/glm4_7")
     print()
 
-    from tool.LLM.logic.providers.nvidia_glm47 import (
+    from tool.LLM.interface.main import (
         get_api_key, save_api_key, NvidiaGLM47Provider
     )
 
@@ -92,8 +92,8 @@ def cmd_setup_llm(args):
 def _make_core(args) -> "OpenClawCore":
     """Create the shared OpenClawCore instance used by all GUI modes."""
     from tool.OPENCLAW.logic.core import OpenClawCore
-    from tool.LLM.logic.config import get_config_value
-    from tool.LLM.logic.registry import _ALIASES
+    from tool.LLM.interface.main import get_config_value
+    from tool.LLM.interface.main import provider_aliases as _ALIASES
     data_dir = Path(__file__).resolve().parent / "data"
     cfg = _load_config()
     saved_backend = get_config_value("active_backend")
@@ -144,7 +144,7 @@ def cmd_chat(args):
         gui_script = f'''
 import sys
 sys.path.insert(0, {project_root!r})
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths({str(Path(__file__).resolve())!r})
 
 from tool.OPENCLAW.logic.session import SessionManager
@@ -193,8 +193,8 @@ def cmd_status(args):
     RED = get_color("RED")
     RESET = get_color("RESET")
 
-    from tool.LLM.logic.registry import list_providers
-    from tool.LLM.logic.config import get_config_value
+    from tool.LLM.interface.main import list_providers
+    from tool.LLM.interface.main import get_config_value
 
     providers = list_providers()
     active = get_config_value("active_backend", "nvidia-glm-4-7b")
