@@ -128,6 +128,26 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
     prompt = " ".join(args) if args else None
     provider = _get_provider_name()
 
+    existing_port = _find_running_gui_port()
+    if existing_port:
+        base_url = f"http://localhost:{existing_port}"
+        print(f"  {BOLD}Reusing{RESET} GUI at {base_url}")
+        if prompt:
+            try:
+                import urllib.request
+                data = json.dumps({"text": prompt, "turn_limit": 10}).encode()
+                req = urllib.request.Request(
+                    f"{base_url}/api/send",
+                    data=data,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=5)
+                print(f"  {BOLD}Sent{RESET} initial prompt.")
+            except Exception:
+                print(f"  Prompt queued — type it in the browser.")
+        return
+
     try:
         from tool.LLM.logic.gui.agent_server import start_agent_server
     except ImportError:

@@ -319,6 +319,7 @@ class ZhipuGLM47FlashProvider(LLMProvider):
                 if delta.tool_calls:
                     yield {"ok": True, "tool_calls": [
                         {
+                            "index": tc.index,
                             "id": tc.id,
                             "type": "function",
                             "function": {

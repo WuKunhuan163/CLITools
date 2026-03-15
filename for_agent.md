@@ -143,6 +143,10 @@ TOOL_NAME --session checkout <SID>        # Switch to existing session
 # Session cleanup — delete sessions
 TOOL_NAME --session clean <SID1> [SID2 ...]  # Delete specific sessions
 TOOL_NAME --session clean --all              # Delete ALL sessions
+
+# Task queue — manage queued tasks (auto-queued when session is busy)
+TOOL_NAME --session queue                    # List queued tasks
+TOOL_NAME --session queue clear              # Clear the queue
 ```
 
 Session data is stored in `runtime/sessions/<session_id>/history.json`. Response data from AI IDE agents is stored in `runtime/sessions/<session_id>/data/<response_id>.json` (sequential: `000.json`, `001.json`, ..., `999.json`, `1000.json`).

@@ -1,9 +1,9 @@
 {
- "id": "2eaa42c3",
- "title": "Cursor IDE role-play demo",
+ "id": "5a76e092",
+ "title": "Task #36: JSON Config Merger",
  "status": "idle",
- "mode": "ask",
- "created_at": 1773478962.523031,
+ "mode": "agent",
+ "created_at": 1773480515.498531,
  "message_count": 0,
  "codebase_root": "/Applications/AITerminalTools",
  "context": {

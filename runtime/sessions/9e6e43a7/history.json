@@ -1,9 +1,9 @@
 {
- "id": "98cc2dbd",
- "title": "Cursor IDE role-play demo",
+ "id": "9e6e43a7",
+ "title": "Debug write",
  "status": "idle",
- "mode": "ask",
- "created_at": 1773478905.896309,
+ "mode": "agent",
+ "created_at": 1773481758.064865,
  "message_count": 0,
  "codebase_root": "/Applications/AITerminalTools",
  "context": {

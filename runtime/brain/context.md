@@ -1,47 +1,32 @@
 # Current Context
 
 **Last updated:** 2026-03-14
-**Working on:** LLM Agent R8 Evaluation (COMPLETED)
+**Working on:** LLM Agent R10 Evaluation (COMPLETED)
 **Next step:** All tasks complete. Ready for next user request.
 **Blocked on:** none
 
 ## Session Summary
 
-Completed a comprehensive multi-task session:
+### LLM Agent R10 Evaluation (COMPLETED)
+Three tasks tested with GLM-4.7-flash, average 6.7/10:
 
-### 1. USERINPUT Hook Anti-Fatigue (COMPLETED)
-- Re-implemented `hooks/instance/AI-IDE/Cursor/brain_remind.py` with 4-tier escalation
-- Verified setup.py correctly deploys hooks.json to `.cursor/`
+| Task | Difficulty | Score | Key |
+|------|-----------|-------|-----|
+| #36: Config Merger | 5/10 | 9/10 | All 9 tests pass first try |
+| #37: Task Tracker | 7/10 | 7/10 | Bug fix good, rewrites drop context |
+| #38: MD Converter | 9/10 | 4/10 | Analysis paralysis, 1/3 bugs fixed |
 
-### 2. Frontend Bug Fix (COMPLETED)
-- Fixed template literal syntax errors in `logic/assistant/gui/agent_live.html`
-- Lines 1165, 1205: premature `;` closing template strings in `renderModelsView()`/`renderProvidersView()`
-
-### 3. ARTIFICIAL_ANALYSIS Integration (COMPLETED)
-- Copied API key to `tool/ARTIFICIAL_ANALYSIS/tool.json`
-- Fetched LLM benchmark data, verified caching and interface functions
-
-### 4. CLI Command Testing (COMPLETED)
-- Verified `--agent`, `--ask`, `--plan`, `--dry-run` commands
-- Confirmed read-only sandbox restrictions for ask/plan modes
-
-### 5. LLM Agent R8 Evaluation (COMPLETED)
-Three tasks tested with GLM-4.7-flash, average score 7.0/10 (up from 5.3 in R6):
-
-| Task | Score | Key |
-|------|-------|-----|
-| #30: Bug Hunt | 9/10 | Clean diagnosis + fix workflow |
-| #31: Slug Utils | 4/10 | Unreasonable test design, follow-up failure |
-| #32: Config Audit | 8/10 | read_file fix was transformative (was 2/10) |
-
-**Critical infrastructure fix**: `logic/assistant/std/tools.py` `read_file` was truncating at 3000 chars (shadowed the 12000-char version in conversation.py). Fixed to 12000 chars with `start_line`/`end_line` support. This was the root cause of agent's inability to navigate large files.
+**Critical infrastructure fixes**:
+1. `write_file` added to BUILTIN_TOOLS schema in conversation.py
+2. `write_file` added to tool handler registration tuple
+3. Streaming `index` field added to all Zhipu SDK-based providers (5 files)
 
 ### Reports Written
-- `tool/LLM/logic/models/glm_4_7_flash/providers/zhipu/report/2026-03-14_eval-round8-tasks30-32.md`
-- `tool/LLM/report/2026-03-14_read-file-truncation-fix.md`
+- `tool/LLM/logic/models/glm_4_7_flash/providers/zhipu/report/2026-03-14_eval-round10-tasks36-38.md`
 
 ### Remaining Known Issues
-1. Agent creates tests with unreasonable expectations (needs prompt guidance)
-2. "Act immediately on corrections" system prompt update untested
-3. Agent still re-reads files unnecessarily (3-4 reads of same file)
-4. 429 auto-fallback mechanism implemented but untested under load
+1. Analysis paralysis on complex tasks (9/10 difficulty)
+2. Context loss during file rewrites (drops imports/wrappers)
+3. Agent re-reads files unnecessarily (3-4 reads)
+4. Bold+italic nesting and greedy regex not fully resolved by agent
+5. 429 auto-fallback mechanism implemented but untested under load

@@ -309,6 +309,7 @@ class ZhipuGLM47Provider(LLMProvider):
                 if delta.tool_calls:
                     yield {"ok": True, "tool_calls": [
                         {
+                            "index": tc.index,
                             "id": tc.id,
                             "type": "function",
                             "function": {

@@ -922,6 +922,8 @@ class ToolBase:
             self._handle_session_checkout(rest)
         elif subcmd in ("delete", "clean"):
             self._handle_session_clean(rest)
+        elif subcmd == "queue":
+            self._handle_session_queue(rest)
         else:
             self._handle_agent(args, mode="agent")
 
@@ -973,12 +975,30 @@ class ToolBase:
         sessions_dir = self.project_root / "runtime" / "sessions"
         data_sessions_dir = self.project_root / "data" / "agent_sessions"
 
+        def _notify_gui_delete(sid):
+            """Notify running GUI server to delete a session."""
+            try:
+                from logic.agent.command import _find_running_gui_port
+                import json, urllib.request
+                port = _find_running_gui_port()
+                if port:
+                    req = urllib.request.Request(
+                        f"http://localhost:{port}/api/delete",
+                        data=json.dumps({"session_id": sid}).encode(),
+                        headers={"Content-Type": "application/json"},
+                    )
+                    urllib.request.urlopen(req, timeout=2)
+            except Exception:
+                pass
+
         if "--all" in args:
             count = 0
+            gui_sids = set()
             for d in (sessions_dir, data_sessions_dir):
                 if d.is_dir():
                     for item in list(d.iterdir()):
                         try:
+                            gui_sids.add(item.stem if item.is_file() else item.name)
                             if item.is_dir():
                                 shutil.rmtree(item)
                             else:
@@ -986,6 +1006,8 @@ class ToolBase:
                             count += 1
                         except OSError:
                             pass
+            for sid in gui_sids:
+                _notify_gui_delete(sid)
             print(f"  {BOLD}{GREEN}Cleaned.{RESET} {DIM}{count} sessions removed.{RESET}")
             return
 
@@ -1017,10 +1039,59 @@ class ToolBase:
                             removed += 1
                         except OSError:
                             pass
-            if not found:
+            if found:
+                _notify_gui_delete(sid)
+            else:
                 print(f"  {DIM}Session {sid} not found.{RESET}")
         if removed:
             print(f"  {BOLD}{GREEN}Cleaned.{RESET} {DIM}{removed} session(s) removed.{RESET}")
+
+    def _handle_session_queue(self, args):
+        """View or manage the task queue for a session.
+
+        Usage:
+            --session queue              List queued tasks
+            --session queue clear        Clear the queue
+        """
+        import json
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        DIM = get_color("DIM", "\033[2m")
+        RESET = get_color("RESET", "\033[0m")
+
+        try:
+            from logic.agent.command import _find_running_gui_port
+            import urllib.request
+            port = _find_running_gui_port()
+            if not port:
+                print(f"  {BOLD}No running GUI server found.{RESET}")
+                return
+            base_url = f"http://localhost:{port}"
+
+            action = args[0] if args else "list"
+            req = urllib.request.Request(
+                f"{base_url}/api/queue",
+                data=json.dumps({"action": action}).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+            resp = json.loads(urllib.request.urlopen(req, timeout=5).read())
+            if not resp.get("ok"):
+                print(f"  {BOLD}Error.{RESET} {DIM}{resp.get('error', '')}{RESET}")
+                return
+
+            if action == "list":
+                queue = resp.get("queue", [])
+                if not queue:
+                    print(f"  {DIM}No queued tasks.{RESET}")
+                else:
+                    print(f"  {BOLD}Queued tasks ({len(queue)}):{RESET}")
+                    for i, t in enumerate(queue, 1):
+                        print(f"    {i}. {t.get('text', '')}")
+            elif action == "clear":
+                cleared = resp.get("cleared", 0)
+                print(f"  {BOLD}Cleared.{RESET} {DIM}{cleared} task(s) removed.{RESET}")
+        except Exception as e:
+            print(f"  {BOLD}Error.{RESET} {DIM}{e}{RESET}")
 
     def _save_active_session_id(self, session_id: str):
         """Persist the active session ID for this tool."""

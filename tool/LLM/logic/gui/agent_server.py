@@ -311,8 +311,11 @@ class AgentServer:
                 sid = body.get("session_id", "")
                 if sid:
                     self._mgr.delete_session(sid)
+                    if sid in self._event_history:
+                        del self._event_history[sid]
                     remaining = self._mgr.list_sessions()
                     self._default_session_id = remaining[-1]["id"] if remaining else None
+                    self._push_sse({"type": "session_deleted", "id": sid})
                     return {"ok": True}
                 return {"ok": False, "error": "Missing session_id"}
 
@@ -335,6 +338,21 @@ class AgentServer:
                 from tool.LLM.logic.config import set_config_value
                 set_config_value(f"{vendor}_api_key", key)
                 return {"ok": True}
+
+            elif path == "/api/queue":
+                sid = body.get("session_id") or self._default_session_id
+                action = body.get("action", "list")
+                if not sid:
+                    return {"ok": False, "error": "No active session"}
+                if action == "list":
+                    queue = self._mgr.get_task_queue(sid)
+                    return {"ok": True, "queue": [
+                        {"text": t.get("text", "")[:100]} for t in queue
+                    ]}
+                elif action == "clear":
+                    count = self._mgr.clear_task_queue(sid)
+                    return {"ok": True, "cleared": count}
+                return {"ok": False, "error": f"Unknown queue action: {action}"}
 
             elif path == "/api/inject_event":
                 sid = body.get("session_id") or self._default_session_id

@@ -355,6 +355,25 @@ BUILTIN_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "write_file",
+            "description": (
+                "Create a new file or fully overwrite an existing file. "
+                "The content parameter must contain the COMPLETE file contents. "
+                "Creates parent directories automatically."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "File path to create or overwrite"},
+                    "content": {"type": "string", "description": "Complete file content to write"},
+                },
+                "required": ["path", "content"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "ask_user",
             "description": "Ask the user a question and wait for their response. Use when you need clarification, approval, or feedback before proceeding.",
             "parameters": {
@@ -412,6 +431,7 @@ class ConversationManager:
         self._load_persisted_sessions()
         self._lock = threading.Lock()
         self._cancel_requested = False
+        self._task_queues: Dict[str, list] = {}  # session_id -> queued tasks
 
         if brain is not None:
             self._brain = brain
@@ -622,7 +642,7 @@ class ConversationManager:
             self._std_tools = {}
             self._ToolContext = None
 
-        for name in ("exec", "read_file", "search",
+        for name in ("exec", "read_file", "search", "write_file",
                      "edit_file", "todo", "ask_user", "experience"):
             if name in self._std_tools:
                 self._tool_handlers[name] = self._make_std_handler(name)
@@ -1508,24 +1528,32 @@ class ConversationManager:
                      turn_limit: int = 0):
         """Send a user message and get LLM response.
 
-        Parameters
-        ----------
-        session_id : str
-        text : str
-            The user's message.
-        blocking : bool
-            If True, blocks until the turn completes.
-        context_feed : dict, optional
-            Additional system state to package with the message.
-            Keys: ``hint`` (str), ``errors`` (list[str]),
-            ``tools_available`` (dict), ``lesson`` (str).
-        turn_limit : int
-            Max rounds per user message. 0 = unlimited (uses internal
-            safety cap). The agent is stopped once it produces a text-only
-            response at or after this many rounds.
+        If the session is already running, the task is queued and will
+        execute automatically when the current task completes.
         """
+        session = self._sessions.get(session_id)
+        if session and session.status == "running":
+            task = {"text": text, "context_feed": context_feed,
+                    "turn_limit": turn_limit}
+            if session_id not in self._task_queues:
+                self._task_queues[session_id] = []
+            self._task_queues[session_id].append(task)
+            queue_pos = len(self._task_queues[session_id])
+            self._emit({"type": "notice", "level": "info",
+                        "message": f"Task queued (position {queue_pos}). "
+                                   f"Will start after current task completes."})
+            return
+
+        self._start_turn(session_id, text, blocking, context_feed, turn_limit)
+
+    def _start_turn(self, session_id: str, text: str,
+                    blocking: bool = False,
+                    context_feed: Optional[Dict[str, Any]] = None,
+                    turn_limit: int = 0):
+        """Start a turn, processing any queued tasks on completion."""
         if blocking:
             self._run_turn(session_id, text, context_feed, turn_limit)
+            self._drain_task_queue(session_id)
         else:
             def _safe_run():
                 try:
@@ -1541,8 +1569,43 @@ class ConversationManager:
                         session.status = "idle"
                     self._emit({"type": "session_status",
                                 "id": session_id, "status": "idle"})
+                self._drain_task_queue(session_id)
             t = threading.Thread(target=_safe_run, daemon=True)
             t.start()
+
+    def _drain_task_queue(self, session_id: str):
+        """Process queued tasks for a session after a turn completes."""
+        queue = self._task_queues.get(session_id, [])
+        while queue:
+            task = queue.pop(0)
+            self._emit({"type": "notice", "level": "info",
+                        "message": f"Starting queued task ({len(queue)} remaining)."})
+            try:
+                self._run_turn(session_id, task["text"],
+                               task.get("context_feed"),
+                               task.get("turn_limit", 0))
+            except Exception as e:
+                import traceback, sys
+                traceback.print_exc(file=sys.stderr)
+                self._emit({"type": "text",
+                            "tokens": f"\n[Queue task exception: {e}]\n"})
+                self._emit({"type": "complete", "reason": "error"})
+                session = self._sessions.get(session_id)
+                if session:
+                    session.status = "idle"
+                self._emit({"type": "session_status",
+                            "id": session_id, "status": "idle"})
+
+    def get_task_queue(self, session_id: str) -> list:
+        """Return the current task queue for a session."""
+        return list(self._task_queues.get(session_id, []))
+
+    def clear_task_queue(self, session_id: str) -> int:
+        """Clear all queued tasks for a session. Returns count removed."""
+        queue = self._task_queues.get(session_id, [])
+        count = len(queue)
+        queue.clear()
+        return count
 
     def _run_turn(self, session_id: str, text: str,
                   context_feed: Optional[Dict[str, Any]] = None,
@@ -1552,6 +1615,7 @@ class ConversationManager:
             self._emit({"type": "error", "message": f"Session {session_id} not found"})
             return
 
+        session_mode = getattr(session, 'mode', 'agent')
         session.status = "running"
         session.message_count += 1
         self._current_turn_session_id = session_id
