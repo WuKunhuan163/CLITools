@@ -278,6 +278,9 @@ class AgentGUIEngine {
     this.registerBlock('notice', (evt) => this._renderNotice(evt));
     this.registerBlock('debug', (evt) => this._renderDebugNotice(evt));
     this.registerBlock('file_summary', (evt) => this._renderFileSummary(evt));
+    this.registerBlock('tool_stream_start', (evt) => this._renderToolStreamStart(evt));
+    this.registerBlock('tool_stream_delta', (evt) => this._renderToolStreamDelta(evt));
+    this.registerBlock('tool_stream_end', (evt) => this._renderToolStreamEnd(evt));
   }
 
   /* ── Replay / Debug Mode ── */
@@ -715,6 +718,21 @@ class AgentGUIEngine {
   _renderTool(evt) {
     this.toolIdx++;
     const tid = 'tool_' + this.toolIdx;
+
+    if (this.lastToolEl && this.lastToolEl.querySelector('.tool-stream-content')) {
+      this.lastToolEl._trackerId = tid;
+      this._lastToolEvt = evt;
+      this.lastToolEl.dataset.sid = this.activeSessionId || '';
+      this.lastToolEl.dataset.round = this._currentRound || 0;
+      this.lastToolEl.dataset.toolName = evt.name || '';
+      this.lastToolEl.dataset.toolCmd = evt.cmd || '';
+      const isEditType = evt.name === 'edit' || evt.name === 'edit_file' || evt.name === 'write_file';
+      if (isEditType) {
+        this.lastToolEl.dataset.toolType = evt.name === 'write_file' ? 'write' : 'edit';
+      }
+      return sleep(0);
+    }
+
     this.lastToolEl = this._makeToolCall(evt.name, evt.desc, evt.cmd, evt.file);
     this.lastToolEl._trackerId = tid;
     this._lastToolEvt = evt;
@@ -785,6 +803,100 @@ class AgentGUIEngine {
       this._lastToolEvt = null;
     }
     return sleep(300);
+  }
+
+  /* ── Streaming Tool Blocks ── */
+
+  _renderToolStreamStart(evt) {
+    this._clearActiveText();
+    const idx = evt.index || 0;
+    const name = evt.name || 'tool';
+
+    const isEdit = name === 'edit_file' || name === 'write_file' || name === 'edit';
+    const isThink = name === 'think';
+
+    let headerHtml, bodyClass;
+    if (isEdit) {
+      headerHtml =
+        '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
+        + '<div class="tool-icon edit"><i class="bx bx-code-alt" style="font-size:13px"></i></div>'
+        + '<span class="tool-desc">Writing...</span>'
+        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+      bodyClass = 'streaming-edit';
+    } else if (isThink) {
+      headerHtml =
+        '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
+        + '<i class="bx bx-brain tool-natural-icon"></i>'
+        + '<span class="tool-desc">Thinking...</span>'
+        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+      bodyClass = 'streaming-think';
+    } else {
+      headerHtml =
+        '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
+        + '<i class="bx bx-code-alt tool-natural-icon"></i>'
+        + '<span class="tool-desc">' + esc(name) + '...</span>'
+        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+      bodyClass = 'streaming-generic';
+    }
+
+    const el = this._appendAnimated('div', 'tool-call expanded',
+      '<div class="tool-call-header" onclick="this.parentElement.classList.toggle(\'expanded\')">'
+      + headerHtml + '</div>'
+      + '<div class="tool-call-body">'
+      + '<pre class="tool-stream-content ' + bodyClass + '" data-tc="stream"></pre>'
+      + '</div>');
+
+    if (!this._streamingTools) this._streamingTools = {};
+    this._streamingTools[idx] = {
+      el: el,
+      contentEl: el.querySelector('[data-tc=stream]'),
+      buffer: '',
+      name: name,
+    };
+    return sleep(0);
+  }
+
+  _renderToolStreamDelta(evt) {
+    const idx = evt.index || 0;
+    const st = this._streamingTools && this._streamingTools[idx];
+    if (!st) return sleep(0);
+
+    st.buffer += (evt.content || '');
+
+    const contentEl = st.contentEl;
+    if (contentEl) {
+      const isEdit = st.name === 'edit_file' || st.name === 'write_file' || st.name === 'edit';
+      if (isEdit) {
+        contentEl.textContent = st.buffer;
+      } else {
+        contentEl.textContent = st.buffer;
+      }
+      this._scrollEnd();
+    }
+    return sleep(0);
+  }
+
+  _renderToolStreamEnd(evt) {
+    const idx = evt.index || 0;
+    const st = this._streamingTools && this._streamingTools[idx];
+    if (!st) return sleep(0);
+
+    const statusEl = st.el.querySelector('[data-tc=status]');
+    if (statusEl) {
+      statusEl.className = 'tool-status running';
+      statusEl.innerHTML = '<div class="spinner spinner-sm"></div>';
+    }
+
+    const descEl = st.el.querySelector('.tool-desc');
+    if (descEl) {
+      const isEdit = st.name === 'edit_file' || st.name === 'write_file' || st.name === 'edit';
+      if (isEdit) descEl.textContent = 'Applying edit...';
+      else if (st.name === 'think') descEl.textContent = 'Thought';
+    }
+
+    this.lastToolEl = st.el;
+    delete this._streamingTools[idx];
+    return sleep(0);
   }
 
   _renderTodoInit(evt) {

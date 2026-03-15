@@ -574,6 +574,11 @@ body.debug-mode .debug-block { display: block; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .tool-terminal::-webkit-scrollbar, .md-codeblock::-webkit-scrollbar, .tool-code-preview::-webkit-scrollbar { height: 4px; }
 .tool-terminal::-webkit-scrollbar-thumb, .md-codeblock::-webkit-scrollbar-thumb, .tool-code-preview::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── Streaming tool content ── */
+.tool-stream-content { padding: 10px 14px; font-family: var(--mono); font-size: 12px; line-height: 1.65; color: var(--text-2); white-space: pre-wrap; max-height: 400px; overflow-y: auto; background: var(--bg); margin: 0; border: none; font-variant-ligatures: none; }
+.tool-stream-content.streaming-edit { color: var(--green); }
+.tool-stream-content.streaming-think { color: var(--text-3); font-style: italic; }
 </style>
 </head>
 <body>
@@ -1046,7 +1051,8 @@ function formatDebugUsage(evt) {
 const DEBUG_EVENT_TYPES = new Set([
   'llm_request', 'llm_response_start', 'llm_response_end',
   'tool', 'tool_result', 'text', 'user', 'complete',
-  'thinking', 'experience', 'ask_user', 'notice', 'file_summary'
+  'thinking', 'experience', 'ask_user', 'notice', 'file_summary',
+  'tool_stream_start', 'tool_stream_delta', 'tool_stream_end'
 ]);
 
 function createDebugBlock(evt) {

@@ -136,26 +136,11 @@ class AgentLoop:
                 api_tools = pipeline.prepare_tools(tools, provider.capabilities)
 
                 t0 = time.time()
-                result = provider.send(
-                    api_messages, temperature=0.7, max_tokens=4096,
-                    tools=api_tools)
-                latency = time.time() - t0
+                full_text, tool_calls_accum, latency = self._stream_round(
+                    provider, api_messages, api_tools, round_num, t0)
 
-                if not result.get("ok"):
-                    err = result.get("error", "Unknown error")
-                    self._emit({"type": "text", "tokens": f"Error: {err}"})
+                if full_text is None:
                     break
-
-                full_text = result.get("text", "") or ""
-                if result.get("tool_calls"):
-                    tool_calls_accum = result["tool_calls"]
-
-                self._emit({"type": "llm_response_end", "round": round_num,
-                             "latency_s": round(latency, 3),
-                             "has_tool_calls": bool(tool_calls_accum)})
-
-                if full_text:
-                    self._emit({"type": "text", "tokens": full_text})
 
                 if not tool_calls_accum:
                     if full_text:
@@ -233,6 +218,120 @@ class AgentLoop:
         self._session.status = "done"
         self._emit({"type": "session_status", "id": self._session.id, "status": "done"})
         return full_text
+
+    # Tools whose content can be streamed progressively to the frontend
+    _STREAMABLE_TOOLS = {"write_file", "edit_file", "edit", "think"}
+
+    def _stream_round(self, provider, messages, tools, round_num, t0):
+        """Stream one LLM round, emitting incremental events.
+
+        Uses send_streaming() for raw per-token deltas, enabling
+        progressive rendering of tool call arguments (edit content,
+        think blocks) in the frontend.
+
+        Returns (full_text, tool_calls, latency) or (None, [], 0) on error.
+        """
+        full_text_parts = []
+        tool_calls_by_idx: Dict[int, Dict] = {}
+        streaming_tools: Dict[int, str] = {}
+        error_text = None
+        api_usage = {}
+
+        try:
+            for chunk in provider.send_streaming(
+                    messages, temperature=0.7, max_tokens=4096, tools=tools):
+                if not chunk.get("ok"):
+                    error_text = chunk.get("error", "Unknown error")
+                    break
+
+                if chunk.get("usage"):
+                    api_usage = chunk["usage"]
+
+                tc_list = chunk.get("tool_calls")
+                if tc_list:
+                    for delta in tc_list:
+                        idx = delta.get("index", 0)
+                        if idx not in tool_calls_by_idx:
+                            tool_calls_by_idx[idx] = {
+                                "id": delta.get("id", ""),
+                                "type": delta.get("type", "function"),
+                                "function": {
+                                    "name": delta.get("function", {}).get("name", ""),
+                                    "arguments": delta.get("function", {}).get("arguments", ""),
+                                },
+                            }
+                            fn_name = delta.get("function", {}).get("name", "")
+                            if fn_name and fn_name in self._STREAMABLE_TOOLS:
+                                streaming_tools[idx] = fn_name
+                                self._emit({"type": "tool_stream_start",
+                                            "index": idx, "name": fn_name,
+                                            "round": round_num})
+                                first_args = delta.get("function", {}).get("arguments", "")
+                                if first_args:
+                                    self._emit({"type": "tool_stream_delta",
+                                                "index": idx,
+                                                "content": first_args})
+                        else:
+                            existing = tool_calls_by_idx[idx]
+                            if delta.get("id"):
+                                existing["id"] = delta["id"]
+                            fn_delta = delta.get("function", {})
+                            if fn_delta.get("name"):
+                                existing["function"]["name"] = fn_delta["name"]
+                                if (fn_delta["name"] in self._STREAMABLE_TOOLS
+                                        and idx not in streaming_tools):
+                                    streaming_tools[idx] = fn_delta["name"]
+                                    self._emit({"type": "tool_stream_start",
+                                                "index": idx,
+                                                "name": fn_delta["name"],
+                                                "round": round_num})
+                            if fn_delta.get("arguments"):
+                                existing["function"]["arguments"] += fn_delta["arguments"]
+                                if idx in streaming_tools:
+                                    self._emit({"type": "tool_stream_delta",
+                                                "index": idx,
+                                                "content": fn_delta["arguments"]})
+                    continue
+
+                text = chunk.get("text", "")
+                if text:
+                    full_text_parts.append(text)
+                    self._emit({"type": "text", "tokens": text})
+
+                reasoning = chunk.get("reasoning", "")
+                if reasoning:
+                    self._emit({"type": "thinking", "tokens": reasoning})
+        except Exception as e:
+            error_text = str(e)
+
+        latency = time.time() - t0
+
+        for idx in streaming_tools:
+            self._emit({"type": "tool_stream_end", "index": idx, "round": round_num})
+
+        if error_text:
+            self._emit({"type": "text", "tokens": f"Error: {error_text}"})
+            return None, [], latency
+
+        full_text = "".join(full_text_parts)
+        merged_tc = [tool_calls_by_idx[k] for k in sorted(tool_calls_by_idx)]
+
+        try:
+            from tool.LLM.logic.usage import record_usage
+            model = getattr(provider, "_model", provider.name)
+            api_key = getattr(provider, "_api_key", "")
+            record_usage(provider.name, model,
+                         {"ok": True, "text": full_text, "usage": api_usage},
+                         latency, api_key=api_key)
+        except Exception:
+            pass
+
+        self._emit({"type": "llm_response_end", "round": round_num,
+                     "latency_s": round(latency, 3),
+                     "has_tool_calls": bool(merged_tc),
+                     "_full_text": full_text})
+
+        return full_text, merged_tc, latency
 
     def _execute_tool_call(self, tool_call: dict) -> dict:
         func = tool_call.get("function", {})
