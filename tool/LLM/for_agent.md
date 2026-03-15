@@ -145,7 +145,7 @@ get_agent_gui_engine_path()    # → path to agent_gui_engine.js
 
 Feed events via `engine.processEvent(evt)` or SSE at `/api/events`:
 
-- `user { text }` — User message
+- `user { prompt, ecosystem?, user_rationale?, system_state? }` — User message (prompt replaces text)
 - `thinking { tokens }` — Streaming thinking block
 - `text { tokens }` — Markdown assistant text
 - `tool { name, desc, cmd, file }` — Tool call (exec/edit/read/search)

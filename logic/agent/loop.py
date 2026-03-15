@@ -51,6 +51,7 @@ class AgentLoop:
                 self._tool_handlers.register("write_memory", mh.handle_write_memory)
                 self._tool_handlers.register("write_daily", mh.handle_write_daily)
                 self._tool_handlers.register("recall_memory", mh.handle_recall_memory)
+                self._tool_handlers.register("reorganize_memory", mh.handle_reorganize_memory)
                 self._memory_tool_defs = MEMORY_TOOL_DEFS
             except Exception:
                 self._memory_tool_defs = []
@@ -101,10 +102,30 @@ class AgentLoop:
             max_empty_retries = pipeline.get_max_retries()
             full_text = ""
 
+            flushed_this_turn = False
+
             while round_num < max_rounds:
                 round_num += 1
                 full_text = ""
                 tool_calls_accum = []
+
+                if (self._tier >= 2 and self._mode == "agent"
+                        and not flushed_this_turn and len(self._context_messages) > 10):
+                    try:
+                        from logic.agent.memory import should_flush_memory
+                        ctx_chars = sum(len(str(m.get("content", "")))
+                                        for m in self._context_messages)
+                        est_tokens = ctx_chars // 4
+                        max_ctx = getattr(provider.capabilities, "max_context_tokens", 128000)
+                        if should_flush_memory(est_tokens, max_ctx):
+                            from logic.agent.memory import FLUSH_PROMPT_EN
+                            self._context_messages.append(
+                                {"role": "user", "content": FLUSH_PROMPT_EN})
+                            self._emit({"type": "text",
+                                        "tokens": "[Memory flush triggered...]\n"})
+                            flushed_this_turn = True
+                    except Exception:
+                        pass
 
                 self._emit({"type": "llm_request", "provider": self._provider_name,
                              "round": round_num})
@@ -165,11 +186,23 @@ class AgentLoop:
 
                     elif tools and empty_retries < max_empty_retries:
                         empty_retries += 1
+                        flattened = pipeline.prepare_messages(
+                            list(self._context_messages),
+                            turn_number=max(self._session.message_count, 2))
+                        self._context_messages = flattened
+                        task_reminder = ""
+                        if self._session.initial_prompt:
+                            task_reminder = (
+                                f"\n\nOriginal task: {self._session.initial_prompt[:400]}")
                         self._context_messages.append(
                             {"role": "assistant", "content": "Let me take action now."})
                         self._context_messages.append(
-                            {"role": "user", "content": "Your response was empty. Use tools NOW."})
-                        self._emit({"type": "text", "tokens": "[Empty response, retrying...]\n"})
+                            {"role": "user", "content":
+                             "Your previous response was empty. Use tools to take action NOW. "
+                             "Do NOT repeat file reads you already completed. "
+                             "Do NOT run ls. Proceed directly with the modifications."
+                             + task_reminder})
+                        self._emit({"type": "text", "tokens": "[Empty response, flattening and retrying...]\n"})
                         continue
 
                     break

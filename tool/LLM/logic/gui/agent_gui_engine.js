@@ -247,7 +247,7 @@ class AgentGUIEngine {
   }
 
   _appendSpacer() {
-    this._appendEl('div', 'turn-spacer');
+    // No-op: turn-spacer removed per design
   }
 
   _isNearBottom() {
@@ -478,7 +478,8 @@ class AgentGUIEngine {
   /* ── Block Renderers ── */
 
   _renderUser(evt) {
-    this._appendAnimated('div', 'msg-user', esc(evt.text));
+    const content = evt.prompt || evt.text || '';
+    this._appendAnimated('div', 'msg-user', esc(content));
     return sleep(400);
   }
 
@@ -597,36 +598,67 @@ class AgentGUIEngine {
   _renderLLMRequest(evt) {
     const provider = evt.provider || 'LLM';
     const round = evt.round || 1;
-    const label = round === 1 ? provider : provider + ' (round ' + round + ')';
-    this._llmRequestEl = this._appendAnimated('div', 'llm-status',
-      '<div class="llm-status-inner">'
-      + '<div class="spinner spinner-sm"></div>'
-      + '<span class="llm-status-text">Sending to <strong>' + esc(label) + '</strong>...</span>'
-      + '</div>');
+    this._currentProvider = provider;
+    this._currentRound = round;
+    this._llmRequestEl = this._createModelInfoEl(provider, round);
+    this.chatArea.appendChild(this._llmRequestEl);
     return sleep(100);
   }
 
   _renderLLMResponseStart(evt) {
     if (this._llmRequestEl) {
-      const text = this._llmRequestEl.querySelector('.llm-status-text');
-      if (text) text.innerHTML = 'Receiving from <strong>' + esc(evt.provider || 'LLM') + '</strong>...';
+      const spinner = this._llmRequestEl.querySelector('.model-spinner');
+      if (spinner) spinner.style.display = '';
+      const latency = this._llmRequestEl.querySelector('.model-latency');
+      if (latency) latency.textContent = '';
     }
     return sleep(50);
   }
 
   _renderLLMResponseEnd(evt) {
     if (this._llmRequestEl) {
-      const inner = this._llmRequestEl.querySelector('.llm-status-inner');
-      if (inner) {
-        const latency = evt.latency_s ? ' (' + evt.latency_s + 's)' : '';
-        const tc = evt.has_tool_calls ? ' → tool calls' : '';
-        inner.innerHTML = CHECK_SVG
-          + '<span class="llm-status-text">Response received' + esc(latency + tc) + '</span>';
-        inner.classList.add('done');
+      const spinner = this._llmRequestEl.querySelector('.model-spinner');
+      if (spinner) spinner.style.display = 'none';
+
+      const parts = [];
+      const usage = evt.usage || {};
+      const totalTokens = (usage.prompt_tokens || 0) + (usage.completion_tokens || 0);
+      if (totalTokens > 0) parts.push(totalTokens + ' tokens');
+      if (usage.cost != null && usage.cost > 0) {
+        const currency = this._costCurrency || '$';
+        parts.push(currency + usage.cost.toFixed(6));
+      } else if (usage.prompt_tokens && usage.completion_tokens) {
+        parts.push(usage.prompt_tokens + '→' + usage.completion_tokens);
       }
+      if (evt.latency_s) parts.push(evt.latency_s + 's');
+
+      const latency = this._llmRequestEl.querySelector('.model-latency');
+      if (latency) latency.textContent = parts.join(' · ') || (evt.latency_s ? evt.latency_s + 's' : '');
+
+      this._lastLLMResponseEnd = evt;
       this._llmRequestEl = null;
     }
     return sleep(100);
+  }
+
+  setCostCurrency(symbol) {
+    this._costCurrency = symbol;
+  }
+
+  _createModelInfoEl(provider, round) {
+    const logos = typeof MODEL_LOGOS !== 'undefined' ? MODEL_LOGOS : {};
+    const names = typeof MODEL_DISPLAY_NAMES !== 'undefined' ? MODEL_DISPLAY_NAMES : {};
+    const name = names[provider] || provider;
+    const logo = logos[provider] || '';
+    const div = document.createElement('div');
+    div.className = 'model-info';
+    let html = '';
+    if (logo) html += '<img src="' + logo + '" alt="' + esc(name) + '">';
+    html += '<span class="model-name">' + esc(name) + '</span>';
+    if (round > 1) html += '<span class="model-sep">·</span><span class="model-round">round ' + round + '</span>';
+    html += '<span class="model-sep">·</span><div class="spinner spinner-sm model-spinner"></div><span class="model-latency"></span>';
+    div.innerHTML = html;
+    return div;
   }
 
   _renderAskUser(evt) {

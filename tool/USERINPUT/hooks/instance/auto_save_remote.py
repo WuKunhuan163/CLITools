@@ -90,10 +90,25 @@ class AutoSaveRemote(HookInstance):
                             lock_file.unlink()
                         except Exception:
                             pass
+                # Use -A to stage deletions too; LFS files no longer on disk
+                # are then untracked, keeping only last-commit LFS objects.
                 subprocess.run(
-                    [_git_bin(), "add", "."],
+                    [_git_bin(), "add", "-A", "."],
                     cwd=str(project_root), capture_output=True, timeout=15
                 )
+                # Explicitly untrack LFS files missing from disk (belt-and-suspenders)
+                lfs_out = subprocess.run(
+                    [_git_bin(), "lfs", "ls-files", "--name-only"],
+                    cwd=str(project_root), capture_output=True, text=True, timeout=10
+                )
+                if lfs_out.returncode == 0 and lfs_out.stdout.strip():
+                    root = project_root
+                    for path in lfs_out.stdout.strip().splitlines():
+                        if path and not (root / path).exists():
+                            subprocess.run(
+                                [_git_bin(), "rm", "--cached", "--ignore-unmatch", path],
+                                cwd=str(project_root), capture_output=True, timeout=5
+                            )
                 res = subprocess.run(
                     [_git_bin(), "commit", "-m", commit_msg],
                     cwd=str(project_root), capture_output=True, text=True, timeout=15

@@ -75,11 +75,17 @@ def build_context(session: AgentSession, user_text: str,
             parts.append(listing)
 
     if tier >= 1 and session.message_count > 1:
+        parts.append(build_runtime_header(cwd))
+        original_prompt = getattr(session, "initial_prompt", "")
+        if original_prompt:
+            summary = original_prompt[:300]
+            parts.append(f"[Original task] {summary}")
         listing = build_directory_listing(cwd, limit=20)
         if listing:
             parts.append(
                 f"[IMPORTANT] Before modifying any file, you MUST "
-                f"read_file first. {listing}")
+                f"read_file first. Use absolute paths when the task "
+                f"references files outside your working directory. {listing}")
 
     if tier >= 1:
         env_block = session.environment.serialize()

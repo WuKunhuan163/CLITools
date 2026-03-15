@@ -123,17 +123,22 @@ def write_daily_note(project_root: str, content: str,
 
 
 def write_memory(project_root: str, content: str,
-                 brain_type: str = "default"):
-    """Append a fact to MEMORY.md."""
+                 brain_type: str = "default", category: str = ""):
+    """Append a fact to MEMORY.md, optionally within a category subdirectory."""
     d = ensure_experience_dir(project_root, brain_type)
-    fpath = d / "MEMORY.md"
+    if category:
+        cat_dir = d / category.strip("/")
+        cat_dir.mkdir(parents=True, exist_ok=True)
+        fpath = cat_dir / "MEMORY.md"
+    else:
+        fpath = d / "MEMORY.md"
     existing = fpath.read_text(encoding="utf-8", errors="replace") if fpath.exists() else ""
     fpath.write_text(existing + "\n" + content + "\n", encoding="utf-8")
 
 
 def list_brain_types(project_root: str):
     """List available brain types."""
-    exp_dir = Path(project_root) / "experience"
+    exp_dir = Path(project_root) / "runtime" / "experience"
     if not exp_dir.exists():
         return []
     return sorted(

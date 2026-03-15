@@ -120,10 +120,14 @@ def _get_system_prompt(tool_name: str, lang: str = "en",
                 f"5. **search(pattern=...)** — 搜索文本/代码。\n"
                 f"6. **ask_user(question=...)** — 向用户提问。\n\n"
                 f"## 关键行为\n\n"
-                f"- 必须使用工具，不要只描述变更。\n"
-                f"- write_file的content必须是完整文件。\n"
-                f"- 修改文件前先read_file。\n"
+                f"- 必须使用工具，不要只描述变更——要行动。\n"
+                f"- **在写之前，读取所有相关文件。** 如果看到2个以上文件，全部读取。\n"
+                f"- write_file的content必须是完整文件，不能是片段。\n"
+                f"- **直接原地修改已有文件** — 不要在不同路径创建新文件。\n"
+                f"  如果用户说'编辑 /path/file.html'，就写入那个确切路径。\n"
+                f"- 使用edit_file进行精确修改，而不是重写整个文件。\n"
                 f"- 命令失败时尝试不同方法。\n"
+                f"- 验证你的工作：写入后重新读取文件确认。\n"
             )
         return (
             f"You are an autonomous AI Agent working in the {tool_name} tool directory. "
@@ -136,10 +140,14 @@ def _get_system_prompt(tool_name: str, lang: str = "en",
             f"5. **search(pattern=...)** — Search for text/code.\n"
             f"6. **ask_user(question=...)** — Ask the user a question.\n\n"
             f"## Key Behaviors\n\n"
-            f"- Always use tools. Never just describe changes.\n"
-            f"- write_file content must be the COMPLETE file.\n"
-            f"- Read files before modifying them.\n"
+            f"- Always use tools. Never just describe changes — ACT.\n"
+            f"- **Read ALL relevant files before writing.** If you see 2+ files, read them all.\n"
+            f"- write_file content must be the COMPLETE file, not a fragment.\n"
+            f"- **Modify existing files in-place** — do NOT create new files at different paths.\n"
+            f"  If the user says 'edit /path/file.html', write to that EXACT path.\n"
+            f"- Use edit_file for targeted changes instead of rewriting entire files.\n"
             f"- If a command fails, try a different approach.\n"
+            f"- Verify your work: read the file after writing to confirm.\n"
         )
 
     mode_label = MODE_LABELS.get(mode, mode)
@@ -226,6 +234,7 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
         provider_name=provider,
         tier=2,
         mode=mode,
+        initial_prompt=prompt[:500],
     )
 
     from logic.config import get_color

@@ -145,6 +145,16 @@ Agent infrastructure lives in `logic/agent/` (core) and `interface/agent.py` (fa
 
 Default LLM provider: `zhipu-glm-4.7` (GLM-4.7 via Zhipu AI). Configure via `--agent setup`.
 
+### Exec Timeout & Background Execution
+
+The agent's `exec` tool has a configurable foreground timeout (default: 30s). When a command exceeds this timeout, it automatically moves to background execution:
+- The agent receives the PID and log file path immediately (not blocked)
+- The command continues running in the background
+- Output is written to `tmp/bg_exec/bg_<pid>_<id>.log`
+- The agent can check the log file later with `read_file`
+
+Set `exec_timeout` when constructing `ToolHandlers` to adjust the threshold.
+
 ### Read-Only Sandbox
 
 Ask and Plan modes enforce a read-only sandbox at the tool handler level:

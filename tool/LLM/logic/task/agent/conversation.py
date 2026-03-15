@@ -146,7 +146,7 @@ class AgentEnvironment:
 
 
 _PROJECT_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', '..'))
+    os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..'))
 
 
 def build_runtime_state() -> str:
@@ -484,7 +484,11 @@ class ConversationManager:
         self._emit({"type": "tool", "name": "read", "desc": path, "cmd": path})
         env_obj = self._get_current_environment()
         try:
-            content = open(path, encoding='utf-8', errors='replace').read()[:3000]
+            if os.path.isdir(path):
+                entries = sorted(os.listdir(path))[:50]
+                content = f"Directory listing of {path}:\n" + "\n".join(entries)
+            else:
+                content = open(path, encoding='utf-8', errors='replace').read()[:3000]
             self._emit({"type": "tool_result", "ok": True, "output": content})
             if env_obj:
                 env_obj.record_result(f"read:{path}", True, content[:200])
@@ -764,6 +768,60 @@ class ConversationManager:
         self._emit({"type": "ask_user", "question": question})
         return {"ok": True, "output": f"[Question sent to user: {question}] The user will respond in a follow-up message. For now, continue with your best judgment or wait."}
 
+    @staticmethod
+    def _parse_text_tool_calls(text: str):
+        """Parse tool calls embedded in text (e.g. <tool_call>func(args)</tool_call>).
+
+        Some models output tool calls as text instead of structured API calls.
+        Returns (cleaned_text, tool_calls_list).
+        """
+        import re, json as _json, uuid as _uuid
+
+        patterns = [
+            re.compile(
+                r'<tool_call>\s*(\w+)\s*\(\s*(.*?)\s*\)\s*</tool_call>',
+                re.DOTALL),
+            re.compile(
+                r'<tool_call>\s*(\w+)\s*\(\s*(.*?)\s*\)\s*$',
+                re.DOTALL),
+        ]
+
+        tool_calls = []
+        cleaned = text
+
+        for pattern in patterns:
+            for match in pattern.finditer(text):
+                func_name = match.group(1)
+                args_raw = match.group(2)
+                args_dict = {}
+                try:
+                    args_dict = _json.loads("{" + args_raw + "}")
+                except Exception:
+                    kv_pattern = re.compile(
+                        r'(\w+)\s*=\s*("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\')',
+                        re.DOTALL)
+                    for kv in kv_pattern.finditer(args_raw):
+                        key = kv.group(1)
+                        val = kv.group(2)
+                        try:
+                            import ast
+                            args_dict[key] = ast.literal_eval(val)
+                        except Exception:
+                            args_dict[key] = val.strip('"').strip("'")
+
+                if func_name and args_dict:
+                    tool_calls.append({
+                        "id": f"text_tc_{_uuid.uuid4().hex[:8]}",
+                        "type": "function",
+                        "function": {
+                            "name": func_name,
+                            "arguments": _json.dumps(args_dict),
+                        },
+                    })
+                    cleaned = cleaned.replace(match.group(0), "")
+
+        return cleaned.strip(), tool_calls
+
     def _execute_tool_call(self, tool_call: dict) -> dict:
         """Execute a single tool call from the LLM."""
         import json as _json
@@ -836,7 +894,8 @@ class ConversationManager:
 
     def send_message(self, session_id: str, text: str,
                      blocking: bool = False,
-                     context_feed: Optional[Dict[str, Any]] = None):
+                     context_feed: Optional[Dict[str, Any]] = None,
+                     break_after_first_reply: bool = False):
         """Send a user message and get LLM response.
 
         Parameters
@@ -850,17 +909,20 @@ class ConversationManager:
             Additional system state to package with the message.
             Keys: ``hint`` (str), ``errors`` (list[str]),
             ``tools_available`` (dict), ``lesson`` (str).
+        break_after_first_reply : bool
+            If True, stop after first agent reply (no Round 2).
         """
         if blocking:
-            self._run_turn(session_id, text, context_feed)
+            self._run_turn(session_id, text, context_feed, break_after_first_reply)
         else:
             t = threading.Thread(target=self._run_turn,
-                                 args=(session_id, text, context_feed),
+                                 args=(session_id, text, context_feed, break_after_first_reply),
                                  daemon=True)
             t.start()
 
     def _run_turn(self, session_id: str, text: str,
-                  context_feed: Optional[Dict[str, Any]] = None):
+                  context_feed: Optional[Dict[str, Any]] = None,
+                  break_after_first_reply: bool = False):
         session = self._sessions.get(session_id)
         if not session:
             self._emit({"type": "error", "message": f"Session {session_id} not found"})
@@ -874,7 +936,29 @@ class ConversationManager:
         self._quality_warnings: Dict[str, List[str]] = {}
         self._emit({"type": "session_status", "id": session_id, "status": "running"})
 
-        self._emit({"type": "user", "text": text})
+        # Build user event with prompt + ecosystem context + system state
+        ecosystem = {}
+        system_state = {"nudge_triggered": False}
+        try:
+            from logic.agent.ecosystem import build_ecosystem_info, build_system_state
+            _proj = getattr(self, "_project_root", None) or _PROJECT_ROOT
+            ecosystem = build_ecosystem_info(str(_proj))
+            system_state = build_system_state(
+                session_env=session.environment,
+                nudge_triggered=False,
+                quality_warnings=self._quality_warnings,
+                last_tool_results=session.environment.last_results if session.environment else None,
+            )
+        except Exception:
+            pass
+        user_evt = {
+            "type": "user",
+            "prompt": text,
+            "ecosystem": ecosystem,
+            "user_rationale": ecosystem.get("user_rationale", ""),
+            "system_state": system_state,
+        }
+        self._emit(user_evt)
 
         if session.context.needs_compression(trigger_ratio=0.6):
             self._compress_context(session)
@@ -907,6 +991,13 @@ class ConversationManager:
             round_num = 0
             empty_retries = 0
             max_empty_retries = pipeline.get_max_retries()
+            consecutive_empty = 0
+            MAX_CONSECUTIVE_EMPTY = 3
+
+            default_max_tokens = min(
+                getattr(provider.capabilities, 'max_output_tokens', 4096) or 4096,
+                8192)
+            current_max_tokens = default_max_tokens
 
             while round_num < max_tool_rounds:
                 round_num += 1
@@ -932,7 +1023,7 @@ class ConversationManager:
                     for chunk in provider.stream(
                         api_messages,
                         temperature=0.7,
-                        max_tokens=4096,
+                        max_tokens=current_max_tokens,
                         tools=api_tools,
                     ):
                         if first_chunk and chunk.get("ok"):
@@ -950,12 +1041,26 @@ class ConversationManager:
                                 if chunk.get("tool_calls"):
                                     tool_calls_accum = chunk["tool_calls"]
                                 latency = chunk.get("latency_s")
-                                self._emit({
+                                self._last_finish_reason = chunk.get("finish_reason", "")
+                                self._last_usage = chunk.get("usage", {})
+                                stream_end_evt = {
                                     "type": "llm_response_end",
                                     "round": round_num,
                                     "latency_s": latency,
                                     "has_tool_calls": bool(tool_calls_accum),
-                                })
+                                    "provider": self._provider_name,
+                                    "model": chunk.get("model", self._provider_name),
+                                }
+                                if chunk.get("usage"):
+                                    stream_end_evt["usage"] = chunk["usage"]
+                                self._emit(stream_end_evt)
+                                if break_after_first_reply and not tool_calls_accum and round_num >= 3:
+                                    self._emit({"type": "text",
+                                                "tokens": f"[Break after round {round_num} — stopping.]\n"})
+                                    self._emit({"type": "complete"})
+                                    session.status = "idle"
+                                    self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                                    return
                                 break
                         else:
                             err = chunk.get("error", "Unknown error")
@@ -971,10 +1076,12 @@ class ConversationManager:
                     result = provider.send(
                         api_messages,
                         temperature=0.7,
-                        max_tokens=4096,
+                        max_tokens=current_max_tokens,
                         tools=api_tools,
                     )
                     latency = _time.time() - t0
+                    self._last_finish_reason = result.get("finish_reason", "")
+                    self._last_usage = result.get("usage", {})
                     if result.get("ok"):
                         full_text = result.get("text", "") or ""
                         if result.get("tool_calls"):
@@ -986,21 +1093,73 @@ class ConversationManager:
                         session.status = "idle"
                         self._emit({"type": "session_status", "id": session_id, "status": "idle"})
                         return
-                    self._emit({
+                    resp_event = {
                         "type": "llm_response_end",
                         "round": round_num,
                         "latency_s": round(latency, 3),
                         "has_tool_calls": bool(tool_calls_accum),
-                    })
+                        "provider": self._provider_name,
+                        "model": result.get("model", self._provider_name),
+                    }
+                    if result.get("usage"):
+                        resp_event["usage"] = result["usage"]
+                    self._emit(resp_event)
 
+                if full_text and not tool_calls_accum and "<tool_call>" in full_text:
+                    cleaned, parsed_tcs = self._parse_text_tool_calls(full_text)
+                    if parsed_tcs:
+                        self._emit({"type": "text",
+                                    "tokens": f"[Parsed {len(parsed_tcs)} text-embedded tool call(s)]\n"})
+                        tool_calls_accum.extend(parsed_tcs)
+                        full_text = cleaned
+
+                if full_text or tool_calls_accum:
+                    consecutive_empty = 0
                 if full_text:
                     self._emit({"type": "text", "tokens": full_text})
+
+                if break_after_first_reply and not tool_calls_accum and round_num >= 3:
+                    self._emit({"type": "text",
+                                "tokens": f"[Break after round {round_num} — stopping.]\n"})
+                    self._emit({"type": "complete"})
+                    session.status = "idle"
+                    self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                    return
+
+                if not full_text and not tool_calls_accum:
+                    consecutive_empty += 1
+                    if consecutive_empty >= MAX_CONSECUTIVE_EMPTY:
+                        self._emit({"type": "text",
+                                    "tokens": f"[{consecutive_empty} consecutive empty responses — "
+                                    "stopping to avoid wasting API calls.]\n"})
+                        break
+
+                    last_finish = getattr(self, '_last_finish_reason', "")
+                    last_usage = getattr(self, '_last_usage', {})
+                    validation = pipeline.validate_response(
+                        full_text, tool_calls_accum, last_finish, last_usage)
+                    if not validation.get("valid", True) and validation.get("retry"):
+                        if validation.get("increase_max_tokens"):
+                            new_max = pipeline.get_recommended_max_tokens(
+                                current_max_tokens)
+                            if new_max > current_max_tokens:
+                                current_max_tokens = new_max
+                                self._emit({"type": "text",
+                                            "tokens": f"[Reasoning model budget exceeded, "
+                                            f"retrying with max_tokens={current_max_tokens}...]\n"})
+                            else:
+                                self._emit({"type": "text",
+                                            "tokens": "[Reasoning budget maxed out, retrying...]\n"})
+                        else:
+                            self._emit({"type": "text",
+                                        "tokens": f"[{validation.get('reason', 'Retrying')}]\n"})
+                        continue
 
                 if not tool_calls_accum:
                     if full_text:
                         session.context.add_assistant(full_text)
                         if (tools and round_num <= 6
-                                and self._should_nudge(full_text)):
+                                and self._should_nudge(full_text, round_num)):
                             has_read = any(
                                 r.get("cmd", "").startswith("read:")
                                 for r in session.environment.last_results)
@@ -1137,7 +1296,7 @@ class ConversationManager:
     # ── Nudge Detection ──
 
     @staticmethod
-    def _should_nudge(text: str) -> bool:
+    def _should_nudge(text: str, round_num: int = 0) -> bool:
         """Detect if the agent described code changes without applying them.
 
         Returns True if the text looks like a description of code changes
@@ -1145,19 +1304,31 @@ class ConversationManager:
         than a final answer to a question.
         """
         text_lower = text.lower()
+
+        if round_num <= 2 and len(text) < 200:
+            return True
+
         code_indicators = ["```", "def ", "class ", "import ",
                            "<html", "function ", "const "]
         has_code = any(ind in text_lower for ind in code_indicators)
 
-        action_indicators = ["here's the updated", "here is the", "i would",
-                             "you can add", "modify", "change the",
-                             "update the", "replace", "add the following",
-                             "here's how"]
+        action_indicators = [
+            "here's the updated", "here is the", "i would",
+            "you can add", "modify", "change the",
+            "update the", "replace", "add the following",
+            "here's how",
+            "我将", "首先创建", "接下来", "然后创建",
+            "开始创建", "第一步", "第二步", "下面",
+            "创建以下", "编写", "修改",
+        ]
         has_action_desc = any(ind in text_lower for ind in action_indicators)
 
-        applied_indicators = ["i've created", "i've updated", "i've fixed",
-                              "i have created", "i have updated", "done.",
-                              "file has been", "successfully"]
+        applied_indicators = [
+            "i've created", "i've updated", "i've fixed",
+            "i have created", "i have updated", "done.",
+            "file has been", "successfully",
+            "已创建", "已完成", "已修改", "已写入", "创建完毕",
+        ]
         already_applied = any(ind in text_lower for ind in applied_indicators)
 
         return (has_code or has_action_desc) and not already_applied

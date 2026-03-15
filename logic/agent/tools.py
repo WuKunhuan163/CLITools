@@ -140,7 +140,10 @@ READONLY_BLOCKED_PATTERNS = [
 
 
 def _is_readonly_safe(cmd: str) -> bool:
-    """Check if a command is safe for read-only mode."""
+    """Check if a command is safe for read-only mode.
+
+    Blocks destructive commands AND script execution (scripts can write files).
+    """
     cmd_stripped = cmd.strip()
     for blocked in READONLY_BLOCKED_PATTERNS:
         if blocked in cmd_stripped:
@@ -151,19 +154,23 @@ def _is_readonly_safe(cmd: str) -> bool:
                       "ssh", "scp", "rsync", "open", "osascript",
                       "shutdown", "reboot", "tee", "dd"}:
         return False
+    script_runners = {"python3", "python", "node", "ruby", "perl", "php"}
+    if first_word in script_runners:
+        if "-c" not in cmd_stripped and "-m" not in cmd_stripped:
+            return False
     return True
 
 
 def _is_plan_safe(cmd: str) -> bool:
-    """Plan mode: even stricter. Block all scripts."""
+    """Plan mode: strictest. Block all scripts including inline (-c)."""
     if not _is_readonly_safe(cmd):
         return False
     cmd_stripped = cmd.strip()
     first_word = cmd_stripped.split()[0] if cmd_stripped.split() else ""
-    if first_word in {"python3", "python", "node", "bash", "sh", "zsh",
-                      "ruby", "perl", "php"}:
-        if "-c" not in cmd_stripped:
-            return False
+    script_runners = {"python3", "python", "node", "bash", "sh", "zsh",
+                      "ruby", "perl", "php"}
+    if first_word in script_runners:
+        return False
     return True
 
 
@@ -208,15 +215,19 @@ def get_tool_defs_for_mode(mode: str = "agent") -> List[Dict[str, Any]]:
 class ToolHandlers:
     """Standard tool handler implementations for the agent loop."""
 
+    DEFAULT_EXEC_TIMEOUT = 30
+
     def __init__(self, cwd: str, project_root: str,
                  env: Optional[AgentEnvironment] = None,
                  emit: Optional[Callable] = None,
-                 mode: str = "agent"):
+                 mode: str = "agent",
+                 exec_timeout: Optional[int] = None):
         self._cwd = cwd
         self._project_root = project_root
         self._env = env
         self._emit = emit or (lambda evt: None)
         self._mode = mode
+        self._exec_timeout = exec_timeout or self.DEFAULT_EXEC_TIMEOUT
         self._write_history: Dict[str, list] = {}
         self._dup_counts: Dict[str, int] = {}
         self._turn_writes: List[str] = []
@@ -278,10 +289,11 @@ class ToolHandlers:
         if extra_paths:
             env["PATH"] = ":".join(extra_paths) + ":" + env.get("PATH", "")
 
+        foreground_timeout = self._exec_timeout
         try:
             result = subprocess.run(
-                cmd, shell=True, capture_output=True, text=True, timeout=60,
-                cwd=self._cwd, env=env)
+                cmd, shell=True, capture_output=True, text=True,
+                timeout=foreground_timeout, cwd=self._cwd, env=env)
             output = result.stdout + result.stderr
             ok = result.returncode == 0
             self._emit({"type": "tool_result", "ok": ok, "output": output[:3000]})
@@ -291,15 +303,32 @@ class ToolHandlers:
                     self._env.record_error(f"Command failed: {cmd}")
             return {"ok": ok, "output": output[:3000]}
         except subprocess.TimeoutExpired:
-            self._emit({"type": "tool_result", "ok": False, "output": "Timeout (60s)"})
-            if self._env:
-                self._env.record_result(cmd, False, "Timeout")
-            return {"ok": False, "output": "Timeout"}
+            bg_result = self._background_exec(cmd, env)
+            return bg_result
         except Exception as e:
             self._emit({"type": "tool_result", "ok": False, "output": str(e)})
             if self._env:
                 self._env.record_result(cmd, False, str(e))
             return {"ok": False, "output": str(e)}
+
+    def _background_exec(self, cmd: str, env: dict) -> dict:
+        """Move a timed-out command to background execution."""
+        import tempfile, threading
+        log_dir = os.path.join(self._project_root, "tmp", "bg_exec")
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, f"bg_{os.getpid()}_{id(cmd) & 0xFFFF:04x}.log")
+
+        proc = subprocess.Popen(
+            cmd, shell=True, stdout=open(log_file, "w"),
+            stderr=subprocess.STDOUT, cwd=self._cwd, env=env)
+
+        msg = (f"Command exceeded {self._exec_timeout}s foreground timeout. "
+               f"Moved to background (PID: {proc.pid}). "
+               f"Output: {log_file}")
+        self._emit({"type": "tool_result", "ok": True, "output": msg})
+        if self._env:
+            self._env.record_result(cmd, True, f"Background PID={proc.pid}")
+        return {"ok": True, "output": msg}
 
     def handle_read_file(self, args: dict) -> dict:
         path = args.get("path", "")
@@ -308,6 +337,13 @@ class ToolHandlers:
         self._turn_reads.append(path)
         self._emit({"type": "tool", "name": "read", "desc": path, "cmd": path})
         try:
+            if os.path.isdir(path):
+                entries = sorted(os.listdir(path))[:50]
+                content = f"Directory listing of {path}:\n" + "\n".join(entries)
+                self._emit({"type": "tool_result", "ok": True, "output": content})
+                if self._env:
+                    self._env.record_result(f"read:{path}", True, content[:200])
+                return {"ok": True, "output": content}
             content = open(path, encoding='utf-8', errors='replace').read()[:3000]
             self._emit({"type": "tool_result", "ok": True, "output": content})
             if self._env:

@@ -15,6 +15,7 @@ API Endpoints:
     POST /api/delete   {"session_id": "..."}
     GET  /api/sessions
     GET  /api/state
+    GET  /api/usage
     POST /api/input    {"session_id": "...", "text": "..."}
                        Simulates typing into the input box then clicking send.
                        The browser receives an 'inject_input' SSE event to
@@ -49,15 +50,15 @@ _SYSTEM_PROMPTS = {
 
 ## Agent工作模式
 
-收到任务后，按以下模式工作：
+收到任务后，**立即使用工具执行**。不要先探索项目结构——直接创建/修改文件。
 
-1. **规划**: 分析任务，拆分为具体步骤
-2. **执行**: 逐步执行，每步都使用工具
-3. **验证**: 写完文件后，用read_file验证关键内容是否正确
-4. **汇报**: 总结完成情况
+1. **执行优先**: 如果任务明确（如"创建X文件"），直接write_file。不需要先search或read_file。
+2. **验证**: 写完文件后，可选用read_file验证关键内容
+3. **汇报**: 简短总结完成情况
 
 ## 关键行为
 
+- **立即行动**: 收到"创建文件"任务时，第一个工具调用就应该是write_file。
 - **持续执行**: 创建完一个文件后，立即继续创建下一个文件。不要中途停下来解释。
 - **完整输出**: write_file的content必须包含完整的、可运行的代码。不要用省略号或占位符。
 - **文件创建**: 一个网站需要HTML+CSS(+JS)文件。用write_file逐个创建所有必需文件。
@@ -78,6 +79,12 @@ _SYSTEM_PROMPTS = {
 - **修改已有文件**：优先使用edit_file(old_text, new_text)进行精确替换。先read_file查看内容。
 - **创建新文件**：使用write_file，content必须是完整的、可运行的代码。
 - write_file的content永远是完整文件，不要只写片段。
+
+## 调试规则
+- 测试失败时，先确定bug在测试还是实现中。选定一侧修改，不要两边同时改。
+- 修改前，用read_file查看当前文件内容和完整错误信息。
+- 修改后，立即重新运行测试验证。
+- assertIn(a, list)检查的是元素完全相等，不是子字符串匹配。
 
 ## 禁止事项
 - 禁止编造执行结果
@@ -102,15 +109,15 @@ You are an autonomous AI Agent. You can independently plan, execute, and verify 
 
 ## Agent Workflow
 
-When receiving a task, follow this pattern:
+When receiving a task, **use tools immediately**. Do NOT explore the project first — go straight to creating/modifying files.
 
-1. **Plan**: Analyze the task, break into concrete steps
-2. **Execute**: Execute step by step, using tools for each
-3. **Verify**: After writing files, use read_file to confirm key content is correct
-4. **Report**: Summarize what was accomplished
+1. **Act first**: If the task is clear (e.g., "create X file"), call write_file immediately.
+2. **Verify**: Optionally use read_file to confirm key content after writing
+3. **Report**: Briefly summarize what was done
 
 ## Key Behaviors
 
+- **Act immediately**: When asked to "create a file", your FIRST tool call should be write_file.
 - **Continuous execution**: After creating one file, immediately create the next. Don't stop to explain mid-way.
 - **Complete output**: write_file content must contain complete, runnable code. No ellipsis or placeholders.
 - **File creation**: A website needs HTML+CSS(+JS) files. Use write_file to create all required files.
@@ -137,6 +144,12 @@ When writing code:
 - **Create new files**: Use write_file with COMPLETE, runnable code.
 - write_file content is always the full file, never a fragment.
 
+## Debugging Rules
+- When tests fail, first determine whether the bug is in the test or the implementation. Pick ONE side to fix, don't oscillate between both.
+- Before editing, use read_file to check the current file content and the full error message.
+- After editing, immediately re-run tests to verify.
+- assertIn(a, list) checks for exact element equality, NOT substring matching.
+
 ## Forbidden
 - Never fabricate execution results
 - Never say "I will create..." without actually calling write_file
@@ -161,9 +174,9 @@ class AgentServer:
 
     def __init__(
         self,
-        provider_name: str = "zhipu-glm-4.7",
+        provider_name: str = "zhipu-glm-4.7-flash",
         system_prompt: str = "",
-        enable_tools: bool = False,
+        enable_tools: bool = True,
         port: int = 0,
         lang: str = "zh",
         default_codebase: str = None,
@@ -185,6 +198,7 @@ class AgentServer:
         )
         self._server = None
         self._default_session_id = None
+        self._usage_calls = []
 
     def _api_handler(self, method: str, path: str, body: Optional[dict]) -> dict:
         """Route API requests to ConversationManager methods."""
@@ -195,6 +209,8 @@ class AgentServer:
                 return {"ok": True, "sessions": self._mgr.list_sessions()}
             elif path == "/api/state":
                 return {"ok": True, "state": self._mgr.get_state()}
+            elif path == "/api/usage":
+                return {"ok": True, "usage": self._get_usage_data()}
             return {"ok": False, "error": "Unknown endpoint"}
 
         if method == "POST":
@@ -211,8 +227,10 @@ class AgentServer:
                 if not session:
                     return {"ok": False, "error": f"Session {sid} not found"}
                 context_feed = body.get("context_feed")
+                break_after = body.get("break_after_first_reply", False)
                 self._mgr.send_message(sid, text, blocking=False,
-                                       context_feed=context_feed)
+                                       context_feed=context_feed,
+                                       break_after_first_reply=break_after)
                 return {"ok": True, "session_id": sid}
 
             elif path == "/api/input":
@@ -265,8 +283,84 @@ class AgentServer:
             self._server.push_event(evt)
 
     def _on_mgr_event(self, evt: dict):
-        """Forward ConversationManager events to SSE."""
+        """Forward ConversationManager events to SSE and track usage."""
+        if evt.get("type") == "llm_response_end":
+            import time
+            self._usage_calls.append({
+                "timestamp": time.time(),
+                "model": evt.get("model", self.provider_name),
+                "provider": evt.get("provider", self.provider_name),
+                "input_tokens": evt.get("usage", {}).get("prompt_tokens", 0),
+                "output_tokens": evt.get("usage", {}).get("completion_tokens", 0),
+                "latency_s": evt.get("latency_s", 0),
+                "ok": not evt.get("error"),
+            })
         self._push_sse(evt)
+
+    def _get_usage_data(self) -> dict:
+        """Aggregate usage data for Settings panel."""
+        models = {}
+        providers = {}
+        from tool.LLM.logic.registry import list_models, list_providers as list_reg_providers
+        from tool.LLM.logic.config import get_api_keys
+
+        for m in list_models():
+            mid = m["model"]
+            cap = m.get("capabilities", {})
+            model_json_path = os.path.join(
+                os.path.dirname(__file__), "..", "models",
+                mid.replace("-", "_").replace(".", "_"), "model.json")
+            free_tier = False
+            if os.path.exists(model_json_path):
+                try:
+                    with open(model_json_path) as f:
+                        mj = json.load(f)
+                    free_tier = mj.get("cost", {}).get("free_tier", False)
+                except Exception:
+                    pass
+            models[mid] = {
+                "display_name": m.get("display_name", mid),
+                "providers": m.get("providers", []),
+                "free_tier": free_tier,
+                "total_calls": 0, "input_tokens": 0, "output_tokens": 0, "total_cost": 0,
+            }
+
+        for p in list_reg_providers():
+            pname = p.get("name", "")
+            vendor = pname.split("-")[0] if pname else "unknown"
+            if vendor not in providers:
+                providers[vendor] = {
+                    "models": [], "total_calls": 0,
+                    "input_tokens": 0, "output_tokens": 0, "total_cost": 0,
+                    "api_keys": [],
+                }
+            if pname not in providers[vendor]["models"]:
+                providers[vendor]["models"].append(pname)
+            try:
+                providers[vendor]["api_keys"] = get_api_keys(vendor)
+            except Exception:
+                pass
+
+        for call in self._usage_calls:
+            model_key = call.get("model", "")
+            prov_key = call.get("provider", "")
+            vendor = prov_key.split("-")[0] if prov_key else "unknown"
+            inp = call.get("input_tokens", 0)
+            outp = call.get("output_tokens", 0)
+
+            for mid, mdata in models.items():
+                if mid in model_key or model_key in mdata.get("providers", []):
+                    mdata["total_calls"] += 1
+                    mdata["input_tokens"] += inp
+                    mdata["output_tokens"] += outp
+                    break
+
+            if vendor in providers:
+                providers[vendor]["total_calls"] += 1
+                providers[vendor]["input_tokens"] += inp
+                providers[vendor]["output_tokens"] += outp
+
+        return {"models": models, "providers": providers, "calls": self._usage_calls[-100:]}
 
     def start(self, open_browser: bool = True):
         """Start the live agent server."""
@@ -310,7 +404,7 @@ class AgentServer:
 def start_agent_server(
     provider_name: str = "zhipu-glm-4.7",
     system_prompt: str = "",
-    enable_tools: bool = False,
+    enable_tools: bool = True,
     port: int = 0,
     open_browser: bool = True,
     lang: str = "zh",

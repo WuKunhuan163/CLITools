@@ -1,8 +1,14 @@
 """LLM provider registry.
 
 Central point for discovering, configuring, and instantiating LLM providers.
-Each provider has: interface (API client) + pipeline (context/tool handling).
+Structure: models/<model>/providers/<vendor>/ with model.json at model level.
+
+Registry names follow the pattern: <vendor>-<model> (e.g. "zhipu-glm-4-flash").
+Model-level resolution: "glm-4-flash" resolves to the preferred provider.
 """
+import json
+import os
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from tool.LLM.logic.base import LLMProvider
@@ -11,19 +17,25 @@ from tool.LLM.logic.pipeline import ContextPipeline
 
 _REGISTRY: Dict[str, type] = {}
 _PIPELINES: Dict[str, ContextPipeline] = {}
+_MODEL_PROVIDERS: Dict[str, List[str]] = {}
+
+_MODELS_DIR = Path(__file__).parent / "models"
 
 
-def register(name: str, cls: type, pipeline: Optional[ContextPipeline] = None):
+def register(name: str, cls: type, pipeline: Optional[ContextPipeline] = None,
+             model: str = ""):
     """Register a provider class and its optional pipeline."""
     _REGISTRY[name] = cls
     if pipeline:
         _PIPELINES[name] = pipeline
+    if model:
+        _MODEL_PROVIDERS.setdefault(model, []).append(name)
 
 
 def get_pipeline(name: str) -> ContextPipeline:
     """Get the context pipeline for a provider. Falls back to base."""
     _ensure_builtins()
-    resolved = _ALIASES.get(name, name)
+    resolved = _resolve(name)
     return _PIPELINES.get(resolved, ContextPipeline())
 
 
@@ -42,21 +54,64 @@ def list_providers() -> List[Dict[str, Any]]:
     return results
 
 
+def list_models() -> List[Dict[str, Any]]:
+    """Return info for each model with its available providers."""
+    _ensure_builtins()
+    results = []
+    for model, providers in _MODEL_PROVIDERS.items():
+        model_json_path = _MODELS_DIR / model.replace("-", "_").replace(".", "_") / "model.json"
+        meta = {}
+        if model_json_path.exists():
+            try:
+                meta = json.loads(model_json_path.read_text())
+            except Exception:
+                pass
+        results.append({
+            "model": model,
+            "display_name": meta.get("display_name", model),
+            "providers": providers,
+            "capabilities": meta.get("capabilities", {}),
+        })
+    return results
+
+
 _ALIASES = {
     "nvidia_glm47": "nvidia-glm-4-7b",
     "zhipu_glm4": "zhipu-glm-4-flash",
     "zhipu_glm47": "zhipu-glm-4.7",
+    "zhipu_glm47_flash": "zhipu-glm-4.7-flash",
+    "glm-4-flash": "zhipu-glm-4-flash",
+    "glm-4.7": "zhipu-glm-4.7",
+    "glm-4.7-flash": "zhipu-glm-4.7-flash",
 }
 
 
-def get_provider(name: str = "nvidia-glm-4-7b", **kwargs) -> LLMProvider:
-    """Get a provider instance by name.
+def _resolve(name: str) -> str:
+    """Resolve aliases and model names to provider names."""
+    resolved = _ALIASES.get(name, name)
+    if resolved in _REGISTRY:
+        return resolved
+    if resolved in _MODEL_PROVIDERS:
+        for prov in _MODEL_PROVIDERS[resolved]:
+            if prov in _REGISTRY:
+                try:
+                    inst = _REGISTRY[prov]()
+                    if inst.is_available():
+                        return prov
+                except Exception:
+                    continue
+        return _MODEL_PROVIDERS[resolved][0] if _MODEL_PROVIDERS[resolved] else resolved
+    return resolved
+
+
+def get_provider(name: str = "zhipu-glm-4-flash", **kwargs) -> LLMProvider:
+    """Get a provider instance by name or model name.
 
     Raises:
         ValueError: If the provider name is not registered.
     """
     _ensure_builtins()
-    resolved = _ALIASES.get(name, name)
+    resolved = _resolve(name)
     if resolved not in _REGISTRY:
         available = ", ".join(_REGISTRY.keys())
         raise ValueError(
@@ -66,27 +121,31 @@ def get_provider(name: str = "nvidia-glm-4-7b", **kwargs) -> LLMProvider:
 
 def get_default_provider(**kwargs) -> LLMProvider:
     """Get the default provider."""
-    return get_provider("nvidia-glm-4-7b", **kwargs)
+    return get_provider("zhipu-glm-4-flash", **kwargs)
 
 
 _builtins_loaded = False
 
 
 def _ensure_builtins():
-    """Lazy-load built-in providers."""
+    """Lazy-load built-in providers from models/ directory."""
     global _builtins_loaded
     if _builtins_loaded:
         return
     _builtins_loaded = True
 
-    from tool.LLM.logic.providers.nvidia_glm47.interface import NvidiaGLM47Provider
-    from tool.LLM.logic.providers.nvidia_glm47.pipeline import NvidiaContextPipeline
-    register("nvidia-glm-4-7b", NvidiaGLM47Provider, NvidiaContextPipeline())
+    from tool.LLM.logic.models.glm_4_flash.providers.zhipu.interface import ZhipuGLM4Provider
+    from tool.LLM.logic.models.glm_4_flash.providers.zhipu.pipeline.context import ZhipuContextPipeline
+    register("zhipu-glm-4-flash", ZhipuGLM4Provider, ZhipuContextPipeline(), model="glm-4-flash")
 
-    from tool.LLM.logic.providers.zhipu_glm4.interface import ZhipuGLM4Provider
-    from tool.LLM.logic.providers.zhipu_glm4.pipeline import ZhipuContextPipeline
-    register("zhipu-glm-4-flash", ZhipuGLM4Provider, ZhipuContextPipeline())
+    from tool.LLM.logic.models.glm_4_7.providers.nvidia.interface import NvidiaGLM47Provider
+    from tool.LLM.logic.models.glm_4_7.providers.nvidia.pipeline import NvidiaContextPipeline
+    register("nvidia-glm-4-7b", NvidiaGLM47Provider, NvidiaContextPipeline(), model="glm-4.7")
 
-    from tool.LLM.logic.providers.zhipu_glm47.interface import ZhipuGLM47Provider
-    from tool.LLM.logic.providers.zhipu_glm47.pipeline import ZhipuGLM47Pipeline
-    register("zhipu-glm-4.7", ZhipuGLM47Provider, ZhipuGLM47Pipeline())
+    from tool.LLM.logic.models.glm_4_7.providers.zhipu.interface import ZhipuGLM47Provider
+    from tool.LLM.logic.models.glm_4_7.providers.zhipu.pipeline import ZhipuGLM47Pipeline
+    register("zhipu-glm-4.7", ZhipuGLM47Provider, ZhipuGLM47Pipeline(), model="glm-4.7")
+
+    from tool.LLM.logic.models.glm_4_7_flash.providers.zhipu.interface import ZhipuGLM47FlashProvider
+    from tool.LLM.logic.models.glm_4_7_flash.providers.zhipu.pipeline import ZhipuGLM47FlashPipeline
+    register("zhipu-glm-4.7-flash", ZhipuGLM47FlashProvider, ZhipuGLM47FlashPipeline(), model="glm-4.7-flash")

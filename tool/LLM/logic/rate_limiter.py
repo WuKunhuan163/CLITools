@@ -1,39 +1,58 @@
-"""Token-bucket rate limiter with configurable jitter and retry support.
+"""Token-bucket rate limiter with concurrency control and context-aware delays.
 
-Enforces a hard RPM cap and adds random delays between requests
-to mimic human-paced interactions and avoid triggering anti-bot
-detection on upstream services.
+Enforces a hard RPM cap, max concurrency, and adds adaptive delays.
+When context exceeds a token threshold (e.g. 8K for free-tier GLM),
+applies extra delays to respect stricter rate limits.
 """
 import time
 import random
 import threading
-from typing import Callable
+from typing import Callable, Optional
 
 
 class RateLimiter:
-    """Thread-safe rate limiter with jitter.
+    """Thread-safe rate limiter with jitter and concurrency control.
 
     Parameters:
         rpm: Maximum requests per minute (0 = unlimited).
         min_interval_s: Minimum seconds between requests.
         jitter_s: Random additional delay range [0, jitter_s].
+        max_concurrency: Max simultaneous in-flight requests (0 = unlimited).
+        context_threshold_tokens: Token count above which extra delays apply.
+        large_context_delay_s: Extra delay for requests exceeding the threshold.
     """
 
     def __init__(self, rpm: int = 30, min_interval_s: float = 2.0,
-                 jitter_s: float = 1.0):
+                 jitter_s: float = 1.0, max_concurrency: int = 0,
+                 context_threshold_tokens: int = 0,
+                 large_context_delay_s: float = 10.0):
         self.rpm = rpm
         self.min_interval_s = min_interval_s
         self.jitter_s = jitter_s
+        self.max_concurrency = max_concurrency
+        self.context_threshold_tokens = context_threshold_tokens
+        self.large_context_delay_s = large_context_delay_s
         self._lock = threading.Lock()
         self._last_request_time: float = 0.0
         self._request_times: list = []
         self._consecutive_429s: int = 0
+        self._in_flight = 0
+        self._concurrency_semaphore: Optional[threading.Semaphore] = None
+        if max_concurrency > 0:
+            self._concurrency_semaphore = threading.Semaphore(max_concurrency)
 
-    def wait(self) -> float:
+    def wait(self, context_tokens: int = 0) -> float:
         """Block until the next request is permitted.
+
+        Args:
+            context_tokens: Estimated token count for this request.
+                If exceeding context_threshold_tokens, extra delay is applied.
 
         Returns the actual wait time in seconds.
         """
+        if self._concurrency_semaphore:
+            self._concurrency_semaphore.acquire()
+
         with self._lock:
             now = time.time()
             waited = 0.0
@@ -58,24 +77,32 @@ class RateLimiter:
                     if rpm_wait > waited:
                         waited = rpm_wait
 
-            # Adaptive backoff: if recent 429s, add extra delay
             if self._consecutive_429s > 0:
                 backoff = min(2 ** self._consecutive_429s, 60)
                 waited += backoff
+
+            if (self.context_threshold_tokens > 0
+                    and context_tokens > self.context_threshold_tokens):
+                waited += self.large_context_delay_s
 
             if waited > 0:
                 time.sleep(waited)
 
             self._last_request_time = time.time()
             self._request_times.append(self._last_request_time)
+            self._in_flight += 1
 
         return waited
 
-    def report_429(self):
-        """Signal that the last request was rate-limited (429).
+    def release(self):
+        """Signal that an in-flight request has completed."""
+        with self._lock:
+            self._in_flight = max(0, self._in_flight - 1)
+        if self._concurrency_semaphore:
+            self._concurrency_semaphore.release()
 
-        Increases adaptive backoff for subsequent requests.
-        """
+    def report_429(self):
+        """Signal that the last request was rate-limited (429)."""
         with self._lock:
             self._consecutive_429s += 1
 
@@ -90,10 +117,30 @@ class RateLimiter:
             self._request_times.clear()
             self._last_request_time = 0.0
             self._consecutive_429s = 0
+            self._in_flight = 0
 
     @property
     def consecutive_429s(self) -> int:
         return self._consecutive_429s
+
+    @property
+    def in_flight(self) -> int:
+        return self._in_flight
+
+    @classmethod
+    def from_model_json(cls, model_json: dict, tier: str = "free") -> "RateLimiter":
+        """Create a RateLimiter from a model.json configuration."""
+        limits = model_json.get("rate_limits", {}).get(tier, {})
+        settings = model_json.get("recommended_settings", {})
+
+        return cls(
+            rpm=limits.get("rpm", 30),
+            min_interval_s=settings.get("min_interval_s", 2.0),
+            jitter_s=settings.get("jitter_s", 1.0),
+            max_concurrency=limits.get("max_concurrency", 0),
+            context_threshold_tokens=limits.get("context_threshold_tokens") or 0,
+            large_context_delay_s=settings.get("large_context_delay_s", 10.0),
+        )
 
 
 def retry_on_transient(fn: Callable[..., dict], max_retries: int = 3,

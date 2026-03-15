@@ -128,6 +128,7 @@ class AgentSession:
     provider_name: str = ""
     tier: int = 1
     mode: str = "agent"
+    initial_prompt: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -140,6 +141,7 @@ class AgentSession:
             "provider_name": self.provider_name,
             "tier": self.tier,
             "mode": self.mode,
+            "initial_prompt": self.initial_prompt[:500],
         }
 
 

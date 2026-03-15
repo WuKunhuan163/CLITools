@@ -66,6 +66,31 @@ This approach is preferred over print-debugging because:
 - Structured JSON enables grep/jq analysis
 - Files persist after the session ends
 
+## Prefer Backend State Over Output Monitoring
+
+When monitoring a running service or agent, **always query the backend API/state directly**
+instead of capturing and parsing terminal output (stdout/stderr). Terminal output may be:
+- Buffered by Python (unless `PYTHONUNBUFFERED=1`)
+- Interleaved with ANSI escape codes
+- Truncated or incomplete in terminal capture files
+- Missing data that the backend already holds in structured form
+
+**Example: monitoring the LLM agent GUI**
+
+```python
+# BAD: run subprocess, capture stdout, parse text output
+proc = subprocess.Popen(["python3", "script.py"], stdout=subprocess.PIPE)
+output = proc.stdout.read()  # may be buffered, incomplete
+
+# GOOD: query the backend API directly
+import requests
+r = requests.get("http://localhost:8101/api/sessions")
+sessions = r.json()["sessions"]  # structured, complete, real-time
+```
+
+This principle applies to any tool with a backend: LLM agents, web servers, MCP services.
+The backend always knows its own state better than an output stream can convey.
+
 ## Guidelines
 
 1. Use `tool.log()` for standard operational logging
@@ -73,3 +98,4 @@ This approach is preferred over print-debugging because:
 3. Use `tmp/` debug logs for temporary investigation (clean up after)
 4. Never log secrets, tokens, or user credentials
 5. Keep log messages actionable: include what happened and what to check
+6. Prefer querying backend APIs over parsing terminal output for monitoring

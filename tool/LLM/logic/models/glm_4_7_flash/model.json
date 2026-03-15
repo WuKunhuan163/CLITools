@@ -1,0 +1,44 @@
+{
+  "model_id": "glm-4.7-flash",
+  "display_name": "GLM-4.7-Flash",
+  "vendor": "zhipu",
+  "vendor_display": "Zhipu AI",
+  "logo": "assets/logo.svg",
+  "cost": {
+    "free_tier": true,
+    "input_per_1k": 0,
+    "output_per_1k": 0,
+    "currency": "CNY"
+  },
+  "capabilities": {
+    "tool_calling": true,
+    "vision": false,
+    "streaming": true,
+    "reasoning": true,
+    "max_context_tokens": 128000,
+    "max_output_tokens": 8192
+  },
+  "rate_limits": {
+    "free": {
+      "rpm": 10,
+      "tpm": 100000,
+      "max_concurrency": 1,
+      "context_threshold_tokens": 8000,
+      "over_threshold_concurrency_pct": 1,
+      "notes": "Free reasoning model: stricter RPM, concurrency=1"
+    },
+    "paid": {
+      "rpm": 100,
+      "tpm": 5000000,
+      "max_concurrency": 50,
+      "context_threshold_tokens": null,
+      "over_threshold_concurrency_pct": null,
+      "notes": "Paid tier standard"
+    }
+  },
+  "recommended_settings": {
+    "min_interval_s": 3.0,
+    "jitter_s": 1.0,
+    "large_context_delay_s": 5.0
+  }
+}

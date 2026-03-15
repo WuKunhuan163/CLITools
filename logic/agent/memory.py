@@ -35,12 +35,20 @@ MEMORY_TOOL_DEFS = [
         "type": "function",
         "function": {
             "name": "write_memory",
-            "description": "Write a permanent fact to MEMORY.md (persists across sessions).",
+            "description": (
+                "Write a permanent fact to memory. Use 'category' to organize into "
+                "subdirectories (e.g. 'tools/git', 'patterns/error-handling'). "
+                "Each category gets its own MEMORY.md. Periodically reorganize: "
+                "move facts to specific categories and remove outdated entries."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "content": {"type": "string",
                                 "description": "The fact or knowledge to persist"},
+                    "category": {"type": "string",
+                                 "description": "Optional category path (e.g. 'tools/git'). "
+                                                "Defaults to root MEMORY.md."},
                 },
                 "required": ["content"],
             },
@@ -65,7 +73,10 @@ MEMORY_TOOL_DEFS = [
         "type": "function",
         "function": {
             "name": "recall_memory",
-            "description": "Search memory files for relevant knowledge.",
+            "description": (
+                "Search all memory files (including subcategories) for relevant "
+                "knowledge. Returns matched snippets with file paths."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -73,6 +84,21 @@ MEMORY_TOOL_DEFS = [
                               "description": "What to search for"},
                 },
                 "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "reorganize_memory",
+            "description": (
+                "List all memory categories and their sizes. Use this to understand "
+                "memory structure before reorganizing. When memory files grow large, "
+                "split them into categories. Delete outdated facts."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
             },
         },
     },
@@ -88,10 +114,13 @@ class MemoryHandlers:
 
     def handle_write_memory(self, args: dict) -> dict:
         content = args.get("content", "")
+        category = args.get("category", "")
         if not content:
             return {"ok": False, "output": "No content provided."}
-        write_memory(self._project_root, content, self._brain_type)
-        return {"ok": True, "output": f"Written to MEMORY.md ({len(content)} chars)."}
+        write_memory(self._project_root, content, self._brain_type,
+                     category=category)
+        target = f"{category}/MEMORY.md" if category else "MEMORY.md"
+        return {"ok": True, "output": f"Written to {target} ({len(content)} chars)."}
 
     def handle_write_daily(self, args: dict) -> dict:
         content = args.get("content", "")
@@ -102,41 +131,73 @@ class MemoryHandlers:
         return {"ok": True, "output": f"Appended to daily/{today}.md ({len(content)} chars)."}
 
     def handle_recall_memory(self, args: dict) -> dict:
-        """Simple keyword search over memory files (TF-IDF fallback)."""
+        """Search all memory files including subcategories."""
         query = args.get("query", "").lower()
         if not query:
             return {"ok": False, "output": "No query provided."}
 
-        results = []
         exp_dir = get_experience_dir(self._project_root, self._brain_type)
         if not exp_dir.exists():
             return {"ok": True, "output": "(No memory files found.)"}
 
-        search_files = []
-        memory_path = exp_dir / "MEMORY.md"
-        if memory_path.exists():
-            search_files.append(memory_path)
-        daily_dir = exp_dir / "daily"
-        if daily_dir.exists():
-            search_files.extend(sorted(daily_dir.glob("*.md"), reverse=True)[:7])
-
-        for fpath in search_files:
-            content = fpath.read_text(encoding="utf-8", errors="replace")
-            lines = content.split("\n")
-            for i, line in enumerate(lines):
-                if query in line.lower():
-                    start = max(0, i - 1)
-                    end = min(len(lines), i + 3)
-                    snippet = "\n".join(lines[start:end])
-                    results.append(f"[{fpath.name}:{i+1}] {snippet}")
-                    if len(results) >= 5:
-                        break
-            if len(results) >= 5:
-                break
+        all_md = _collect_memory_files(exp_dir)
+        results = _search_files(all_md, query, exp_dir)
 
         if not results:
             return {"ok": True, "output": f"No matches for '{query}' in memory files."}
-        return {"ok": True, "output": "\n---\n".join(results)}
+        return {"ok": True, "output": "\n---\n".join(results[:8])}
+
+    def handle_reorganize_memory(self, args: dict) -> dict:
+        """List all memory categories and sizes for reorganization."""
+        exp_dir = get_experience_dir(self._project_root, self._brain_type)
+        if not exp_dir.exists():
+            return {"ok": True, "output": "(No memory directory.)"}
+
+        lines = [f"Brain: {self._brain_type}",
+                 f"Root: {exp_dir}", ""]
+        total_chars = 0
+        for md in sorted(_collect_memory_files(exp_dir)):
+            rel = md.relative_to(exp_dir)
+            chars = len(md.read_text(encoding="utf-8", errors="replace"))
+            total_chars += chars
+            lines.append(f"  {rel} ({chars} chars)")
+
+        lines.append(f"\nTotal: {total_chars} chars across {len(lines)-3} files")
+        lines.append("\nTip: Use write_memory(category='topic/subtopic') to organize.")
+        lines.append("Large files should be split into categories.")
+        return {"ok": True, "output": "\n".join(lines)}
+
+
+def _collect_memory_files(exp_dir) -> list:
+    """Recursively collect all .md files in the experience directory."""
+    from pathlib import Path
+    all_md = []
+    for md in sorted(exp_dir.rglob("*.md")):
+        if md.name.startswith("."):
+            continue
+        all_md.append(md)
+    return all_md
+
+
+def _search_files(files: list, query: str, base_dir) -> list:
+    """Keyword search across memory files, returning snippets."""
+    query_terms = query.split()
+    results = []
+    for fpath in files:
+        content = fpath.read_text(encoding="utf-8", errors="replace")
+        lines = content.split("\n")
+        rel = fpath.relative_to(base_dir) if str(fpath).startswith(str(base_dir)) \
+            else fpath.name
+        for i, line in enumerate(lines):
+            line_lower = line.lower()
+            if any(t in line_lower for t in query_terms):
+                start = max(0, i - 1)
+                end = min(len(lines), i + 3)
+                snippet = "\n".join(lines[start:end])
+                results.append(f"[{rel}:{i+1}] {snippet}")
+                if len(results) >= 8:
+                    return results
+    return results
 
 
 def should_flush_memory(context_tokens: int, max_tokens: int,

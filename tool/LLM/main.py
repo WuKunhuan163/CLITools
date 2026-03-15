@@ -43,7 +43,7 @@ def cmd_setup(args):
         print(f"  Get your free API key from: https://build.nvidia.com/z-ai/glm4_7")
         print()
 
-        from tool.LLM.logic.providers.nvidia_glm47.interface import get_api_key, save_api_key
+        from tool.LLM.logic.models.glm_4_7.providers.nvidia.interface import get_api_key, save_api_key
 
         current = get_api_key()
         if current:
@@ -328,6 +328,49 @@ def cmd_agent(args):
         print(f"\n  {BOLD}Stopped.{RESET}")
 
 
+def cmd_keys(args):
+    """Manage API keys for a provider."""
+    from tool.LLM.logic.config import get_api_keys, add_api_key, remove_api_key
+
+    provider = args.key_provider
+    BOLD = get_color("BOLD")
+    DIM = get_color("DIM")
+    RESET = get_color("RESET")
+
+    if args.keys_add:
+        kid = add_api_key(provider, args.keys_add, args.label)
+        print(f"  {BOLD}Added.{RESET} {DIM}ID: {kid}{RESET}")
+        return
+
+    if args.keys_remove:
+        ok = remove_api_key(provider, args.keys_remove)
+        if ok:
+            print(f"  {BOLD}Removed.{RESET} {DIM}{args.keys_remove}{RESET}")
+        else:
+            print(f"  Key {args.keys_remove} not found.")
+        return
+
+    if args.keys_list:
+        keys = get_api_keys(provider)
+        if not keys:
+            print(f"  No keys for {provider}.")
+            return
+        for i, k in enumerate(keys):
+            masked = k["key"][:8] + "..." + k["key"][-4:] if len(k["key"]) > 12 else k["key"]
+            label = k.get("label", "")
+            print(f"  {i+1}. [{k['id']}] {masked}  {DIM}({label}){RESET}")
+        return
+
+    try:
+        from tool.LLM.logic.gui.key_manager import KeyManagerWindow
+        import tkinter as tk
+        root = tk.Tk()
+        KeyManagerWindow(root, provider=provider)
+        root.mainloop()
+    except ImportError:
+        print("  Tkinter not available. Use --list, --add, --remove for CLI access.")
+
+
 def cmd_dashboard(args):
     """Generate and open the LLM usage dashboard.
 
@@ -411,6 +454,17 @@ def main():
     p_agent.add_argument("--no-open", action="store_true", help="Do not open browser")
     p_agent.add_argument("--tools", action="store_true", help="Enable tool calling")
 
+    p_keys = sub.add_parser("keys", help="Manage API keys (GUI or CLI)")
+    p_keys.add_argument("key_provider", nargs="?", default="zhipu",
+                        help="Provider name (default: zhipu)")
+    p_keys.add_argument("--list", dest="keys_list", action="store_true",
+                        help="List keys in CLI")
+    p_keys.add_argument("--add", dest="keys_add", default="",
+                        help="Add a new key")
+    p_keys.add_argument("--label", default="", help="Label for --add")
+    p_keys.add_argument("--remove", dest="keys_remove", default="",
+                        help="Remove a key by ID")
+
     p_dash = sub.add_parser("dashboard", help="Generate and open HTML usage dashboard")
     p_dash.add_argument("--output", default="", help="Custom output path for the HTML file")
     p_dash.add_argument("--no-open", action="store_true", help="Do not open in browser")
@@ -440,6 +494,8 @@ def main():
         cmd_limits(args)
     elif args.command == "agent":
         cmd_agent(args)
+    elif args.command == "keys":
+        cmd_keys(args)
     elif args.command == "dashboard":
         cmd_dashboard(args)
     else:
@@ -453,6 +509,7 @@ def main():
         print(f"    send \"msg\"  Send a one-shot message")
         print(f"    agent       Start live LLM Agent GUI (--tools for tool calling)")
         print(f"    usage       Show API usage statistics (--period today|all)")
+        print(f"    keys        Manage API keys (GUI or --list/--add/--remove)")
         print(f"    limits      View/set per-provider record limits")
         print(f"    dashboard   Open HTML usage dashboard (--serve for persistent server)")
         print()
