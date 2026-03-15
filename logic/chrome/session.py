@@ -91,8 +91,8 @@ def open_tab(url: str, port: int = CDP_PORT) -> bool:
         browser_ws = data.get("webSocketDebuggerUrl")
         if not browser_ws:
             return False
-        import websocket
-        ws = websocket.create_connection(browser_ws, timeout=15)
+        from websocket._core import create_connection
+        ws = create_connection(browser_ws, timeout=15)
         try:
             ws.send(json.dumps({
                 "id": 1, "method": "Target.createTarget",
@@ -165,9 +165,9 @@ class CDPSession:
     """Lightweight Chrome DevTools Protocol session over WebSocket."""
 
     def __init__(self, ws_url: str, timeout: int = 30):
-        import websocket
+        from websocket._core import create_connection
         self.ws_url = ws_url
-        self.ws = websocket.create_connection(ws_url, timeout=timeout)
+        self.ws = create_connection(ws_url, timeout=timeout)
         self._msg_id = 0
 
     def send_and_recv(self, method: str, params: dict = None,

@@ -801,7 +801,7 @@ let MODEL_OPTIONS = [
 ];
 
 function buildPillSelect(container, options, currentValue, onChange, opts = {}) {
-  const searchable = opts.searchable !== false && options.length > 5;
+  let searchable = opts.searchable !== false && options.length > 5;
   function render(filter) {
     const current = options.find(o => o.value === currentValue) || options[0];
     let iconHtml;
@@ -857,7 +857,7 @@ function buildPillSelect(container, options, currentValue, onChange, opts = {}) 
     const m = container.querySelector('.pill-menu');
     if (m) m.classList.remove('open');
   });
-  return { setValue(v) { currentValue = v; render(); }, setOptions(newOpts) { options = newOpts; render(); } };
+  return { setValue(v) { currentValue = v; render(); }, setOptions(newOpts) { options = newOpts; searchable = opts.searchable !== false && options.length > 5; render(); } };
 }
 
 function setMode(mode) {
@@ -1136,11 +1136,22 @@ const modelPill = buildPillSelect(
   (v) => setModel(v)
 );
 
+const _sessionDrafts = {};
+
 engine.onSessionChange((action, session) => {
   if (action === 'activate' && session) {
+    const inputEl = $('input');
+    if (activeSessionId && inputEl) {
+      _sessionDrafts[activeSessionId] = inputEl.value;
+    }
     activeSessionId = session.id;
     $('main-title').textContent = session.title;
     apiActivateSession(session.id);
+    if (inputEl) {
+      inputEl.value = _sessionDrafts[session.id] || '';
+      inputEl.style.height = 'auto';
+      inputEl.style.height = inputEl.scrollHeight + 'px';
+    }
     const sessionMode = session.mode || 'agent';
     if (sessionMode !== currentMode) {
       currentMode = sessionMode;
@@ -2720,15 +2731,22 @@ async function init() {
     console.warn('Failed to load sessions:', err);
   }
 
-  try {
-    const cfgResp = await fetch('/api/model/list');
-    const cfgData = await cfgResp.json();
-    if (cfgData.ok && cfgData.models && cfgData.models.length > 1) {
-      MODEL_OPTIONS = cfgData.models.map(m => ({ value: m.value, label: m.label }));
-      const newOpts = MODEL_OPTIONS.map(m => m.value === 'auto' ? { value: 'auto', label: _('Auto'), icon: 'bx-bot' } : { value: m.value, label: m.label, ...(MODEL_LOGOS[m.value] ? { logo: MODEL_LOGOS[m.value] } : { icon: 'bx-bot' }) });
-      modelPill.setOptions(newOpts);
+  async function _loadModels(retries) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const cfgResp = await fetch('/api/model/list');
+        const cfgData = await cfgResp.json();
+        if (cfgData.ok && cfgData.models && cfgData.models.length > 1) {
+          MODEL_OPTIONS = cfgData.models.map(m => ({ value: m.value, label: m.label }));
+          const newOpts = MODEL_OPTIONS.map(m => m.value === 'auto' ? { value: 'auto', label: _('Auto'), icon: 'bx-bot' } : { value: m.value, label: m.label, ...(MODEL_LOGOS[m.value] ? { logo: MODEL_LOGOS[m.value] } : { icon: 'bx-bot' }) });
+          modelPill.setOptions(newOpts);
+          return;
+        }
+      } catch (e) { /* retry */ }
+      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
     }
-  } catch (e) { console.warn('Failed to load configured models:', e); }
+  }
+  _loadModels(3);
 
   try {
     const scfg = await fetch('/api/session_config').then(r => r.json());
