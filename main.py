@@ -691,13 +691,21 @@ _TOOL_FLAG_HANDLERS = {
     "--search": lambda args: _tool_search_handler(args),
     "--hooks": lambda args: _root_tool._handle_hooks_command(args),
     "--call-register": lambda args: _root_tool._handle_call_register(args),
-    "--agent": lambda args: _root_tool._handle_agent(args),
-    "--ask": lambda args: _root_tool._handle_agent(args, mode="ask"),
-    "--plan": lambda args: _root_tool._handle_agent(args, mode="plan"),
-    "--session": lambda args: _root_tool._handle_session(args),
+    "--assistant": lambda args: _root_tool._handle_assistant(args),
     "--setup": lambda args: _root_tool.run_setup(),
     "--skills": lambda args: _root_tool._handle_skills_command(args),
 }
+
+# Shorthand: --agent/--ask/--plan as top-level commands (omit --assistant).
+# Controlled by ALLOW_ASSISTANT_SHORTHAND in logic.agent.command.
+try:
+    from logic.agent.command import ALLOW_ASSISTANT_SHORTHAND
+    if ALLOW_ASSISTANT_SHORTHAND:
+        _TOOL_FLAG_HANDLERS["--agent"] = lambda args: _root_tool._handle_agent(args)
+        _TOOL_FLAG_HANDLERS["--ask"] = lambda args: _root_tool._handle_agent(args, mode="ask")
+        _TOOL_FLAG_HANDLERS["--plan"] = lambda args: _root_tool._handle_agent(args, mode="plan")
+except ImportError:
+    pass
 
 
 def _print_tool_help():
@@ -717,10 +725,10 @@ def _print_tool_help():
     print(f"  --search <sub> <query>   Semantic search (tools, interfaces, skills, lessons, discoveries, all)")
     print(f"  --dev <sub>              Developer commands")
     print(f"  --test <sub>             Run tests")
-    print(f"  --agent <prompt>         Start agent session (whole project as codespace)")
-    print(f"  --ask <prompt>           Agent in ask mode (read-only)")
-    print(f"  --plan <prompt>          Agent in plan mode")
-    print(f"  --session <sub>          Manage agent sessions")
+    print(f"  --assistant <sub>        Manage assistant sessions")
+    print(f"  --agent <prompt>         Assistant agent mode (shorthand for --assistant --agent)")
+    print(f"  --ask <prompt>           Assistant ask mode (shorthand for --assistant --ask)")
+    print(f"  --plan <prompt>          Assistant plan mode (shorthand for --assistant --plan)")
     print(f"  --hooks <sub>            Manage tool hooks")
     print(f"  --call-register <desc>   Register tool call with semantic description")
     print(f"  --skills <sub>           Search and manage skills")

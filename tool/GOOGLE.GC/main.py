@@ -1987,7 +1987,7 @@ def main():
 
     # GOOGLE.GC state [--session SESSION_ID] [--tab TAB_LABEL]
     state_p = subparsers.add_parser("state", help="Report MCP state of Colab notebook")
-    state_p.add_argument("--session", default="", help="Session ID to query")
+    state_p.add_argument("--assistant", default="", help="Session ID to query")
     state_p.add_argument("--tab", default="", help="Tab label to focus on")
     state_p.add_argument("--json", action="store_true", help="Output as JSON")
 

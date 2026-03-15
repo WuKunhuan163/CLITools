@@ -12,6 +12,13 @@ Subcommands:
     export <SID>              Export session + memory to archive
     import <archive> [brain]  Import session from archive
     brain [list|init|show]    Manage brain types
+
+Shorthand (when ALLOW_IMPLICIT_PROMPT is True):
+    TOOL --ask "my question"  ≡  TOOL --ask prompt "my question"
+    TOOL --ask --prompt "q"   ≡  TOOL --ask prompt "q"
+
+Toggle ALLOW_IMPLICIT_PROMPT to False if symmetric command growth causes
+ambiguity between subcommands and prompt text.
 """
 import json
 import os
@@ -22,6 +29,21 @@ from typing import Optional
 from logic.agent.state import (
     AgentSession, save_session, load_session, list_sessions,
 )
+
+# ── Shorthand Toggles ────────────────────────────────────────────────
+# Flip to False when symmetric command growth causes ambiguity.
+#
+# ALLOW_IMPLICIT_PROMPT:
+#   True  → TOOL --ask "my question" works (omit 'prompt' subcommand)
+#   False → TOOL --ask prompt "my question" required
+#
+# ALLOW_ASSISTANT_SHORTHAND:
+#   True  → TOOL --ask ... works (--assistant omitted)
+#   False → TOOL --assistant --ask ... required
+#
+# Both are imported by logic/tool/blueprint/base.py for dispatch.
+ALLOW_IMPLICIT_PROMPT = True
+ALLOW_ASSISTANT_SHORTHAND = True
 
 
 def handle_agent_command(args: list, tool_name: str, project_root: str,
@@ -87,6 +109,11 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
                            mode=mode, dry_run=False)
         return
 
+    _KNOWN_SUBCMDS_EARLY = {
+        "prompt", "feed", "response", "history", "config", "status",
+        "sessions", "setup", "export", "import", "brain",
+    }
+
     if (gui_mode or self_operate) and subcmd == "prompt":
         _handle_prompt_gui(rest, tool_name, project_root, tool_dir, mode=mode,
                            **self_operate_opts)
@@ -95,6 +122,15 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
         _handle_prompt_gui([], tool_name, project_root, tool_dir, mode=mode,
                            **self_operate_opts)
         return
+    elif (gui_mode or self_operate) and ALLOW_IMPLICIT_PROMPT and subcmd not in _KNOWN_SUBCMDS_EARLY:
+        _handle_prompt_gui(filtered_args, tool_name, project_root, tool_dir,
+                           mode=mode, **self_operate_opts)
+        return
+
+    _KNOWN_SUBCMDS = {
+        "prompt", "feed", "response", "history", "config", "status",
+        "sessions", "setup", "export", "import", "brain",
+    }
 
     if subcmd == "prompt":
         _handle_prompt(rest, tool_name, project_root, tool_dir, mode=mode,
@@ -120,6 +156,17 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
         _handle_import(rest, project_root)
     elif subcmd == "brain":
         _handle_brain(rest, project_root)
+    elif ALLOW_IMPLICIT_PROMPT and subcmd and subcmd not in _KNOWN_SUBCMDS:
+        implicit_args = filtered_args
+        if gui_mode or self_operate:
+            _handle_prompt_gui(implicit_args, tool_name, project_root, tool_dir,
+                               mode=mode, **self_operate_opts)
+        elif dry_run:
+            _handle_prompt(implicit_args, tool_name, project_root, tool_dir,
+                           mode=mode, dry_run=True)
+        else:
+            _handle_prompt(implicit_args, tool_name, project_root, tool_dir,
+                           mode=mode, dry_run=False)
     else:
         print(f"Unknown subcommand: {subcmd}")
         _print_help(tool_name, mode)
@@ -138,23 +185,27 @@ def _print_help(tool_name: str, mode: str = "agent"):
     readonly_note = ""
     if mode in ("ask", "plan"):
         readonly_note = f"\n  {DIM}Read-only mode: write_file, edit_file disabled. exec restricted.{RESET}"
+    implicit_note = ""
+    if ALLOW_IMPLICIT_PROMPT:
+        implicit_note = f"\n  {DIM}Shorthand: {tool_name} {flag} \"prompt text\" (omit 'prompt' subcommand){RESET}"
     print(f"""
 {BOLD}{label} Mode{RESET} for {tool_name}{readonly_note}
 
 Usage:
-  {tool_name} {flag} prompt "Your task description"
-  {tool_name} {flag} --dry-run prompt "..."  Show full prompt without calling LLM
-  {tool_name} {flag} --gui prompt "..."      Open browser GUI with initial prompt
-  {tool_name} {flag} --gui                   Open browser GUI (no initial prompt)
-  {tool_name} {flag} feed <SESSION_ID> "Follow-up instruction"
-  {tool_name} {flag} --dry-run feed <SID> "..."  Show feed prompt without calling LLM
-  {tool_name} {flag} response <SID> <json_file|json_string>
+  {tool_name} {flag} "Your task description"       Start with implicit prompt
+  {tool_name} {flag} prompt "Your task description" Start with explicit prompt
+  {tool_name} {flag} --prompt "..."                 Explicit --prompt flag
+  {tool_name} {flag} --gui "..."                    Open GUI with initial prompt
+  {tool_name} {flag} --gui                          Open GUI (no initial prompt)
+  {tool_name} {flag} --dry-run "..."                Show prompt without calling LLM
+  {tool_name} {flag} feed <SESSION_ID> "..."        Follow-up instruction
+  {tool_name} {flag} response <SID> <json>          Inject response events
   {tool_name} {flag} history [SESSION_ID] [--limit N]
   {tool_name} {flag} config [KEY [VALUE]]
   {tool_name} {flag} status [SESSION_ID]
   {tool_name} {flag} sessions
   {tool_name} {flag} setup
-  {tool_name} {flag} export <SESSION_ID>
+  {tool_name} {flag} export <SESSION_ID>{implicit_note}
   {tool_name} {flag} import <archive.tar.gz> [brain_type]
   {tool_name} {flag} brain [list|init <name>|show <name>]
 """.strip())
@@ -1278,9 +1329,9 @@ def _print_event(evt: dict):
         print(f"  {DIM}[experience] {lesson[:100]}{RESET}")
 
 
-# ─── --session CLI: wraps GUI HTTP API for programmatic control ───────────
+# ─── --assistant CLI: wraps GUI HTTP API for programmatic control ──────────
 
-def _session_api(port: int, method: str, path: str, body: dict = None) -> dict:
+def _assistant_api(port: int, method: str, path: str, body: dict = None) -> dict:
     """Call the GUI API and return parsed JSON response."""
     import urllib.request
     url = f"http://localhost:{port}{path}"
@@ -1294,8 +1345,8 @@ def _session_api(port: int, method: str, path: str, body: dict = None) -> dict:
         return {"ok": False, "error": str(e)}
 
 
-def handle_session_command(args: list, tool_name: str = "TOOL"):
-    """Handle --session subcommands that control the GUI via HTTP API.
+def handle_assistant_command(args: list, tool_name: str = "TOOL"):
+    """Handle --assistant subcommands that control the GUI via HTTP API.
 
     Subcommands:
         list                         List sessions
@@ -1319,14 +1370,14 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
         return
 
     if not args:
-        _session_help(tool_name)
+        _assistant_help(tool_name)
         return
 
     subcmd = args[0]
     rest = args[1:]
 
     if subcmd == "list":
-        r = _session_api(port, "GET", "/api/sessions")
+        r = _assistant_api(port, "GET", "/api/sessions")
         if r.get("ok"):
             for s in r.get("sessions", []):
                 status = s.get("status", "?")
@@ -1336,7 +1387,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
 
     elif subcmd == "state":
         sid = rest[0] if rest else ""
-        r = _session_api(port, "GET", "/api/state")
+        r = _assistant_api(port, "GET", "/api/state")
         if r.get("ok"):
             state = r["state"]
             sessions = state.get("sessions", {})
@@ -1352,7 +1403,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
 
     elif subcmd == "history":
         if not rest:
-            print("Usage: --session history <SID> [--limit N]")
+            print("Usage: --assistant history <SID> [--limit N]")
             return
         sid = rest[0]
         limit = 50
@@ -1360,7 +1411,7 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
             idx = rest.index("--limit")
             if idx + 1 < len(rest):
                 limit = int(rest[idx + 1])
-        r = _session_api(port, "GET", f"/api/session/{sid}/history")  # RESTful
+        r = _assistant_api(port, "GET", f"/api/session/{sid}/history")  # RESTful
         if r.get("ok"):
             events = r.get("events", [])
             for evt in events[-limit:]:
@@ -1393,28 +1444,28 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
 
     elif subcmd == "send":
         if len(rest) < 2:
-            print("Usage: --session send <SID> \"prompt text\"")
+            print("Usage: --assistant send <SID> \"prompt text\"")
             return
         sid = rest[0]
         text = " ".join(rest[1:])
-        r = _session_api(port, "POST", f"/api/session/{sid}/send",
+        r = _assistant_api(port, "POST", f"/api/session/{sid}/send",
                          {"text": text})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "model":
         if not rest:
-            print("Usage: --session model <model_id>")
+            print("Usage: --assistant model <model_id>")
             return
         model = rest[0]
-        r = _session_api(port, "POST", "/api/model/switch", {"model": model})
+        r = _assistant_api(port, "POST", "/api/model/switch", {"model": model})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "edits":
         if not rest:
-            print("Usage: --session edits <SID>")
+            print("Usage: --assistant edits <SID>")
             return
         sid = rest[0]
-        r = _session_api(port, "GET", f"/api/session/{sid}/edit")
+        r = _assistant_api(port, "GET", f"/api/session/{sid}/edit")
         if r.get("ok"):
             blocks = r.get("blocks", [])
             print(f"Edit blocks: {len(blocks)}")
@@ -1431,37 +1482,37 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
 
     elif subcmd == "accept":
         if len(rest) < 2:
-            print("Usage: --session accept <SID> <hunk_index>")
+            print("Usage: --assistant accept <SID> <hunk_index>")
             return
         sid = rest[0]
         idx = int(rest[1])
-        r = _session_api(port, "POST", f"/api/session/{sid}/edit/{idx}",
+        r = _assistant_api(port, "POST", f"/api/session/{sid}/edit/{idx}",
                          {"action": "accept"})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "revert":
         if len(rest) < 2:
-            print("Usage: --session revert <SID> <hunk_index>")
+            print("Usage: --assistant revert <SID> <hunk_index>")
             return
         sid = rest[0]
         idx = int(rest[1])
-        r = _session_api(port, "POST", f"/api/session/{sid}/edit/{idx}",
+        r = _assistant_api(port, "POST", f"/api/session/{sid}/edit/{idx}",
                          {"action": "revert"})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "accept-all":
         if not rest:
-            print("Usage: --session accept-all <SID>")
+            print("Usage: --assistant accept-all <SID>")
             return
         sid = rest[0]
-        edits = _session_api(port, "GET", f"/api/session/{sid}/edit")
+        edits = _assistant_api(port, "GET", f"/api/session/{sid}/edit")
         if not edits.get("ok"):
             print(f"Error: {edits.get('error')}")
             return
         accepted = 0
         for b in edits.get("blocks", []):
             if not b["decided"]:
-                r = _session_api(port, "POST",
+                r = _assistant_api(port, "POST",
                                  f"/api/session/{sid}/edit/{b['index']}",
                                  {"action": "accept"})
                 if r.get("ok"):
@@ -1470,17 +1521,17 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
 
     elif subcmd == "revert-all":
         if not rest:
-            print("Usage: --session revert-all <SID>")
+            print("Usage: --assistant revert-all <SID>")
             return
         sid = rest[0]
-        edits = _session_api(port, "GET", f"/api/session/{sid}/edit")
+        edits = _assistant_api(port, "GET", f"/api/session/{sid}/edit")
         if not edits.get("ok"):
             print(f"Error: {edits.get('error')}")
             return
         reverted = 0
         for b in reversed(edits.get("blocks", [])):
             if not b["decided"]:
-                r = _session_api(port, "POST",
+                r = _assistant_api(port, "POST",
                                  f"/api/session/{sid}/edit/{b['index']}",
                                  {"action": "revert"})
                 if r.get("ok"):
@@ -1489,54 +1540,54 @@ def handle_session_command(args: list, tool_name: str = "TOOL"):
 
     elif subcmd == "new":
         title = " ".join(rest) if rest else "New Task"
-        r = _session_api(port, "POST", "/api/sessions", {"title": title})
+        r = _assistant_api(port, "POST", "/api/sessions", {"title": title})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "delete":
         if not rest:
-            print("Usage: --session delete <SID>")
+            print("Usage: --assistant delete <SID>")
             return
-        r = _session_api(port, "DELETE", f"/api/session/{rest[0]}", {})
+        r = _assistant_api(port, "DELETE", f"/api/session/{rest[0]}", {})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "clear":
-        r = _session_api(port, "DELETE", "/api/sessions", {})
+        r = _assistant_api(port, "DELETE", "/api/sessions", {})
         print(json.dumps(r, ensure_ascii=False))
 
     elif subcmd == "cancel":
-        r = _session_api(port, "POST", "/api/session/default/cancel", {})
+        r = _assistant_api(port, "POST", "/api/session/default/cancel", {})
         print(json.dumps(r, ensure_ascii=False))
 
     else:
-        print(f"Unknown --session subcommand: {subcmd}")
-        _session_help(tool_name)
+        print(f"Unknown --assistant subcommand: {subcmd}")
+        _assistant_help(tool_name)
 
 
-def _session_help(tool_name: str = "TOOL"):
+def _assistant_help(tool_name: str = "TOOL"):
     print(f"""
-Session Control (wraps GUI HTTP API)
+Assistant Control (wraps GUI HTTP API)
 
 Sessions:
-  {tool_name} --session list                         List sessions
-  {tool_name} --session new [title]                  Create new session
-  {tool_name} --session delete <SID>                 Delete session
-  {tool_name} --session clear                        Delete all + create fresh
+  {tool_name} --assistant list                         List sessions
+  {tool_name} --assistant new [title]                  Create new session
+  {tool_name} --assistant delete <SID>                 Delete session
+  {tool_name} --assistant clear                        Delete all + create fresh
 
 Communication:
-  {tool_name} --session send <SID> "prompt"          Send a message
-  {tool_name} --session state [SID]                  Show session state
-  {tool_name} --session history <SID> [--limit N]    Show event history
-  {tool_name} --session cancel                       Cancel running task
+  {tool_name} --assistant send <SID> "prompt"          Send a message
+  {tool_name} --assistant state [SID]                  Show session state
+  {tool_name} --assistant history <SID> [--limit N]    Show event history
+  {tool_name} --assistant cancel                       Cancel running task
 
 Edit control:
-  {tool_name} --session edits <SID>                  List edit blocks
-  {tool_name} --session accept <SID> <index>         Accept a hunk
-  {tool_name} --session revert <SID> <index>         Revert a hunk
-  {tool_name} --session accept-all <SID>             Accept all undecided
-  {tool_name} --session revert-all <SID>             Revert all undecided
+  {tool_name} --assistant edits <SID>                  List edit blocks
+  {tool_name} --assistant accept <SID> <index>         Accept a hunk
+  {tool_name} --assistant revert <SID> <index>         Revert a hunk
+  {tool_name} --assistant accept-all <SID>             Accept all undecided
+  {tool_name} --assistant revert-all <SID>             Revert all undecided
 
 Model:
-  {tool_name} --session model <model_id>             Switch model
+  {tool_name} --assistant model <model_id>             Switch model
 
 API paths:
   GET    /api/sessions                   POST /api/sessions

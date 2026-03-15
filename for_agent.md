@@ -126,27 +126,27 @@ TOOL_NAME --agent sessions
 TOOL_NAME --agent setup
 ```
 
-### Session Management (`--session`)
+### Assistant Management (`--assistant`)
 
-`--session` is the unified session interface. `--agent`, `--ask`, `--plan` are shortcuts:
+`--assistant` is the unified assistant interface. `--agent`, `--ask`, `--plan` are shortcuts:
 
 ```bash
 # Equivalent pairs:
-TOOL_NAME --session agent prompt "..."    ≡  TOOL_NAME --agent prompt "..."
-TOOL_NAME --session ask prompt "..."      ≡  TOOL_NAME --ask prompt "..."
-TOOL_NAME --session plan prompt "..."     ≡  TOOL_NAME --plan prompt "..."
+TOOL_NAME --assistant agent prompt "..."    ≡  TOOL_NAME --agent prompt "..."
+TOOL_NAME --assistant ask prompt "..."      ≡  TOOL_NAME --ask prompt "..."
+TOOL_NAME --assistant plan prompt "..."     ≡  TOOL_NAME --plan prompt "..."
 
 # Session checkout — switch active session or create new
-TOOL_NAME --session checkout              # Create new session
-TOOL_NAME --session checkout <SID>        # Switch to existing session
+TOOL_NAME --assistant checkout              # Create new session
+TOOL_NAME --assistant checkout <SID>        # Switch to existing session
 
 # Session cleanup — delete sessions
-TOOL_NAME --session clean <SID1> [SID2 ...]  # Delete specific sessions
-TOOL_NAME --session clean --all              # Delete ALL sessions
+TOOL_NAME --assistant clean <SID1> [SID2 ...]  # Delete specific sessions
+TOOL_NAME --assistant clean --all              # Delete ALL sessions
 
 # Task queue — manage queued tasks (auto-queued when session is busy)
-TOOL_NAME --session queue                    # List queued tasks
-TOOL_NAME --session queue clear              # Clear the queue
+TOOL_NAME --assistant queue                    # List queued tasks
+TOOL_NAME --assistant queue clear              # Clear the queue
 ```
 
 Session data is stored in `runtime/sessions/<session_id>/history.json`. Response data from AI IDE agents is stored in `runtime/sessions/<session_id>/data/<response_id>.json` (sequential: `000.json`, `001.json`, ..., `999.json`, `1000.json`).
@@ -167,7 +167,7 @@ Self-operate mode allows an AI IDE agent (e.g., Cursor, Copilot, Windsurf) to dr
 # 1. Create session + start GUI, send self-operate prompt
 #    Choose mode: --agent (full access), --ask (read-only), --plan (design only)
 #    Most AI IDEs map to: coding/debug tasks → --agent, questions → --ask, architecture → --plan
-TOOL_NAME --session --agent --prompt "<task>" --self-operate --self-name "Your Model" --env "IDE/cursor"
+TOOL_NAME --assistant --agent --prompt "<task>" --self-operate --self-name "Your Model" --env "IDE/cursor"
 #   → prints: Session: <SID>, GUI: http://localhost:8100
 
 # 2. Inject your response (natural language + tool calls as JSON)
@@ -216,7 +216,7 @@ If your response includes `tool_result` events, those tools are considered alrea
 - **One task at a time**: While a session is running, new `--agent --prompt` calls are blocked with "Blocked. A session is still running."
 - **Auto-feed**: After each `--response`, the system automatically prepares the next round (equivalent to `--feed`). The terminal prints the round number and awaits the next `--response`.
 - **Completion**: Inject `[{"type":"complete","reason":"done"}]` to end the session. The sidebar indicator changes from spinner to checkmark.
-- **Cancellation**: Use `TOOL_NAME --session cancel` to abort a running session.
+- **Cancellation**: Use `TOOL_NAME --assistant cancel` to abort a running session.
 
 **Auto Model Selection**: Use provider name `auto` for automatic model selection with fallback. The Auto provider ranks available models by stability (free-tier preference, RPM headroom, error rate tracking) and automatically falls back to the next model on 429/500 errors. Implemented in `tool/LLM/logic/auto.py`.
 
@@ -252,7 +252,7 @@ Session IDs use the format `YYYYMMDD-HHMMSS-<6hex>` for chronological sorting.
 ```bash
 # 1. Start a self-operate session (exec via your IDE's terminal tool)
 #    Choose mode by task type: --agent (coding), --ask (questions), --plan (design)
-exec("TOOL_NAME --session --agent --prompt '<task>' --self-operate --self-name 'YourModel' --env 'IDE/cursor'")
+exec("TOOL_NAME --assistant --agent --prompt '<task>' --self-operate --self-name 'YourModel' --env 'IDE/cursor'")
 
 # 2. Write your response as JSON, inject it
 exec("TOOL_NAME --agent response <SID> tmp/response.json")

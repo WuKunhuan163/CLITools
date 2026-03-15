@@ -257,25 +257,27 @@ class ToolBase:
             self.run_setup()
             return True
 
-        agent_args = _extract_flag_args("--agent")
-        if agent_args is not None:
-            self._handle_agent(agent_args)
-            return True
-
-        ask_args = _extract_flag_args("--ask")
-        if ask_args is not None:
-            self._handle_agent(ask_args, mode="ask")
-            return True
-
-        plan_args = _extract_flag_args("--plan")
-        if plan_args is not None:
-            self._handle_agent(plan_args, mode="plan")
-            return True
-
-        session_args = _extract_flag_args("--session")
+        session_args = _extract_flag_args("--assistant")
         if session_args is not None:
-            self._handle_session(session_args)
+            self._handle_assistant(session_args)
             return True
+
+        from logic.agent.command import ALLOW_ASSISTANT_SHORTHAND
+        if ALLOW_ASSISTANT_SHORTHAND:
+            agent_args = _extract_flag_args("--agent")
+            if agent_args is not None:
+                self._handle_agent(agent_args)
+                return True
+
+            ask_args = _extract_flag_args("--ask")
+            if ask_args is not None:
+                self._handle_agent(ask_args, mode="ask")
+                return True
+
+            plan_args = _extract_flag_args("--plan")
+            if plan_args is not None:
+                self._handle_agent(plan_args, mode="plan")
+                return True
 
         if _extract_flag_args("--rule") is not None:
             self.print_rule()
@@ -480,12 +482,12 @@ class ToolBase:
         Invoked via ``TOOL --config [options]`` or ``TOOL config [options]``.
 
         Sub-commands:
-            --config --session [KEY [VALUE]]  Manage agent session parameters
+            --config --assistant [KEY [VALUE]]  Manage agent session parameters
             --config --show                   Show tool-specific config
             --config --cpu-limit N            Set CPU load limit
         """
-        if args and args[0] == "--session":
-            self._handle_session_config(args[1:])
+        if args and args[0] == "--assistant":
+            self._handle_assistant_config(args[1:])
             return
 
         import argparse
@@ -541,10 +543,10 @@ class ToolBase:
             for k, v in sorted(config.items()):
                 print(f"  {k}: {v}")
 
-    def _handle_session_config(self, args):
+    def _handle_assistant_config(self, args):
         """Manage agent session configuration.
 
-        Invoked via ``TOOL --config --session [KEY [VALUE]]``.
+        Invoked via ``TOOL --config --assistant [KEY [VALUE]]``.
         Reads/writes the LLM tool's config store.
         """
         from logic.config import get_color
@@ -1018,27 +1020,33 @@ class ToolBase:
             mode=mode,
         )
 
-    def _handle_session(self, args):
-        """Dispatch --session subcommands.
+    def _handle_assistant(self, args):
+        """Dispatch --assistant subcommands.
 
-        Maps --session agent/ask/plan to --agent/--ask/--plan equivalents.
-        Also handles --session checkout for switching active sessions.
+        Maps --assistant agent/ask/plan to --agent/--ask/--plan equivalents.
+        Also handles --assistant checkout for switching active sessions.
 
         When called with no args, creates a new session and prints its ID
         along with the GUI port (if a server is running).
         """
         if not args:
-            self._handle_session_create_and_info()
+            self._handle_assistant_create_and_info()
             return
 
         mode_flags = {"--agent": "agent", "--ask": "ask", "--plan": "plan"}
         mode = "agent"
         filtered = []
-        for a in args:
-            if a in mode_flags:
-                mode = mode_flags[a]
+        i = 0
+        while i < len(args):
+            if args[i] in mode_flags:
+                mode = mode_flags[args[i]]
+            elif args[i] == "--prompt" and i + 1 < len(args):
+                filtered.insert(0, "prompt")
+                filtered.append(args[i + 1])
+                i += 1
             else:
-                filtered.append(a)
+                filtered.append(args[i])
+            i += 1
 
         subcmd = filtered[0] if filtered else ""
         rest = filtered[1:]
@@ -1047,20 +1055,20 @@ class ToolBase:
                         "edits", "accept", "revert", "accept-all",
                         "revert-all", "new", "delete", "clear", "cancel"}
         if subcmd in gui_api_cmds:
-            from logic.agent.command import handle_session_command
-            handle_session_command(filtered, self.tool_name)
+            from logic.agent.command import handle_assistant_command
+            handle_assistant_command(filtered, self.tool_name)
         elif subcmd in ("agent", "ask", "plan"):
             self._handle_agent(rest, mode=subcmd)
         elif subcmd == "checkout":
-            self._handle_session_checkout(rest)
+            self._handle_assistant_checkout(rest)
         elif subcmd == "clean":
-            self._handle_session_clean(rest)
+            self._handle_assistant_clean(rest)
         elif subcmd == "queue":
-            self._handle_session_queue(rest)
+            self._handle_assistant_queue(rest)
         else:
             self._handle_agent(filtered, mode=mode)
 
-    def _handle_session_create_and_info(self):
+    def _handle_assistant_create_and_info(self):
         """Create a new session and print ID + GUI port."""
         from logic.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
@@ -1087,9 +1095,9 @@ class ToolBase:
             print(f"  {DIM}GUI: http://localhost:{port}{RESET}")
             print(f"  {DIM}Port: {port}{RESET}")
         else:
-            print(f"  {DIM}No GUI server running. Use --session --gui to start one.{RESET}")
+            print(f"  {DIM}No GUI server running. Use --assistant --gui to start one.{RESET}")
 
-    def _handle_session_checkout(self, args):
+    def _handle_assistant_checkout(self, args):
         """Switch the current tool's active session or create a new one."""
         from logic.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
@@ -1120,12 +1128,12 @@ class ToolBase:
             self._save_active_session_id(session.id)
             print(f"  {BOLD}New session created.{RESET} {DIM}{session.id}{RESET}")
 
-    def _handle_session_clean(self, args):
+    def _handle_assistant_clean(self, args):
         """Delete sessions: one, many, or all.
 
         Usage:
-            --session clean <id1> [id2 ...]   Delete specific sessions
-            --session clean --all              Delete ALL sessions
+            --assistant clean <id1> [id2 ...]   Delete specific sessions
+            --assistant clean --all              Delete ALL sessions
         """
         import shutil
         from logic.config import get_color
@@ -1174,7 +1182,7 @@ class ToolBase:
             return
 
         if not args:
-            print(f"Usage: --session clean <id1> [id2 ...] | --session clean --all")
+            print(f"Usage: --assistant clean <id1> [id2 ...] | --assistant clean --all")
             return
 
         removed = 0
@@ -1208,12 +1216,12 @@ class ToolBase:
         if removed:
             print(f"  {BOLD}{GREEN}Cleaned.{RESET} {DIM}{removed} session(s) removed.{RESET}")
 
-    def _handle_session_queue(self, args):
+    def _handle_assistant_queue(self, args):
         """View or manage the task queue for a session.
 
         Usage:
-            --session queue              List queued tasks
-            --session queue clear        Clear the queue
+            --assistant queue              List queued tasks
+            --assistant queue clear        Clear the queue
         """
         import json
         from logic.config import get_color
