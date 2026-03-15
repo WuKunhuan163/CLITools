@@ -89,6 +89,7 @@ _ALIASES = {
     "gemini-flash": "google-gemini-2.0-flash",
     "ernie-speed-8k": "baidu-ernie-speed-8k",
     "ernie-speed": "baidu-ernie-speed-8k",
+    "ernie-3.5-8k": "baidu-ernie-speed-8k",
     "hunyuan-lite": "tencent-hunyuan-lite",
     "qwen2.5-7b": "siliconflow-qwen2.5-7b",
     "qwen-2.5-7b": "siliconflow-qwen2.5-7b",

@@ -102,6 +102,7 @@ class OpenAICompatProvider(LLMProvider):
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": "AITerminalTools/1.0",
         }
 
     def _send_request(self, messages: List[Dict[str, str]],
@@ -298,6 +299,7 @@ class OpenAICompatProvider(LLMProvider):
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "AITerminalTools/1.0",
         }
         req = urllib.request.Request(
             cls.API_URL, data=data, headers=headers, method="POST"

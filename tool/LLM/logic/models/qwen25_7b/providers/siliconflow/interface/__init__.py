@@ -1,8 +1,8 @@
 """Qwen 2.5 7B via SiliconFlow platform (OpenAI-compatible endpoint).
 
-Endpoint: https://api.siliconflow.cn/v1/chat/completions
+Endpoint: https://api.siliconflow.com/v1/chat/completions
 Free tier: 3 RPS, 100 RPM (permanently free for select open-source models).
-Requires: SiliconFlow API key (domestic CN phone registration).
+Requires: SiliconFlow API key from https://cloud.siliconflow.com/me/account/ak
 """
 from tool.LLM.logic.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
@@ -10,7 +10,7 @@ from tool.LLM.logic.base import CostModel, ModelCapabilities
 
 class SiliconFlowQwenProvider(OpenAICompatProvider):
 
-    API_URL = "https://api.siliconflow.cn/v1/chat/completions"
+    API_URL = "https://api.siliconflow.com/v1/chat/completions"
     MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"
     CONFIG_VENDOR = "siliconflow"
     CONFIG_KEY_ENV = "SILICONFLOW_API_KEY"
