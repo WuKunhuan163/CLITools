@@ -455,6 +455,11 @@ class AgentServer:
                 temperature=0.1, max_tokens=5)
             if result.get("ok"):
                 return {"ok": True, "model": result.get("model", provider_name)}
+            if result.get("error_code") == 429:
+                return {"ok": True, "model": result.get("model", provider_name),
+                        "warning": "Key valid but rate limited (429). Quota may be exhausted."}
+            if result.get("error_code") == 401 or result.get("error_code") == 403:
+                return {"ok": False, "error": "Invalid API key (authentication failed)"}
             return {"ok": False, "error": result.get("error", "Validation failed")}
         except Exception as e:
             return {"ok": False, "error": str(e)}

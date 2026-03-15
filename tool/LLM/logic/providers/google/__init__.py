@@ -1,20 +1,14 @@
-"""Google (Gemini) provider — placeholder (assets only, not yet implemented)."""
-from tool.LLM.logic.base import LLMProvider, ProviderNotImplementedError, CostModel, ModelCapabilities
+"""Google (Gemini) provider — delegates to model-specific implementations.
 
+Actual provider implementations live at the model level:
+  - gemini-2.0-flash: tool/LLM/logic/models/gemini_2_0_flash/providers/google/
 
-class GoogleProvider(LLMProvider):
-    name = "google"
-    cost_model = CostModel(free_tier=True)
-    capabilities = ModelCapabilities(
-        supports_tool_calling=True, supports_vision=True,
-        supports_streaming=True, max_context_tokens=1000000,
-    )
+Register via the registry:
+  from tool.LLM.logic.registry import get_provider
+  provider = get_provider("google-gemini-2.0-flash")
+"""
+from tool.LLM.logic.models.gemini_2_0_flash.providers.google.interface import (
+    GoogleGeminiFlashProvider,
+)
 
-    def __init__(self, **kwargs):
-        raise ProviderNotImplementedError("Google/Gemini provider not yet implemented")
-
-    def _send_request(self, messages, temperature=1.0, max_tokens=16384, tools=None):
-        raise ProviderNotImplementedError("Google/Gemini provider not yet implemented")
-
-    def is_available(self):
-        return False
+__all__ = ["GoogleGeminiFlashProvider"]
