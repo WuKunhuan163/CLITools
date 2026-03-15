@@ -1563,12 +1563,12 @@ class ConversationManager:
                     traceback.print_exc(file=sys.stderr)
                     self._emit({"type": "text",
                                 "tokens": f"\n[Thread exception: {e}]\n"})
-                    self._emit({"type": "complete"})
+                    self._emit({"type": "complete", "reason": "error"})
                     session = self._sessions.get(session_id)
                     if session:
-                        session.status = "idle"
+                        session.status = "done"
                     self._emit({"type": "session_status",
-                                "id": session_id, "status": "idle"})
+                                "id": session_id, "status": "done"})
                 self._drain_task_queue(session_id)
             t = threading.Thread(target=_safe_run, daemon=True)
             t.start()
@@ -1592,9 +1592,9 @@ class ConversationManager:
                 self._emit({"type": "complete", "reason": "error"})
                 session = self._sessions.get(session_id)
                 if session:
-                    session.status = "idle"
+                    session.status = "done"
                 self._emit({"type": "session_status",
-                            "id": session_id, "status": "idle"})
+                            "id": session_id, "status": "done"})
 
     def get_task_queue(self, session_id: str) -> list:
         """Return the current task queue for a session."""
@@ -1671,8 +1671,8 @@ class ConversationManager:
             if not provider.is_available():
                 self._emit({"type": "text", "tokens": f"Error: Provider {self._provider_name} is not available."})
                 self._emit({"type": "complete", "reason": "error"})
-                session.status = "idle"
-                self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                session.status = "done"
+                self._emit({"type": "session_status", "id": session_id, "status": "done"})
                 self._persist_session(session_id)
                 return
 
@@ -1874,8 +1874,8 @@ class ConversationManager:
                     })
                     self._emit({"type": "text", "tokens": f"Error: {err}"})
                     self._emit({"type": "complete", "reason": "error"})
-                    session.status = "idle"
-                    self._emit({"type": "session_status", "id": session_id, "status": "idle"})
+                    session.status = "done"
+                    self._emit({"type": "session_status", "id": session_id, "status": "done"})
                     self._persist_session(session_id)
                     return
 
@@ -2143,17 +2143,23 @@ class ConversationManager:
         self._emit({"type": "session_status", "id": session_id, "status": "done"})
 
     def _generate_title_async(self, session_id: str, user_msg: str, assistant_msg: str):
-        """Generate a short title for the conversation."""
+        """Generate a short title for the conversation.
+
+        Skips if the user has already renamed the session from "New Task".
+        """
+        session = self._sessions.get(session_id)
+        if not session or session.title != "New Task":
+            return
         try:
             from tool.LLM.logic.registry import get_provider
             provider = get_provider(self._provider_name)
             result = provider.send([
-                {"role": "system", "content": "Generate a concise title (5-8 words max) for this conversation. Output ONLY the title, nothing else."},
-                {"role": "user", "content": f"User: {user_msg[:200]}\nAssistant: {assistant_msg[:200]}"},
-            ], temperature=0.3, max_tokens=30)
+                {"role": "system", "content": "Write a 3-6 word title summarizing this chat. No quotes, no punctuation."},
+                {"role": "user", "content": f"User: {user_msg[:150]}\nAssistant: {assistant_msg[:150]}"},
+            ], temperature=0.3, max_tokens=20)
             if result.get("ok"):
-                title = result["text"].strip().strip('"').strip("'")
-                if title and len(title) < 80:
+                title = result["text"].strip().strip('"').strip("'").strip(".")
+                if title and len(title) < 50:
                     self.rename_session(session_id, title)
         except Exception:
             pass

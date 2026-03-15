@@ -2497,7 +2497,7 @@ function handleSSEEvent(evt) {
       $('btn-send').disabled = false;
       sending = false;
       setStopMode(false);
-      if (activeSessionId) engine.setSessionStatus(activeSessionId, 'idle');
+      if (activeSessionId) engine.setSessionStatus(activeSessionId, 'done');
       break;
     }
 
@@ -2516,7 +2516,7 @@ function handleSSEEvent(evt) {
         $('btn-send').disabled = false;
         setStopMode(false);
         const reason = evt.reason || 'done';
-        if (activeSessionId) engine.setSessionStatus(activeSessionId, reason === 'error' ? 'idle' : 'done');
+        if (activeSessionId) engine.setSessionStatus(activeSessionId, 'done');
       }
       engine.enqueueEvent(evt);
       break;
