@@ -217,16 +217,35 @@ class Session:
         ``path`` may be:
         - ``runtime/sessions/<id>/history.json`` (new layout)
         - ``runtime/sessions/<id>.json`` (legacy flat file — auto-migrated)
+
+        Reconstructs status and title from events when the persisted
+        metadata is stale (e.g. status saved as "idle" while events show
+        a completed session).
         """
         import json as _json
         try:
             with open(path, encoding="utf-8") as f:
                 data = _json.load(f)
             ctx = SessionContext.from_dict(data.get("context", {}))
+
+            title = data.get("title", "New Task")
+            status = data.get("status", "idle")
+            events = data.get("events", [])
+
+            if events:
+                for evt in reversed(events):
+                    etype = evt.get("type")
+                    if etype == "session_renamed":
+                        title = evt.get("title", title)
+                        break
+                has_complete = any(e.get("type") == "complete" for e in events)
+                if has_complete and status in ("idle", "running"):
+                    status = "done"
+
             session = cls(
                 id=data["id"],
-                title=data.get("title", "New Task"),
-                status=data.get("status", "idle"),
+                title=title,
+                status=status,
                 mode=data.get("mode", "agent"),
                 context=ctx,
                 created_at=data.get("created_at", time.time()),
@@ -234,7 +253,7 @@ class Session:
                 codebase_root=data.get("codebase_root"),
             )
             if path.endswith(".json") and not path.endswith("history.json"):
-                session.save(events=data.get("events"))
+                session.save(events=events)
                 try:
                     os.remove(path)
                 except OSError:
@@ -688,6 +707,9 @@ class ConversationManager:
                 dup_counts=getattr(self, '_dup_counts', {}),
                 turn_writes=getattr(self, '_turn_writes', []),
                 turn_reads=getattr(self, '_turn_reads', []),
+                round_store=getattr(self, '_round_store', None),
+                session_id=self._current_turn_session_id or "",
+                round_num=getattr(self, '_current_round', 0),
             )
             return self._std_tools[name](args, ctx)
         return handler
@@ -1186,11 +1208,32 @@ class ConversationManager:
 
             old_lines = old_text.splitlines()
             new_lines = new_text.splitlines()
+
+            all_lines = content.splitlines()
+            change_start = content.find(old_text)
+            start_lineno = content[:change_start].count('\n') if change_start >= 0 else 0
+            ctx = 5
             diff_lines = []
+            pre_start = max(0, start_lineno - ctx)
+            if pre_start > 0:
+                diff_lines.append(f"@@hide {pre_start}")
+            for i in range(pre_start, start_lineno):
+                if i < len(all_lines):
+                    diff_lines.append(f" {i+1:>5}|{all_lines[i]}")
             for ol in old_lines:
                 diff_lines.append(f"-{ol}")
             for nl in new_lines:
                 diff_lines.append(f"+{nl}")
+            change_end = start_lineno + len(old_lines)
+            post_end = min(len(all_lines), change_end + ctx)
+            new_all = new_content.splitlines()
+            new_change_end = start_lineno + len(new_lines)
+            for i in range(new_change_end, min(len(new_all), new_change_end + ctx)):
+                diff_lines.append(f" {i+1:>5}|{new_all[i]}")
+            remaining = len(new_all) - min(len(new_all), new_change_end + ctx)
+            if remaining > 0:
+                diff_lines.append(f"@@hide {remaining}")
+
             diff_preview = "\n".join(diff_lines)
             self._emit({"type": "tool_result", "ok": True,
                          "output": diff_preview})
@@ -1595,6 +1638,7 @@ class ConversationManager:
                         session.status = "done"
                     self._emit({"type": "session_status",
                                 "id": session_id, "status": "done"})
+                    self._persist_session(session_id)
                 self._drain_task_queue(session_id)
             t = threading.Thread(target=_safe_run, daemon=True)
             t.start()
@@ -1621,6 +1665,7 @@ class ConversationManager:
                     session.status = "done"
                 self._emit({"type": "session_status",
                             "id": session_id, "status": "done"})
+                self._persist_session(session_id)
 
     def get_task_queue(self, session_id: str) -> list:
         """Return the current task queue for a session."""
@@ -1684,7 +1729,14 @@ class ConversationManager:
                 user_evt["suggestions"] = contextual
             self._emit(user_evt)
 
-            if session.context.needs_compression(trigger_ratio=0.5):
+            _compression_ratio = 0.5
+            try:
+                from tool.LLM.logic.config import get_config_value
+                _compression_ratio = float(get_config_value("compression_ratio", 0.5))
+            except Exception:
+                pass
+            _compression_ratio = max(0.25, min(0.75, _compression_ratio))
+            if session.context.needs_compression(trigger_ratio=_compression_ratio):
                 self._compress_context(session)
 
             packaged = self._package_message(session, text, context_feed)
@@ -1718,9 +1770,14 @@ class ConversationManager:
             cfg_turn_limit = get_config_value("default_turn_limit", 20)
             cfg_max_output = get_config_value("max_output_tokens", 16384)
 
-            if turn_limit <= 0:
-                turn_limit = int(cfg_turn_limit)
-            max_rounds = turn_limit
+            HARD_ROUND_CAP = 10000
+            ZOMBIE_CHECK_INTERVAL = 50
+            _is_unlimited = (turn_limit == 0)
+            if turn_limit < 0:
+                turn_limit = int(cfg_turn_limit) or 20
+            elif turn_limit == 0:
+                turn_limit = HARD_ROUND_CAP
+            max_rounds = min(turn_limit, HARD_ROUND_CAP)
             round_num = 0
             empty_retries = 0
             max_empty_retries = pipeline.get_max_retries()
@@ -1735,6 +1792,7 @@ class ConversationManager:
             _wrapup_nudged = False
             _force_no_tools = False
             _silent_rounds = 0
+            _zombie_checks = 0
 
             while round_num < max_rounds:
                 if self._cancel_requested:
@@ -1748,7 +1806,8 @@ class ConversationManager:
                 full_text = ""
                 tool_calls_accum = []
 
-                if (turn_limit > 3 and round_num == turn_limit - 1
+                if (not _is_unlimited and turn_limit > 3
+                        and round_num == turn_limit - 1
                         and not _wrapup_nudged):
                     _wrapup_nudged = True
                     session.context.add_user(
@@ -2166,14 +2225,26 @@ class ConversationManager:
                         self._emit({"type": "debug",
                                      "text": "Loop detected — nudging synthesis"})
 
-                if turn_limit > 0 and round_num == turn_limit - 1:
+                if (_is_unlimited
+                        and round_num > 0
+                        and round_num % ZOMBIE_CHECK_INTERVAL == 0):
+                    _zombie_checks += 1
+                    session.context.add_user(
+                        f"[System: Round {round_num} check] You are running in "
+                        "unlimited mode. Assess: is the original task complete? "
+                        "If yes, call 'complete' now. If not, briefly state what "
+                        "remains and continue. Do NOT repeat work already done.")
+                    self._emit({"type": "debug",
+                                 "text": f"Zombie check #{_zombie_checks} at round {round_num}"})
+
+                if not _is_unlimited and turn_limit > 0 and round_num == turn_limit - 1:
                     session.context.add_user(
                         "[SYSTEM] This is your LAST round with tool access. "
                         "If you cannot finish in one more round, summarize your progress as text.")
                     self._emit({"type": "debug",
                                  "text": f"Warning: round {round_num} is second-to-last"})
 
-                if turn_limit > 0 and round_num >= turn_limit:
+                if not _is_unlimited and turn_limit > 0 and round_num >= turn_limit:
                     _force_no_tools = True
                     max_rounds = round_num + 1
                     session.context.add_user(
@@ -2192,6 +2263,8 @@ class ConversationManager:
                             session_id=session_id, round_count=round_num,
                             tool_calls_count=len(_tool_call_history),
                             status="completed")
+            session.status = "done"
+            self._emit({"type": "session_status", "id": session_id, "status": "done"})
             self._persist_session(session_id)
 
             if auto_title:
@@ -2205,10 +2278,9 @@ class ConversationManager:
                             session_id=session_id,
                             round_count=getattr(self, '_current_round', 0),
                             tool_calls_count=0, status="error")
+            session.status = "done"
+            self._emit({"type": "session_status", "id": session_id, "status": "done"})
             self._persist_session(session_id)
-
-        session.status = "done"
-        self._emit({"type": "session_status", "id": session_id, "status": "done"})
 
     def _generate_title_async(self, session_id: str, user_msg: str, assistant_msg: str):
         """Generate a short title for the conversation.
@@ -2310,7 +2382,12 @@ class ConversationManager:
 
     def _compress_context(self, session: Session):
         """Compress conversation context when it grows too large."""
-        self._emit({"type": "debug", "text": "Compressing context..."})
+        before_tokens = session.context._estimate_tokens()
+        effective_limit = self._get_effective_context_limit()
+
+        before_pct = (before_tokens / effective_limit * 100) if effective_limit else 0
+        self._emit({"type": "notice", "level": "info",
+                     "text": f"Summarizing context ({before_pct:.1f}% ctx)..."})
         try:
             from tool.LLM.logic.registry import get_provider
             provider = get_provider(self._provider_name)
@@ -2325,12 +2402,37 @@ class ConversationManager:
             if result.get("ok") and result.get("text"):
                 summary = result["text"]
                 session.context.apply_compression(summary)
+                after_tokens = session.context._estimate_tokens()
                 self._brain.on_session_end(session.id, summary)
-                self._emit({"type": "text",
-                             "tokens": "[Context compressed successfully]\n"})
+                after_pct = (after_tokens / effective_limit * 100) if effective_limit else 0
+                self._emit({"type": "notice", "level": "success",
+                             "text": f"Chat context summarized ({before_pct:.1f}% → {after_pct:.1f}% ctx)"})
+            else:
+                self._emit({"type": "notice", "level": "warning",
+                             "text": "Context compression returned empty result."})
         except Exception as e:
-            self._emit({"type": "text",
-                         "tokens": f"[Context compression failed: {e}]\n"})
+            self._emit({"type": "notice", "level": "warning",
+                         "text": f"Context compression failed: {e}"})
+
+    def _get_effective_context_limit(self) -> int:
+        """Return effective context limit (max_ctx * compression_ratio)."""
+        max_ctx = 0
+        try:
+            from tool.LLM.logic.registry import list_models
+            for m in list_models():
+                if any(self._provider_name.endswith(p) or p in self._provider_name
+                       for p in [m["model"]]):
+                    max_ctx = m.get("capabilities", {}).get("max_context_tokens", 0)
+                    break
+        except Exception:
+            pass
+        ratio = 0.5
+        try:
+            from tool.LLM.logic.config import get_config_value
+            ratio = float(get_config_value("compression_ratio", 0.5))
+        except Exception:
+            pass
+        return int(max_ctx * ratio) if max_ctx else 0
 
     # ── State Export ──
 
@@ -2346,10 +2448,19 @@ class ConversationManager:
                     break
         except Exception:
             pass
+        compression_ratio = 0.5
+        try:
+            from tool.LLM.logic.config import get_config_value
+            compression_ratio = float(get_config_value("compression_ratio", 0.5))
+        except Exception:
+            pass
+        effective_limit = int(max_ctx * compression_ratio) if max_ctx else 0
         return {
             "provider": self._provider_name,
             "active_session": self._active_session_id,
             "max_context_tokens": max_ctx,
+            "effective_context_limit": effective_limit,
+            "compression_ratio": compression_ratio,
             "sessions": {
                 sid: {
                     "id": s.id, "title": s.title, "status": s.status,

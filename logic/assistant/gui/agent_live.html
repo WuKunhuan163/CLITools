@@ -298,6 +298,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .diff-line.context { color: var(--text-3); }
 .diff-hidden { padding: 4px 14px; color: var(--text-3); font-size: 11px; font-style: italic; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); margin: 2px 0; text-align: center; cursor: pointer; user-select: none; }
 .diff-hidden:hover { background: rgba(255,255,255,0.03); }
+.diff-hidden-sep { padding: 3px 14px; color: var(--text-3); font-size: 10px; text-align: center; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); margin: 2px 0; user-select: none; opacity: 0.7; }
+.diff-ln { display: inline-block; min-width: 4ch; text-align: right; margin-right: 10px; color: var(--text-3); opacity: 0.5; user-select: none; }
 
 /* ── Tool Call ── */
 .tool-call { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 6px 0; overflow: hidden; max-width: 90%; animation: fadeIn 0.2s ease; }
@@ -676,6 +678,7 @@ body.debug-mode .debug-block { display: block; }
     <div class="settings-sidebar">
       <div class="settings-sidebar-title"><button class="settings-close" onclick="closeSettings()"><i class="bx bx-x"></i></button> <span data-i18n="Settings">Settings</span></div>
       <div class="settings-tab active" role="button" tabindex="0" data-tab="general" onclick="switchSettingsTab('general')"><i class="bx bx-cog"></i> <span data-i18n="General">General</span></div>
+      <div class="settings-tab" role="button" tabindex="0" data-tab="chat" onclick="switchSettingsTab('chat')"><i class="bx bx-chat"></i> <span data-i18n="Chat">Chat</span></div>
       <div class="settings-tab" role="button" tabindex="0" data-tab="models" onclick="switchSettingsTab('models')"><i class="bx bx-chip"></i> <span data-i18n="Models">Models</span></div>
       <div class="settings-tab" role="button" tabindex="0" data-tab="providers" onclick="switchSettingsTab('providers')"><i class="bx bx-server"></i> <span data-i18n="Providers">Providers</span></div>
     </div>
@@ -693,7 +696,7 @@ let sending = false;
 let debugMode = false;
 let currentMode = 'agent';
 let currentModel = 'zhipu-glm-4.7-flash';
-let currentTurnLimit = parseInt(localStorage.getItem('default_turn_limit')) || 20;
+let currentTurnLimit = localStorage.getItem('default_turn_limit') !== null ? parseInt(localStorage.getItem('default_turn_limit')) : 20;
 
 const ZHIPU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/zhipu-color.svg';
 const GOOGLE_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/gemini-color.svg';
@@ -892,7 +895,8 @@ if (!THEMES[currentTheme]) currentTheme = 'dark';
 /* ── i18n ── */
 const _I18N = {
   zh: {
-    'Settings': '设置', 'General': '通用', 'Models': '模型', 'Providers': '供应商',
+    'Settings': '设置', 'General': '通用', 'Chat': '对话', 'Models': '模型', 'Providers': '供应商',
+    'Context Compression': '上下文压缩', 'Compression Trigger': '压缩触发',
     'Debug': '调试', 'Stop': '停止', 'New session': '新会话',
     'Agent': '代理', 'Plan': '计划', 'Ask': '问答', 'Auto': '自动',
     'Color Mode': '颜色模式', 'Language': '语言', 'Currency': '货币', 'Appearance': '外观',
@@ -913,7 +917,7 @@ const _I18N = {
     'Providers': '供应商', 'Models': '模型',
   },
   ar: {
-    'Settings': 'الإعدادات', 'General': 'عام', 'Models': 'النماذج', 'Providers': 'المزودون',
+    'Settings': 'الإعدادات', 'General': 'عام', 'Chat': 'محادثة', 'Models': 'النماذج', 'Providers': 'المزودون',
     'Debug': 'تصحيح', 'Stop': 'إيقاف', 'New session': 'جلسة جديدة',
     'Agent': 'الوكيل', 'Plan': 'خطة', 'Ask': 'سؤال', 'Auto': 'تلقائي',
   },
@@ -928,7 +932,7 @@ function _applyLang() {
     el.textContent = _(el.dataset.i18n);
   });
   const inp = $('input');
-  if (inp) inp.placeholder = _('Type a message. Ctrl+Enter to send.');
+  if (inp) { inp.placeholder = _('Type a message. Ctrl+Enter to send.'); if (typeof _autoResizeInput === 'function') _autoResizeInput(); }
   _refreshPillLabels();
   renderSettingsTab();
 }
@@ -1093,8 +1097,9 @@ const engine = new AgentGUIEngine({
 });
 engine.setDebugMode(false, createDebugBlock);
 fetch('/api/state').then(r => r.json()).then(d => {
-  if (d.ok && d.state && d.state.max_context_tokens) {
-    engine._maxContextTokens = d.state.max_context_tokens;
+  if (d.ok && d.state) {
+    engine._maxContextTokens = d.state.effective_context_limit || d.state.max_context_tokens || 0;
+    engine._rawMaxContextTokens = d.state.max_context_tokens || 0;
   }
 }).catch(() => {});
 { const saved = parseInt(localStorage.getItem('maxRoundHistory')); if (saved > 0) engine.setMaxRoundHistory(saved); }
@@ -1138,15 +1143,31 @@ $('input').addEventListener('keydown', function(e) {
     return;
   }
 });
-$('input').addEventListener('input', function() {
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight, 160) + 'px';
-});
+function _autoResizeInput() {
+  const el = $('input');
+  el.style.height = 'auto';
+  const contentH = el.scrollHeight;
+  let h = contentH;
+  if (!el.value) {
+    const m = document.createElement('div');
+    const cs = getComputedStyle(el);
+    m.style.cssText = 'position:absolute;visibility:hidden;white-space:pre-wrap;word-wrap:break-word;'
+      + 'font:' + cs.font + ';padding:' + cs.padding + ';border:' + cs.border
+      + ';width:' + cs.width + ';box-sizing:' + cs.boxSizing + ';';
+    m.textContent = el.placeholder;
+    document.body.appendChild(m);
+    h = Math.max(h, m.offsetHeight);
+    document.body.removeChild(m);
+  }
+  el.style.height = Math.min(h, 160) + 'px';
+}
+$('input').addEventListener('input', _autoResizeInput);
+window.addEventListener('resize', _autoResizeInput);
 
 /* ── Send Message ── */
 let taskRunning = false;
 let _userScrolledAt = 0;
-let _autoScrollIdleS = parseInt(localStorage.getItem('auto_scroll_idle_s')) || 30;
+let _autoScrollIdleS = localStorage.getItem('auto_scroll_idle_s') === 'none' ? 0 : (parseInt(localStorage.getItem('auto_scroll_idle_s')) || 30);
 let _messageQueue = [];
 
 function _updateQueueBadge() {
@@ -1210,6 +1231,7 @@ async function sendMessage() {
     input.value = '';
     input.style.height = 'auto';
     input.placeholder = 'Queued (' + _messageQueue.length + '). Type another or wait...';
+    _autoResizeInput();
     _updateQueueBadge();
     return;
   }
@@ -1345,8 +1367,16 @@ async function loadOlderEvents() {
   const scrollHeightBefore = chatArea.scrollHeight;
   const scrollTopBefore = chatArea.scrollTop;
 
-  const eventsToLoad = _pendingOlderEvents;
-  _pendingOlderEvents = [];
+  const roundStarts = [];
+  for (let i = 0; i < _pendingOlderEvents.length; i++) {
+    if (_pendingOlderEvents[i].type === 'llm_request') roundStarts.push(i);
+  }
+  let cutIdx = 0;
+  if (roundStarts.length > INITIAL_ROUNDS) {
+    cutIdx = roundStarts[roundStarts.length - INITIAL_ROUNDS];
+  }
+  const eventsToLoad = _pendingOlderEvents.slice(cutIdx);
+  _pendingOlderEvents = _pendingOlderEvents.slice(0, cutIdx);
 
   const loadBtn = $('load-more');
   const insertBefore = loadBtn || chatArea.firstChild;
@@ -1364,7 +1394,13 @@ async function loadOlderEvents() {
   while (tempArea.firstChild) {
     chatArea.insertBefore(tempArea.firstChild, insertBefore);
   }
-  if (loadBtn) loadBtn.remove();
+
+  if (_pendingOlderEvents.length > 0 && loadBtn) {
+    const remaining = _pendingOlderEvents.filter(e => e.type === 'llm_request').length;
+    loadBtn.textContent = `Load ${remaining} earlier rounds`;
+  } else if (loadBtn) {
+    loadBtn.remove();
+  }
 
   const scrollDelta = chatArea.scrollHeight - scrollHeightBefore;
   chatArea.scrollTop = scrollTopBefore + scrollDelta;
@@ -1401,6 +1437,8 @@ function renderSettingsTab() {
   const el = $('settings-content');
   if (settingsTab === 'general') {
     el.innerHTML = renderGeneralView();
+  } else if (settingsTab === 'chat') {
+    el.innerHTML = renderChatView();
   } else if (settingsTab === 'models') {
     el.innerHTML = renderModelsView();
   } else {
@@ -1515,24 +1553,22 @@ function renderGeneralView() {
     <div class="settings-section-title" style="margin-top:16px;">${_('Behavior')}</div>
     <div class="settings-card" style="padding:16px;">
       <label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;">
-        <span style="flex:1"><strong>${_('Default Round Limit')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Default max agent rounds for new tasks.</span></span>
-        <select onchange="localStorage.setItem('default_turn_limit',this.value);currentTurnLimit=parseInt(this.value)||20;const s=$('turn-limit-select');if(s)s.value=this.value;" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
-          ${[2,5,10,20,50,100,200,500].map(v => `<option value="${v}" ${v === (parseInt(localStorage.getItem('default_turn_limit'))||20) ? 'selected' : ''}>${v} rounds</option>`).join('')}
+        <span style="flex:1"><strong>${_('Default Round Limit')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Default max agent rounds for new tasks. None = unlimited.</span></span>
+        <select onchange="const v=this.value==='0'?0:parseInt(this.value);localStorage.setItem('default_turn_limit',this.value);currentTurnLimit=v;const s=$('turn-limit-select');if(s)s.value=String(v);" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
+          ${[2,5,10,20,50,100,200,500,0].map(v => `<option value="${v}" ${v === (parseInt(localStorage.getItem('default_turn_limit'))||20) ? 'selected' : ''}>${v === 0 ? 'None' : v + ' rounds'}</option>`).join('')}
         </select>
       </label>
       <label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;">
         <span style="flex:1"><strong>${_('History Round Folding')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Number of recent rounds to show before folding older ones.</span></span>
         <select onchange="INITIAL_ROUNDS=parseInt(this.value)||5;localStorage.setItem('initial_rounds',this.value);" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
-          ${[3,5,10,20,50,100].map(v => `<option value="${v}" ${v === INITIAL_ROUNDS ? 'selected' : ''}>${v} rounds</option>`).join('')}
+          ${[2,5,10,20,50,100].map(v => `<option value="${v}" ${v === INITIAL_ROUNDS ? 'selected' : ''}>${v} rounds</option>`).join('')}
         </select>
       </label>
       <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
-        <span style="flex:1"><strong>${_('Auto-scroll Idle')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Seconds of inactivity before auto-scrolling to bottom (0 to disable).</span></span>
-        <div class="settings-stepper" data-key="auto_scroll_idle_s" data-min="0" data-max="300" data-default="30" data-mode="linear" data-step="5">
-          <button class="stepper-btn down" onclick="_stepperClick(this,-1)">\u25BC</button>
-          <span class="stepper-value">${_autoScrollIdleS}</span>
-          <button class="stepper-btn up" onclick="_stepperClick(this,1)">\u25B2</button>
-        </div>
+        <span style="flex:1"><strong>${_('Auto-scroll Idle')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Auto-scroll to bottom after inactivity. None to disable.</span></span>
+        <select onchange="const v=this.value==='none'?0:parseInt(this.value);_autoScrollIdleS=v;localStorage.setItem('auto_scroll_idle_s',this.value);" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
+          ${[{v:'5',l:'5s'},{v:'10',l:'10s'},{v:'20',l:'20s'},{v:'60',l:'1 min'},{v:'120',l:'2 min'},{v:'300',l:'5 min'},{v:'none',l:'None'}].map(o => `<option value="${o.v}" ${(o.v==='none'?_autoScrollIdleS===0:parseInt(o.v)===_autoScrollIdleS) ? 'selected' : ''}>${o.l}</option>`).join('')}
+        </select>
       </div>
     </div>
     <div class="settings-section-title" style="margin-top:16px;">${_('Runtime Limits')}</div>
@@ -1655,6 +1691,50 @@ function showSubPanel(id, title, bodyHtml, afterRender) {
     </div>`;
   document.body.appendChild(overlay);
   if (afterRender) setTimeout(afterRender, 50);
+}
+
+function renderChatView() {
+  const savedRatio = parseFloat(localStorage.getItem('compression_ratio')) || 0.5;
+  const maxCtx = engine._rawMaxContextTokens || engine._maxContextTokens || 0;
+  const effectiveLimit = maxCtx ? Math.round(maxCtx * savedRatio) : 0;
+  const limitLabel = effectiveLimit > 0
+    ? `${(effectiveLimit/1000).toFixed(1)}k tokens (${(maxCtx/1000).toFixed(0)}k × ${(savedRatio*100).toFixed(0)}%)`
+    : 'N/A';
+  return `
+    <div class="settings-section-title">${_('Context Compression')}</div>
+    <div class="settings-card" style="padding:16px;">
+      <label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:14px;">
+        <span style="flex:1">
+          <strong>${_('Compression Trigger')}</strong><br>
+          <span style="color:var(--text-3);font-size:11.5px;">
+            Compress context when it reaches this % of the model's max context window.
+          </span>
+        </span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="range" min="0.25" max="0.75" step="0.05" value="${savedRatio}"
+            id="compression-ratio-slider"
+            style="width:120px;accent-color:var(--accent);"
+            oninput="document.getElementById('compression-ratio-val').textContent=(this.value*100).toFixed(0)+'%';document.getElementById('compression-ratio-effective').textContent=_calcEffectiveLabel(this.value);"
+            onchange="localStorage.setItem('compression_ratio',this.value);fetch('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_config:true,key:'compression_ratio',value:parseFloat(this.value)})});if(engine._rawMaxContextTokens)engine._maxContextTokens=Math.round(engine._rawMaxContextTokens*parseFloat(this.value));">
+          <span id="compression-ratio-val" style="font-weight:600;min-width:40px;text-align:center;">${(savedRatio*100).toFixed(0)}%</span>
+        </div>
+      </label>
+      <div style="font-size:11.5px;color:var(--text-3);padding:4px 0;" id="compression-ratio-effective">
+        Effective limit: ${limitLabel}
+      </div>
+      <div style="font-size:11.5px;color:var(--text-3);padding:4px 0;margin-top:4px;">
+        When triggered, the agent compresses its conversation history into a summary to free context space.
+        The ctx% shown per round is based on this effective limit.
+      </div>
+    </div>
+  `;
+}
+
+function _calcEffectiveLabel(ratio) {
+  const maxCtx = engine._rawMaxContextTokens || engine._maxContextTokens || 0;
+  if (!maxCtx) return 'Effective limit: N/A';
+  const eff = Math.round(maxCtx * ratio);
+  return 'Effective limit: ' + (eff/1000).toFixed(1) + 'k tokens (' + (maxCtx/1000).toFixed(0) + 'k × ' + (ratio*100).toFixed(0) + '%)';
 }
 
 function renderModelsView() {
@@ -2433,6 +2513,7 @@ function handleSSEEvent(evt) {
         if (engine._selfOperate) {
           $('input').disabled = true;
           $('input').placeholder = 'Self-operate mode \u2014 awaiting response via CLI...';
+          _autoResizeInput();
           $('btn-send').disabled = true;
           setStopMode(true);
         }
@@ -2516,12 +2597,14 @@ function handleSSEEvent(evt) {
       if (evt.type === 'llm_request' && evt.self_operate) {
         $('input').disabled = true;
         $('input').placeholder = 'Self-operate mode — awaiting response via CLI...';
+        _autoResizeInput();
         $('btn-send').disabled = true;
       }
       if (evt.type === 'complete') {
         sending = false;
         $('input').disabled = false;
         $('input').placeholder = _('Type a message. Ctrl+Enter to send.');
+        _autoResizeInput();
         $('btn-send').disabled = false;
         setStopMode(false);
         const reason = evt.reason || 'done';
@@ -2587,6 +2670,7 @@ async function init() {
   }
 
   connectSSE();
+  _autoResizeInput();
 
   const chatArea = $('chat-area');
   chatArea.addEventListener('scroll', () => {
@@ -2600,7 +2684,8 @@ async function init() {
   $('input').focus();
 
   setInterval(() => {
-    const idleS = parseInt(localStorage.getItem('auto_scroll_idle_s')) || 30;
+    const rawIdle = localStorage.getItem('auto_scroll_idle_s');
+    const idleS = rawIdle === 'none' ? 0 : (parseInt(rawIdle) || 30);
     if (idleS <= 0) return;
     const chat = $('chat-area');
     if (!chat) return;

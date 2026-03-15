@@ -290,10 +290,7 @@ def cmd_limits(args):
 
 def cmd_agent(args):
     """Start the live LLM Agent GUI with real-time conversation."""
-    BOLD = get_color("BOLD")
-    BLUE = get_color("BLUE", "\033[34m")
-    GREEN = get_color("GREEN")
-    RESET = get_color("RESET")
+    from interface.status import fmt_status, fmt_info, fmt_stage
 
     explicit = getattr(args, "agent_provider", "")
     if explicit:
@@ -312,7 +309,8 @@ def cmd_agent(args):
 
     lang = get_config_value("lang", "en")
 
-    print(f"  {BOLD}{BLUE}Starting{RESET} LLM Agent (provider: {provider_name})...")
+    print(fmt_stage("Starting server...", status="active"))
+    print(fmt_info(f"Provider: {provider_name}"))
 
     agent = start_agent_server(
         provider_name=provider_name,
@@ -322,13 +320,15 @@ def cmd_agent(args):
         lang=lang,
     )
 
-    print(f"  {BOLD}{GREEN}Live{RESET} at {agent.url}")
-    print(f"  Press Ctrl+C to stop.")
+    print(fmt_status("Started GUI.", complement=f"at {agent.url}", style="success"))
+    print(fmt_info("Press Ctrl+C to stop."))
 
     try:
         agent._server.wait()
     except KeyboardInterrupt:
         agent.stop()
+        BOLD = get_color("BOLD")
+        RESET = get_color("RESET")
         print(f"\n  {BOLD}Stopped.{RESET}")
 
 

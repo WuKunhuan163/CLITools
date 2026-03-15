@@ -111,13 +111,13 @@ function renderFileIcon(filename) {
   const icon = fileExtIcon(filename);
   if (icon.startsWith('_devicon_:')) {
     const url = icon.slice('_devicon_:'.length);
-    return '<img src="' + url + '" style="width:14px;height:14px;vertical-align:middle;margin-right:2px;" alt="">';
+    return '<img src="' + url + '" class="logo-adaptive" crossorigin="anonymous" style="width:14px;height:14px;vertical-align:middle;margin-right:2px;" alt="">';
   }
   return '<i class="bx ' + icon + '"></i>';
 }
 
 function stripDiffPrefix(line) {
-  return line.replace(/^[+\- ]\s*\d+\s*\|\s?/, '');
+  return line.replace(/^[+\-]\s*\d*\s*\|?\s?/, '').replace(/^\s*\d+\s*\|\s?/, '');
 }
 
 function _renderSearchOutput(raw) {
@@ -148,26 +148,8 @@ let _diffHunkId = 0;
 function renderDiffOutput(raw, enableHunkActions) {
   const lines = raw.split('\n');
   let html = '';
-  let contextBuf = [];
   let hunkBuf = [];
   let addCount = 0, removeCount = 0;
-  let hunkAddCount = 0, hunkRemoveCount = 0;
-  const CONTEXT_LIMIT = 3;
-
-  function flushContext() {
-    if (contextBuf.length <= CONTEXT_LIMIT * 2) {
-      contextBuf.forEach(l => { html += '<div class="diff-line context">' + esc(l) + '</div>'; });
-    } else {
-      contextBuf.slice(0, CONTEXT_LIMIT).forEach(l => { html += '<div class="diff-line context">' + esc(l) + '</div>'; });
-      const hidden = contextBuf.length - CONTEXT_LIMIT * 2;
-      html += '<div class="diff-hidden" onclick="this.style.display=\'none\';this.nextElementSibling.style.display=\'block\'">' + hidden + ' hidden lines</div>';
-      html += '<div style="display:none">';
-      contextBuf.slice(CONTEXT_LIMIT, contextBuf.length - CONTEXT_LIMIT).forEach(l => { html += '<div class="diff-line context">' + esc(l) + '</div>'; });
-      html += '</div>';
-      contextBuf.slice(-CONTEXT_LIMIT).forEach(l => { html += '<div class="diff-line context">' + esc(l) + '</div>'; });
-    }
-    contextBuf = [];
-  }
 
   function flushHunk() {
     if (!hunkBuf.length) return;
@@ -185,28 +167,33 @@ function renderDiffOutput(raw, enableHunkActions) {
     });
     if (enableHunkActions) html += '</div>';
     hunkBuf = [];
-    hunkAddCount = 0;
-    hunkRemoveCount = 0;
   }
 
   for (const line of lines) {
-    if (line.startsWith('+')) {
-      if (contextBuf.length) { flushHunk(); flushContext(); }
+    const hideMatch = line.match(/^@@hide\s+(\d+)/);
+    if (hideMatch) {
+      flushHunk();
+      const n = parseInt(hideMatch[1]);
+      html += '<div class="diff-hidden-sep">' + n + ' hidden lines</div>';
+    } else if (line.startsWith('+')) {
       addCount++;
-      hunkAddCount++;
-      hunkBuf.push({ t: '+', s: stripDiffPrefix(line) });
+      hunkBuf.push({ t: '+', s: line.slice(1) });
     } else if (line.startsWith('-')) {
-      if (contextBuf.length) { flushHunk(); flushContext(); }
       removeCount++;
-      hunkRemoveCount++;
-      hunkBuf.push({ t: '-', s: stripDiffPrefix(line) });
+      hunkBuf.push({ t: '-', s: line.slice(1) });
     } else {
       flushHunk();
-      contextBuf.push(stripDiffPrefix(line));
+      const ctxMatch = line.match(/^\s*(\d+)\|(.*)$/);
+      if (ctxMatch) {
+        const ln = ctxMatch[1];
+        const content = ctxMatch[2];
+        html += '<div class="diff-line context"><span class="diff-ln">' + ln + '</span>' + esc(content) + '</div>';
+      } else {
+        html += '<div class="diff-line context">' + esc(stripDiffPrefix(line)) + '</div>';
+      }
     }
   }
   flushHunk();
-  if (contextBuf.length) flushContext();
   return { html, addCount, removeCount };
 }
 
@@ -544,7 +531,7 @@ class AgentGUIEngine {
   setActiveSession(id) {
     if (!this.sessions[id]) return;
     this.activeSessionId = id;
-    this.clearAllTrackers();
+    this.resetSessionState();
     this._refreshSessions();
     if (this._onSessionChange) this._onSessionChange('activate', this.sessions[id]);
   }
@@ -787,7 +774,7 @@ class AgentGUIEngine {
       const sid = this.activeSessionId;
       const rd = this._currentRound;
       const op = fileLink.dataset.op;
-      const rawPath = evt.cmd || evt.file || '';
+      const rawPath = (evt.cmd || evt.file || '').replace(/^(edit|write|read)\s+/i, '');
       fileLink.addEventListener('click', (e) => {
         e.stopPropagation();
         if (sid && rd && rawPath) {
@@ -1046,6 +1033,9 @@ class AgentGUIEngine {
       + '<span>' + count + ' file' + (count > 1 ? 's' : '') + ' modified</span>'
       + '</div>'
       + '<div class="file-summary-list">' + filesHtml + '</div>');
+    if (typeof window._adaptLogoBrightness === 'function') {
+      setTimeout(window._adaptLogoBrightness, 50);
+    }
     this._modifiedFiles = [];
     return sleep(200);
   }
@@ -1156,6 +1146,10 @@ class AgentGUIEngine {
       + actionsHtml
       + '</div>'
       + '<div class="file-summary-list">' + filesHtml + '</div>';
+
+    if (typeof window._adaptLogoBrightness === 'function') {
+      setTimeout(window._adaptLogoBrightness, 50);
+    }
 
     const header = this._taskFileBarEl.querySelector('.file-summary-header');
     header.addEventListener('click', (e) => {
@@ -1401,7 +1395,11 @@ class AgentGUIEngine {
   }
 
   _renderNotice(evt) {
-    const icon = evt.icon ? '<i class="bx ' + evt.icon + '"></i> ' : '';
+    const levelIcons = { info: 'bx-info-circle', success: 'bx-check-circle', warning: 'bx-error' };
+    const levelColors = { info: 'var(--accent)', success: 'var(--green)', warning: 'var(--yellow)' };
+    const level = evt.level || '';
+    const icon = evt.icon ? '<i class="bx ' + evt.icon + '"></i> '
+      : (levelIcons[level] ? '<i class="bx ' + levelIcons[level] + '" style="color:' + levelColors[level] + '"></i> ' : '');
     this.renderCenterNotice(icon + esc(evt.text || ''));
     return sleep(200);
   }
@@ -1670,6 +1668,13 @@ class AgentGUIEngine {
     if (this.callListEl) this.callListEl.innerHTML = '';
     if (this.execPanel) this.execPanel.style.display = 'none';
     if (this.callPanel) this.callPanel.style.display = 'none';
+  }
+
+  resetSessionState() {
+    this.clearAllTrackers();
+    this._taskFiles = {};
+    this._taskActive = false;
+    this._removeTaskFileBar();
   }
 
   _refreshCallTrackers() {

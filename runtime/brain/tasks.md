@@ -2,6 +2,7 @@
 
 - [ ] #36: Rate queue manager: integrate with LLM providers
   - Notes: Live test passed: 5/5 tests, parallel calls respect concurrency, 0 rate-limited, key state tracking works
+- [ ] #37: Known limitation: file ops viewer data lost on server restart
 
 - [x] #31: Implement before-tool-call hook in base tool with skills matching
 - [x] #32: Organize logic/tool/template/ into subdirectories; add report/research/hooks templates

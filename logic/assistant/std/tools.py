@@ -350,13 +350,37 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
 
         old_lines = old_text.splitlines()
         new_lines = new_text.splitlines()
+        all_lines = content.splitlines()
+        change_start = content.find(old_text)
+        start_lineno = content[:change_start].count('\n') if change_start >= 0 else 0
+        ctx_n = 5
         diff_lines = []
-        for ol in old_lines[:10]:
+        pre_start = max(0, start_lineno - ctx_n)
+        if pre_start > 0:
+            diff_lines.append(f"@@hide {pre_start}")
+        for i in range(pre_start, start_lineno):
+            if i < len(all_lines):
+                diff_lines.append(f" {i+1:>5}|{all_lines[i]}")
+        for ol in old_lines:
             diff_lines.append(f"-{ol}")
-        for nl in new_lines[:10]:
+        for nl in new_lines:
             diff_lines.append(f"+{nl}")
+        new_all = new_content.splitlines()
+        new_change_end = start_lineno + len(new_lines)
+        for i in range(new_change_end, min(len(new_all), new_change_end + ctx_n)):
+            diff_lines.append(f" {i+1:>5}|{new_all[i]}")
+        remaining = len(new_all) - min(len(new_all), new_change_end + ctx_n)
+        if remaining > 0:
+            diff_lines.append(f"@@hide {remaining}")
         diff_preview = "\n".join(diff_lines)
         ctx.emit({"type": "tool_result", "ok": True, "output": diff_preview})
+        rs = getattr(ctx, 'round_store', None)
+        sid = getattr(ctx, 'session_id', '')
+        rn = getattr(ctx, 'round_num', 0)
+        if rs:
+            rel = os.path.relpath(path, ctx.cwd) if os.path.isabs(path) else path
+            rs.record_file_op(sid, rn, "edit", rel, new_content,
+                              old_content=old_text, new_content=new_text)
         return {"ok": True, "output": f"Edit applied to {path}"}
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})

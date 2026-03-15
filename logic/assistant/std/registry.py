@@ -15,6 +15,9 @@ class ToolContext:
     dup_counts: Dict[str, int] = field(default_factory=dict)
     turn_writes: list = field(default_factory=list)
     turn_reads: list = field(default_factory=list)
+    round_store: object = None
+    session_id: str = ""
+    round_num: int = 0
 
 
 def _noop_emit(evt: dict):

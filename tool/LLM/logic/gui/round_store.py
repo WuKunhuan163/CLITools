@@ -205,40 +205,44 @@ def render_read_page(session_id: str, round_num: int, op: dict) -> str:
 
 
 def render_edit_page(session_id: str, round_num: int, op: dict) -> str:
-    """Render a file edit page with red/green diff highlighting."""
+    """Render full file snapshot with changed lines highlighted in red/green."""
     path = op["path"]
-    old_content = op.get("old_content", "")
-    new_content = op.get("new_content", "")
+    old_text = op.get("old_content", "")
+    new_text = op.get("new_content", "")
+    full_content = op.get("content", "")
     title = f"Edit {path} - Round {round_num}"
 
-    import difflib
-    old_lines = old_content.split("\n") if old_content else []
-    new_lines = new_content.split("\n") if new_content else []
+    if not full_content:
+        body = "<span class='meta'>No file content available.</span>"
+        return _wrap_page(title, session_id, f"""
+        <div class="meta">Session: {_esc(session_id)} &middot; Round {round_num} &middot; Edit</div>
+        <div class="filepath">{_esc(path)}</div>
+        <pre class="code diff">{body}</pre>
+        """)
 
-    diff = list(difflib.unified_diff(old_lines, new_lines, lineterm="", n=3))
+    all_lines = full_content.split("\n")
+    old_lines = old_text.split("\n") if old_text else []
+    new_lines = new_text.split("\n") if new_text else []
 
-    if not diff:
-        if new_content and not old_content:
-            numbered = []
-            for i, line in enumerate(new_lines, 1):
-                numbered.append(f'<span class="add"><span class="ln">{i:>5}</span> +{_esc(line)}</span>')
-            body = "\n".join(numbered)
+    added_start = -1
+    added_end = -1
+    if new_text and new_text in full_content:
+        char_pos = full_content.find(new_text)
+        added_start = full_content[:char_pos].count("\n")
+        added_end = added_start + len(new_lines) - 1
+
+    lines_out = []
+    for i, line in enumerate(all_lines):
+        ln = f'<span class="ln">{i+1:>5}</span>'
+        if added_start <= i <= added_end:
+            if i == added_start and old_lines:
+                for ol in old_lines:
+                    lines_out.append(f'<span class="del"><span class="ln">{"":>5}</span> {_esc(ol)}</span>')
+            lines_out.append(f'<span class="add">{ln} {_esc(line)}</span>')
         else:
-            body = "<span class='meta'>No changes detected.</span>"
-    else:
-        lines_out = []
-        for line in diff:
-            if line.startswith("+++") or line.startswith("---"):
-                lines_out.append(f'<span class="hdr">{_esc(line)}</span>')
-            elif line.startswith("@@"):
-                lines_out.append(f'<span class="hunk">{_esc(line)}</span>')
-            elif line.startswith("+"):
-                lines_out.append(f'<span class="add">{_esc(line)}</span>')
-            elif line.startswith("-"):
-                lines_out.append(f'<span class="del">{_esc(line)}</span>')
-            else:
-                lines_out.append(f'<span class="ctx">{_esc(line)}</span>')
-        body = "\n".join(lines_out)
+            lines_out.append(f'<span class="hl">{ln} {_esc(line)}</span>')
+
+    body = "\n".join(lines_out)
 
     return _wrap_page(title, session_id, f"""
     <div class="meta">Session: {_esc(session_id)} &middot; Round {round_num} &middot; Edit</div>

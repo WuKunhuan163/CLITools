@@ -14,6 +14,7 @@ API Endpoints:
     POST /api/session  {"title": "..."}
     POST /api/rename   {"session_id": "...", "title": "..."}
     POST /api/delete   {"session_id": "..."}
+    POST /api/activate/<sid>  Set active session
     GET  /api/sessions
     GET  /api/state
     GET  /api/usage
@@ -196,6 +197,7 @@ class AgentServer:
         """Load event history from persisted session files.
 
         Supports both new layout (``<id>/history.json``) and legacy (``<id>.json``).
+        Also reconstructs round store token data from persisted events.
         """
         import glob
         sessions_dir = os.path.join(str(_root), "runtime", "sessions")
@@ -209,6 +211,7 @@ class AgentServer:
                 events = data.get("events", [])
                 if sid and events:
                     self._event_history[sid] = events
+                    self._reconstruct_round_store(sid, events)
             except Exception:
                 continue
         for path in glob.glob(os.path.join(sessions_dir, "*.json")):
@@ -220,8 +223,61 @@ class AgentServer:
                     events = data.get("events", [])
                     if events:
                         self._event_history[sid] = events
+                        self._reconstruct_round_store(sid, events)
             except Exception:
                 continue
+
+    def _reconstruct_round_store(self, sid: str, events: list):
+        """Rebuild round store token/file data from persisted events."""
+        user_texts = []
+        current_round = 0
+        pending_tool = None
+        read_counter = {}
+        edit_counter = {}
+
+        for evt in events:
+            etype = evt.get("type")
+            if etype == "user":
+                user_texts.append(evt.get("prompt", evt.get("text", "")))
+            elif etype == "llm_request":
+                current_round = evt.get("round", current_round)
+            elif etype == "llm_response_end":
+                round_num = evt.get("round", 0)
+                if not round_num:
+                    continue
+                current_round = round_num
+                output = evt.get("_full_text", "")
+                input_text = "\n\n---\n\n".join(user_texts) if user_texts else ""
+                self._round_store.record_round(
+                    sid, round_num,
+                    input_tokens=input_text,
+                    output_tokens=output,
+                )
+            elif etype == "tool":
+                name = evt.get("name", "")
+                if name == "read":
+                    path = evt.get("cmd", "")
+                    pending_tool = {"name": "read", "path": path}
+                elif name in ("edit_file", "write_file"):
+                    pending_tool = {"name": name}
+            elif etype == "tool_result" and pending_tool:
+                if pending_tool["name"] == "read" and evt.get("ok"):
+                    path = pending_tool.get("path", "")
+                    if path:
+                        rel = os.path.basename(path)
+                        try:
+                            cwd = os.getcwd()
+                            rel = os.path.relpath(path, cwd) if os.path.isabs(path) else path
+                        except ValueError:
+                            rel = path
+                        rkey = (current_round, rel)
+                        op_id = read_counter.get(rkey, 0)
+                        read_counter[rkey] = op_id + 1
+                        self._round_store.record_file_op(
+                            sid, current_round, "read", rel,
+                            content=evt.get("output", ""),
+                            op_id=op_id)
+                pending_tool = None
 
     def _api_handler(self, method: str, path: str, body: Optional[dict]) -> dict:
         """Route API requests to ConversationManager methods."""
@@ -262,7 +318,8 @@ class AgentServer:
                 if not session:
                     return {"ok": False, "error": f"Session {sid} not found"}
                 context_feed = body.get("context_feed")
-                turn_limit = int(body.get("turn_limit", 0))
+                raw_tl = body.get("turn_limit")
+                turn_limit = int(raw_tl) if raw_tl is not None else -1
                 self._mgr.send_message(sid, text, blocking=False,
                                        context_feed=context_feed,
                                        turn_limit=turn_limit)
@@ -357,6 +414,16 @@ class AgentServer:
                     self._push_sse({"type": "session_deleted", "id": sid})
                     return {"ok": True}
                 return {"ok": False, "error": "Missing session_id"}
+
+            elif path.startswith("/api/activate/"):
+                sid = path.split("/api/activate/")[1].strip("/")
+                session = self._mgr.get_session(sid)
+                if not session:
+                    return {"ok": False, "error": f"Session {sid} not found"}
+                self._mgr.set_active(sid)
+                self._default_session_id = sid
+                return {"ok": True, "session_id": sid,
+                        "title": session.title, "status": session.status}
 
             elif path == "/api/cancel":
                 self._mgr.cancel_current()
@@ -653,7 +720,9 @@ class AgentServer:
             from tool.LLM.logic.config import load_config, save_config
             cfg = load_config()
             try:
-                value = int(value)
+                value = float(value)
+                if value == int(value):
+                    value = int(value)
             except (ValueError, TypeError):
                 pass
             cfg[key] = value
@@ -673,6 +742,7 @@ class AgentServer:
                 "max_edit_chars": 8192,
                 "history_round_limit": 64,
                 "debug_tokens_round_limit": 64,
+                "compression_ratio": 0.5,
             }
             config = {}
             for key, default in SESSION_DEFAULTS.items():

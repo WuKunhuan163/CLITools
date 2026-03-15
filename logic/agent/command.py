@@ -193,8 +193,9 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
 
     existing_port = _find_running_gui_port()
     if existing_port:
+        from interface.status import fmt_status
         base_url = f"http://localhost:{existing_port}"
-        print(f"  {BOLD}Reusing{RESET} GUI at {base_url}")
+        print(fmt_status("Reusing GUI.", complement=f"at {base_url}"))
 
         if prompt and _has_running_session(base_url):
             RED = get_color("RED", "\033[31m")
@@ -227,12 +228,15 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         print(f"  {BOLD}LLM tool not available.{RESET} Install it first.")
         return
 
+    from interface.status import fmt_status, fmt_info, fmt_stage
+
     label = MODE_LABELS.get(mode, "Agent")
     if self_operate:
         label_display = f"{label} (self-operate)"
     else:
         label_display = label
-    print(f"  {BOLD}Starting{RESET} {label_display} GUI (provider: {provider})...")
+    print(fmt_stage("Starting server...", status="active"))
+    print(fmt_info(f"{label_display} GUI (provider: {provider})"))
 
     try:
         from tool.LLM.logic.config import get_config_value
@@ -249,9 +253,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         lang=lang,
     )
 
-    port = agent._server.port if hasattr(agent._server, 'port') else 0
-    print(f"  {BOLD}{GREEN}Live{RESET} at {agent.url}")
-    print(f"  Port: {port}")
+    print(fmt_status("Started GUI.", complement=f"at {agent.url}", style="success"))
 
     if prompt:
         import time as _t
@@ -277,7 +279,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
     if self_operate:
         print(f"  {CYAN}{BOLD}Self-operate mode.{RESET} {DIM}Awaiting --response.{RESET}")
 
-    print(f"  Press Ctrl+C to stop.")
+    print(fmt_info("Press Ctrl+C to stop."))
     try:
         agent._server.wait()
     except KeyboardInterrupt:
