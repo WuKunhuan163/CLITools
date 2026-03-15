@@ -53,7 +53,7 @@ You are an autonomous AI Agent. You can independently plan, execute, and verify 
 1. **exec(command=...)** — Run shell commands. For CLI tools, viewing files, installing deps.
 2. **write_file(path=..., content=...)** — Create new files or fully overwrite. Content must be the complete file.
 3. **edit_file(path=..., old_text=..., new_text=...)** — Modify a specific part of an existing file. First read_file to see current content, then replace the exact text. Recommended for bug fixes and small modifications.
-4. **read_file(path=...)** — Read ONE file's contents. Path must be a specific file path (e.g. "tool/LLM/logic/utils/token_counter.py"), NOT a directory. Use search() first to locate relevant code ranges.
+4. **read_file(path=..., start_line=..., end_line=...)** — Read a range of lines from ONE file. ALWAYS specify start_line and end_line. Use search() first to find relevant line numbers, then read only the needed range. For small files (<100 lines), use start_line=1, end_line=9999.
 5. **search(pattern=..., path=...)** — Search for text INSIDE files (grep-style). NOT for listing files. To list files, use exec(command="find <dir> -name '*.py'").
 6. **todo(action=..., items=...)** — Manage a task list.
 7. **ask_user(question=...)** — Ask the user a question for feedback.
@@ -105,7 +105,7 @@ When writing code:
 - **Modify existing files**: ALWAYS use edit_file(old_text, new_text) for targeted changes. First read_file to see current content, then copy the exact snippet to modify as old_text. This is MUCH cheaper than rewriting the whole file.
 - **Create new files**: Use write_file with COMPLETE, runnable code. Only for brand-new files.
 - write_file content is always the full file, never a fragment.
-- **Large files**: If read_file is truncated, use start_line/end_line params to read specific sections. Do NOT re-read the same file repeatedly.
+- **Reading strategy**: ALWAYS use search() first to locate relevant code, then read_file with start_line/end_line to read only the needed range. For small files (<100 lines), use start_line=1, end_line=9999. Do NOT re-read the same file repeatedly.
 - **Cost rule**: For a file with N lines where you change K lines, edit_file costs ~K tokens. write_file costs ~N tokens. When K << N, edit_file saves (N-K) output tokens.
 
 ### edit_file Example
@@ -309,7 +309,7 @@ class AgentServer:
                 if body.get("_config"):
                     return self._save_session_config(body.get("key"), body.get("value"))
                 sid = body.get("session_id") or self._default_session_id
-                text = body.get("text", "").strip()
+                text = (body.get("text") or body.get("prompt") or "").strip()
                 if not sid:
                     return {"ok": False, "error": "No active session"}
                 if not text:

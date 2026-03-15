@@ -283,7 +283,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .diff-line.added { background: rgba(74,222,128,0.08); color: var(--green); }
 .diff-line.removed { background: rgba(248,113,113,0.08); color: var(--red); }
 .diff-line.read-line { background: transparent; color: var(--text-2); }
+.diff-line.read-focus { background: rgba(96,165,250,0.06); color: var(--text); border-left: 2px solid rgba(96,165,250,0.3); }
 .read-lineno { display: inline-block; min-width: 36px; text-align: right; color: var(--text-3); margin-right: 8px; user-select: none; opacity: 0.5; }
+.read-focus .read-lineno { color: var(--accent); opacity: 0.7; }
 .diff-hunk { position: relative; border-left: 2px solid transparent; }
 .diff-hunk:hover { border-left-color: var(--accent); }
 .diff-hunk-actions { position: absolute; right: 4px; top: 2px; display: none; gap: 2px; z-index: 2; }
@@ -726,11 +728,18 @@ const MODEL_LOGOS = {
   'zhipu-glm-4.7-flash': ZHIPU_LOGO,
   'zhipu-glm-4-flash': ZHIPU_LOGO,
   'zhipu-glm-4.7': ZHIPU_LOGO,
-  'nvidia-glm-4-7b': 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/nvidia-color.svg',
+  'glm-4.7-flash': ZHIPU_LOGO,
+  'glm-4-flash': ZHIPU_LOGO,
+  'glm-4.7': ZHIPU_LOGO,
+  'nvidia-glm-4-7b': _ICON('nvidia'),
   'google-gemini-2.0-flash': GOOGLE_LOGO,
+  'gemini-2.0-flash': GOOGLE_LOGO,
   'baidu-ernie-speed-8k': BAIDU_LOGO,
+  'ernie-speed-8k': BAIDU_LOGO,
   'tencent-hunyuan-lite': TENCENT_LOGO,
+  'hunyuan-lite': TENCENT_LOGO,
   'siliconflow-qwen2.5-7b': SILICONFLOW_LOGO,
+  'qwen2.5-7b': SILICONFLOW_LOGO,
   'auto': null,
   'cursor': CURSOR_LOGO,
   'copilot': COPILOT_LOGO,
@@ -742,10 +751,17 @@ const MODEL_DISPLAY_NAMES = {
   'zhipu-glm-4.7-flash': 'GLM-4.7-Flash',
   'zhipu-glm-4-flash': 'GLM-4-Flash',
   'zhipu-glm-4.7': 'GLM-4.7',
+  'glm-4.7-flash': 'GLM-4.7-Flash',
+  'glm-4-flash': 'GLM-4-Flash',
+  'glm-4.7': 'GLM-4.7',
   'google-gemini-2.0-flash': 'Gemini 2.0 Flash',
+  'gemini-2.0-flash': 'Gemini 2.0 Flash',
   'baidu-ernie-speed-8k': 'ERNIE Speed 8K',
+  'ernie-speed-8k': 'ERNIE Speed 8K',
   'tencent-hunyuan-lite': 'Hunyuan Lite',
+  'hunyuan-lite': 'Hunyuan Lite',
   'siliconflow-qwen2.5-7b': 'Qwen 2.5 7B',
+  'qwen2.5-7b': 'Qwen 2.5 7B',
   'cursor': 'Cursor',
   'copilot': 'Copilot',
   'windsurf': 'Windsurf',
@@ -771,7 +787,7 @@ function resolveModelLogo(provider) {
   if (MODEL_LOGOS[provider]) return MODEL_LOGOS[provider];
   const vendor = (provider || '').split('-')[0];
   if (PROVIDER_LOGOS[vendor]) return PROVIDER_LOGOS[vendor];
-  return ZHIPU_LOGO;
+  return null;
 }
 
 const MODE_ICONS = { agent: 'bx-bot', plan: 'bx-edit', ask: 'bx-chat' };
@@ -869,7 +885,7 @@ function createModelInfoLine(provider, round, latency, model) {
   const logo = resolveModelLogo(provider);
   const div = document.createElement('div');
   div.className = 'model-info';
-  let html = `<img src="${logo}" alt="${name}">`;
+  let html = logo ? `<img src="${logo}" alt="${name}">` : `<i class="bx bx-bot model-info-icon"></i>`;
   html += `<span class="model-name">${name}</span>`;
   if (round > 1) html += `<span class="model-sep">·</span><span class="model-round">round ${round}</span>`;
   if (latency) html += `<span class="model-sep">·</span><span class="model-latency">${latency}s</span>`;
@@ -904,7 +920,7 @@ const _I18N = {
     'Runtime Limits': '运行时限制', 'Configured': '已配置', 'Not configured': '未配置',
     'Validate & Save': '验证并保存', 'Guide': '指南', 'Delete': '删除',
     'Usage': '用量', 'Benchmarks': '基准测试',
-    'Revert all': '全部撤回', 'Save all': '全部保存',
+    'Revert all': '全部撤回', 'Accept all': '全部接受',
     'Dark': '深色', 'Light': '浅色', 'Brilliant': '明亮',
     'Type a message. Ctrl+Enter to send.': '输入消息。Ctrl+Enter 发送。',
     'rounds': '轮', 'files': '文件', 'File': '文件', 'Files': '文件',
@@ -941,7 +957,7 @@ function _refreshPillLabels() {
     modePill.setOptions(Object.keys(MODE_ICONS).map(k => ({ value: k, label: _(MODE_LABELS[k]), icon: MODE_ICONS[k] })));
   }
   if (typeof modelPill !== 'undefined' && modelPill) {
-    modelPill.setOptions(MODEL_OPTIONS.map(o => o.value === 'auto' ? { value: 'auto', label: _('Auto'), icon: 'bx-bot' } : { value: o.value, label: _(o.label), logo: MODEL_LOGOS[o.value] || ZHIPU_LOGO }));
+    modelPill.setOptions(MODEL_OPTIONS.map(o => o.value === 'auto' ? { value: 'auto', label: _('Auto'), icon: 'bx-bot' } : { value: o.value, label: _(o.label), ...(MODEL_LOGOS[o.value] ? { logo: MODEL_LOGOS[o.value] } : { icon: 'bx-bot' }) }));
   }
   const turnSel = $('turn-limit-select');
   if (turnSel) {
@@ -1112,7 +1128,7 @@ const modePill = buildPillSelect(
 );
 const modelPill = buildPillSelect(
   $('model-pill'),
-  MODEL_OPTIONS.map(o => o.value === 'auto' ? { value: 'auto', label: 'Auto', icon: 'bx-bot' } : { value: o.value, label: o.label, logo: MODEL_LOGOS[o.value] || ZHIPU_LOGO }),
+  MODEL_OPTIONS.map(o => o.value === 'auto' ? { value: 'auto', label: 'Auto', icon: 'bx-bot' } : { value: o.value, label: o.label, ...(MODEL_LOGOS[o.value] ? { logo: MODEL_LOGOS[o.value] } : { icon: 'bx-bot' }) }),
   currentModel,
   (v) => setModel(v)
 );
@@ -1248,6 +1264,7 @@ async function sendMessage() {
   input.style.height = 'auto';
   input.placeholder = _('Type a message. Ctrl+Enter to send.');
   setStopMode(true);
+  engine._localUserPending = true;
   engine.enqueueEvent({ type: 'user', prompt: text });
 
   try {
@@ -1749,7 +1766,7 @@ function renderModelsView() {
   for (const name of modelNames) {
     const m = models[name];
     if (modelSearch && !(MODEL_DISPLAY_NAMES[name] || name).toLowerCase().includes(modelSearch)) continue;
-    const logo = MODEL_LOGOS[name] || ZHIPU_LOGO || '';
+    const logo = MODEL_LOGOS[name] || resolveModelLogo(name) || '';
     const displayName = MODEL_DISPLAY_NAMES[name] || name;
     const configuredProvs = new Set(m.configured_providers || []);
     const provChips = (m.providers || []).map(p => {
@@ -1790,7 +1807,7 @@ function renderModelsView() {
     const isConfigured = m.configured;
     const cardClass = isConfigured ? 'settings-card configured' : 'settings-card unconfigured';
     html += `<div class="${cardClass}">
-      <div class="settings-card-title"><img src="${logo}" alt=""><span class="model-name-text" title="${esc(displayName)}">${esc(displayName)}</span>${benchTags}${isConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;flex-shrink:0;">' + _('Configured') + '</span>' : ''}</div>
+      <div class="settings-card-title">${logo ? '<img src="' + logo + '" alt="">' : '<i class="bx bx-bot" style="font-size:16px;color:var(--accent)"></i>'}<span class="model-name-text" title="${esc(displayName)}">${esc(displayName)}</span>${benchTags}${isConfigured ? '<span class="settings-badge" style="background:var(--green-dim);color:var(--green);margin-left:auto;font-size:10px;flex-shrink:0;">' + _('Configured') + '</span>' : ''}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${m.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(m.input_tokens || 0)}</div><div class="settings-stat-label">Input<br>Tokens</div></div>
@@ -2280,67 +2297,78 @@ function toggleSidebar() {
 /* ── Diff Hunk Actions ── */
 window._diffHunkAction = async function(btn, action) {
   const hunk = btn.closest('.diff-hunk');
-  if (!hunk) return;
+  if (!hunk || hunk.classList.contains('decided')) return;
 
   const toolCall = hunk.closest('.tool-call');
-  if (!toolCall) return;
+  if (!toolCall || toolCall.classList.contains('decided')) return;
 
   const sid = toolCall.dataset.sid;
   const fname = toolCall.dataset.toolCmd || '';
   const cleanPath = fname.replace(/^(write|edit)\s+/, '');
 
   if (action === 'accept') {
-    hunk.classList.add('accepted');
-    hunk.classList.remove('rejected');
-  } else if (action === 'reject') {
-    const removed = hunk.dataset.removed || '';
-    const added = hunk.dataset.added || '';
-    try {
-      const res = await fetch('/api/revert-hunk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_id: sid,
-          path: cleanPath,
-          old_text: added,
-          new_text: removed,
-        }),
+    hunk.classList.add('accepted', 'decided');
+    hunk.querySelectorAll('.diff-hunk-actions').forEach(a => a.remove());
+
+    const allToolCalls = [...document.querySelectorAll('.tool-call[data-tool-type="edit"]')];
+    const fileTCs = allToolCalls.filter(tc => {
+      const cmd = (tc.dataset.toolCmd || '').replace(/^(write|edit)\s+/, '');
+      return cmd === cleanPath;
+    });
+    const myIdx = fileTCs.indexOf(toolCall);
+    for (let i = 0; i <= myIdx; i++) {
+      const tc = fileTCs[i];
+      if (tc.classList.contains('reverted') || tc.classList.contains('decided')) continue;
+      tc.classList.add('decided');
+      tc.querySelectorAll('.diff-hunk:not(.rejected)').forEach(h => {
+        h.classList.add('accepted', 'decided');
+        h.querySelectorAll('.diff-hunk-actions').forEach(a => a.remove());
       });
-      const data = await res.json();
-      if (data.ok) {
-        hunk.classList.add('rejected');
-        hunk.classList.remove('accepted');
-        hunk.querySelectorAll('.diff-line.added, .diff-line.removed').forEach(line => {
-          line.classList.remove('added', 'removed');
-          line.classList.add('read-line');
-        });
-        const stats = toolCall.querySelector('[data-tc=diffstats]');
-        const remaining = toolCall.querySelectorAll('.diff-hunk:not(.rejected)');
-        if (stats) {
-          let a = 0, r = 0;
-          remaining.forEach(h => {
-            a += (h.querySelectorAll('.diff-line.added') || []).length;
-            r += (h.querySelectorAll('.diff-line.removed') || []).length;
+    }
+  } else if (action === 'reject') {
+    const allToolCalls = [...document.querySelectorAll('.tool-call[data-tool-type="edit"]')];
+    const fileTCs = allToolCalls.filter(tc => {
+      const cmd = (tc.dataset.toolCmd || '').replace(/^(write|edit)\s+/, '');
+      return cmd === cleanPath;
+    });
+    const myIdx = fileTCs.indexOf(toolCall);
+
+    for (let i = fileTCs.length - 1; i >= myIdx; i--) {
+      const tc = fileTCs[i];
+      if (tc.classList.contains('decided') || tc.classList.contains('reverted')) continue;
+      const cmd = (tc.dataset.toolCmd || '').replace(/^(write|edit)\s+/, '');
+      const hunks = [...tc.querySelectorAll('.diff-hunk:not(.rejected)')].reverse();
+      for (const h of hunks) {
+        const removed = h.dataset.removed || '';
+        const added = h.dataset.added || '';
+        try {
+          const res = await fetch('/api/revert-hunk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sid, path: cmd, old_text: added, new_text: removed }),
           });
-          let parts = [];
-          if (a) parts.push('<span class="added-count">+' + a + '</span>');
-          if (r) parts.push('<span class="removed-count">-' + r + '</span>');
-          if (!parts.length) parts.push('<span style="color:var(--text-3);font-style:italic">' + _('reverted') + '</span>');
-          stats.innerHTML = parts.join(' ');
-        }
-        if (!remaining.length) {
-          const statusEl = toolCall.querySelector('[data-tc=status]');
-          if (statusEl) {
-            statusEl.className = 'tool-status error';
-            statusEl.innerHTML = '<i class="bx bx-x" style="font-size:16px;"></i>';
+          const data = await res.json();
+          if (data.ok) {
+            h.classList.add('rejected', 'decided');
+            h.querySelectorAll('.diff-line.added, .diff-line.removed').forEach(line => {
+              line.classList.remove('added', 'removed');
+              line.classList.add('read-line');
+            });
+            h.querySelectorAll('.diff-hunk-actions').forEach(a => a.remove());
           }
-          toolCall.classList.add('reverted');
-        }
-      } else {
-        console.warn('Revert failed:', data.error);
+        } catch (e) { console.warn('Revert error:', e); }
       }
-    } catch (e) {
-      console.warn('Revert error:', e);
+      const remaining = tc.querySelectorAll('.diff-hunk:not(.rejected)');
+      if (!remaining.length) {
+        const statusEl = tc.querySelector('[data-tc=status]');
+        if (statusEl) {
+          statusEl.className = 'tool-status error';
+          statusEl.innerHTML = '<i class="bx bx-x" style="font-size:16px;"></i>';
+        }
+        const stats = tc.querySelector('[data-tc=diffstats]');
+        if (stats) stats.innerHTML = '<span style="color:var(--text-3);font-style:italic">' + _('reverted') + '</span>';
+        tc.classList.add('reverted', 'decided');
+      }
     }
   }
 };
@@ -2353,7 +2381,19 @@ window._acceptFile = function(btn) {
   if (actions && !actions.querySelector('.file-result-icon')) {
     actions.insertAdjacentHTML('beforeend', '<i class="bx bx-check file-result-icon accept-icon"></i>');
   }
-  window._scheduleFileRemoval(item);
+
+  const filePath = item.dataset.path;
+  if (filePath) {
+    const allToolCalls = [...document.querySelectorAll('.tool-call[data-tool-type="edit"]')];
+    for (const tc of allToolCalls) {
+      const cmd = (tc.dataset.toolCmd || '').replace(/^(write|edit)\s+/, '');
+      if (cmd !== filePath) continue;
+      if (tc.classList.contains('reverted') || tc.classList.contains('decided')) continue;
+      tc.classList.add('decided');
+      tc.querySelectorAll('.diff-hunk:not(.rejected)').forEach(h => h.classList.add('accepted'));
+      tc.querySelectorAll('.diff-hunk-actions').forEach(a => a.remove());
+    }
+  }
 };
 
 window._scheduleFileRemoval = function(item) {
@@ -2388,12 +2428,18 @@ window._revertFile = async function(btn) {
   if (!filePath) return;
   const item = btn.closest('.file-summary-item');
 
-  const toolCalls = document.querySelectorAll('.tool-call[data-tool-type="edit"]');
-  let reverted = 0, failed = 0;
-  for (const tc of toolCalls) {
+  const allToolCalls = [...document.querySelectorAll('.tool-call[data-tool-type="edit"]')];
+  const fileTCs = allToolCalls.filter(tc => {
     const cmd = (tc.dataset.toolCmd || '').replace(/^(write|edit)\s+/, '');
-    if (cmd !== filePath) continue;
-    const hunks = tc.querySelectorAll('.diff-hunk:not(.rejected)');
+    return cmd === filePath;
+  });
+
+  let reverted = 0, failed = 0;
+  const reverseFileTCs = [...fileTCs].reverse();
+  for (const tc of reverseFileTCs) {
+    if (tc.classList.contains('decided') || tc.classList.contains('reverted')) continue;
+    const cmd = (tc.dataset.toolCmd || '').replace(/^(write|edit)\s+/, '');
+    const hunks = [...tc.querySelectorAll('.diff-hunk:not(.rejected)')].reverse();
     for (const hunk of hunks) {
       const removed = hunk.dataset.removed || '';
       const added = hunk.dataset.added || '';
@@ -2417,11 +2463,12 @@ window._revertFile = async function(btn) {
       }
       const stats = tc.querySelector('[data-tc=diffstats]');
       if (stats) stats.innerHTML = '<span style="color:var(--text-3);font-style:italic">' + _('reverted') + '</span>';
-      tc.classList.add('reverted');
+      tc.classList.add('reverted', 'decided');
       tc.querySelectorAll('.diff-line.added, .diff-line.removed').forEach(line => {
         line.classList.remove('added', 'removed');
         line.classList.add('read-line');
       });
+      tc.querySelectorAll('.diff-hunk-actions').forEach(a => a.remove());
     }
   }
   if (item && !failed) {
@@ -2430,7 +2477,6 @@ window._revertFile = async function(btn) {
     if (actions && !actions.querySelector('.file-result-icon')) {
       actions.insertAdjacentHTML('beforeend', '<i class="bx bx-x file-result-icon reject-icon"></i>');
     }
-    window._scheduleFileRemoval(item);
   }
 };
 
@@ -2574,8 +2620,9 @@ function handleSSEEvent(evt) {
 
     case 'model_switched': {
       const toDisplay = MODEL_DISPLAY_NAMES[evt.to] || evt.to;
-      const logo = MODEL_LOGOS[evt.to] || ZHIPU_LOGO;
-      engine.renderCenterNotice(`<img src="${logo}" alt=""> Switched to <strong>${esc(toDisplay)}</strong>`);
+      const logo = MODEL_LOGOS[evt.to] || resolveModelLogo(evt.to);
+      const logoHtml = logo ? `<img src="${logo}" alt="">` : `<i class="bx bx-bot"></i>`;
+      engine.renderCenterNotice(`${logoHtml} Switched to <strong>${esc(toDisplay)}</strong>`);
       if (modelPill) modelPill.setValue(evt.to);
       break;
     }
@@ -2593,7 +2640,9 @@ function handleSSEEvent(evt) {
 
     default:
       if (evt.session_id && evt.session_id !== activeSessionId) break;
-      if (evt.type === 'user' && evt.session_id) break;
+      if (evt.type === 'user' && evt.session_id) {
+        if (engine._localUserPending) { engine._localUserPending = false; break; }
+      }
       if (evt.type === 'llm_request' && evt.self_operate) {
         $('input').disabled = true;
         $('input').placeholder = 'Self-operate mode — awaiting response via CLI...';
@@ -2644,7 +2693,7 @@ async function init() {
     const cfgData = await cfgResp.json();
     if (cfgData.ok && cfgData.models && cfgData.models.length > 1) {
       MODEL_OPTIONS = cfgData.models.map(m => ({ value: m.value, label: m.label }));
-      const newOpts = MODEL_OPTIONS.map(m => m.value === 'auto' ? { value: 'auto', label: _('Auto'), icon: 'bx-bot' } : { value: m.value, label: m.label, logo: MODEL_LOGOS[m.value] || ZHIPU_LOGO });
+      const newOpts = MODEL_OPTIONS.map(m => m.value === 'auto' ? { value: 'auto', label: _('Auto'), icon: 'bx-bot' } : { value: m.value, label: m.label, ...(MODEL_LOGOS[m.value] ? { logo: MODEL_LOGOS[m.value] } : { icon: 'bx-bot' }) });
       modelPill.setOptions(newOpts);
     }
   } catch (e) { console.warn('Failed to load configured models:', e); }

@@ -35,13 +35,15 @@ BUILTIN_TOOL_DEFS: List[Dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read a file and return its contents.",
+            "description": "Read a range of lines from ONE file. Use search() first to find relevant line numbers, then read the specific range. For full file, use start_line=1, end_line=9999.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "path": {"type": "string", "description": "File path to read"},
+                    "start_line": {"type": "integer", "description": "First line to read (1-based)."},
+                    "end_line": {"type": "integer", "description": "Last line to read (inclusive)."},
                 },
-                "required": ["path"],
+                "required": ["path", "start_line", "end_line"],
             },
         },
     },
@@ -332,10 +334,17 @@ class ToolHandlers:
 
     def handle_read_file(self, args: dict) -> dict:
         path = args.get("path", "")
+        start_line = args.get("start_line")
+        end_line = args.get("end_line")
         if not os.path.isabs(path):
             path = os.path.join(self._cwd, path)
         self._turn_reads.append(path)
-        self._emit({"type": "tool", "name": "read", "desc": path, "cmd": path})
+        basename = os.path.basename(path.rstrip("/"))
+        read_desc = f"Read {basename}" if basename else "List directory"
+        if start_line and end_line:
+            read_desc += f" L{start_line}-{end_line}"
+        self._emit({"type": "tool", "name": "read", "desc": read_desc, "cmd": path,
+                     "start_line": start_line, "end_line": end_line})
         try:
             if os.path.isdir(path):
                 entries = sorted(os.listdir(path))[:50]
@@ -344,8 +353,25 @@ class ToolHandlers:
                 if self._env:
                     self._env.record_result(f"read:{path}", True, content[:200])
                 return {"ok": True, "output": content}
-            content = open(path, encoding='utf-8', errors='replace').read()[:3000]
-            self._emit({"type": "tool_result", "ok": True, "output": content})
+            raw = open(path, encoding='utf-8', errors='replace').read()
+            lines = raw.splitlines(keepends=True)
+            total_lines = len(lines)
+            is_full_read = True
+            if start_line and end_line:
+                s = max(1, start_line) - 1
+                e = min(total_lines, end_line)
+                is_full_read = (s == 0 and e >= total_lines)
+                selected = lines[s:e]
+                numbered = [f"{s+i+1:>4}| {line}" for i, line in enumerate(selected)]
+                content = "".join(numbered)
+                if len(content) > 15000:
+                    content = content[:15000] + f"\n... (truncated, lines {s+1}-{e} of {total_lines})"
+                else:
+                    content += f"\n[Lines {s+1}-{e} of {total_lines} total]"
+            else:
+                content = raw[:3000]
+            self._emit({"type": "tool_result", "ok": True, "output": content,
+                         "_is_full_read": is_full_read})
             if self._env:
                 self._env.record_result(f"read:{path}", True, content[:200])
             return {"ok": True, "output": content}

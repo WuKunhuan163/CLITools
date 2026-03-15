@@ -134,9 +134,12 @@ def handle_read_file(args: dict, ctx: ToolContext) -> dict:
     ctx.turn_reads.append(path)
     basename = os.path.basename(path.rstrip("/"))
     read_desc = f"Read {basename}" if basename else "List directory"
-    if start_line or end_line:
-        read_desc += f" L{start_line or 1}-{end_line or 'end'}"
-    ctx.emit({"type": "tool", "name": "read", "desc": read_desc, "cmd": path})
+    is_full_read = False
+    read_display = None
+    if start_line and end_line:
+        read_desc += f" L{start_line}-{end_line}"
+    ctx.emit({"type": "tool", "name": "read", "desc": read_desc, "cmd": path,
+              "start_line": start_line, "end_line": end_line})
     try:
         if os.path.isdir(path):
             entries = sorted(os.listdir(path))[:50]
@@ -145,9 +148,10 @@ def handle_read_file(args: dict, ctx: ToolContext) -> dict:
             raw = open(path, encoding='utf-8', errors='replace').read()
             lines = raw.splitlines(keepends=True)
             total_lines = len(lines)
-            if start_line or end_line:
-                s = max(1, start_line or 1) - 1
-                e = min(total_lines, end_line or total_lines)
+            if start_line and end_line:
+                s = max(1, start_line) - 1
+                e = min(total_lines, end_line)
+                is_full_read = (s == 0 and e >= total_lines)
                 selected = lines[s:e]
                 numbered = [f"{s+i+1:>4}| {line}" for i, line in enumerate(selected)]
                 content = "".join(numbered)
@@ -155,14 +159,22 @@ def handle_read_file(args: dict, ctx: ToolContext) -> dict:
                     content = content[:15000] + f"\n... (truncated, lines {s+1}-{e} of {total_lines})"
                 else:
                     content += f"\n[Lines {s+1}-{e} of {total_lines} total]"
+                if not is_full_read:
+                    read_display = _build_read_display(
+                        lines, s, e, total_lines, ctx_n=5)
             else:
+                is_full_read = True
                 content = raw[:MAX_READ_CHARS]
                 if len(raw) > MAX_READ_CHARS:
                     content += (
                         f"\n\n... (truncated at {MAX_READ_CHARS} chars, total "
                         f"{len(raw)} chars, {total_lines} lines. Use "
                         f"start_line/end_line to read specific sections.)")
-        ctx.emit({"type": "tool_result", "ok": True, "output": content})
+        emit_data = {"type": "tool_result", "ok": True, "output": content,
+                     "_is_full_read": is_full_read}
+        if not is_full_read and not os.path.isdir(path) and read_display:
+            emit_data["_read_display"] = read_display
+        ctx.emit(emit_data)
         if ctx.env_obj:
             ctx.env_obj.record_result(f"read:{path}", True, content[:200])
         rs = getattr(ctx, 'round_store', None)
@@ -276,6 +288,13 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
     ctx.turn_writes.append(path)
 
     write_basename = os.path.basename(path)
+    old_content_for_diff = None
+    if os.path.exists(path):
+        try:
+            old_content_for_diff = open(path, encoding='utf-8', errors='replace').read()
+        except Exception:
+            pass
+
     ctx.emit({"type": "tool", "name": "write_file", "desc": f"Edited {write_basename}", "file": path})
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -290,14 +309,19 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
             warn_suffix = "\n\nQUALITY WARNINGS (fix these now):\n" + "\n".join(
                 f"- {w}" for w in warnings)
 
-        all_lines = content.split('\n')
-        gui_limit = 2000
-        if len(all_lines) > gui_limit + 10:
-            gui_preview = '\n'.join(all_lines[:gui_limit]) + f'\n... ({len(all_lines) - gui_limit} more lines)'
+        if old_content_for_diff is not None and old_content_for_diff != content:
+            gui_output = _compute_write_diff(old_content_for_diff, content)
+            ctx.emit({"type": "tool_result", "ok": True,
+                      "output": gui_output, "_is_diff": True})
         else:
-            gui_preview = content
-        ctx.emit({"type": "tool_result", "ok": True,
-                  "output": base_msg + warn_suffix + "\n" + gui_preview})
+            all_lines = content.split('\n')
+            gui_limit = 2000
+            if len(all_lines) > gui_limit + 10:
+                gui_preview = '\n'.join(all_lines[:gui_limit]) + f'\n... ({len(all_lines) - gui_limit} more lines)'
+            else:
+                gui_preview = content
+            ctx.emit({"type": "tool_result", "ok": True,
+                      "output": base_msg + warn_suffix + "\n" + gui_preview})
         if ctx.env_obj:
             ctx.env_obj.record_result(f"write:{path}", True, f"{size} bytes")
 
@@ -464,6 +488,81 @@ def handle_experience(args: dict, ctx: ToolContext) -> dict:
             f.write(_json.dumps(entry, ensure_ascii=False) + "\n")
     ctx.emit({"type": "experience", "lesson": lesson, "severity": args.get("severity", "info")})
     return {"ok": True, "output": f"Lesson recorded: {lesson}"}
+
+
+def _build_read_display(lines: list, s: int, e: int, total: int, ctx_n: int = 5) -> str:
+    """Build display text for a ranged file read with hidden lines and context.
+
+    Format: @@hide N / context lines / @@read / read lines / @@read_end / context / @@hide M
+    """
+    parts = []
+    ctx_start = max(0, s - ctx_n)
+    ctx_end = min(total, e + ctx_n)
+    if ctx_start > 0:
+        parts.append(f"@@hide {ctx_start}")
+    for i in range(ctx_start, s):
+        ln = lines[i].rstrip('\n').rstrip('\r')
+        parts.append(f"{i+1:>4}| {ln}")
+    parts.append("@@read")
+    for i in range(s, e):
+        ln = lines[i].rstrip('\n').rstrip('\r')
+        parts.append(f"{i+1:>4}| {ln}")
+    parts.append("@@read_end")
+    for i in range(e, ctx_end):
+        ln = lines[i].rstrip('\n').rstrip('\r')
+        parts.append(f"{i+1:>4}| {ln}")
+    if ctx_end < total:
+        parts.append(f"@@hide {total - ctx_end}")
+    return "\n".join(parts)
+
+
+def _compute_write_diff(old_content: str, new_content: str, ctx_n: int = 5) -> str:
+    """Compute a unified diff between old and new file content for GUI display.
+
+    Returns diff in the same format as edit_file (with @@hide, +/- lines, context).
+    """
+    import difflib
+    old_lines = old_content.splitlines(keepends=True)
+    new_lines = new_content.splitlines(keepends=True)
+    matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
+    diff_lines = []
+    all_old = old_content.splitlines()
+    all_new = new_content.splitlines()
+
+    groups = list(matcher.get_grouped_opcodes(ctx_n))
+    for group in groups:
+        first_tag, first_i1, _, _, _ = group[0]
+        if first_i1 > 0 and first_tag == 'equal':
+            hidden = first_i1
+        elif first_i1 > 0:
+            hidden = first_i1
+        else:
+            hidden = 0
+        if hidden > 0:
+            diff_lines.append(f"@@hide {hidden}")
+
+        for tag, i1, i2, j1, j2 in group:
+            if tag == 'equal':
+                for i in range(i1, i2):
+                    diff_lines.append(f" {i+1:>5}|{all_old[i]}")
+            elif tag == 'replace':
+                for i in range(i1, i2):
+                    diff_lines.append(f"-{all_old[i]}")
+                for j in range(j1, j2):
+                    diff_lines.append(f"+{all_new[j]}")
+            elif tag == 'delete':
+                for i in range(i1, i2):
+                    diff_lines.append(f"-{all_old[i]}")
+            elif tag == 'insert':
+                for j in range(j1, j2):
+                    diff_lines.append(f"+{all_new[j]}")
+
+    last_tag, _, last_i2, _, last_j2 = groups[-1][-1] if groups else ('', 0, 0, 0, 0)
+    remaining = len(all_new) - last_j2
+    if remaining > 0:
+        diff_lines.append(f"@@hide {remaining}")
+
+    return "\n".join(diff_lines)
 
 
 def check_write_quality(path: str, content: str) -> List[str]:

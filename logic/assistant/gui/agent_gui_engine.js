@@ -197,6 +197,38 @@ function renderDiffOutput(raw, enableHunkActions) {
   return { html, addCount, removeCount };
 }
 
+function _renderReadDisplay(raw) {
+  const lines = raw.split('\n');
+  let html = '';
+  let inRead = false;
+  let readCount = 0;
+  for (const line of lines) {
+    const hideMatch = line.match(/^@@hide\s+(\d+)/);
+    if (hideMatch) {
+      html += '<div class="diff-hidden-sep">' + hideMatch[1] + ' hidden lines</div>';
+      continue;
+    }
+    if (line === '@@read') { inRead = true; continue; }
+    if (line === '@@read_end') { inRead = false; continue; }
+    const m = line.match(/^(\s*\d+)\|(.*)/);
+    if (inRead) {
+      readCount++;
+      if (m) {
+        html += '<div class="diff-line read-focus"><span class="read-lineno">' + m[1] + '</span>' + esc(m[2]) + '</div>';
+      } else {
+        html += '<div class="diff-line read-focus">' + esc(line) + '</div>';
+      }
+    } else {
+      if (m) {
+        html += '<div class="diff-line context"><span class="diff-ln">' + m[1] + '</span>' + esc(m[2]) + '</div>';
+      } else if (line.trim()) {
+        html += '<div class="diff-line context">' + esc(line) + '</div>';
+      }
+    }
+  }
+  return { html, readCount };
+}
+
 class AgentGUIEngine {
   constructor({ chatArea, todoListEl, execListEl, callListEl, execPanel, callPanel, todoPanel, sessionListEl }) {
     this.chatArea = chatArea;
@@ -795,7 +827,7 @@ class AgentGUIEngine {
 
   _renderToolResult(evt) {
     if (this.lastToolEl) {
-      this._finishToolCall(this.lastToolEl, evt.ok, evt.output);
+      this._finishToolCall(this.lastToolEl, evt.ok, evt.output, evt);
       const tid = this.lastToolEl._trackerId;
       const toolType = this.lastToolEl.dataset.toolType;
       if (toolType !== 'edit' && toolType !== 'write' && tid) {
@@ -1124,7 +1156,7 @@ class AgentGUIEngine {
     const actionsHtml = showActions
       ? '<div class="task-file-actions">'
         + '<button class="task-file-btn task-file-revert" data-action="revert">Revert all</button>'
-        + '<button class="task-file-btn task-file-save" data-action="save">Save all</button>'
+        + '<button class="task-file-btn task-file-save" data-action="save">Accept all</button>'
         + '</div>'
       : '';
 
@@ -1161,10 +1193,12 @@ class AgentGUIEngine {
       this._taskFileBarEl.classList.add('expanded');
       const revertBtn = this._taskFileBarEl.querySelector('[data-action=revert]');
       const saveBtn = this._taskFileBarEl.querySelector('[data-action=save]');
+      const actionsDiv = this._taskFileBarEl.querySelector('.task-file-actions');
       if (revertBtn) {
         revertBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
           revertBtn.disabled = true;
+          if (saveBtn) saveBtn.disabled = true;
           this._taskFileBarEl.classList.add('expanded');
           const rejectBtns = [...this._taskFileBarEl.querySelectorAll('.file-item-btn.reject')];
           for (const b of rejectBtns) {
@@ -1172,12 +1206,17 @@ class AgentGUIEngine {
               await window._revertFile(b);
             }
           }
+          if (actionsDiv) {
+            actionsDiv.innerHTML = '<span class="task-file-status-label" style="color:var(--red);font-size:11px;font-weight:600;">Reverted</span>';
+          }
+          this._taskFileBarEl.querySelectorAll('.file-item-actions').forEach(a => a.remove());
         });
       }
       if (saveBtn) {
         saveBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           saveBtn.disabled = true;
+          if (revertBtn) revertBtn.disabled = true;
           this._taskFileBarEl.classList.add('expanded');
           const acceptBtns = [...this._taskFileBarEl.querySelectorAll('.file-item-btn.accept')];
           acceptBtns.forEach(b => {
@@ -1185,6 +1224,10 @@ class AgentGUIEngine {
               window._acceptFile(b);
             }
           });
+          if (actionsDiv) {
+            actionsDiv.innerHTML = '<span class="task-file-status-label" style="color:var(--green);font-size:11px;font-weight:600;">Accepted</span>';
+          }
+          this._taskFileBarEl.querySelectorAll('.file-item-actions').forEach(a => a.remove());
         });
       }
     }
@@ -1519,7 +1562,8 @@ class AgentGUIEngine {
     return el;
   }
 
-  _finishToolCall(el, ok, output) {
+  _finishToolCall(el, ok, output, evt) {
+    evt = evt || {};
     const s = el.querySelector('[data-tc=status]');
     if (s) {
       s.className = 'tool-status ' + (ok ? 'success' : 'error');
@@ -1545,40 +1589,61 @@ class AgentGUIEngine {
           out.innerHTML = '<div class="diff-view">' + diff.html + '</div>';
           }
         } else if (toolType === 'write') {
-          const lines = output.split('\n');
-          const bytesMatch = (output || '').match(/Written (\d+) bytes/);
-          const contentMatch = (output || '').match(/Written \d+ bytes to [^\n]+\n([\s\S]*)/);
-          const stats = el.querySelector('[data-tc=diffstats]');
-          if (contentMatch && contentMatch[1].trim()) {
-            const content = contentMatch[1];
-            const contentLines = content.split('\n');
-            if (stats) stats.innerHTML = '<span class="added-count">+' + contentLines.length + '</span>';
-            let diffHtml = contentLines.map(l => '<div class="diff-line added">' + esc(l) + '</div>').join('');
-            out.innerHTML = '<div class="diff-view">' + diffHtml + '</div>';
-            el.classList.add('expanded');
-          } else if (bytesMatch) {
-            if (stats) stats.innerHTML = '<span class="added-count">+' + bytesMatch[1] + ' bytes</span>';
-            out.innerHTML = '<div class="tool-write-result">' + esc(output) + '</div>';
+          const hasDiffMarkers = /^[+-]/.test(output) || /^@@hide /.test(output);
+          if (hasDiffMarkers) {
+            const diff = renderDiffOutput(output, true);
+            const stats = el.querySelector('[data-tc=diffstats]');
+            if (stats) {
+              let parts = [];
+              if (diff.addCount) parts.push('<span class="added-count">+' + diff.addCount + '</span>');
+              if (diff.removeCount) parts.push('<span class="removed-count">-' + diff.removeCount + '</span>');
+              stats.innerHTML = parts.join(' ');
+            }
+            out.innerHTML = '<div class="diff-view">' + diff.html + '</div>';
+            el.dataset.toolType = 'edit';
           } else {
-            out.textContent = output;
+            const lines = output.split('\n');
+            const bytesMatch = (output || '').match(/Written (\d+) bytes/);
+            const contentMatch = (output || '').match(/Written \d+ bytes to [^\n]+\n([\s\S]*)/);
+            const stats = el.querySelector('[data-tc=diffstats]');
+            if (contentMatch && contentMatch[1].trim()) {
+              const content = contentMatch[1];
+              const contentLines = content.split('\n');
+              if (stats) stats.innerHTML = '<span class="added-count">+' + contentLines.length + '</span>';
+              let diffHtml = contentLines.map(l => '<div class="diff-line added">' + esc(l) + '</div>').join('');
+              out.innerHTML = '<div class="diff-view">' + diffHtml + '</div>';
+              el.classList.add('expanded');
+            } else if (bytesMatch) {
+              if (stats) stats.innerHTML = '<span class="added-count">+' + bytesMatch[1] + ' bytes</span>';
+              out.innerHTML = '<div class="tool-write-result">' + esc(output) + '</div>';
+            } else {
+              out.textContent = output;
+            }
           }
         } else if (toolType === 'read') {
-          const readLines = output.split('\n');
+          const displaySrc = evt._read_display || null;
           const stats = el.querySelector('[data-tc=diffstats]');
-          const lineCount = readLines.length;
-          if (stats) stats.innerHTML = '<span style="color:var(--text-3);font-size:11px;">' + lineCount + ' lines</span>';
-          let readHtml = '';
-          const lineNumMatch = readLines[0] && readLines[0].match(/^\s*(\d+)\|/);
-          if (lineNumMatch) {
-            readHtml = readLines.map(l => {
-              const m = l.match(/^(\s*\d+)\|(.*)/);
-              if (m) return '<div class="diff-line read-line"><span class="read-lineno">' + m[1] + '</span>' + esc(m[2]) + '</div>';
-              return '<div class="diff-line read-line">' + esc(l) + '</div>';
-            }).join('');
+          if (displaySrc) {
+            const rendered = _renderReadDisplay(displaySrc);
+            if (stats) stats.innerHTML = '<span style="color:var(--text-3);font-size:11px;">' + rendered.readCount + ' lines read</span>';
+            out.innerHTML = '<div class="diff-view">' + rendered.html + '</div>';
           } else {
-            readHtml = readLines.map(l => '<div class="diff-line read-line">' + esc(l) + '</div>').join('');
+            const readLines = output.split('\n');
+            const lineCount = readLines.length;
+            if (stats) stats.innerHTML = '<span style="color:var(--text-3);font-size:11px;">' + lineCount + ' lines</span>';
+            let readHtml = '';
+            const lineNumMatch = readLines[0] && readLines[0].match(/^\s*(\d+)\|/);
+            if (lineNumMatch) {
+              readHtml = readLines.map(l => {
+                const m = l.match(/^(\s*\d+)\|(.*)/);
+                if (m) return '<div class="diff-line read-line"><span class="read-lineno">' + m[1] + '</span>' + esc(m[2]) + '</div>';
+                return '<div class="diff-line read-line">' + esc(l) + '</div>';
+              }).join('');
+            } else {
+              readHtml = readLines.map(l => '<div class="diff-line read-line">' + esc(l) + '</div>').join('');
+            }
+            out.innerHTML = '<div class="diff-view">' + readHtml + '</div>';
           }
-          out.innerHTML = '<div class="diff-view">' + readHtml + '</div>';
         } else if (toolType === 'search' && output) {
           out.innerHTML = _renderSearchOutput(output);
         } else {

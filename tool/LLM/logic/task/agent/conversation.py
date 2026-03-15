@@ -308,15 +308,15 @@ BUILTIN_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read ONE file and return its contents. To read multiple files, call read_file separately for each. For large files, use start_line/end_line.",
+            "description": "Read a range of lines from ONE file. Use search() first to find relevant line numbers, then read the specific range. For full file, use start_line=1, end_line=9999.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "path": {"type": "string", "description": "File path to read"},
-                    "start_line": {"type": "integer", "description": "First line to read (1-based). Omit to start from beginning."},
-                    "end_line": {"type": "integer", "description": "Last line to read (inclusive). Omit to read to end."},
+                    "start_line": {"type": "integer", "description": "First line to read (1-based)."},
+                    "end_line": {"type": "integer", "description": "Last line to read (inclusive)."},
                 },
-                "required": ["path"],
+                "required": ["path", "start_line", "end_line"],
             },
         },
     },
