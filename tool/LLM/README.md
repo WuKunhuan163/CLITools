@@ -85,8 +85,8 @@ A reusable, protocol-driven rendering engine for LLM agent UIs. The engine rende
 
 The GUI is split into two layers:
 
-- **`agent_gui_engine.js`** — Portable JS class (`AgentGUIEngine`) with zero framework dependencies. Handles all rendering, block registry, SSE streaming, session management, scroll behavior, and theming.
-- **`agent_demo.html`** — Thin demo wrapper that feeds protocol events to the engine.
+- **`engine.js`** — Portable JS class (`AgentGUIEngine`) with zero framework dependencies. Handles all rendering, block registry, SSE streaming, session management, scroll behavior, and theming.
+- **`demo.html`** — Thin demo wrapper that feeds protocol events to the engine.
 
 ### Embedding in Other Tools
 
@@ -140,10 +140,10 @@ engine.onSessionChange((action, session) => { /* rename|delete|activate */ });
 ### Interface Functions
 
 ```python
-from tool.LLM.interface.main import get_agent_gui_path, get_agent_gui_engine_path
+from tool.LLM.interface.main import get_agent_gui_path, get_engine_path
 
 html_path = get_agent_gui_path()           # Full HTML template path
-engine_path = get_agent_gui_engine_path()  # Reusable JS engine path
+engine_path = get_engine_path()  # Reusable JS engine path
 ```
 
 ## Architecture
@@ -163,8 +163,8 @@ tool/LLM/
       nvidia_glm47.py            NVIDIA Build GLM-4.7 (ID: nvidia-glm-4-7b)
       zhipu_glm4.py              Zhipu AI GLM-4-Flash (ID: zhipu-glm-4-flash)
     gui/
-      agent_gui_engine.js        Reusable rendering engine (AgentGUIEngine)
-      agent_demo.html            Demo wrapper with sample protocol events
+      engine.js        Reusable rendering engine (AgentGUIEngine)
+      demo.html            Demo wrapper with sample protocol events
     dashboard/
       template.html              Usage monitoring dashboard
 ```

@@ -43,7 +43,7 @@ All frontends consume the same event types from `ConversationManager._emit()`:
 ### Adding a New Event Type
 
 1. Define in `ConversationManager._emit()` with a descriptive `type` string
-2. Handle in `agent_gui_engine.js` → register block type or update `processEvent`
+2. Handle in `engine.js` → register block type or update `processEvent`
 3. Handle in CLI → add case in the event callback
 4. Document in this table
 
@@ -73,7 +73,7 @@ elif cmd == "/my-setting":
 
 ### Step 3: HTML GUI
 
-Add UI controls in `agent_live.html` that call the API endpoint:
+Add UI controls in `live.html` that call the API endpoint:
 
 ```javascript
 await fetch('/api/my-setting', {
@@ -112,7 +112,7 @@ Why: CLI users cannot access this feature, and the action is not testable.
 **Bad**: Adding a CLI command that prints output without emitting an event.
 Why: HTML GUI will not reflect the change.
 
-**Bad**: Duplicating business logic in both `agent_live.html` JS and `cli.py`.
+**Bad**: Duplicating business logic in both `live.html` JS and `cli.py`.
 Why: Logic diverges over time. Put shared logic in Python backend, expose via API.
 
 ## SSE vs Direct Callback

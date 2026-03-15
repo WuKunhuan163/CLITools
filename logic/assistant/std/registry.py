@@ -18,6 +18,7 @@ class ToolContext:
     round_store: object = None
     session_id: str = ""
     round_num: int = 0
+    context_lines: int = 2
 
 
 def _noop_emit(evt: dict):

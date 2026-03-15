@@ -585,7 +585,11 @@ class AgentGUIEngine {
   setSessionStatus(id, status, reason) {
     if (!this.sessions[id]) return;
     this.sessions[id].status = status;
-    if (reason) this.sessions[id].doneReason = reason;
+    if (status === 'running') {
+      delete this.sessions[id].doneReason;
+    } else if (reason) {
+      this.sessions[id].doneReason = reason;
+    }
     this._refreshSessions();
   }
 
@@ -700,6 +704,8 @@ class AgentGUIEngine {
       this._taskFiles = {};
       this._taskActive = true;
       this._removeTaskFileBar();
+      const prev = this.chatArea.querySelector('.task-complete:last-of-type');
+      if (prev) prev.remove();
     }
     this._appendAnimated('div', 'msg-user', esc(content));
     this._forceScrollToBottom();
@@ -985,7 +991,7 @@ class AgentGUIEngine {
         if (contentEl) {
           const isEdit = st.name === 'edit_file' || st.name === 'write_file' || st.name === 'edit';
           if (isEdit) {
-            contentEl.textContent = this._extractEditContent(st);
+            this._renderStreamingEdit(st, contentEl);
           } else if (st.name === 'think') {
             contentEl.textContent = this._extractThinkContent(st);
           } else {
@@ -998,24 +1004,89 @@ class AgentGUIEngine {
     return sleep(0);
   }
 
-  _extractEditContent(st) {
-    if (st._contentStart != null) {
-      return st.buffer.slice(st._contentStart);
-    }
-    const markers = ['"content":"', '"content": "', '"new_string":"', '"new_string": "'];
-    for (const marker of markers) {
-      const pos = st.buffer.indexOf(marker);
-      if (pos !== -1) {
-        st._contentStart = pos + marker.length;
-        return st.buffer.slice(st._contentStart);
+  _renderStreamingEdit(st, contentEl) {
+    if (!st._editParsed) {
+      const pathM = st.buffer.match(/"path"\s*:\s*"([^"]*)"/);
+      if (pathM && !st._editPath) {
+        st._editPath = pathM[1];
+        const descEl = st.el && st.el.querySelector('.tool-desc');
+        if (descEl) descEl.textContent = 'Editing ' + st._editPath.split('/').pop() + '...';
+      }
+      const slM = st.buffer.match(/"start_line"\s*:\s*(\d+)/);
+      const elM = st.buffer.match(/"end_line"\s*:\s*(\d+)/);
+      if (st._editPath && slM && elM && !st._editFetching) {
+        st._editFetching = true;
+        st._editStartLine = parseInt(slM[1]);
+        st._editEndLine = parseInt(elM[1]);
+        const ctxN = parseInt(localStorage.getItem('context_lines')) || 2;
+        const fetchStart = Math.max(1, st._editStartLine - ctxN);
+        const fetchEnd = st._editEndLine + ctxN;
+        fetch('/api/file-lines', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({path: st._editPath, start: fetchStart, end: fetchEnd})
+        }).then(r => r.json()).then(data => {
+          if (data.ok) {
+            st._editOldLines = data.lines;
+            st._editFetchStart = data.start;
+            st._editTotal = data.total;
+            st._editCtxN = ctxN;
+            st._editParsed = true;
+            st._dirty = true;
+            requestAnimationFrame(() => this._renderStreamingEdit(st, contentEl));
+          }
+        }).catch(() => {});
       }
     }
-    const pathMatch = st.buffer.match(/"path"\s*:\s*"([^"]*)"/);
-    if (pathMatch) {
-      const descEl = st.el && st.el.querySelector('.tool-desc');
-      if (descEl) descEl.textContent = 'Writing ' + pathMatch[1].split('/').pop() + '...';
+
+    const markers = ['"new_text":"', '"new_text": "', '"content":"', '"content": "'];
+    if (st._contentStart == null) {
+      for (const marker of markers) {
+        const pos = st.buffer.indexOf(marker);
+        if (pos !== -1) { st._contentStart = pos + marker.length; break; }
+      }
     }
-    return '';
+
+    if (st._editParsed && st._editOldLines && st._contentStart != null) {
+      const raw = st.buffer.slice(st._contentStart);
+      const newText = raw.replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+                         .replace(/\\"/g, '"').replace(/\\"$/,'').replace(/"$/,'');
+      const newLines = newText.split('\n');
+      const ctxN = st._editCtxN || 2;
+      const sl = st._editStartLine;
+      const el = st._editEndLine;
+      const oldAll = st._editOldLines;
+      const fetchStart = st._editFetchStart;
+      const total = st._editTotal;
+
+      let html = '';
+      const preCtxEnd = Math.min(ctxN, sl - fetchStart);
+      const hiddenBefore = fetchStart - 1;
+      if (hiddenBefore > 0) html += '<div class="diff-hidden">··· ' + hiddenBefore + ' lines hidden ···</div>';
+      for (let i = 0; i < preCtxEnd; i++) {
+        const ln = fetchStart + i;
+        html += '<div class="diff-line context"><span class="diff-marker"> </span><span class="read-lineno">' + ln + '</span>' + esc(oldAll[i] || '') + '</div>';
+      }
+      for (let i = preCtxEnd; i < preCtxEnd + (el - sl + 1) && i < oldAll.length; i++) {
+        const ln = fetchStart + i;
+        html += '<div class="diff-line removed"><span class="diff-marker">-</span><span class="read-lineno">' + ln + '</span>' + esc(oldAll[i] || '') + '</div>';
+      }
+      for (let j = 0; j < newLines.length; j++) {
+        html += '<div class="diff-line added"><span class="diff-marker">+</span><span class="read-lineno">+</span>' + esc(newLines[j]) + '</div>';
+      }
+      const postCtxStart = preCtxEnd + (el - sl + 1);
+      for (let i = postCtxStart; i < oldAll.length; i++) {
+        const ln = fetchStart + i;
+        html += '<div class="diff-line context"><span class="diff-marker"> </span><span class="read-lineno">' + ln + '</span>' + esc(oldAll[i] || '') + '</div>';
+      }
+      const hiddenAfter = total - (fetchStart + oldAll.length - 1);
+      if (hiddenAfter > 0) html += '<div class="diff-hidden">··· ' + hiddenAfter + ' lines hidden ···</div>';
+
+      contentEl.innerHTML = html;
+      contentEl.className = contentEl.className.replace('streaming-edit', 'streaming-edit diff-view');
+    } else if (st._contentStart != null) {
+      contentEl.textContent = st.buffer.slice(st._contentStart);
+    }
   }
 
   _extractThinkContent(st) {

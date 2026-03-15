@@ -49,11 +49,11 @@
   },
   {
     "id": 7,
-    "content": "Fix localhost:8100 404 bug (wrong html_path in agent_server.py)",
+    "content": "Fix localhost:8100 404 bug (wrong html_path in server.py)",
     "status": "done",
     "created": "2026-03-13T16:40:00",
     "updated": "2026-03-13T17:15:00",
-    "notes": "html_path pointed to non-existent logic/assistant/gui/agent_live.html. Fixed to _dir/agent_demo.html."
+    "notes": "html_path pointed to non-existent logic/assistant/gui/live.html. Fixed to _dir/demo.html."
   },
   {
     "id": 8,

@@ -126,7 +126,7 @@ Agent reads existing files → writes updated files → quality check → finish
 
 ## Files Changed
 
-- `tool/LLM/logic/gui/agent_server.py` — Enhanced system prompts (zh/en) with quality
+- `tool/LLM/logic/gui/server.py` — Enhanced system prompts (zh/en) with quality
   standards, verification requirements, and forbidden behaviors
 - `tool/LLM/logic/gui/conversation.py` — Added `_check_write_quality()`,
   `_quality_warnings` tracking, unresolved warning nudge, "read first" injection

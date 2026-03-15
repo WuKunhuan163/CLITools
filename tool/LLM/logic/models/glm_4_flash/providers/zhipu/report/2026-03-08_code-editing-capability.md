@@ -105,6 +105,6 @@ Despite the model limitation, several infrastructure improvements were implement
   - Extended nudge threshold from round 2 to round 6
   - Smarter nudge text (checks if file already read)
   - Empty retry: adds synthetic assistant ack for proper alternation
-- `tool/LLM/logic/gui/agent_server.py`:
+- `tool/LLM/logic/gui/server.py`:
   - Updated system prompts (zh/en) to document edit_file tool
   - Updated file modification rules to recommend edit_file

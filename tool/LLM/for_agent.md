@@ -91,9 +91,9 @@ in the `bin/` directory (BILIBILI, GOOGLE, GIT, etc.) can be called.
 ### Programmatic Control (MCP-compatible injection)
 
 ```python
-from tool.LLM.interface.main import start_agent_server
+from tool.LLM.interface.main import start_server
 
-agent = start_agent_server(port=8100, enable_tools=True)
+agent = start_server(port=8100, enable_tools=True)
 
 # Inject text into input box (types character by character, then auto-sends)
 import requests
@@ -139,16 +139,16 @@ The LLM tool provides a reusable browser-based UI engine for agent interactions.
 
 ### Key Files
 
-- `logic/gui/agent_gui_engine.js` — `AgentGUIEngine` class: block registry, SSE streaming, session management, scroll-to-bottom, theming.
-- `logic/gui/agent_demo.html` — Demo that feeds protocol events to the engine.
+- `logic/gui/engine.js` — `AgentGUIEngine` class: block registry, SSE streaming, session management, scroll-to-bottom, theming.
+- `logic/gui/demo.html` — Demo that feeds protocol events to the engine.
 
 ### Interface
 
 ```python
-from tool.LLM.interface.main import get_agent_gui_path, get_agent_gui_engine_path
+from tool.LLM.interface.main import get_agent_gui_path, get_engine_path
 
-get_agent_gui_path()           # → path to agent_demo.html
-get_agent_gui_engine_path()    # → path to agent_gui_engine.js
+get_agent_gui_path()           # → path to demo.html
+get_engine_path()    # → path to engine.js
 ```
 
 ### Protocol Event Types

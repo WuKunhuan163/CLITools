@@ -304,7 +304,7 @@ def cmd_agent(args):
     no_open = getattr(args, "no_open", False)
     enable_tools = not getattr(args, "no_tools", False)
 
-    from tool.LLM.logic.gui.agent_server import start_agent_server
+    from tool.LLM.logic.gui.server import start_server
     from tool.LLM.logic.config import get_config_value
 
     lang = get_config_value("lang", "en")
@@ -312,7 +312,7 @@ def cmd_agent(args):
     print(fmt_stage("Starting server...", status="active"))
     print(fmt_info(f"Provider: {provider_name}"))
 
-    agent = start_agent_server(
+    agent = start_server(
         provider_name=provider_name,
         port=port,
         open_browser=not no_open,

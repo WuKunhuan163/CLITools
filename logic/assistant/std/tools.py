@@ -175,7 +175,7 @@ def handle_read_file(args: dict, ctx: ToolContext) -> dict:
                 content += f"\n[Lines {s+1}-{e} of {total_lines} total]"
             if not is_full_read:
                 read_display = _build_read_display(
-                    lines, s, e, total_lines, ctx_n=5)
+                    lines, s, e, total_lines, ctx_n=ctx.context_lines)
         emit_data = {"type": "tool_result", "ok": True, "output": content,
                      "_is_full_read": is_full_read}
         if not is_full_read and not os.path.isdir(path) and read_display:
@@ -319,7 +319,7 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
                 f"- {w}" for w in warnings)
 
         if old_content_for_diff is not None and old_content_for_diff != content:
-            gui_output = _compute_write_diff(old_content_for_diff, content)
+            gui_output = _compute_write_diff(old_content_for_diff, content, getattr(ctx, 'context_lines', 2))
             ctx.emit({"type": "tool_result", "ok": True,
                       "output": gui_output, "_is_diff": True,
                       "name": "edit_file", "_path": path,
@@ -352,103 +352,179 @@ def handle_write_file(args: dict, ctx: ToolContext) -> dict:
 
 
 @register_tool("edit_file")
+def _build_diff_preview(all_lines, start_lineno, old_lines, new_lines, new_all, ctx_n):
+    """Build a diff preview with context lines and hidden-line markers."""
+    diff_lines = []
+    pre_start = max(0, start_lineno - ctx_n)
+    if pre_start > 0:
+        diff_lines.append(f"@@hide {pre_start}")
+    for i in range(pre_start, start_lineno):
+        if i < len(all_lines):
+            diff_lines.append(f" {i+1:>5}|{all_lines[i]}")
+    for ol in old_lines:
+        diff_lines.append(f"-{ol}")
+    for nl in new_lines:
+        diff_lines.append(f"+{nl}")
+    new_change_end = start_lineno + len(new_lines)
+    for i in range(new_change_end, min(len(new_all), new_change_end + ctx_n)):
+        diff_lines.append(f" {i+1:>5}|{new_all[i]}")
+    remaining = len(new_all) - min(len(new_all), new_change_end + ctx_n)
+    if remaining > 0:
+        diff_lines.append(f"@@hide {remaining}")
+    return "\n".join(diff_lines)
+
+
+def _apply_edit_and_emit(path, content, old_lines_text, new_text, start_lineno,
+                         ctx, ctx_n=None):
+    """Apply an edit, run syntax check, emit diff preview, return result."""
+    if ctx_n is None:
+        ctx_n = getattr(ctx, 'context_lines', 2)
+    old_lines = old_lines_text.splitlines()
+    new_lines = new_text.splitlines()
+    all_lines = content.splitlines()
+
+    new_content = content.replace(old_lines_text, new_text, 1)
+
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".py":
+        try:
+            compile(new_content, path, 'exec')
+        except SyntaxError as e:
+            ctx.emit({"type": "tool_result", "ok": False,
+                       "output": f"Edit would cause syntax error: {e}"})
+            return {"ok": False,
+                    "output": f"Edit rejected — syntax error "
+                              f"at line {e.lineno}: {e.msg}. Fix and retry."}
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(new_content)
+
+    new_all = new_content.splitlines()
+    diff_preview = _build_diff_preview(all_lines, start_lineno, old_lines,
+                                       new_lines, new_all, ctx_n)
+    ctx.emit({"type": "tool_result", "ok": True, "output": diff_preview,
+              "name": "edit_file", "_path": path,
+              "_old_text": old_lines_text, "_new_text": new_text})
+    if ctx.env_obj:
+        ctx.env_obj.record_result(f"edit:{path}", True, diff_preview)
+    rs = getattr(ctx, 'round_store', None)
+    sid = getattr(ctx, 'session_id', '')
+    rn = getattr(ctx, 'round_num', 0)
+    if rs:
+        rel = os.path.relpath(path, ctx.cwd) if os.path.isabs(path) else path
+        rs.record_file_op(sid, rn, "edit", rel, new_content,
+                          old_content=old_lines_text, new_content=new_text)
+    return {"ok": True, "output": f"Edit applied to {path}"}
+
+
 def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
     path = args.get("path", "")
-    old_text = args.get("old_text", "")
     new_text = args.get("new_text", args.get("content", ""))
+    start_line = args.get("start_line")
+    end_line = args.get("end_line")
+    old_text = args.get("old_text", "")
     if not path:
         return {"ok": False, "output": "Missing path"}
-    if not old_text:
-        abs_path = path if os.path.isabs(path) else os.path.join(ctx.cwd, path)
-        is_new = not os.path.exists(abs_path)
+
+    abs_path = path if os.path.isabs(path) else os.path.join(ctx.cwd, path)
+
+    if not os.path.exists(abs_path):
         result = handle_write_file({"path": path, "content": new_text}, ctx)
-        if is_new and result.get("ok"):
-            result["_is_new_file"] = True
+        result["_is_new_file"] = True
         return result
 
     if not os.path.isabs(path):
         path = os.path.join(ctx.cwd, path)
 
-    if old_text == new_text:
-        ctx.emit({"type": "tool", "name": "edit_file",
-                  "desc": f"Edit {os.path.basename(path)}", "cmd": f"edit {path}"})
-        ctx.emit({"type": "tool_result", "ok": True, "output": "(no change)"})
-        return {"ok": True, "output": "No change — old_text and new_text are identical."}
-
     ctx.emit({"type": "tool", "name": "edit_file",
               "desc": f"Edit {os.path.basename(path)}", "cmd": f"edit {path}"})
+
     try:
         content = open(path, encoding='utf-8', errors='replace').read()
-        count = content.count(old_text)
-        if count == 0:
-            ctx.emit({"type": "tool_result", "ok": False,
-                       "output": "old_text not found in file"})
-            if ctx.env_obj:
-                ctx.env_obj.record_result(f"edit:{path}", False, "not found")
-            return {"ok": False,
-                    "output": "old_text not found in file. Use read_file to "
-                              "see the exact current content."}
-        if count > 1:
-            ctx.emit({"type": "tool_result", "ok": False,
-                       "output": f"old_text found {count} times (ambiguous)"})
-            return {"ok": False,
-                    "output": f"old_text found {count} times. Provide more "
-                              f"context to make it unique."}
-
-        new_content = content.replace(old_text, new_text, 1)
-
-        ext = os.path.splitext(path)[1].lower()
-        if ext == ".py":
-            try:
-                compile(new_content, path, 'exec')
-            except SyntaxError as e:
-                ctx.emit({"type": "tool_result", "ok": False,
-                           "output": f"Edit would cause syntax error: {e}"})
-                return {"ok": False,
-                        "output": f"Edit rejected — syntax error "
-                                  f"at line {e.lineno}: {e.msg}. Fix and retry."}
-
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(new_content)
-
-        old_lines = old_text.splitlines()
-        new_lines = new_text.splitlines()
         all_lines = content.splitlines()
-        change_start = content.find(old_text)
-        start_lineno = content[:change_start].count('\n') if change_start >= 0 else 0
-        ctx_n = 5
-        diff_lines = []
-        pre_start = max(0, start_lineno - ctx_n)
-        if pre_start > 0:
-            diff_lines.append(f"@@hide {pre_start}")
-        for i in range(pre_start, start_lineno):
-            if i < len(all_lines):
-                diff_lines.append(f" {i+1:>5}|{all_lines[i]}")
-        for ol in old_lines:
-            diff_lines.append(f"-{ol}")
-        for nl in new_lines:
-            diff_lines.append(f"+{nl}")
-        new_all = new_content.splitlines()
-        new_change_end = start_lineno + len(new_lines)
-        for i in range(new_change_end, min(len(new_all), new_change_end + ctx_n)):
-            diff_lines.append(f" {i+1:>5}|{new_all[i]}")
-        remaining = len(new_all) - min(len(new_all), new_change_end + ctx_n)
-        if remaining > 0:
-            diff_lines.append(f"@@hide {remaining}")
-        diff_preview = "\n".join(diff_lines)
-        ctx.emit({"type": "tool_result", "ok": True, "output": diff_preview,
-                  "name": "edit_file", "_path": path,
-                  "_old_text": old_text, "_new_text": new_text})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(f"edit:{path}", True, diff_preview)
-        rs = getattr(ctx, 'round_store', None)
-        sid = getattr(ctx, 'session_id', '')
-        rn = getattr(ctx, 'round_num', 0)
-        if rs:
-            rel = os.path.relpath(path, ctx.cwd) if os.path.isabs(path) else path
-            rs.record_file_op(sid, rn, "edit", rel, new_content,
-                              old_content=old_text, new_content=new_text)
-        return {"ok": True, "output": f"Edit applied to {path}"}
+        total = len(all_lines)
+
+        if start_line is not None and end_line is not None:
+            s = max(1, int(start_line))
+            e = min(total, int(end_line))
+            if s > total:
+                ctx.emit({"type": "tool_result", "ok": False,
+                           "output": f"start_line {s} > total lines {total}"})
+                return {"ok": False,
+                        "output": f"start_line {s} exceeds file length ({total} lines). "
+                                  f"Use read_file to check current content."}
+
+            old_range = all_lines[s-1:e]
+            old_lines_list = old_range
+            new_lines_list = new_text.rstrip("\n").splitlines() if new_text.strip() else []
+            start_lineno = s - 1
+
+            result_lines = all_lines[:s-1] + new_lines_list + all_lines[e:]
+            new_content = "\n".join(result_lines)
+            if content.endswith("\n"):
+                new_content += "\n"
+
+            ext = os.path.splitext(path)[1].lower()
+            if ext == ".py":
+                try:
+                    compile(new_content, path, 'exec')
+                except SyntaxError as syn_e:
+                    ctx.emit({"type": "tool_result", "ok": False,
+                               "output": f"Edit would cause syntax error: {syn_e}"})
+                    return {"ok": False,
+                            "output": f"Edit rejected — syntax error "
+                                      f"at line {syn_e.lineno}: {syn_e.msg}. Fix and retry."}
+
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(new_content)
+
+            new_all = new_content.splitlines()
+            diff_preview = _build_diff_preview(
+                all_lines, start_lineno, old_lines_list,
+                new_lines_list, new_all, ctx.context_lines)
+            ctx.emit({"type": "tool_result", "ok": True, "output": diff_preview,
+                      "name": "edit_file", "_path": path,
+                      "_old_text": "\n".join(old_lines_list),
+                      "_new_text": new_text.rstrip("\n")})
+            if ctx.env_obj:
+                ctx.env_obj.record_result(f"edit:{path}", True, diff_preview)
+            rs = getattr(ctx, 'round_store', None)
+            sid = getattr(ctx, 'session_id', '')
+            rn = getattr(ctx, 'round_num', 0)
+            if rs:
+                rel = os.path.relpath(path, ctx.cwd) if os.path.isabs(path) else path
+                rs.record_file_op(sid, rn, "edit", rel, new_content,
+                                  old_content="\n".join(old_lines_list),
+                                  new_content=new_text)
+            return {"ok": True, "output": f"Edit applied to {path} (L{s}-{e})"}
+
+        if old_text:
+            count = content.count(old_text)
+            if count == 0:
+                ctx.emit({"type": "tool_result", "ok": False,
+                           "output": "old_text not found in file"})
+                if ctx.env_obj:
+                    ctx.env_obj.record_result(f"edit:{path}", False, "not found")
+                return {"ok": False,
+                        "output": "old_text not found in file. Use read_file to "
+                                  "see the exact current content."}
+            if count > 1:
+                ctx.emit({"type": "tool_result", "ok": False,
+                           "output": f"old_text found {count} times (ambiguous)"})
+                return {"ok": False,
+                        "output": f"old_text found {count} times. Provide more "
+                                  f"context to make it unique."}
+            change_start = content.find(old_text)
+            start_lineno = content[:change_start].count('\n')
+            return _apply_edit_and_emit(path, content, old_text, new_text,
+                                        start_lineno, ctx)
+
+        ctx.emit({"type": "tool_result", "ok": False,
+                   "output": "Must provide start_line/end_line or old_text for existing files"})
+        return {"ok": False,
+                "output": "For existing files, provide start_line and end_line to "
+                          "specify the edit range, or old_text for text matching. "
+                          "Use read_file first to find exact line numbers."}
     except Exception as e:
         ctx.emit({"type": "tool_result", "ok": False, "output": str(e)})
         if ctx.env_obj:

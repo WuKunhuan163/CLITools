@@ -47,13 +47,13 @@ The single failure (`test_import_json_merge`) is a genuine implementation bug: t
 
 **This task revealed the root cause of ALL previous evaluation failures.**
 
-The `AgentServer` and `start_agent_server` both defaulted `enable_tools=False`. This meant:
+The `AgentServer` and `start_server` both defaulted `enable_tools=False`. This meant:
 - The model's structured tool calls were received but silently rejected ("Unknown tool")
 - The model then fell back to text-based `<tool_call>` format
 - The text parser couldn't reliably parse complex arguments
 - The conversation appeared to fail when it was actually the infrastructure dropping tool calls
 
-**Fix**: Changed `enable_tools` default to `True` in both `AgentServer.__init__` and `start_agent_server`.
+**Fix**: Changed `enable_tools` default to `True` in both `AgentServer.__init__` and `start_server`.
 
 **Impact**: With tools enabled, the model creates files correctly on the first attempt via structured API tool calls. Tasks #9-11 all suffered from this same root cause to varying degrees.
 

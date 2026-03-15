@@ -355,17 +355,20 @@ BUILTIN_TOOLS = [
         "function": {
             "name": "edit_file",
             "description": (
-                "Edit or create a file. Two modes:\n"
-                "- Targeted edit: provide old_text and new_text to replace specific text.\n"
-                "- Create/overwrite: omit old_text (or set to empty) and provide new_text "
-                "with the full file content. Creates parent directories automatically."
+                "Edit or create a file using line ranges.\n"
+                "- Targeted edit: provide start_line, end_line, and new_text to "
+                "replace lines [start_line, end_line] inclusive.\n"
+                "- Create new file: provide path and new_text only (no line params).\n"
+                "ALWAYS use read_file first to locate exact line numbers. "
+                "Whole-file rewrites are extremely discouraged — prefer precise ranges."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "path": {"type": "string", "description": "File path to edit or create"},
-                    "old_text": {"type": "string", "description": "Exact text to find and replace. Leave empty to create/overwrite the entire file."},
-                    "new_text": {"type": "string", "description": "Replacement text, or full file content when old_text is empty."},
+                    "start_line": {"type": "integer", "description": "First line to replace (1-indexed). Required for existing files."},
+                    "end_line": {"type": "integer", "description": "Last line to replace (1-indexed, inclusive). Required for existing files."},
+                    "new_text": {"type": "string", "description": "Replacement text for the specified line range, or full content for new files."},
                 },
                 "required": ["path", "new_text"],
             },
@@ -691,6 +694,7 @@ class ConversationManager:
                 round_store=getattr(self, '_round_store', None),
                 session_id=self._current_turn_session_id or "",
                 round_num=getattr(self, '_current_round', 0),
+                context_lines=self._get_context_lines(),
             )
             return self._std_tools[name](args, ctx)
         return handler
@@ -770,6 +774,13 @@ class ConversationManager:
             if codebase and os.path.isdir(codebase):
                 return codebase
         return _PROJECT_ROOT
+
+    def _get_context_lines(self) -> int:
+        try:
+            from tool.LLM.logic.config import get_config_value
+            return int(get_config_value("context_lines", 2))
+        except Exception:
+            return 2
 
     def _handle_think(self, args: dict) -> dict:
         return {"ok": True, "output": "[Thinking complete]"}

@@ -694,7 +694,7 @@ body.debug-mode .debug-block { display: block; }
   </div>
 </div>
 
-<script src="agent_gui_engine.js"></script>
+<script src="engine.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -1734,6 +1734,7 @@ function renderChatView() {
   const limitLabel = effectiveLimit > 0
     ? `${(effectiveLimit/1000).toFixed(1)}k tokens (${(maxCtx/1000).toFixed(0)}k × ${(savedRatio*100).toFixed(0)}%)`
     : 'N/A';
+  const ctxLines = parseInt(localStorage.getItem('context_lines')) || 2;
   return `
     <div class="settings-section-title">${_('Context Compression')}</div>
     <div class="settings-card" style="padding:16px;">
@@ -1758,6 +1759,23 @@ function renderChatView() {
         The ctx% shown per round is based on this effective limit.
       </div>
     </div>
+
+    <div class="settings-section-title">${_('Display')}</div>
+    <div class="settings-card" style="padding:16px;">
+      <label style="display:flex;align-items:center;gap:12px;font-size:13px;">
+        <span style="flex:1">
+          <strong>${_('Context Lines')}</strong><br>
+          <span style="color:var(--text-3);font-size:11.5px;">
+            Number of surrounding context lines shown around diffs and file reads.
+          </span>
+        </span>
+        <div class="settings-stepper" id="ctx-lines-stepper">
+          <button class="stepper-btn down" onclick="_ctxLinesStep(-1)">&#x25BC;</button>
+          <span class="stepper-value" id="ctx-lines-val">${ctxLines}</span>
+          <button class="stepper-btn up" onclick="_ctxLinesStep(1)">&#x25B2;</button>
+        </div>
+      </label>
+    </div>
   `;
 }
 
@@ -1780,6 +1798,19 @@ function _compressionStep(dir) {
   fetch('/api/send', {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({_config:true, key:'compression_ratio', value:ratio})});
   if (engine._rawMaxContextTokens) engine._maxContextTokens = Math.round(engine._rawMaxContextTokens * ratio);
+}
+
+const _CTX_LINES_OPTIONS = [0, 1, 2, 5, 10];
+function _ctxLinesStep(dir) {
+  const cur = parseInt(localStorage.getItem('context_lines')) || 2;
+  let idx = _CTX_LINES_OPTIONS.indexOf(cur);
+  if (idx < 0) idx = 2;
+  idx = Math.max(0, Math.min(_CTX_LINES_OPTIONS.length - 1, idx + dir));
+  const val = _CTX_LINES_OPTIONS[idx];
+  localStorage.setItem('context_lines', String(val));
+  document.getElementById('ctx-lines-val').textContent = val;
+  fetch('/api/send', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({_config:true, key:'context_lines', value:val})});
 }
 
 function renderModelsView() {

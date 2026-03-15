@@ -4,8 +4,8 @@ Wires ConversationManager → SSE → browser, with HTTP API endpoints
 for message sending, session management, and automation control.
 
 Usage:
-    from tool.LLM.logic.gui.agent_server import start_agent_server
-    server = start_agent_server(port=0)
+    from tool.LLM.logic.gui.server import start_server
+    server = start_server(port=0)
     # → http://localhost:{port}/
 
 RESTful API:
@@ -354,6 +354,8 @@ class AgentServer:
             return self._get_session_config()
         if path == "/api/currencies":
             return self._get_currencies()
+        if path == "/api/file-lines" and method == "POST":
+            return self._read_file_lines(body)
 
         # ── Essential frontend routes (config saves, text-based revert) ──
         if method == "POST":
@@ -957,6 +959,27 @@ class AgentServer:
             })
         return {"ok": True, "blocks": summary, "count": len(summary)}
 
+    def _read_file_lines(self, body: dict) -> dict:
+        """Read specific lines from a file for streaming edit preview."""
+        fpath = body.get("path", "")
+        start = int(body.get("start", 1))
+        end = int(body.get("end", start))
+        if not fpath:
+            return {"ok": False, "error": "Missing path"}
+        try:
+            if not os.path.isabs(fpath):
+                fpath = os.path.join(os.getcwd(), fpath)
+            with open(fpath, encoding="utf-8", errors="replace") as f:
+                all_lines = f.readlines()
+            total = len(all_lines)
+            s = max(1, min(start, total))
+            e = min(end, total)
+            lines = [l.rstrip("\n") for l in all_lines[s-1:e]]
+            return {"ok": True, "lines": lines, "total": total,
+                    "start": s, "end": e}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
     def _save_session_config(self, key, value) -> dict:
         """Save a single session config key from the frontend settings panel."""
         if not key:
@@ -1191,7 +1214,7 @@ class AgentServer:
         """Start the live agent server."""
         from interface.gui import LocalHTMLServer
 
-        html_path = str(_root / "logic" / "assistant" / "gui" / "agent_live.html")
+        html_path = str(_root / "logic" / "assistant" / "gui" / "live.html")
 
         self._server = LocalHTMLServer(
             html_path=html_path,
@@ -1232,7 +1255,7 @@ class AgentServer:
         return self._default_session_id
 
 
-def start_agent_server(
+def start_server(
     provider_name: str = "zhipu-glm-4.7-flash",
     system_prompt: str = "",
     enable_tools: bool = True,

@@ -25,7 +25,7 @@
 | 7-10 | Text generation | Produced dependency graph and analysis |
 
 **Analysis**:
-- (+) Correctly identified import chain: `session_context` → `conversation` → `agent_server`
+- (+) Correctly identified import chain: `session_context` → `conversation` → `server`
 - (+) Correctly identified `round_store.py` as a leaf node
 - (+) Correctly found no circular dependencies
 - (+) Good text diagram with arrow notation

@@ -67,18 +67,18 @@ def send(message: str, system: str = "", provider_name: str = "nvidia-glm-4-7b",
 def get_agent_gui_path() -> str:
     """Return absolute path to the LLM agent GUI HTML template.
 
-    This HTML loads ``agent_gui_engine.js`` which provides the
+    This HTML loads ``engine.js`` which provides the
     ``AgentGUIEngine`` class with block registry, theme override,
     and SSE support for real-time streaming.
 
     Returns:
-        Absolute path to ``agent_demo.html``.
+        Absolute path to ``demo.html``.
     """
     from pathlib import Path
-    return str(Path(__file__).resolve().parent.parent / "logic" / "gui" / "agent_demo.html")
+    return str(Path(__file__).resolve().parent.parent / "logic" / "gui" / "demo.html")
 
 
-def get_agent_gui_engine_path() -> str:
+def get_engine_path() -> str:
     """Return absolute path to the reusable agent GUI JS engine.
 
     The engine provides ``AgentGUIEngine`` with:
@@ -88,10 +88,10 @@ def get_agent_gui_engine_path() -> str:
     - Protocol event processing: ``engine.processEvent(evt)``
 
     Returns:
-        Absolute path to ``agent_gui_engine.js``.
+        Absolute path to ``engine.js``.
     """
     from pathlib import Path
-    return str(Path(__file__).resolve().parent.parent / "logic" / "gui" / "agent_gui_engine.js")
+    return str(Path(__file__).resolve().parent.parent / "logic" / "gui" / "engine.js")
 
 
 def get_conversation_manager():
@@ -119,14 +119,14 @@ def get_conversation_manager():
     return ConversationManager
 
 
-def get_agent_live_path() -> str:
+def get_live_path() -> str:
     """Return absolute path to the live LLM agent HTML page.
 
     Returns:
-        Absolute path to ``agent_live.html``.
+        Absolute path to ``live.html``.
     """
     from pathlib import Path
-    return str(Path(__file__).resolve().parent.parent / "logic" / "gui" / "agent_live.html")
+    return str(Path(__file__).resolve().parent.parent / "logic" / "gui" / "live.html")
 
 
 def get_brain(data_dir=None):
@@ -151,14 +151,14 @@ def get_brain(data_dir=None):
     return Brain(data_dir=data_dir)
 
 
-def start_agent_server(provider_name="zhipu-glm-4.7", port=0,
+def start_server(provider_name="zhipu-glm-4.7", port=0,
                        open_browser=True, enable_tools=False,
                        default_codebase=None, brain=None):
     """Start the live LLM Agent server.
 
     Returns an ``AgentServer`` instance with the server already running.
     """
-    from tool.LLM.logic.gui.agent_server import start_agent_server as _start
+    from tool.LLM.logic.gui.server import start_server as _start
     return _start(
         provider_name=provider_name,
         port=port,
