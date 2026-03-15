@@ -693,7 +693,7 @@ let sending = false;
 let debugMode = false;
 let currentMode = 'agent';
 let currentModel = 'zhipu-glm-4.7-flash';
-let currentTurnLimit = 20;
+let currentTurnLimit = parseInt(localStorage.getItem('default_turn_limit')) || 20;
 
 const ZHIPU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/zhipu-color.svg';
 const GOOGLE_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/gemini-color.svg';
@@ -907,6 +907,7 @@ const _I18N = {
     'Debug': '调试', 'Stop': '停止', 'New session': '新会话',
     'Agent': '代理', 'Plan': '计划', 'Ask': '问答', 'Auto': '自动',
     'Color Mode': '颜色模式', 'Language': '语言', 'Currency': '货币', 'Appearance': '外观',
+    'Behavior': '行为', 'Default Round Limit': '默认轮次限制', 'History Round Folding': '历史轮次折叠',
     'Runtime Limits': '运行时限制', 'Configured': '已配置', 'Not configured': '未配置',
     'Validate & Save': '验证并保存', 'Guide': '指南', 'Delete': '删除',
     'Usage': '用量', 'Benchmarks': '基准测试',
@@ -953,8 +954,9 @@ function _refreshPillLabels() {
   if (turnSel) {
     turnSel.querySelectorAll('option').forEach(opt => {
       const n = opt.value;
-      opt.textContent = n + ' ' + _('rounds');
+      opt.textContent = n === '0' ? '\u221E ' + _('unlimited') : n + ' ' + _('rounds');
     });
+    turnSel.value = String(currentTurnLimit);
   }
 }
 
@@ -1289,7 +1291,7 @@ async function createNewSession() {
   }
 }
 
-const INITIAL_ROUNDS = 5;
+let INITIAL_ROUNDS = parseInt(localStorage.getItem('initial_rounds')) || 5;
 let _pendingOlderEvents = [];
 let _allSessionEvents = [];
 
@@ -1500,6 +1502,21 @@ function renderGeneralView() {
         <span><strong>${_('Currency')}</strong></span>
         <select id="currency-select" onchange="_setCurrency(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:180px;">${_currencyOpts()}</select>
       </div>
+    </div>
+    <div class="settings-section-title" style="margin-top:16px;">${_('Behavior')}</div>
+    <div class="settings-card" style="padding:16px;">
+      <label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;">
+        <span style="flex:1"><strong>${_('Default Round Limit')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Default max agent rounds for new tasks.</span></span>
+        <select onchange="localStorage.setItem('default_turn_limit',this.value);currentTurnLimit=parseInt(this.value)||20;const s=$('turn-limit-select');if(s)s.value=this.value;" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
+          ${[2,5,10,20,50,100,200,500].map(v => `<option value="${v}" ${v === (parseInt(localStorage.getItem('default_turn_limit'))||20) ? 'selected' : ''}>${v} rounds</option>`).join('')}
+        </select>
+      </label>
+      <label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;">
+        <span style="flex:1"><strong>${_('History Round Folding')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Number of recent rounds to show before folding older ones.</span></span>
+        <select onchange="INITIAL_ROUNDS=parseInt(this.value)||5;localStorage.setItem('initial_rounds',this.value);" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
+          ${[3,5,10,20,50,100].map(v => `<option value="${v}" ${v === INITIAL_ROUNDS ? 'selected' : ''}>${v} rounds</option>`).join('')}
+        </select>
+      </label>
       <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
         <span style="flex:1"><strong>${_('Auto-scroll Idle')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Seconds of inactivity before auto-scrolling to bottom (0 to disable).</span></span>
         <div class="settings-stepper" data-key="auto_scroll_idle_s" data-min="0" data-max="300" data-default="30" data-mode="linear" data-step="5">
@@ -1511,7 +1528,6 @@ function renderGeneralView() {
     </div>
     <div class="settings-section-title" style="margin-top:16px;">${_('Runtime Limits')}</div>
     <div class="settings-card" style="padding:16px;">
-      ${_settingsNumInput('default_turn_limit', 64, 1, 1024, 'Default max agent rounds per task.')}
       ${_settingsNumInput('max_read_chars', 16384, 256, 262144, 'Max characters returned by read_file tool.')}
       ${_settingsNumInput('max_exec_chars', 8192, 128, 131072, 'Max characters returned by exec tool output.')}
       ${_settingsNumInput('max_edit_chars', 8192, 128, 131072, 'Max characters for edit_file old_text/new_text.')}

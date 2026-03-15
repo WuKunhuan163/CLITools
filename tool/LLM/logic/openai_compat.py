@@ -147,6 +147,8 @@ class OpenAICompatProvider(LLMProvider):
                 except Exception:
                     pass
             self._rate_limiter.release()
+            if e.code == 429:
+                self._rate_limiter.report_429()
             result = {"ok": False, "text": "", "error_code": e.code,
                       "error": f"Rate limited (429). {err_body}" if e.code == 429
                       else f"API error ({e.code}): {err_body}"}
@@ -159,6 +161,7 @@ class OpenAICompatProvider(LLMProvider):
             return result
 
         self._rate_limiter.release()
+        self._rate_limiter.report_success()
         latency = time.time() - t0
 
         choices = body.get("choices", [])
@@ -226,6 +229,8 @@ class OpenAICompatProvider(LLMProvider):
             resp = urllib.request.urlopen(req, timeout=self.REQUEST_TIMEOUT)
         except urllib.error.HTTPError as e:
             self._rate_limiter.release()
+            if e.code == 429:
+                self._rate_limiter.report_429()
             err_body = ""
             err_headers = {}
             if e.fp:
@@ -280,6 +285,8 @@ class OpenAICompatProvider(LLMProvider):
         finally:
             resp.close()
             self._rate_limiter.release()
+            if stream_ok:
+                self._rate_limiter.report_success()
             self._report_to_selector(
                 {"ok": stream_ok, "latency_s": 0}, resp_headers)
 

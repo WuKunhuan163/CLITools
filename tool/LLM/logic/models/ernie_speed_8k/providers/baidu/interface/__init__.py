@@ -1,24 +1,24 @@
-"""Baidu ERNIE 3.5 8K via Qianfan v2 platform (OpenAI-compatible endpoint).
+"""Baidu ERNIE Speed Pro 128K via Qianfan v2 platform (OpenAI-compatible endpoint).
 
-Endpoint: https://qianfan.baidubce.com/v2/chat/completions
-Free tier: 300 RPM, 300K TPM (permanently free for Speed/Lite/Tiny series).
-Requires: Baidu Qianfan platform API key (bce-v3/ALTAK format, real-name auth).
+Free tier: 10000 RPM, 800K TPM (permanently free for Speed/Lite series).
 
-Note: The model was renamed from 'ernie-speed-8k' to 'ernie-3.5-8k' in Baidu's
-v2 API. Our internal name stays 'ernie-speed-8k' for backwards compatibility.
+Note: The old 'ernie-speed-8k' was retired from v2 API. The current free Speed
+model is 'ernie-speed-pro-128k'. Our internal name stays 'ernie-speed-8k' for
+backwards compatibility in the provider registry.
 """
 from tool.LLM.logic.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
+from tool.LLM.logic.providers import baidu as vendor
 
 
 class BaiduERNIESpeedProvider(OpenAICompatProvider):
 
-    API_URL = "https://qianfan.baidubce.com/v2/chat/completions"
-    MODEL_ID = "ernie-3.5-8k"
-    CONFIG_VENDOR = "baidu"
-    CONFIG_KEY_ENV = "BAIDU_API_KEY"
-    DEFAULT_RPM = 300
-    DEFAULT_MAX_CONTEXT = 8192
+    API_URL = vendor.API_URL
+    MODEL_ID = "ernie-speed-pro-128k"
+    CONFIG_VENDOR = vendor.CONFIG_VENDOR
+    CONFIG_KEY_ENV = vendor.CONFIG_KEY_ENV
+    DEFAULT_RPM = 10000
+    DEFAULT_MAX_CONTEXT = 131072
     DEFAULT_MAX_OUTPUT = 4096
 
     name = "baidu-ernie-speed-8k"
@@ -27,6 +27,6 @@ class BaiduERNIESpeedProvider(OpenAICompatProvider):
         supports_tool_calling=True,
         supports_vision=False,
         supports_streaming=True,
-        max_context_tokens=8192,
+        max_context_tokens=131072,
         max_output_tokens=4096,
     )

@@ -655,7 +655,7 @@ class AgentServer:
         try:
             from tool.LLM.logic.config import get_config_value
             SESSION_DEFAULTS = {
-                "default_turn_limit": 64,
+                "default_turn_limit": 20,
                 "max_read_chars": 16384,
                 "max_exec_chars": 8192,
                 "max_edit_chars": 8192,

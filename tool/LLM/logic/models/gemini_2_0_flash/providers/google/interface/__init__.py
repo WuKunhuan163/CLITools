@@ -1,19 +1,19 @@
 """Gemini 2.0 Flash via Google AI Studio (OpenAI-compatible endpoint).
 
-Endpoint: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
 Free tier: 15 RPM, 1M TPM, 1500 RPD.
-Requires: Google AI Studio API key (region-restricted, no CN/HK direct access).
+Region-restricted: no CN/HK direct access.
 """
 from tool.LLM.logic.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
+from tool.LLM.logic.providers import google as vendor
 
 
 class GoogleGeminiFlashProvider(OpenAICompatProvider):
 
-    API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    API_URL = vendor.API_URL
     MODEL_ID = "gemini-2.0-flash"
-    CONFIG_VENDOR = "google"
-    CONFIG_KEY_ENV = "GOOGLE_AI_API_KEY"
+    CONFIG_VENDOR = vendor.CONFIG_VENDOR
+    CONFIG_KEY_ENV = vendor.CONFIG_KEY_ENV
     DEFAULT_RPM = 15
     DEFAULT_MAX_CONTEXT = 1000000
     DEFAULT_MAX_OUTPUT = 8192

@@ -1,20 +1,20 @@
 {
   "model_id": "ernie-speed-8k",
-  "display_name": "ERNIE Speed 8K",
+  "display_name": "ERNIE Speed Pro 128K",
   "vendor": "baidu",
   "capabilities": {
     "tool_calling": true,
     "vision": false,
     "streaming": true,
     "system_prompt": true,
-    "max_context_tokens": 8192,
+    "max_context_tokens": 131072,
     "max_output_tokens": 4096,
     "reasoning": false
   },
   "rate_limits": {
     "free": {
-      "rpm": 300,
-      "tpm": 300000
+      "rpm": 10000,
+      "tpm": 800000
     }
   },
   "cost": {
