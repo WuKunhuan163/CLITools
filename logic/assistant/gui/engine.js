@@ -568,11 +568,17 @@ class AgentGUIEngine {
     return this.sessions[id];
   }
 
-  renameSession(id, newTitle) {
+  renameSession(id, newTitle, skipSync) {
     if (!this.sessions[id]) return;
     this.sessions[id].title = newTitle;
     this._refreshSessions();
     if (this._onSessionChange) this._onSessionChange('rename', this.sessions[id]);
+    if (!skipSync) {
+      fetch(`/api/session/${id}/rename`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title: newTitle})
+      }).catch(() => {});
+    }
   }
 
   deleteSession(id) {

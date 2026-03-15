@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TOOL Assistant</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22%236366f1%22><path d=%22M21.928 11.607c-.202-.488-.635-.605-.928-.633V8c0-1.103-.897-2-2-2h-6V4.61c.305-.274.5-.668.5-1.11a1.5 1.5 0 0 0-3 0c0 .442.195.836.5 1.11V6H5c-1.103 0-2 .897-2 2v2.997l-.082.006A1 1 0 0 0 1.99 12v2a1 1 0 0 0 1 1H3v5c0 1.103.897 2 2 2h14c1.103 0 2-.897 2-2v-5a1 1 0 0 0 1-1v-1.938a1.006 1.006 0 0 0-.072-.455zM5 20V8h14l.001 3.996L19 12v2l.001.005.001 5.995H5z%22/><ellipse cx=%228.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><ellipse cx=%2215.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><path d=%22M8 16h8v2H8z%22/></svg>">
+<link rel="icon" id="dynamic-favicon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22%236366f1%22><path d=%22M21.928 11.607c-.202-.488-.635-.605-.928-.633V8c0-1.103-.897-2-2-2h-6V4.61c.305-.274.5-.668.5-1.11a1.5 1.5 0 0 0-3 0c0 .442.195.836.5 1.11V6H5c-1.103 0-2 .897-2 2v2.997l-.082.006A1 1 0 0 0 1.99 12v2a1 1 0 0 0 1 1H3v5c0 1.103.897 2 2 2h14c1.103 0 2-.897 2-2v-5a1 1 0 0 0 1-1v-1.938a1.006 1.006 0 0 0-.072-.455zM5 20V8h14l.001 3.996L19 12v2l.001.005.001 5.995H5z%22/><ellipse cx=%228.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><ellipse cx=%2215.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><path d=%22M8 16h8v2H8z%22/></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -23,8 +23,8 @@
   --accent-dim: rgba(91,141,239,0.12);
   --green: #4ade80;
   --green-dim: rgba(74,222,128,0.10);
-  --green-card-bg: #162b1e;
-  --green-card-border: #2a5438;
+  --green-card-bg: rgba(74,222,128,0.06);
+  --green-card-border: rgba(74,222,128,0.18);
   --orange: #fbbf24;
   --orange-dim: rgba(251,191,36,0.10);
   --red: #f87171;
@@ -38,6 +38,22 @@
   --radius-lg: 12px;
   --sidebar-w: 260px;
   --transition: 150ms ease;
+  --input-bg: var(--surface);
+  --input-border: var(--border);
+  --msg-user-bg: var(--accent-dim);
+  --msg-user-border: transparent;
+  --msg-assistant-bg: var(--surface);
+  --msg-assistant-border: var(--border);
+  --sidebar-bg: var(--surface);
+  --sidebar-border: var(--border);
+  --header-bg: var(--surface);
+  --header-border: var(--border);
+  --code-bg: var(--surface-2);
+  --code-border: var(--border);
+  --badge-bg: var(--surface-3);
+  --badge-text: var(--text-2);
+  --glow-color: transparent;
+  --scanline-opacity: 0;
 }
 body.light-mode {
   --bg: #f5f6f8;
@@ -130,6 +146,75 @@ body.brilliant-mode.palette-blueberry {
   --red-dim: rgba(224,80,80,0.10);
   --purple: #8050e0;
   --purple-dim: rgba(128,80,224,0.10);
+}
+body.hacker-mode {
+  --bg: #0a0e0a;
+  --surface: #0d120d;
+  --surface-2: #121a12;
+  --surface-3: #1a241a;
+  --border: #1a3a1a;
+  --border-active: #2a5a2a;
+  --text: #33ff33;
+  --text-2: #22aa22;
+  --text-3: #1a7a1a;
+  --accent: #00ff41;
+  --accent-dim: rgba(0,255,65,0.08);
+  --green: #00ff41;
+  --green-dim: rgba(0,255,65,0.06);
+  --green-card-bg: rgba(0,255,65,0.04);
+  --green-card-border: rgba(0,255,65,0.15);
+  --orange: #ffb000;
+  --orange-dim: rgba(255,176,0,0.08);
+  --red: #ff3333;
+  --red-dim: rgba(255,51,51,0.08);
+  --purple: #cc44ff;
+  --purple-dim: rgba(204,68,255,0.08);
+  --font: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --radius: 2px;
+  --radius-lg: 4px;
+  --input-bg: #0a100a;
+  --input-border: #1a3a1a;
+  --msg-user-bg: rgba(0,255,65,0.04);
+  --msg-user-border: rgba(0,255,65,0.12);
+  --msg-assistant-bg: rgba(0,180,40,0.03);
+  --msg-assistant-border: rgba(0,255,65,0.08);
+  --sidebar-bg: #0a0e0a;
+  --sidebar-border: #1a3a1a;
+  --header-bg: #0a0e0a;
+  --header-border: #1a3a1a;
+  --code-bg: #060a06;
+  --code-border: #1a3a1a;
+  --badge-bg: rgba(0,255,65,0.06);
+  --badge-text: #22aa22;
+  --glow-color: rgba(0,255,65,0.15);
+  --scanline-opacity: 0.03;
+}
+body.hacker-mode::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,65,var(--scanline-opacity)) 2px, rgba(0,255,65,var(--scanline-opacity)) 4px);
+  pointer-events: none;
+  z-index: 99999;
+}
+body.hacker-mode .sidebar-header h1,
+body.hacker-mode .settings-card-title,
+body.hacker-mode .settings-section-title {
+  text-shadow: 0 0 8px var(--glow-color);
+}
+body.hacker-mode .input-field textarea {
+  caret-color: #00ff41;
+}
+body.hacker-mode .btn-send {
+  box-shadow: 0 0 12px rgba(0,255,65,0.3);
+}
+body.hacker-mode .settings-badge {
+  border: 1px solid rgba(0,255,65,0.15);
+}
+body.hacker-mode .sidebar-toggle:hover,
+body.hacker-mode .btn-new:hover {
+  box-shadow: 0 0 8px rgba(0,255,65,0.2);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font); background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; user-select: none; -webkit-user-select: none; }
@@ -980,6 +1065,7 @@ const THEMES = {
   dark:      { label: 'Dark',      icon: 'bx-moon',    cls: '' },
   light:     { label: 'Light',     icon: 'bx-sun',     cls: 'light-mode' },
   brilliant: { label: 'Brilliant', icon: 'bx-palette',  cls: 'brilliant-mode' },
+  hacker:    { label: 'Hacker',    icon: 'bx-terminal', cls: 'hacker-mode' },
 };
 const BRILLIANT_PALETTES = [
   { id: 'strawberry', icon: '🍓', label: 'Strawberry' },
@@ -1051,6 +1137,26 @@ function _refreshPillLabels() {
   }
 }
 
+const _FAVICON_COLORS = {
+  dark:  '#6366f1',
+  light: '#f59e0b',
+  brilliant: { strawberry: '#e85d75', mango: '#e8a317', blueberry: '#5b7cf5' },
+  hacker: '#00ff41',
+};
+const _FAVICON_SVG = (color) => `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22${encodeURIComponent(color)}%22><path d=%22M21.928 11.607c-.202-.488-.635-.605-.928-.633V8c0-1.103-.897-2-2-2h-6V4.61c.305-.274.5-.668.5-1.11a1.5 1.5 0 0 0-3 0c0 .442.195.836.5 1.11V6H5c-1.103 0-2 .897-2 2v2.997l-.082.006A1 1 0 0 0 1.99 12v2a1 1 0 0 0 1 1H3v5c0 1.103.897 2 2 2h14c1.103 0 2-.897 2-2v-5a1 1 0 0 0 1-1v-1.938a1.006 1.006 0 0 0-.072-.455zM5 20V8h14l.001 3.996L19 12v2l.001.005.001 5.995H5z%22/><ellipse cx=%228.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><ellipse cx=%2215.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><path d=%22M8 16h8v2H8z%22/></svg>`;
+
+function _updateFavicon() {
+  let color;
+  if (currentTheme === 'brilliant') {
+    const palColors = _FAVICON_COLORS.brilliant;
+    color = palColors[currentPalette] || palColors.strawberry;
+  } else {
+    color = _FAVICON_COLORS[currentTheme] || _FAVICON_COLORS.dark;
+  }
+  const link = document.getElementById('dynamic-favicon');
+  if (link) link.href = _FAVICON_SVG(color);
+}
+
 function applyPalette(paletteId) {
   currentPalette = paletteId;
   localStorage.setItem('brilliantPalette', paletteId);
@@ -1062,6 +1168,7 @@ function applyPalette(paletteId) {
     btn.textContent = pal ? pal.icon : '🍓';
     btn.title = pal ? pal.label : 'Strawberry';
   }
+  _updateFavicon();
 }
 function cyclePalette() {
   const idx = BRILLIANT_PALETTES.findIndex(p => p.id === currentPalette);
@@ -1071,13 +1178,14 @@ function cyclePalette() {
 }
 function applyTheme(name) {
   currentTheme = name;
-  document.body.classList.remove('light-mode', 'brilliant-mode');
+  document.body.classList.remove('light-mode', 'brilliant-mode', 'hacker-mode');
   BRILLIANT_PALETTES.forEach(p => document.body.classList.remove('palette-' + p.id));
   if (THEMES[name]?.cls) document.body.classList.add(THEMES[name].cls);
   if (name === 'brilliant') applyPalette(currentPalette);
   const icon = $('theme-icon');
   if (icon) icon.className = 'bx ' + (THEMES[name]?.icon || 'bx-moon');
   localStorage.setItem('theme', name);
+  _updateFavicon();
   _adaptLogoBrightness();
   const overlay = $('settings-overlay');
   if (overlay && overlay.classList.contains('open')) renderSettingsTab();
@@ -1257,6 +1365,10 @@ engine.onSessionChange((action, session) => {
     if (sessionMode !== currentMode) {
       currentMode = sessionMode;
       if (modePill && modePill.setValue) modePill.setValue(sessionMode);
+    }
+  } else if (action === 'rename' && session) {
+    if (session.id === activeSessionId) {
+      $('main-title').textContent = session.title;
     }
   } else if (action === 'delete' && session && session.id) {
     fetch('/api/session/' + session.id, { method: 'DELETE' })
@@ -1599,7 +1711,13 @@ async function apiActivateSession(sid) {
     }
   } catch (e) {
     console.warn('Failed to load session history:', e);
-    chatArea.innerHTML = '<div id="welcome" class="welcome"><p>Type a message to start</p></div>';
+    chatArea.innerHTML = `<div class="welcome" style="color:var(--text-3);">
+      <i class="bx bx-wifi-off welcome-icon" style="color:var(--red);font-size:28px;"></i>
+      <div class="welcome-text" style="font-size:13px;">
+        <strong style="color:var(--text);">Cannot reload session.</strong><br>
+        Server may be unavailable. <a href="javascript:location.reload()" style="color:var(--accent);">Refresh the page</a> to reconnect.
+      </div>
+    </div>`;
   } finally {
     setTimeout(() => { if (_activatingSessionLock === sid) _activatingSessionLock = null; }, 500);
   }
@@ -2798,18 +2916,35 @@ function connectSSE() {
 }
 
 let _serverWasDown = false;
+function _setConnectionStatus(offline) {
+  let banner = document.getElementById('conn-status-banner');
+  if (offline) {
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'conn-status-banner';
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:var(--red);color:#fff;text-align:center;padding:4px 8px;font-size:12px;font-weight:500;';
+      banner.innerHTML = '<i class="bx bx-wifi-off" style="vertical-align:middle;margin-right:4px;"></i> Server disconnected. Reconnecting...';
+      document.body.appendChild(banner);
+    }
+  } else if (banner) {
+    banner.remove();
+  }
+}
 function _checkServerHealth() {
   fetch('/api/sessions').then(r => {
     if (r.ok && _serverWasDown) {
       console.log('Server is back — reloading page');
+      _setConnectionStatus(false);
       location.reload();
     } else {
       _serverWasDown = false;
+      _setConnectionStatus(false);
       syncSessions();
       setTimeout(connectSSE, 2000);
     }
   }).catch(() => {
     _serverWasDown = true;
+    _setConnectionStatus(true);
     setTimeout(_checkServerHealth, 3000);
   });
 }
@@ -2828,7 +2963,7 @@ function syncSessions() {
         if (existing.status !== s.status || existing.doneReason !== s.done_reason) {
           engine.setSessionStatus(s.id, s.status, s.done_reason);
         }
-        if (existing.title !== s.title) engine.renameSession(s.id, s.title);
+        if (existing.title !== s.title) engine.renameSession(s.id, s.title, true);
       }
     });
     Object.keys(engine.sessions).forEach(id => {
@@ -2881,7 +3016,7 @@ function handleSSEEvent(evt) {
       break;
 
     case 'session_renamed':
-      engine.renameSession(evt.id, evt.title);
+      engine.renameSession(evt.id, evt.title, true);
       if (evt.id === activeSessionId) {
         $('main-title').textContent = evt.title;
       }

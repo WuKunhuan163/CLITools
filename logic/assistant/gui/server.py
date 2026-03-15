@@ -102,6 +102,7 @@ When receiving a task, **use tools immediately**. Do NOT explore the project fir
 - **Tool discovery**: If the task requires external tools (search videos, fetch data), first use exec(command="TOOL --search tools-deep 'keywords'") to discover tools.
 - **Self-repair**: If a command errors, read the source code to find the cause and fix it.
 - **Follow ALL instructions**: Every specific change the user requests MUST appear in the written code. Before writing, mentally check each request.
+- **Yield when blocked**: If the task requires user input (e.g., which file to edit, what to name something, a choice between options), state what you need clearly, then **end your turn** so the user can respond. Do NOT generate placeholder answers or loop asking yourself.
 
 ## Cost-Efficient Editing (IMPORTANT)
 
@@ -279,6 +280,18 @@ class AgentServer:
                     input_tokens=input_text,
                     output_tokens=output,
                 )
+                usage = evt.get("usage", {})
+                if usage.get("prompt_tokens") or usage.get("completion_tokens"):
+                    self._usage_calls.append({
+                        "timestamp": evt.get("timestamp", 0),
+                        "model": evt.get("model", ""),
+                        "provider": evt.get("provider", ""),
+                        "input_tokens": usage.get("prompt_tokens", 0),
+                        "output_tokens": usage.get("completion_tokens", 0),
+                        "latency_s": evt.get("latency_s", 0),
+                        "ok": not evt.get("error"),
+                        "exchange_rate_cny": 7.25,
+                    })
             elif etype == "tool":
                 name = evt.get("name", "")
                 if name == "read":
