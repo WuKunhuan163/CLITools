@@ -36,6 +36,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..
 
 from tool.LLM.logic.session_context import SessionContext
 
+_LLM_TOOL_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..')
+try:
+    from logic.hooks.engine import HooksEngine
+    _HOOKS_AVAILABLE = True
+except ImportError:
+    _HOOKS_AVAILABLE = False
+
 
 @dataclass
 class AgentEnvironment:
@@ -331,12 +338,31 @@ class ConversationManager:
             from tool.LLM.logic.brain import Brain
             self._brain = Brain()
 
+        self._hooks_engine = None
+        if _HOOKS_AVAILABLE:
+            try:
+                from pathlib import Path
+                self._hooks_engine = HooksEngine(
+                    Path(_LLM_TOOL_DIR).resolve(),
+                    tool_name="LLM")
+            except Exception:
+                pass
+
         if enable_tools:
             self._register_default_tool_handlers()
 
     @property
     def brain(self):
         return self._brain
+
+    def _fire_hook(self, event_name: str, **kwargs):
+        """Fire a hook event if hooks engine is available."""
+        if self._hooks_engine:
+            try:
+                return self._hooks_engine.fire(event_name, **kwargs)
+            except Exception:
+                pass
+        return []
 
     def on_event(self, cb: Callable):
         """Register event callback: ``cb(event_dict)``."""
@@ -592,7 +618,7 @@ class ConversationManager:
                 entries = sorted(os.listdir(path))[:50]
                 content = f"Directory listing of {path}:\n" + "\n".join(entries)
             else:
-                content = open(path, encoding='utf-8', errors='replace').read()[:3000]
+                content = open(path, encoding='utf-8', errors='replace').read()[:12000]
             self._emit({"type": "tool_result", "ok": True, "output": content})
             if env_obj:
                 env_obj.record_result(f"read:{path}", True, content[:200])
@@ -984,11 +1010,25 @@ class ConversationManager:
         except Exception:
             args = {}
 
+        sid = self._current_turn_session_id or ""
+        self._fire_hook("on_pre_tool_use",
+                        session_id=sid, tool_name=name, tool_args=args,
+                        round_num=getattr(self, '_current_round', 0))
+
+        t0 = time.time()
         handler = self._tool_handlers.get(name)
         if handler:
-            return handler(args)
-        self._emit({"type": "text", "tokens": f"Unknown tool: {name}"})
-        return {"ok": False, "output": f"Unknown tool: {name}"}
+            result = handler(args)
+        else:
+            self._emit({"type": "text", "tokens": f"Unknown tool: {name}"})
+            result = {"ok": False, "output": f"Unknown tool: {name}"}
+
+        duration_ms = (time.time() - t0) * 1000
+        self._fire_hook("on_post_tool_use",
+                        session_id=sid, tool_name=name, tool_args=args,
+                        result=result, round_num=getattr(self, '_current_round', 0),
+                        duration_ms=duration_ms)
+        return result
 
     # ── Session Management ──
 
@@ -1010,6 +1050,8 @@ class ConversationManager:
                 self._active_session_id = sid
         self._emit({"type": "session_created", "id": sid, "title": title,
                      "codebase_root": codebase})
+        self._fire_hook("on_session_start",
+                        session_id=sid, codebase_root=codebase, title=title)
         return sid
 
     def rename_session(self, session_id: str, new_title: str):
@@ -1072,9 +1114,21 @@ class ConversationManager:
         if blocking:
             self._run_turn(session_id, text, context_feed, turn_limit)
         else:
-            t = threading.Thread(target=self._run_turn,
-                                 args=(session_id, text, context_feed, turn_limit),
-                                 daemon=True)
+            def _safe_run():
+                try:
+                    self._run_turn(session_id, text, context_feed, turn_limit)
+                except Exception as e:
+                    import traceback, sys
+                    traceback.print_exc(file=sys.stderr)
+                    self._emit({"type": "text",
+                                "tokens": f"\n[Thread exception: {e}]\n"})
+                    self._emit({"type": "complete"})
+                    session = self._sessions.get(session_id)
+                    if session:
+                        session.status = "idle"
+                    self._emit({"type": "session_status",
+                                "id": session_id, "status": "idle"})
+            t = threading.Thread(target=_safe_run, daemon=True)
             t.start()
 
     def _run_turn(self, session_id: str, text: str,
@@ -1088,49 +1142,52 @@ class ConversationManager:
         session.status = "running"
         session.message_count += 1
         self._current_turn_session_id = session_id
+        self._current_round = 0
         self._turn_writes = []
         self._turn_reads: List[str] = []
         self._quality_warnings: Dict[str, List[str]] = {}
         self._file_snapshots: Dict[str, Optional[str]] = {}
         self._emit({"type": "session_status", "id": session_id, "status": "running"})
-
-        # Build user event with prompt + ecosystem context + system state
-        ecosystem = {}
-        system_state = {"nudge_triggered": False}
-        contextual = {}
-        try:
-            from logic.agent.ecosystem import build_ecosystem_info, build_system_state, build_contextual_suggestions
-            _proj = getattr(self, "_project_root", None) or _PROJECT_ROOT
-            ecosystem = build_ecosystem_info(str(_proj))
-            contextual = build_contextual_suggestions(str(_proj), text, top_k=3)
-            system_state = build_system_state(
-                session_env=session.environment,
-                nudge_triggered=False,
-                quality_warnings=self._quality_warnings,
-                last_tool_results=session.environment.last_results if session.environment else None,
-            )
-        except Exception:
-            pass
-        user_evt = {
-            "type": "user",
-            "prompt": text,
-            "ecosystem": ecosystem,
-            "user_rationale": ecosystem.get("user_rationale", ""),
-            "system_state": system_state,
-        }
-        if contextual:
-            user_evt["suggestions"] = contextual
-        self._emit(user_evt)
-
-        if session.context.needs_compression(trigger_ratio=0.6):
-            self._compress_context(session)
-
-        packaged = self._package_message(session, text, context_feed)
-        session.context.add_user(packaged)
-
-        auto_title = session.message_count == 1 and session.title == "New Task"
+        self._fire_hook("on_turn_start",
+                        session_id=session_id, user_text=text,
+                        message_count=session.message_count)
 
         try:
+            # Build user event with prompt + ecosystem context + system state
+            ecosystem = {}
+            system_state = {"nudge_triggered": False}
+            contextual = {}
+            try:
+                from logic.agent.ecosystem import build_ecosystem_info, build_system_state, build_contextual_suggestions
+                _proj = getattr(self, "_project_root", None) or _PROJECT_ROOT
+                ecosystem = build_ecosystem_info(str(_proj))
+                contextual = build_contextual_suggestions(str(_proj), text, top_k=3)
+                system_state = build_system_state(
+                    session_env=session.environment,
+                    nudge_triggered=False,
+                    quality_warnings=self._quality_warnings,
+                    last_tool_results=session.environment.last_results if session.environment else None,
+                )
+            except Exception:
+                pass
+            user_evt = {
+                "type": "user",
+                "prompt": text,
+                "ecosystem": ecosystem,
+                "user_rationale": ecosystem.get("user_rationale", ""),
+                "system_state": system_state,
+            }
+            if contextual:
+                user_evt["suggestions"] = contextual
+            self._emit(user_evt)
+
+            if session.context.needs_compression(trigger_ratio=0.6):
+                self._compress_context(session)
+
+            packaged = self._package_message(session, text, context_feed)
+            session.context.add_user(packaged)
+
+            auto_title = session.message_count == 1 and session.title == "New Task"
             from tool.LLM.logic.registry import get_provider
             provider = get_provider(self._provider_name)
 
@@ -1164,6 +1221,7 @@ class ConversationManager:
 
             _wrapup_nudged = False
             _force_no_tools = False
+            _silent_tool_rounds = 0
 
             while round_num < max_tool_rounds:
                 if self._cancel_requested:
@@ -1171,10 +1229,11 @@ class ConversationManager:
                     self._emit({"type": "text", "tokens": "\n[Task cancelled by user]\n"})
                     break
                 round_num += 1
+                self._current_round = round_num
                 full_text = ""
                 tool_calls_accum = []
 
-                if (turn_limit > 0 and round_num == turn_limit - 1
+                if (turn_limit > 3 and round_num == turn_limit - 1
                         and not _wrapup_nudged):
                     _wrapup_nudged = True
                     session.context.add_user(
@@ -1216,6 +1275,7 @@ class ConversationManager:
                             t = chunk.get("text", "")
                             if t:
                                 full_text += t
+                                self._emit({"type": "text", "tokens": t})
                             tc = chunk.get("tool_calls")
                             if tc:
                                 tool_calls_accum.extend(tc)
@@ -1298,10 +1358,12 @@ class ConversationManager:
 
                 if full_text or tool_calls_accum:
                     consecutive_empty = 0
-                if full_text:
+                if full_text and not use_streaming:
                     self._emit({"type": "text", "tokens": full_text})
 
                 if turn_limit > 0 and not tool_calls_accum and round_num >= turn_limit:
+                    if full_text:
+                        session.context.add_assistant(full_text)
                     self._emit({"type": "notice",
                                 "text": f"Turn limit reached ({round_num}/{turn_limit})",
                                 "icon": "bx-stop-circle"})
@@ -1461,6 +1523,19 @@ class ConversationManager:
                     call_sig = f"{fn.get('name','')}:{fn.get('arguments','')[:200]}"
                     _tool_call_history.append(call_sig)
 
+                if tool_calls_accum and not full_text:
+                    _silent_tool_rounds += 1
+                else:
+                    _silent_tool_rounds = 0
+                if _silent_tool_rounds >= 3:
+                    session.context.add_user(
+                        "[System] You made 3+ rounds of tool calls without "
+                        "any explanatory text. Write a text response describing "
+                        "what you've found so far. What is the current status?")
+                    self._emit({"type": "text",
+                                 "tokens": "[Nudging for text explanation...]\n"})
+                    _silent_tool_rounds = 0
+
                 if len(_tool_call_history) >= 4:
                     recent = _tool_call_history[-4:]
                     unique_recent = set(recent)
@@ -1483,6 +1558,10 @@ class ConversationManager:
 
             self._emit_file_summary()
             self._emit({"type": "complete"})
+            self._fire_hook("on_turn_end",
+                            session_id=session_id, round_count=round_num,
+                            tool_calls_count=len(_tool_call_history),
+                            status="completed")
 
             if auto_title:
                 self._generate_title_async(session_id, text, full_text)
@@ -1491,6 +1570,10 @@ class ConversationManager:
             self._emit({"type": "text", "tokens": f"Exception: {e}"})
             self._emit_file_summary()
             self._emit({"type": "complete"})
+            self._fire_hook("on_turn_end",
+                            session_id=session_id,
+                            round_count=getattr(self, '_current_round', 0),
+                            tool_calls_count=0, status="error")
 
         session.status = "done"
         self._emit({"type": "session_status", "id": session_id, "status": "done"})
@@ -1548,7 +1631,7 @@ class ConversationManager:
         """
         text_lower = text.lower()
 
-        if round_num <= 2 and len(text) < 200:
+        if round_num <= 1 and len(text) < 100:
             return True
 
         code_indicators = ["```", "def ", "class ", "import ",
@@ -1573,6 +1656,15 @@ class ConversationManager:
             "已创建", "已完成", "已修改", "已写入", "创建完毕",
         ]
         already_applied = any(ind in text_lower for ind in applied_indicators)
+
+        summary_indicators = [
+            "summary", "analysis", "conclusion", "finding",
+            "总结", "分析", "结论", "发现", "如果", "会怎样",
+            "依赖链", "接口", "调用关系", "追踪",
+        ]
+        is_summary = any(ind in text_lower for ind in summary_indicators)
+        if is_summary and len(text) > 150:
+            return False
 
         return (has_code or has_action_desc) and not already_applied
 

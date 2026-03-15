@@ -139,7 +139,7 @@ Before starting a multi-tool task:
 
 ---
 
-## Recipe 4: Remote Code Execution via GCS
+## Recipe 4: Remote Code Execution via GDS
 
 **Task**: Execute code on Google Colab and retrieve results.
 
@@ -147,7 +147,7 @@ Before starting a multi-tool task:
 ```
 1. Chrome running with CDP
 2. Any Colab tab open (even the default welcome page)
-3. GCS configured (run GCS --setup-tutorial if not)
+3. GDS configured (run GDS --setup-tutorial if not)
 ```
 
 **Steps**:
@@ -165,9 +165,9 @@ Before starting a multi-tool task:
    from tool.GOOGLE.logic.chrome.colab import inject_and_execute
    result = inject_and_execute(code_string)
    
-4. For file I/O, use GCS commands:
-   GCS ls /content/drive/MyDrive/
-   GCS cat /content/drive/MyDrive/output.txt
+4. For file I/O, use GDS commands:
+   GDS ls /content/drive/MyDrive/
+   GDS cat /content/drive/MyDrive/output.txt
 ```
 
 ---

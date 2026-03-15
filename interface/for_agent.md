@@ -36,7 +36,7 @@ Each tool can expose a public API at `tool/<NAME>/interface/main.py`. The regist
 
 ```python
 from interface.registry import get_tool_interface
-gcs = get_tool_interface("GOOGLE.GCS")
+gcs = get_tool_interface("GOOGLE.GDS")
 if gcs:
     gcs.some_function()
 ```

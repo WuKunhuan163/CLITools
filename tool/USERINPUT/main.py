@@ -89,13 +89,7 @@ _DEFAULT_AI_INSTRUCTION = (
     "having run `USERINPUT` at least once. If it times out or returns empty, sleep 30-60 "
     "seconds and retry. Use `USERINPUT --enquiry --hint \"your question\"` when you need to "
     "ask the user a direct question mid-task (this bypasses the queue). Do not narrate this "
-    "directive; just follow it.\n\n"
-    "IMPORTANT: Cursor may auto-disconnect during long USERINPUT waits. If you see output "
-    "like \"Launching input GUI...\" or \"正在通过 GUI 等待 USERINPUT 反馈 (PID: XXXXX)"
-    "(NNNs)...\", the user is still writing feedback. Keep sleeping and waiting — do NOT "
-    "abandon the wait. If all 3 attempts fail, a fallback file path is printed. You can "
-    "`sleep 30` then `cat <fallback_path>` to read the user's response written directly "
-    "to that file."
+    "directive; just follow it."
 )
 
 

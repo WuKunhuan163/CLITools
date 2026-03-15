@@ -96,7 +96,7 @@ Full Colab integration: notebook CRUD, code execution, file ops, package managem
 **Features**: Persistent Chrome profile, auto OAuth2, session management
 **Auth**: Same OAuth2 as Google Colab VS Code extension
 
-**Verdict**: These could replace the entire GCS browser workflow for code execution, running code on Colab GPUs without any browser interaction after initial auth. However, they may not support arbitrary shell commands or the specific Drive-based sync architecture GCS uses.
+**Verdict**: These could replace the entire GDS browser workflow for code execution, running code on Colab GPUs without any browser interaction after initial auth. However, they may not support arbitrary shell commands or the specific Drive-based sync architecture GDS uses.
 
 ---
 
@@ -129,7 +129,7 @@ Sets up a REST API inside a running Colab instance, allowing remote code executi
 2. Server provides a public URL (via ngrok or similar)
 3. Local code sends POST requests to execute Python remotely
 
-**Verdict**: Requires initial manual setup in Colab but then enables fully programmatic execution. Could be integrated into GCS remount script as an optional feature.
+**Verdict**: Requires initial manual setup in Colab but then enables fully programmatic execution. Could be integrated into GDS remount script as an optional feature.
 
 ---
 
@@ -143,7 +143,7 @@ Direct Google Drive file operations without browser.
 **Tools**: `gdrive_search`, `gdrive_read_file`
 **Auth**: OAuth Desktop App
 
-**Verdict**: Only handles file operations (read, search, list). Cannot execute code on Colab. Could complement GCS for file sync but doesn't solve the execution problem.
+**Verdict**: Only handles file operations (read, search, list). Cannot execute code on Colab. Could complement GDS for file sync but doesn't solve the execution problem.
 
 ## Hands-On CDP Testing Results
 
@@ -222,7 +222,7 @@ session.send_and_recv("Input.dispatchKeyEvent", {
 })
 ```
 
-Original failure cause: The GCS remount script takes 120+ seconds; tests only waited 5 seconds.
+Original failure cause: The GDS remount script takes 120+ seconds; tests only waited 5 seconds.
 
 ### Issue 3: JS Injection / Colab Internal APIs - SOLVED
 
@@ -294,10 +294,10 @@ Both `Input.insertText` (CDP) and `cell.setText()` (JS API) work for setting cod
 
 **Medium-term (Full automation):**
 - Evaluate `mcp-server-colab-exec` or `google-colab-mcp` for headless execution
-- Build CDP-based Colab controller into GCS tool as an interface module
+- Build CDP-based Colab controller into GDS tool as an interface module
 
 **Long-term (Architecture):**
-- Build a Colab REST API server into the GCS remount script
+- Build a Colab REST API server into the GDS remount script
 - Fully programmatic execution without any browser dependency
 
 ## End-to-End Workflow Validation
@@ -355,7 +355,7 @@ runBtn.shadowRoot.querySelector('.cell-execution').className.includes('error')
 
 The original polling approach relied solely on Colab cell CSS state (`running`/`pending`/`error`), which could miss fast completions or read stale output. A hash-based marker was added:
 
-1. `generate_remote_command_script()` now includes `GCS_DONE_<cmd_hash>` in the "Finished" output
+1. `generate_remote_command_script()` now includes `GDS_DONE_<cmd_hash>` in the "Finished" output
 2. `cmd_hash` = MD5(timestamp + command)[:8] — unique per invocation
 3. `inject_and_execute()` accepts `done_marker` parameter and checks cell output for it
 4. **Marker detection takes priority** over CSS state, providing a reliable completion signal
@@ -377,12 +377,12 @@ Failed approaches:
 - OAuth token from `gapi.auth2` — not initialized
 - XHR interceptor — Colab doesn't use standard XHR/fetch for saves
 
-### GCS --cdp Commands
+### GDS --cdp Commands
 
 New CLI commands for CDP management:
 
-- `GCS --cdp status` — Check CDP readiness (Chrome, notebook, Colab tab)
-- `GCS --cdp boot` — Launch debug Chrome, find/create notebook, open Colab tab
+- `GDS --cdp status` — Check CDP readiness (Chrome, notebook, Colab tab)
+- `GDS --cdp boot` — Launch debug Chrome, find/create notebook, open Colab tab
 
 ### Module Updates
 
@@ -391,4 +391,4 @@ New CLI commands for CDP management:
 - `executor.py`: `done_marker` threaded through subprocess chain
 - `executor.py`: Feedback timeout reduced from 300s to 30s
 - TuringStage status strings now translated via `_t()`
-- Removed local GCS --remount hint (remote error already suggests it)
+- Removed local GDS --remount hint (remote error already suggests it)

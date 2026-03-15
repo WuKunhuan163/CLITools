@@ -82,10 +82,10 @@ All tools inherit `handle_command_line(parser, dev_handler, test_handler)`:
 
 ## 5. Sub-Tool Naming
 
-Sub-tools use dot-separated names: `PARENT.CHILD` (e.g., `GOOGLE.GCS`).
-- Directory: `tool/GOOGLE.GCS/`
-- ToolBase name: `ToolBase("GOOGLE.GCS")`
-- Shortcut: `bin/GCS/GCS` (uses the last segment)
+Sub-tools use dot-separated names: `PARENT.CHILD` (e.g., `GOOGLE.GDS`).
+- Directory: `tool/GOOGLE.GDS/`
+- ToolBase name: `ToolBase("GOOGLE.GDS")`
+- Shortcut: `bin/GDS/GDS` (uses the last segment)
 
 ## 6. Cross-Tool Imports
 

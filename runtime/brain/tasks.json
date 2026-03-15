@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "content": "Fix USERINPUT backup error - use report_error() consistently",
+    "status": "done",
+    "created": "2026-03-13T14:55:10",
+    "updated": "2026-03-13T14:55:10",
+    "notes": ""
+  },
+  {
+    "id": 2,
+    "content": "UI: Zhipu logo alpha, Ctrl+Enter send, Enter newline, highlight text",
+    "status": "pending",
+    "created": "2026-03-13T14:55:10",
+    "updated": "2026-03-13T14:55:10",
+    "notes": ""
+  },
+  {
+    "id": 3,
+    "content": "Auto-open browser decorator for --agent/--ask/--plan",
+    "status": "pending",
+    "created": "2026-03-13T14:55:10",
+    "updated": "2026-03-13T14:55:10",
+    "notes": ""
+  },
+  {
+    "id": 4,
+    "content": "Multi-frontend state sync exploration",
+    "status": "pending",
+    "created": "2026-03-13T14:55:10",
+    "updated": "2026-03-13T14:55:10",
+    "notes": ""
+  },
+  {
+    "id": 5,
+    "content": "Design+run 5 agent tests with GLM 4.7",
+    "status": "pending",
+    "created": "2026-03-13T14:55:10",
+    "updated": "2026-03-13T14:55:10",
+    "notes": ""
+  }
+]

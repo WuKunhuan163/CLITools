@@ -1,7 +1,0 @@
-{
-  "name": "QUICKMATH",
-  "version": "0.1.0",
-  "description": "Quick math calculator for basic arithmetic operations",
-  "purpose": "Perform add, subtract, multiply, divide on numbers from the command line.",
-  "dependencies": []
-}

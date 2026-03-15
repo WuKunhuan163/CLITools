@@ -20,7 +20,7 @@ from logic.turing.models.progress import ProgressTuringMachine
 from logic.turing.logic import TuringStage
 
 def _resolve_tool_name(name: str, project_root: Path) -> str:
-    """Resolve a shortcut name (e.g. 'GCS') to the full tool name (e.g. 'GOOGLE.GCS')."""
+    """Resolve a shortcut name (e.g. 'GDS') to the full tool name (e.g. 'GOOGLE.GDS')."""
     tool_dir = project_root / "tool" / name
     if tool_dir.exists() and (tool_dir / "main.py").exists():
         return name

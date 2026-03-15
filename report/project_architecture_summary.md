@@ -91,7 +91,7 @@ Synchronized via `TOOL dev sync` which propagates dev → tool → main → test
 | iCloud | iCloud ecosystem parent |
 | iCloud.iCloudPD | Parallel iCloud photo downloader |
 | GOOGLE | Google ecosystem parent |
-| GOOGLE.GCS | Google Colab/Drive remote controller |
+| GOOGLE.GDS | Google Colab/Drive remote controller |
 | SKILLS | Agent skill management |
 | TAVILY | AI-optimized web search |
 | DUMMY | Template/reference tool |

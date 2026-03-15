@@ -10,7 +10,7 @@ GOOGLE is the **infrastructure layer** of the Google tool hierarchy:
 GOOGLE              Chrome CDP session, input dispatch, OAuth, screenshots
 ├── GOOGLE.GD       Google Drive CRUD (create, delete, list via gapi.client)
 ├── GOOGLE.GC       Google Colab automation (cell inject, execute, tab mgmt)
-└── GOOGLE.GCS      Simulated shell on Colab (highest abstraction)
+└── GOOGLE.GDS      Simulated shell on Colab (highest abstraction)
 ```
 
 ### Chrome CDP Modules (`logic/chrome/`)

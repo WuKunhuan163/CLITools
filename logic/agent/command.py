@@ -36,8 +36,18 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
         _print_help(tool_name, mode)
         return
 
-    subcmd = args[0]
-    rest = args[1:]
+    gui_mode = "--gui" in args or "--live" in args
+    filtered_args = [a for a in args if a not in ("--gui", "--live")]
+
+    subcmd = filtered_args[0] if filtered_args else ""
+    rest = filtered_args[1:]
+
+    if gui_mode and subcmd == "prompt":
+        _handle_prompt_gui(rest, tool_name, project_root, tool_dir, mode=mode)
+        return
+    elif gui_mode and not subcmd:
+        _handle_prompt_gui([], tool_name, project_root, tool_dir, mode=mode)
+        return
 
     if subcmd == "prompt":
         _handle_prompt(rest, tool_name, project_root, tool_dir, mode=mode)
@@ -78,6 +88,8 @@ def _print_help(tool_name: str, mode: str = "agent"):
 
 Usage:
   {tool_name} {flag} prompt "Your task description"
+  {tool_name} {flag} --gui prompt "..."    Open browser GUI with initial prompt
+  {tool_name} {flag} --gui                 Open browser GUI (no initial prompt)
   {tool_name} {flag} feed <SESSION_ID> "Follow-up instruction"
   {tool_name} {flag} status [SESSION_ID]
   {tool_name} {flag} sessions
@@ -86,6 +98,61 @@ Usage:
   {tool_name} {flag} import <archive.tar.gz> [brain_type]
   {tool_name} {flag} brain [list|init <name>|show <name>]
 """.strip())
+
+
+def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
+                       tool_dir: str, mode: str = "agent"):
+    """Start the HTML GUI server and optionally send an initial prompt."""
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    GREEN = get_color("GREEN", "\033[32m")
+    RESET = get_color("RESET", "\033[0m")
+
+    prompt = " ".join(args) if args else None
+    provider = _get_provider_name()
+
+    try:
+        from tool.LLM.logic.gui.agent_server import start_agent_server
+    except ImportError:
+        print(f"  {BOLD}LLM tool not available.{RESET} Install it first.")
+        return
+
+    label = MODE_LABELS.get(mode, "Agent")
+    print(f"  {BOLD}Starting{RESET} {label} GUI (provider: {provider})...")
+
+    agent = start_agent_server(
+        provider_name=provider,
+        port=0,
+        open_browser=True,
+        enable_tools=True,
+        default_codebase=tool_dir or None,
+    )
+
+    print(f"  {BOLD}{GREEN}Live{RESET} at {agent.url}")
+
+    if prompt:
+        import time
+        time.sleep(0.5)
+        try:
+            import urllib.request
+            data = json.dumps({"text": prompt, "turn_limit": 10}).encode()
+            req = urllib.request.Request(
+                f"{agent.url}/api/send",
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=5)
+            print(f"  {BOLD}Sent{RESET} initial prompt.")
+        except Exception:
+            print(f"  Prompt queued — type it in the browser.")
+
+    print(f"  Press Ctrl+C to stop.")
+    try:
+        agent._server.wait()
+    except KeyboardInterrupt:
+        agent.stop()
+        print(f"\n  {BOLD}Stopped.{RESET}")
 
 
 def _get_provider_name() -> str:

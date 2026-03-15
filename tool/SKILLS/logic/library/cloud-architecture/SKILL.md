@@ -22,7 +22,7 @@ API Gateway -> Lambda -> SQS -> Worker Lambda -> Database
 
 ### Data Lake
 ```
-Sources -> Ingestion (Kinesis/Pub-Sub) -> Raw Storage (S3/GCS)
+Sources -> Ingestion (Kinesis/Pub-Sub) -> Raw Storage (S3/GDS)
         -> Transform (Spark/Dataflow) -> Processed Storage
         -> Analytics (Athena/BigQuery) -> Dashboard
 ```

@@ -15,14 +15,14 @@ class TestGoogleBasic(unittest.TestCase):
         self.assertIn("GOOGLE Tool", result.stdout)
 
     def test_install_list(self):
-        """Test sub-tool installation and GCS list."""
+        """Test sub-tool installation and GDS list."""
         # Ensure installed
-        subprocess.run([str(self.google_tool), "--install", "GCS"], capture_output=True)
+        subprocess.run([str(self.google_tool), "--install", "GDS"], capture_output=True)
         
         # Test gcs list
         result = subprocess.run([str(self.google_tool), "gcs", "--list"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
-        self.assertIn("GCS Shells", result.stdout)
+        self.assertIn("GDS Shells", result.stdout)
 
 if __name__ == "__main__":
     unittest.main()

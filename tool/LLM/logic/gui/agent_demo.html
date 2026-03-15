@@ -203,7 +203,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 /* ── Input ── */
 .input-area { padding: 16px 28px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
 .input-row { display: flex; gap: 10px; align-items: flex-end; }
-.input-field { flex: 1; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 11px 16px; color: var(--text); font-family: var(--font); font-size: 14px; outline: none; height: 44px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.input-field { flex: 1; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 11px 16px; color: var(--text); font-family: var(--font); font-size: 14px; outline: none; min-height: 44px; max-height: 160px; line-height: 20px; resize: none; overflow-y: auto; }
 .input-field:focus { border-color: var(--accent); }
 .input-field::placeholder { color: var(--text-3); }
 .btn-send { width: 44px; height: 44px; border: none; border-radius: var(--radius-lg); background: var(--accent); color: white; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -278,8 +278,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 
   <div class="input-area">
     <div class="input-row">
-      <input class="input-field" id="input" type="text" placeholder="Describe your task..." autocomplete="off"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();startDemo()}; if((event.ctrlKey||event.metaKey)&&event.key==='d'){event.preventDefault();startDemo()}">
+      <textarea class="input-field" id="input" placeholder="Describe your task..." rows="1" autocomplete="off"></textarea>
       <button class="btn-send" id="btn-send" onclick="startDemo()"><i class="bx bx-send" style="font-size:20px"></i></button>
     </div>
   </div>

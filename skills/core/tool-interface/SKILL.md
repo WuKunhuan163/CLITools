@@ -30,7 +30,7 @@ GOOGLE.GD                       # Drive operations layer
 GOOGLE.GC                       # Colab operations layer
 └── interface/main.py     # Re-exports from tool.GOOGLE.logic.chrome.colab + oauth
 
-GOOGLE.GCS                      # Simulated shell (highest abstraction)
+GOOGLE.GDS                      # Simulated shell (highest abstraction)
 └── Uses logic/cdp/colab.py     # Backward-compat shim → tool.GOOGLE.logic.chrome
 ```
 

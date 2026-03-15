@@ -93,9 +93,16 @@ class ZhipuGLM47FlashProvider(LLMProvider):
         sdk = _try_import_sdk()
         if sdk and self._api_key:
             try:
-                self._client = sdk.ZhipuAI(api_key=self._api_key)
+                import httpx
+                self._client = sdk.ZhipuAI(
+                    api_key=self._api_key,
+                    timeout=httpx.Timeout(timeout=120.0, connect=10.0),
+                )
             except Exception:
-                self._client = None
+                try:
+                    self._client = sdk.ZhipuAI(api_key=self._api_key)
+                except Exception:
+                    self._client = None
 
     @staticmethod
     def _load_model_json() -> Optional[dict]:
@@ -305,6 +312,11 @@ class ZhipuGLM47FlashProvider(LLMProvider):
 
     def _stream_via_sdk(self, messages, temperature, max_tokens, tools):
         """Stream using the zhipuai SDK."""
+        import queue
+        import threading
+
+        CHUNK_TIMEOUT = 90
+
         try:
             kwargs = {
                 "model": self._model,
@@ -312,14 +324,41 @@ class ZhipuGLM47FlashProvider(LLMProvider):
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 "stream": True,
-                "stream_options": {"include_usage": True},
             }
             if tools:
                 kwargs["tools"] = tools
 
             response = self._client.chat.completions.create(**kwargs)
+
+            q: queue.Queue = queue.Queue()
+            _SENTINEL = object()
+
+            def _reader():
+                try:
+                    for chunk in response:
+                        q.put(chunk)
+                    q.put(_SENTINEL)
+                except Exception as exc:
+                    q.put(exc)
+
+            t = threading.Thread(target=_reader, daemon=True)
+            t.start()
+
             last_usage = {}
-            for chunk in response:
+            while True:
+                try:
+                    item = q.get(timeout=CHUNK_TIMEOUT)
+                except queue.Empty:
+                    yield {"ok": False,
+                           "error": f"Stream timeout ({CHUNK_TIMEOUT}s between chunks)"}
+                    return
+                if item is _SENTINEL:
+                    break
+                if isinstance(item, Exception):
+                    yield {"ok": False, "error": str(item)}
+                    return
+
+                chunk = item
                 if hasattr(chunk, "usage") and chunk.usage:
                     last_usage = {
                         "prompt_tokens": chunk.usage.prompt_tokens,

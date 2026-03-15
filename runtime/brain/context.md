@@ -1,16 +1,26 @@
 # Current Context
 
-**Last updated:** 2026-03-11 17:20
-**Working on:** Cursor IDE hooks system for agent brain + USERINPUT enforcement
-**Next step:** Report completion to user via USERINPUT, get feedback on whether hooks need tuning
+**Last updated:** 2026-03-10
+**Working on:** Layered agent guidelines system (COMPLETED)
+**Next step:** All pending tasks complete. Ready for next user request.
 **Blocked on:** none
 
-## Summary of work done this session
+## Session Summary
 
-1. Researched Cursor hooks API (20 lifecycle events documented)
-2. Created two new Cursor rules: `agent-brain.mdc` (brain read/write) and `userinput-timeout.mdc` (long wait handling)
-3. Created `runtime/brain/` with `tasks.md` and `context.md` for persistent agent context
-4. Created `hooks/interface/AI-IDE/Cursor/` blueprint with full documentation of all events
-5. Created 4 hook instances: `brain_inject.py` (sessionStart), `brain_remind.py` (postToolUse every 10/30), `userinput_flag.py` (afterShellExecution), `userinput_enforce.py` (stop)
-6. Created `.cursor/hooks.json` wiring all hooks together
-7. All hooks tested successfully
+Designed and implemented the layered agent guidelines system:
+
+1. **Architecture** (`logic/agent/guidelines/`):
+   - `engine.py` — `compose_guidelines(layers=[...])` merges base + layer modules
+   - `base/conventions.py` — development norms (experience, exploration, quality, infrastructure)
+   - `base/ecosystem.py` — structural knowledge (architecture, discovery, patterns, commands)
+   - `layers/openclaw.py` — self-improvement loop (Error→Lesson→Skill→Tool→Hook)
+
+2. **Integration**:
+   - `ecosystem.py` auto-detects active layers (checks if `tool/OPENCLAW/` exists)
+   - `brain_inject.py` injects guidelines into Cursor agent at session start
+   - `format_guidelines()` renders guidelines as readable text for LLM context
+
+3. **Design principles**:
+   - Symmetric: both conventions and ecosystem categories are incrementable
+   - Layered: TOOL base + OPENCLAW (or any future layer) stack additively
+   - Located in `logic/` so both TOOL and OPENCLAW can directly import

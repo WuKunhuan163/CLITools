@@ -33,7 +33,7 @@ GOOGLE tabs
 
 ## Authentication Flow
 
-Before using any Google CDMCP tool (GOOGLE.GC, GOOGLE.GD, GOOGLE.GCS), check login state:
+Before using any Google CDMCP tool (GOOGLE.GC, GOOGLE.GD, GOOGLE.GDS), check login state:
 
 ```bash
 GOOGLE auth-status

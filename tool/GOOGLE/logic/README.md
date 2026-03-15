@@ -1,6 +1,6 @@
 # GOOGLE Logic
 
-Parent tool providing Chrome CDP infrastructure, OAuth automation, and Google service access. Acts as the foundation for GOOGLE.GD, GOOGLE.GC, and GOOGLE.GCS.
+Parent tool providing Chrome CDP infrastructure, OAuth automation, and Google service access. Acts as the foundation for GOOGLE.GD, GOOGLE.GC, and GOOGLE.GDS.
 
 ## Structure
 

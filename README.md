@@ -75,7 +75,7 @@ All Chrome-based tools use CDMCP session management with visual effects, auto-lo
 
 | Tool | Description |
 |------|-------------|
-| **GOOGLE.GCS** | Google Drive Remote Controller for Colab. Path expansion (`~`, `@`), file upload, interactive shell, GUI queue. |
+| **GOOGLE.GDS** | Google Drive Remote Controller for Colab. Path expansion (`~`, `@`), file upload, interactive shell, GUI queue. |
 | **iCloudPD** | Parallel iCloud photo/video downloader with date filtering and local library support. |
 
 ### SKILLS Tool

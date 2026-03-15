@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+"""BRAIN — CLI for managing runtime/brain/ task list.
+
+Usage:
+    BRAIN list                     List all tasks
+    BRAIN add "task description"   Add a new task
+    BRAIN done <id>                Mark task as done
+    BRAIN progress <id>            Mark task as in_progress
+    BRAIN verify <id>              Mark task as verify_pending
+    BRAIN delete <id>              Delete a task
+    BRAIN clear-done               Remove all done tasks
+    BRAIN clear-all                Remove all tasks
+    BRAIN migrate                  Migrate old tasks.md format to JSON
+    BRAIN note <id> "note text"    Add/update notes for a task
+"""
+import sys
+from pathlib import Path
+
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from logic.agent.brain_tasks import (
+    add_task, update_task, complete_task, delete_task,
+    clear_done, clear_all, list_tasks, migrate_from_md
+)
+
+try:
+    from interface.config import get_color
+    BOLD = get_color("BOLD")
+    GREEN = get_color("GREEN")
+    RED = get_color("RED")
+    DIM = get_color("DIM")
+    RESET = get_color("RESET")
+except ImportError:
+    BOLD = GREEN = RED = DIM = RESET = ""
+
+ROOT = str(project_root)
+
+STATUS_DISPLAY = {
+    "in_progress": f"{BOLD}IN_PROGRESS{RESET}",
+    "pending": "pending",
+    "done": f"{GREEN}done{RESET}",
+    "verify_pending": f"{BOLD}VERIFY_PENDING{RESET}",
+}
+
+
+def cmd_list():
+    tasks = list_tasks(ROOT)
+    if not tasks:
+        print(f"{BOLD}Brain{RESET}: no tasks.")
+        return
+    active = [t for t in tasks if t["status"] != "done"]
+    done = [t for t in tasks if t["status"] == "done"]
+
+    if active:
+        for t in active:
+            sd = STATUS_DISPLAY.get(t["status"], t["status"])
+            print(f"  #{t['id']:>3}  [{sd}]  {t['content']}")
+            if t.get("notes"):
+                print(f"        {DIM}{t['notes']}{RESET}")
+    if done:
+        if active:
+            print()
+        for t in done[-5:]:
+            print(f"  {DIM}#{t['id']:>3}  [done]  {t['content']}{RESET}")
+    print(f"\n{DIM}{len(active)} active, {len(done)} done{RESET}")
+
+
+def cmd_add(content):
+    t = add_task(ROOT, content)
+    print(f"{BOLD}{GREEN}Added{RESET} #{t['id']}: {content}")
+
+
+def cmd_done(task_id):
+    t = complete_task(ROOT, task_id)
+    if t:
+        print(f"{BOLD}{GREEN}Done{RESET} #{task_id}: {t['content']}")
+    else:
+        print(f"{BOLD}{RED}Not found{RESET}: #{task_id}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_progress(task_id):
+    t = update_task(ROOT, task_id, status="in_progress")
+    if t:
+        print(f"{BOLD}In progress{RESET} #{task_id}: {t['content']}")
+    else:
+        print(f"{BOLD}{RED}Not found{RESET}: #{task_id}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_verify(task_id):
+    t = update_task(ROOT, task_id, status="verify_pending")
+    if t:
+        print(f"{BOLD}Verify pending{RESET} #{task_id}: {t['content']}")
+    else:
+        print(f"{BOLD}{RED}Not found{RESET}: #{task_id}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_delete(task_id):
+    if delete_task(ROOT, task_id):
+        print(f"{BOLD}{GREEN}Deleted{RESET} #{task_id}.")
+    else:
+        print(f"{BOLD}{RED}Not found{RESET}: #{task_id}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_clear_done():
+    n = clear_done(ROOT)
+    print(f"{BOLD}{GREEN}Cleared{RESET} {n} done tasks.")
+
+
+def cmd_clear_all():
+    n = clear_all(ROOT)
+    print(f"{BOLD}{GREEN}Cleared{RESET} {n} tasks (all).")
+
+
+def cmd_note(task_id, note_text):
+    t = update_task(ROOT, task_id, notes=note_text)
+    if t:
+        print(f"{BOLD}Updated{RESET} #{task_id} notes.")
+    else:
+        print(f"{BOLD}{RED}Not found{RESET}: #{task_id}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_migrate():
+    n = migrate_from_md(ROOT)
+    if n:
+        print(f"{BOLD}{GREEN}Migrated{RESET} {n} tasks from tasks.md to tasks.json.")
+    else:
+        print(f"{BOLD}Nothing to migrate{RESET} (tasks.json already exists or tasks.md empty).")
+
+
+def main():
+    args = sys.argv[1:]
+    if not args or args[0] in ("-h", "--help", "help"):
+        print(__doc__)
+        return
+
+    cmd = args[0]
+
+    if cmd == "list":
+        cmd_list()
+    elif cmd == "add" and len(args) >= 2:
+        cmd_add(" ".join(args[1:]))
+    elif cmd == "done" and len(args) >= 2:
+        cmd_done(int(args[1]))
+    elif cmd == "progress" and len(args) >= 2:
+        cmd_progress(int(args[1]))
+    elif cmd == "verify" and len(args) >= 2:
+        cmd_verify(int(args[1]))
+    elif cmd == "delete" and len(args) >= 2:
+        cmd_delete(int(args[1]))
+    elif cmd == "clear-done":
+        cmd_clear_done()
+    elif cmd == "clear-all":
+        cmd_clear_all()
+    elif cmd == "note" and len(args) >= 3:
+        cmd_note(int(args[1]), " ".join(args[2:]))
+    elif cmd == "migrate":
+        cmd_migrate()
+    else:
+        print(f"{BOLD}{RED}Unknown command{RESET}: {cmd}", file=sys.stderr)
+        print(__doc__)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

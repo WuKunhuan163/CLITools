@@ -2,7 +2,7 @@
 
 ## Architecture
 
-GOOGLE is the parent tool for the Google ecosystem. It manages Chrome CDP sessions and provides shared Chrome/auth capabilities used by child tools (GOOGLE.GD, GOOGLE.GC, GOOGLE.GCS).
+GOOGLE is the parent tool for the Google ecosystem. It manages Chrome CDP sessions and provides shared Chrome/auth capabilities used by child tools (GOOGLE.GD, GOOGLE.GC, GOOGLE.GDS).
 
 ## chrome/ Package
 

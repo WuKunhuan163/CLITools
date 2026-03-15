@@ -19,5 +19,5 @@ Scaffold templates for `TOOL --dev create <NAME>`. Each `.tmpl` file is loaded b
 
 ## Placeholders
 
-- `{name}` — full tool name (e.g. `GOOGLE.GCS`)
-- `{short_name}` — last segment for CLI (e.g. `GCS`)
+- `{name}` — full tool name (e.g. `GOOGLE.GDS`)
+- `{short_name}` — last segment for CLI (e.g. `GDS`)

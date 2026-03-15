@@ -98,7 +98,7 @@ def setup_paths(caller_file: "str | Path | None" = None) -> Path:
 def get_tool_module_path(tool_dir: "str | Path", project_root: "str | Path | None" = None) -> str:
     """Return the dotted Python module path for a tool directory.
 
-    Example: ``tool/GOOGLE.GCS`` → ``"tool.GOOGLE.GCS"``
+    Example: ``tool/GOOGLE.GDS`` → ``"tool.GOOGLE.GDS"``
     """
     tool_dir = Path(tool_dir).resolve()
     if project_root is None:

@@ -1,11 +1,8 @@
 # Active Tasks
 
-- [x] Research Cursor hooks API (all lifecycle events)
-- [x] Add USERINPUT timeout handling rule to `.cursor/rules/userinput-timeout.mdc`
-- [x] Add agent brain management rule to `.cursor/rules/agent-brain.mdc`
-- [x] Create runtime brain system at `runtime/brain/` (tasks.md + context.md)
-- [x] Design hooks blueprint at `hooks/interface/AI-IDE/Cursor/`
-- [x] Create hook instances at `hooks/instance/AI-IDE/Cursor/` (brain_inject, brain_remind, userinput_flag, userinput_enforce)
-- [x] Create `.cursor/hooks.json` configuration
-- [x] Test all hook scripts (sessionStart, postToolUse counter, stop enforcement)
-- [ ] **IN_PROGRESS** USERINPUT to report completion and get feedback
+- [ ] #2: UI: Zhipu logo alpha, Ctrl+Enter send, Enter newline, highlight text
+- [ ] #3: Auto-open browser decorator for --agent/--ask/--plan
+- [ ] #4: Multi-frontend state sync exploration
+- [ ] #5: Design+run 5 agent tests with GLM 4.7
+
+- [x] #1: Fix USERINPUT backup error - use report_error() consistently

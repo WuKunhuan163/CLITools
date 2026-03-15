@@ -9,8 +9,8 @@ import json
 import sys
 from pathlib import Path
 
-REMIND_EVERY = 10
-FULL_INJECT_EVERY = 30
+REMIND_EVERY = 5
+FULL_INJECT_EVERY = 15
 
 
 def main():

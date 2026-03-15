@@ -266,7 +266,7 @@ from interface.chrome import CDPSession, CDP_PORT
 from tool.GOOGLE.interface.main import inject_and_execute
 ```
 
-Tools with dots in their name (e.g., `GOOGLE.GCS`, `GOOGLE.GD`) cannot be imported as Python packages. Use their `interface/main.py` for the public API, or import from the parent tool's modules.
+Tools with dots in their name (e.g., `GOOGLE.GDS`, `GOOGLE.GD`) cannot be imported as Python packages. Use their `interface/main.py` for the public API, or import from the parent tool's modules.
 
 ## 9. Key Shared Suites
 
@@ -334,20 +334,20 @@ The GOOGLE tool family follows a layered architecture:
 | Infrastructure | **GOOGLE** | Chrome CDP session, input dispatch, OAuth automation, screenshots |
 | Data | **GOOGLE.GD** | Google Drive CRUD (create, delete, list files via gapi.client) |
 | Compute | **GOOGLE.GC** | Google Colab cell injection, execution, tab management |
-| Application | **GOOGLE.GCS** | Simulated shell on Colab (highest abstraction) |
+| Application | **GOOGLE.GDS** | Simulated shell on Colab (highest abstraction) |
 
-**Import hierarchy**: GCS → GC + GD → GOOGLE. Generic Chrome CDP logic lives in `logic/chrome/session.py` (shared module). Google-specific logic lives in `tool/GOOGLE/logic/chrome/` with four modules:
+**Import hierarchy**: GDS → GC + GD → GOOGLE. Generic Chrome CDP logic lives in `logic/chrome/session.py` (shared module). Google-specific logic lives in `tool/GOOGLE/logic/chrome/` with four modules:
 - `session.py`: Re-exports from shared `logic.chrome.session` (backward compat)
 - `colab.py`: Colab-specific cell injection and execution
 - `drive.py`: Drive file operations via gapi.client
 - `oauth.py`: Google OAuth consent flow automation
 
-### GCS Tool
+### GDS Tool
 Google Drive Remote Controller for Colab:
-- **Commands**: `GCS <command>` executes remotely. `GCS --raw <command>` executes with real-time output AND result capture. `GCS --no-capture <command>` runs without capturing output (for pip install, long tasks). `GCS ls`, `GCS cd`, `GCS pwd`, `GCS upload` for file management. `--setup-tutorial`, `--remount`, `--shell` for special operations.
-- **File Operations**: `GCS read <file> [start] [end]` (line-numbered), `GCS grep <pattern> <file>` (regex search), `GCS linter <file>` (local lint via pyflakes/shellcheck), `GCS edit <file> <json_spec>` (remote text replacement).
-- **Virtual Environments**: `GCS venv --create|--delete|--activate|--deactivate|--list|--current|--protect|--unprotect`. Active venvs inject `PYTHONPATH` into all remote commands automatically.
-- **Background Execution**: `GCS bg <command>` runs long commands (pip install, git clone) in background. Track with `--status`, `--log`, `--result`, `--cleanup`.
+- **Commands**: `GDS <command>` executes remotely. `GDS --raw <command>` executes with real-time output AND result capture. `GDS --no-capture <command>` runs without capturing output (for pip install, long tasks). `GDS ls`, `GDS cd`, `GDS pwd`, `GDS upload` for file management. `--setup-tutorial`, `--remount`, `--shell` for special operations.
+- **File Operations**: `GDS read <file> [start] [end]` (line-numbered), `GDS grep <pattern> <file>` (regex search), `GDS linter <file>` (local lint via pyflakes/shellcheck), `GDS edit <file> <json_spec>` (remote text replacement).
+- **Virtual Environments**: `GDS venv --create|--delete|--activate|--deactivate|--list|--current|--protect|--unprotect`. Active venvs inject `PYTHONPATH` into all remote commands automatically.
+- **Background Execution**: `GDS bg <command>` runs long commands (pip install, git clone) in background. Track with `--status`, `--log`, `--result`, `--cleanup`.
 - **Path Expansion**: `~` (remote root), `@` (remote env). Unquoted symbols expand; quoted symbols preserved. Handled by `utils.expand_remote_paths()`.
 - **Upload**: Size-tiered strategies (base64 < 1MB, Drive Desktop sync 1-10MB, GUI drag-and-drop > 10MB).
 - **Architecture**: Modular `logic/command/` structure. Non-interactive API via isolated tmp scripts. GUI serialization via `GUIQueue` (fcntl locking).

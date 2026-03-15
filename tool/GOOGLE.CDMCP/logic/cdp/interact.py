@@ -135,7 +135,7 @@ def mcp_click(session: CDPSession, selector: str,
         dwell: Seconds to hold the highlight before clicking.
         color: Highlight border color.
         unlock_for_click: If locked, temporarily allow clicks through.
-        tool_name: Name shown in lock label (e.g. "GCS").
+        tool_name: Name shown in lock label (e.g. "GDS").
         require_lock: If True, auto-lock tab before interaction.
 
     Returns dict with 'ok', 'clicked', 'rect', 'element' keys.
@@ -207,7 +207,7 @@ def mcp_type(session: CDPSession, selector: str, text: str,
         manage_passthrough: If True, temporarily enables lock passthrough
             during typing and restores it after. Set False when the
             caller manages passthrough externally.
-        tool_name: Name shown in lock label (e.g. "GCS").
+        tool_name: Name shown in lock label (e.g. "GDS").
         require_lock: If True, auto-lock tab before interaction.
 
     Returns dict with 'ok', 'typed', 'length' keys.

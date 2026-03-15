@@ -16,7 +16,7 @@ def log_turing_error(stage: TuringStage, project_root: Optional[Path],
     If a session_logger is provided, appends to the current session log.
     Otherwise falls back to creating a standalone log_*.log file."""
     
-    full_info = stage.error_full or (str(exception) if exception else "No detailed error message provided.")
+    full_info = stage.error_full or stage.error_brief or (str(exception) if exception else "No detailed error message provided.")
     if isinstance(full_info, dict):
         full_info = json.dumps(full_info, indent=2)
     elif not isinstance(full_info, str):

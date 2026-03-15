@@ -2,7 +2,7 @@
   "name": "GOOGLE",
   "version": "1.0.0",
   "description": "Google Ecosystem Proxy Tool",
-  "purpose": "Provide Chrome CDP infrastructure, OAuth automation, and access to Google services. Parent tool for GOOGLE.GD (Drive), GOOGLE.GC (Colab), and GOOGLE.GCS (Colab Shell).",
+  "purpose": "Provide Chrome CDP infrastructure, OAuth automation, and access to Google services. Parent tool for GOOGLE.GD (Drive), GOOGLE.GC (Colab), and GOOGLE.GDS (Colab Shell).",
   "dependencies": [
     "PYTHON",
     "USERINPUT"

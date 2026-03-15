@@ -1,6 +1,6 @@
 """GOOGLE Tool Interface — Chrome browser automation via CDP.
 
-Provides functions for other tools (e.g. GOOGLE.GCS) to interact with
+Provides functions for other tools (e.g. GOOGLE.GDS) to interact with
 Chrome DevTools Protocol:  session management, tab control, Colab cell
 injection, Google Drive operations, and OAuth automation.
 

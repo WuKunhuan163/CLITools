@@ -31,7 +31,7 @@ Check:
 |-----------|---------|
 | snake_case | `tool_config_manager.py` |
 | kebab-case | `cdmcp-web-exploration/` |
-| UPPER_CASE | `GOOGLE.GCS/` (tool names) |
+| UPPER_CASE | `GOOGLE.GDS/` (tool names) |
 
 Check:
 - Are naming styles mixed at the same level? (e.g., `camelCase` and `snake_case` together)

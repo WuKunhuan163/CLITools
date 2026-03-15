@@ -90,7 +90,7 @@ This is an OpenClaw-level task: multi-step, requires tool orchestration, error r
 
 **OpenClaw**: Heartbeat system checks session health periodically. If something breaks, it auto-recovers.
 
-**AITerminalTools**: `ReconnectionManager` exists for GCS (Drive remount). CDMCP session manager has tab recovery. But these are tool-specific, not systematic.
+**AITerminalTools**: `ReconnectionManager` exists for GDS (Drive remount). CDMCP session manager has tab recovery. But these are tool-specific, not systematic.
 
 **Impact**: If a CDMCP session drops mid-workflow, the agent doesn't have a generic recovery pattern.
 

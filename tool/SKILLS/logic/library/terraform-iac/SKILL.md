@@ -8,7 +8,7 @@ description: Terraform Infrastructure as Code patterns. Use when working with te
 ## Core Principles
 
 - **Declarative**: Define desired state; Terraform determines how to achieve it
-- **State Management**: Remote state (S3, GCS) with locking for team collaboration
+- **State Management**: Remote state (S3, GDS) with locking for team collaboration
 - **Modules**: Reusable infrastructure components
 - **Plan Before Apply**: Always review `terraform plan` before applying
 

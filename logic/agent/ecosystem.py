@@ -34,6 +34,14 @@ def _list_installed_tools(root: Path) -> List[str]:
     return tools
 
 
+def _detect_active_layers(root: Path) -> List[str]:
+    """Detect which guideline layers are active based on project structure."""
+    layers = []
+    if (root / "tool" / "OPENCLAW").is_dir():
+        layers.append("openclaw")
+    return layers
+
+
 def _has_capability(capabilities, attr: str) -> bool:
     """Check if a provider capabilities object has a boolean attribute."""
     return bool(getattr(capabilities, attr, False))
@@ -108,6 +116,17 @@ def build_ecosystem_info(
         "You may be interrupted at any round. Proactively record key findings via experience() so progress is never lost.",
     ]
 
+    # -- Guidelines (layered: base + optional OPENCLAW) --
+    guidelines_text = ""
+    try:
+        from logic.agent.guidelines import compose_guidelines
+        from logic.agent.guidelines.engine import format_guidelines
+        active_layers = _detect_active_layers(root)
+        gl = compose_guidelines(layers=active_layers, project_root=project_root)
+        guidelines_text = format_guidelines(gl)
+    except Exception:
+        pass
+
     # -- User-defined rationale (empty by default; OpenClaw will populate) --
     user_rationale = ""
 
@@ -139,6 +158,7 @@ def build_ecosystem_info(
         "skill_catalog": skill_catalog,
         "recent_lessons": recent_lessons,
         "agent_behaviors": agent_behaviors,
+        "guidelines": guidelines_text,
         "user_rationale": user_rationale,
     }
 
@@ -282,6 +302,9 @@ def format_ecosystem_for_prompt(ecosystem: Dict[str, Any]) -> str:
     elif isinstance(behaviors, dict):
         beh_lines = [f"  - {k}: {v}" for k, v in behaviors.items()]
         parts.append("[Behaviors]\n" + "\n".join(beh_lines))
+
+    if ecosystem.get("guidelines"):
+        parts.append(f"[Guidelines]\n{ecosystem['guidelines']}")
 
     if ecosystem.get("user_rationale"):
         parts.append(f"[User] {ecosystem['user_rationale']}")

@@ -29,10 +29,10 @@ def _colab_tab_exists():
 
 
 def _get_test_folder_id():
-    """Return the env folder ID from GCS config, or fall back to 'root'."""
+    """Return the env folder ID from GDS config, or fall back to 'root'."""
     try:
         import json
-        cfg = Path(_r) / "tool" / "GOOGLE.GCS" / "data" / "config.json"
+        cfg = Path(_r) / "tool" / "GOOGLE.GDS" / "data" / "config.json"
         if cfg.exists():
             data = json.loads(cfg.read_text())
             fid = data.get("env_folder_id", "")

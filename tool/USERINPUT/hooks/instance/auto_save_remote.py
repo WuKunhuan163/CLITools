@@ -114,18 +114,22 @@ class AutoSaveRemote(HookInstance):
                     cwd=str(project_root), capture_output=True, text=True, timeout=15
                 )
                 if res.returncode != 0 and stage:
-                    stage.error_brief = (
+                    brief = (
                         res.stderr.strip().splitlines()[-1]
                         if res.stderr.strip() else "Git commit failed"
                     )
-                    stage.error_full = (
+                    stage.report_error(
+                        brief,
                         f"STDOUT:\n{res.stdout}\n\nSTDERR:\n{res.stderr}"
                     )
                 return res.returncode == 0
             except subprocess.TimeoutExpired:
                 if stage:
-                    stage.error_brief = get_msg(
-                        "msg_commit_timeout", "Commit timed out (15s)"
+                    stage.report_error(
+                        get_msg("msg_commit_timeout",
+                                "Commit timed out (15s)"),
+                        "git commit timed out after 15s. "
+                        "Check for large staged files or index.lock."
                     )
                 return False
 
@@ -146,7 +150,10 @@ class AutoSaveRemote(HookInstance):
                 return res.get("status") in ["success", "skipped"]
             except Exception as e:
                 if stage:
-                    stage.error_brief = f"Maint Error: {e}"
+                    stage.report_error(
+                        f"Maint Error: {type(e).__name__}",
+                        f"{type(e).__name__}: {e}"
+                    )
                 return False
 
         # Stage 3: push to remote
@@ -167,13 +174,14 @@ class AutoSaveRemote(HookInstance):
                             if stderr else "Unknown error"
                         )
                         if stage:
-                            stage.error_brief = (
-                                get_msg("label_failed", "Failed")
-                                + f": {err_line}"
-                            )
-                            stage.error_full = (
+                            full = (
                                 f"STDOUT:\n{stdout.decode(errors='replace')}"
                                 f"\n\nSTDERR:\n{stderr.decode(errors='replace')}"
+                            )
+                            stage.report_error(
+                                get_msg("label_failed", "Failed")
+                                + f": {err_line}",
+                                full
                             )
                     return proc.returncode == 0
                 except subprocess.TimeoutExpired:
@@ -183,14 +191,18 @@ class AutoSaveRemote(HookInstance):
                     except Exception:
                         pass
                     if stage:
-                        stage.error_brief = get_msg(
-                            "msg_push_timeout", "Push timed out (30s)"
+                        stage.report_error(
+                            get_msg("msg_push_timeout",
+                                    "Push timed out (30s)"),
+                            "git push timed out after 30s. "
+                            "Check network connectivity and remote status."
                         )
                     return False
-            except Exception:
+            except Exception as exc:
                 if stage:
-                    stage.error_brief = get_msg(
-                        "msg_push_timeout", "Push timed out (30s)"
+                    stage.report_error(
+                        f"Push error: {type(exc).__name__}",
+                        f"{type(exc).__name__}: {exc}"
                     )
                 return False
 
@@ -219,7 +231,10 @@ class AutoSaveRemote(HookInstance):
                 return True
             except Exception as e:
                 if stage:
-                    stage.error_brief = f"LFS GC: {e}"
+                    stage.report_error(
+                        f"LFS GC: {type(e).__name__}",
+                        f"{type(e).__name__}: {e}"
+                    )
                 return False
 
         from interface.turing import TuringStage

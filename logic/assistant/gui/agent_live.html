@@ -278,7 +278,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 
 /* ── Input ── */
 .input-area { padding: 16px 28px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
-.input-row { display: flex; gap: 10px; align-items: center; }
+.input-row { display: flex; gap: 10px; align-items: flex-end; }
 .input-field {
   flex: 1;
   background: var(--surface-2);
@@ -289,11 +289,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
   font-family: var(--font);
   font-size: 14px;
   outline: none;
-  height: 44px;
+  min-height: 44px;
+  max-height: 160px;
   line-height: 20px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  resize: none;
+  overflow-y: auto;
 }
 .input-field:focus { border-color: var(--accent); }
 .input-field::placeholder { color: var(--text-3); }
@@ -308,7 +308,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .stop-bar-btn:hover { background: var(--red); color: white; }
 .stop-bar-btn i { font-size: 14px; }
 .shortcut-hint { font-size: 10px; color: var(--text-3); text-align: center; padding-top: 6px; }
-.shortcut-hint kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 3px; padding: 1px 4px; font-family: var(--mono); font-size: 9px; }
+.shortcut-hint kbd { background: var(--surface-3); border: 1px solid var(--border); border-radius: 3px; padding: 1px 4px; font-family: var(--mono); font-size: 9px; color: var(--text-2); }
+.shortcut-hint kbd::selection { color: white; }
+.shortcut-hint::selection { color: white; }
 
 /* ── Scroll-to-Bottom ── */
 .scroll-to-bottom { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%) scale(0.8); opacity: 0; pointer-events: none; width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface-2); color: var(--text-2); font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: opacity 0.2s ease, transform 0.2s ease; z-index: 10; }
@@ -382,7 +384,7 @@ body.debug-mode .debug-block { display: block; }
 
 /* ── Model Info Line ── */
 .model-info { display: flex; align-items: center; gap: 7px; padding: 4px 0; margin: 8px 0 2px; font-size: 11.5px; color: var(--text-3); animation: fadeIn 0.2s ease; }
-.model-info img { width: 16px; height: 16px; border-radius: 3px; filter: brightness(0) saturate(100%) invert(22%) sepia(78%) saturate(2000%) hue-rotate(212deg) brightness(100%) contrast(95%); }
+.model-info img { width: 16px; height: 16px; border-radius: 3px; }
 .model-info .model-name { font-weight: 600; color: var(--text-2); }
 .model-info .model-latency { font-family: var(--mono); font-size: 10.5px; }
 .model-info .model-round { font-family: var(--mono); font-size: 10px; color: var(--text-3); }
@@ -486,7 +488,7 @@ body.debug-mode .debug-block { display: block; }
 
   <div class="input-area">
     <div class="input-row">
-      <input class="input-field" id="input" type="text" placeholder="Type a message..." autocomplete="off">
+      <textarea class="input-field" id="input" placeholder="Type a message..." rows="1" autocomplete="off"></textarea>
       <button class="btn-send" id="btn-send" onclick="sendMessage()"><i class="bx bx-send" style="font-size:20px"></i></button>
     </div>
     <div class="input-selectors">
@@ -503,7 +505,7 @@ body.debug-mode .debug-block { display: block; }
         <option value="0">&infin; unlimited</option>
       </select>
       <div class="selector-spacer"></div>
-      <div class="shortcut-hint" style="padding:0"><kbd>Enter</kbd> to send</div>
+      <div class="shortcut-hint" style="padding:0"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to send</div>
     </div>
   </div>
 </main>
@@ -722,14 +724,20 @@ engine.onSessionChange((action, session) => {
 
 /* ── Keyboard Shortcuts ── */
 $('input').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
     sendMessage();
+    return;
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
     e.preventDefault();
     sendMessage();
+    return;
   }
+});
+$('input').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 160) + 'px';
 });
 
 /* ── Send Message ── */
@@ -761,6 +769,7 @@ async function sendMessage() {
   if (taskRunning) {
     _queuedMessage = text;
     input.value = '';
+    input.style.height = 'auto';
     input.placeholder = 'Queued: ' + (text.length > 40 ? text.slice(0, 37) + '...' : text);
     return;
   }
@@ -774,6 +783,7 @@ async function sendMessage() {
 
   sending = true;
   input.value = '';
+  input.style.height = 'auto';
   input.placeholder = 'Type a message...';
 
   try {

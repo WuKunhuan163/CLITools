@@ -63,7 +63,7 @@ def create_notebook(name: str, folder_id: str, port: int = CDP_PORT,
         if gapi_ok != "ok":
             return {"success": False, "error": "gapi.client not available in Colab tab"}
 
-        source_lines = (cell_source or "# GCS Remote Execution Environment").split("\n")
+        source_lines = (cell_source or "# GDS Remote Execution Environment").split("\n")
         source_json = json.dumps([line + "\n" for line in source_lines])
 
         notebook_content = json.dumps({

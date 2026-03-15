@@ -8,7 +8,7 @@ description: Naming conventions for the AITerminalTools project covering tools, 
 ## Tool Names
 
 - **UPPERCASE**: Tool names are always uppercase (e.g. `GOOGLE`, `GMAIL`, `OPENCLAW`).
-- **Dot notation** for sub-tools: `PARENT.CHILD` (e.g. `GOOGLE.GD`, `GOOGLE.GCS`, `iCloud.iCloudPD`).
+- **Dot notation** for sub-tools: `PARENT.CHILD` (e.g. `GOOGLE.GD`, `GOOGLE.GDS`, `iCloud.iCloudPD`).
 - Tool directories: `tool/<NAME>/` matching the tool name exactly.
 
 ## CLI Subcommands
