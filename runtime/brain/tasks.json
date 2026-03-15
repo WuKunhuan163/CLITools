@@ -206,5 +206,77 @@
     "created": "2026-03-13T16:40:00",
     "updated": "2026-03-13T17:08:54",
     "notes": "Also ensure: HTML GUI features always have CLI GUI counterparts (develop skill for this)"
+  },
+  {
+    "id": 27,
+    "content": "Fix USERINPUT hook: visible text output when reminding, test before continuing",
+    "status": "done",
+    "created": "2026-03-13T18:04:42",
+    "updated": "2026-03-13T18:09:34",
+    "notes": ""
+  },
+  {
+    "id": 28,
+    "content": "Create skill: development-after-repeated-failure (test requirement escalation)",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:10:41",
+    "notes": ""
+  },
+  {
+    "id": 29,
+    "content": "Package 按照顺序修复 instruction as USERINPUT skill; determine prompt timing",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:10:41",
+    "notes": ""
+  },
+  {
+    "id": 30,
+    "content": "Design --call-register pre-tool-call hook system with --rounds option",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:13:38",
+    "notes": ""
+  },
+  {
+    "id": 31,
+    "content": "Implement before-tool-call hook in base tool with skills matching",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:13:43",
+    "notes": ""
+  },
+  {
+    "id": 32,
+    "content": "Organize logic/tool/template/ into subdirectories; add report/research/hooks templates",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:15:03",
+    "notes": ""
+  },
+  {
+    "id": 33,
+    "content": "Fix registry aliases: add version numbers (gemini-2.0 not just gemini)",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:15:50",
+    "notes": ""
+  },
+  {
+    "id": 34,
+    "content": "Agent capability testing: 5 progressive tasks with GLM 4.7-flash + Auto fallback",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:36:41",
+    "notes": ""
+  },
+  {
+    "id": 35,
+    "content": "Verify HTML GUI API key save works live for new providers",
+    "status": "pending",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:04:43",
+    "notes": ""
   }
 ]

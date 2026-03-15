@@ -1,8 +1,9 @@
 # Active Tasks
 
+- [ ] #35: Verify HTML GUI API key save works live for new providers
 
-- [x] #22: Debug: Searched '' empty pattern issue - investigate tool call
-- [x] #23: Debug mode: clickable tokens/context links showing detail pages; configurable N rounds retained
-- [x] #24: HTML GUI: vertical scroll only; hide horizontal unless swiping; fix white block in corner
-- [x] #25: Provider report recording: observations/lessons in provider report dirs + runtime experience
-- [x] #26: Verify brain JSON management + quick commands work; update brain skill to instruct agents to copy tasks first
+- [x] #30: Design --call-register pre-tool-call hook system with --rounds option
+- [x] #31: Implement before-tool-call hook in base tool with skills matching
+- [x] #32: Organize logic/tool/template/ into subdirectories; add report/research/hooks templates
+- [x] #33: Fix registry aliases: add version numbers (gemini-2.0 not just gemini)
+- [x] #34: Agent capability testing: 5 progressive tasks with GLM 4.7-flash + Auto fallback

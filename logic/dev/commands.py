@@ -200,14 +200,14 @@ def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Ca
     (tool_dir / "hooks" / "interface").mkdir(parents=True, exist_ok=True)
     (tool_dir / "hooks" / "instance").mkdir(parents=True, exist_ok=True)
     
-    main_content = _load_template("main.py.tmpl", name=tool_name)
+    main_content = _load_template("core/main.py.tmpl", name=tool_name)
     with open(tool_dir / "main.py", 'w') as f: f.write(main_content)
     os.chmod(tool_dir / "main.py", 0o755)
     
-    setup_content = _load_template("setup.py.tmpl", name=tool_name)
+    setup_content = _load_template("core/setup.py.tmpl", name=tool_name)
     with open(tool_dir / "setup.py", 'w') as f: f.write(setup_content)
     
-    tool_json_content = _load_template("tool.json.tmpl", name=tool_name)
+    tool_json_content = _load_template("core/tool.json.tmpl", name=tool_name)
     with open(tool_dir / "tool.json", 'w') as f: f.write(tool_json_content)
     tool_json = json.loads(tool_json_content)
     
@@ -230,30 +230,33 @@ def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Ca
     zh_trans = {"hello": "你好, 世界!"}
     with open(tool_internal / "translation" / "zh.json", 'w') as f: json.dump(zh_trans, f, indent=2)
     
-    test_help_content = _load_template("test_00_help.py.tmpl", name=tool_name, short_name=short_name)
+    test_help_content = _load_template("tests/test_00_help.py.tmpl", name=tool_name, short_name=short_name)
     with open(tool_dir / "test" / "test_00_help.py", 'w') as f: f.write(test_help_content)
 
-    test_basic_content = _load_template("test_01_basic.py.tmpl", name=tool_name, short_name=short_name)
+    test_basic_content = _load_template("tests/test_01_basic.py.tmpl", name=tool_name, short_name=short_name)
     with open(tool_dir / "test" / "test_01_basic.py", 'w') as f: f.write(test_basic_content)
 
-    interface_content = _load_template("interface_main.py.tmpl", name=tool_name)
+    interface_content = _load_template("core/interface_main.py.tmpl", name=tool_name)
     with open(tool_dir / "interface" / "main.py", 'w') as f: f.write(interface_content)
 
-    hook_iface_content = _load_template("hook_interface.py.tmpl", name=tool_name)
+    hook_iface_content = _load_template("hooks/hook_interface.py.tmpl", name=tool_name)
     with open(tool_dir / "hooks" / "interface" / "on_demo_action.py", 'w') as f: f.write(hook_iface_content)
 
-    hook_inst_content = _load_template("hook_instance.py.tmpl", name=tool_name)
+    hook_inst_content = _load_template("hooks/hook_instance.py.tmpl", name=tool_name)
     with open(tool_dir / "hooks" / "instance" / "demo_logger.py", 'w') as f: f.write(hook_inst_content)
 
-    # --- Hooks config ---
     hooks_config = {"enabled": [], "disabled": []}
     with open(tool_dir / "hooks" / "config.json", 'w') as f: json.dump(hooks_config, f, indent=2)
 
-    for_agent_content = _load_template("for_agent.md.tmpl", name=tool_name, short_name=short_name)
+    for_agent_content = _load_template("docs/for_agent.md.tmpl", name=tool_name, short_name=short_name)
     with open(tool_dir / "for_agent.md", 'w') as f: f.write(for_agent_content)
 
-    readme_content = _load_template("tool_readme.md.tmpl", name=tool_name, short_name=short_name)
+    readme_content = _load_template("docs/tool_readme.md.tmpl", name=tool_name, short_name=short_name)
     with open(tool_dir / "README.md", 'w') as f: f.write(readme_content)
+
+    (tool_dir / "data" / "report").mkdir(parents=True, exist_ok=True)
+    report_fa = _load_template("docs/report_for_agent.md.tmpl", tool_name=tool_name)
+    with open(tool_dir / "data" / "report" / "for_agent.md", 'w') as f: f.write(report_fa)
 
     try:
         res = run_git_tool_managed(["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root))

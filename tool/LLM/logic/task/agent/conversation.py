@@ -201,11 +201,13 @@ BUILTIN_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read a file and return its contents.",
+            "description": "Read a file and return its contents. For large files, use start_line/end_line to read specific sections.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "path": {"type": "string", "description": "File path to read"},
+                    "start_line": {"type": "integer", "description": "First line to read (1-based). Omit to start from beginning."},
+                    "end_line": {"type": "integer", "description": "Last line to read (inclusive). Omit to read to end."},
                 },
                 "required": ["path"],
             },
@@ -230,7 +232,7 @@ BUILTIN_TOOLS = [
         "type": "function",
         "function": {
             "name": "search",
-            "description": "Search for files or text patterns in the project.",
+            "description": "Search for text INSIDE files (like grep). Returns matching lines. NOT for listing files — use exec(command=\"find ...\") to list files.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -581,13 +583,13 @@ class ConversationManager:
             )
             output = result.stdout + result.stderr
             ok = result.returncode == 0
-            self._emit({"type": "tool_result", "ok": ok, "output": output[:3000]})
+            self._emit({"type": "tool_result", "ok": ok, "output": output[:6000]})
             if env_obj:
                 env_obj.record_result(cmd, ok, output[:300])
                 if not ok:
                     env_obj.record_error(f"Command failed: {cmd}")
             self._brain.learn_from_result(cmd, ok, output[:500])
-            return {"ok": ok, "output": output[:3000]}
+            return {"ok": ok, "output": output[:6000]}
         except subprocess.TimeoutExpired:
             self._emit({"type": "tool_result", "ok": False, "output": "Command timed out (60s)"})
             if env_obj:
@@ -605,12 +607,16 @@ class ConversationManager:
 
     def _handle_read_file(self, args: dict) -> dict:
         path = args.get("path", "")
+        start_line = args.get("start_line")
+        end_line = args.get("end_line")
         if not os.path.isabs(path):
             path = os.path.join(self._get_cwd(), path)
         if hasattr(self, '_turn_reads'):
             self._turn_reads.append(path)
         basename = os.path.basename(path.rstrip("/"))
         read_desc = f"Read {basename}" if basename else "List directory"
+        if start_line or end_line:
+            read_desc += f" (lines {start_line or 1}-{end_line or 'end'})"
         self._emit({"type": "tool", "name": "read", "desc": read_desc, "cmd": path})
         env_obj = self._get_current_environment()
         try:
@@ -618,7 +624,23 @@ class ConversationManager:
                 entries = sorted(os.listdir(path))[:50]
                 content = f"Directory listing of {path}:\n" + "\n".join(entries)
             else:
-                content = open(path, encoding='utf-8', errors='replace').read()[:12000]
+                raw = open(path, encoding='utf-8', errors='replace').read()
+                lines = raw.splitlines(keepends=True)
+                total_lines = len(lines)
+                if start_line or end_line:
+                    s = max(1, start_line or 1) - 1
+                    e = min(total_lines, end_line or total_lines)
+                    selected = lines[s:e]
+                    numbered = [f"{s+i+1:>4}| {line}" for i, line in enumerate(selected)]
+                    content = "".join(numbered)
+                    if len(content) > 15000:
+                        content = content[:15000] + f"\n... (truncated, showing lines {s+1}-{e} of {total_lines})"
+                    else:
+                        content += f"\n[Lines {s+1}-{e} of {total_lines} total]"
+                else:
+                    content = raw[:12000]
+                    if len(raw) > 12000:
+                        content += f"\n\n... (truncated at 12000 chars, total {len(raw)} chars, {total_lines} lines. Use start_line/end_line to read specific sections.)"
             self._emit({"type": "tool_result", "ok": True, "output": content})
             if env_obj:
                 env_obj.record_result(f"read:{path}", True, content[:200])
@@ -1480,8 +1502,9 @@ class ConversationManager:
                             "to create/update files, or exec to run commands. "
                             "Take action NOW — call a tool.")
                         session.context.add_user(retry_prompt)
-                        self._emit({"type": "text",
-                                     "tokens": "[Empty response, retrying...]\n"})
+                        self._emit({"type": "debug",
+                                     "text": f"Empty response retry {empty_retries}/{max_empty_retries}"})
+                        round_num -= 1
                         continue
                     break
 

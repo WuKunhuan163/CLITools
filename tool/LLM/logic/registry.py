@@ -77,20 +77,22 @@ def list_models() -> List[Dict[str, Any]]:
 
 _ALIASES = {
     "nvidia_glm47": "nvidia-glm-4-7b",
+    "nvidia-glm-4.7b": "nvidia-glm-4-7b",
     "zhipu_glm4": "zhipu-glm-4-flash",
     "zhipu_glm47": "zhipu-glm-4.7",
     "zhipu_glm47_flash": "zhipu-glm-4.7-flash",
     "glm-4-flash": "zhipu-glm-4-flash",
     "glm-4.7": "zhipu-glm-4.7",
     "glm-4.7-flash": "zhipu-glm-4.7-flash",
-    "gemini": "google-gemini-2.0-flash",
+    "gemini-2.0-flash": "google-gemini-2.0-flash",
+    "gemini-2.0": "google-gemini-2.0-flash",
     "gemini-flash": "google-gemini-2.0-flash",
-    "ernie": "baidu-ernie-speed-8k",
+    "ernie-speed-8k": "baidu-ernie-speed-8k",
     "ernie-speed": "baidu-ernie-speed-8k",
-    "hunyuan": "tencent-hunyuan-lite",
     "hunyuan-lite": "tencent-hunyuan-lite",
-    "siliconflow": "siliconflow-qwen2.5-7b",
-    "qwen": "siliconflow-qwen2.5-7b",
+    "qwen2.5-7b": "siliconflow-qwen2.5-7b",
+    "qwen-2.5-7b": "siliconflow-qwen2.5-7b",
+    "siliconflow-qwen": "siliconflow-qwen2.5-7b",
     "auto": "auto",
 }
 

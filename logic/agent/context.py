@@ -36,26 +36,56 @@ def build_directory_listing(cwd: str, limit: int = 30) -> str:
         return ""
 
 
+REMINDER_SCHEDULE = {
+    "tool_ecosystem": 3,
+    "memory_refresh": 5,
+    "quality_guidelines": 5,
+}
+
+
+def _build_tool_ecosystem_reminder() -> str:
+    """Periodic reminder of the tool ecosystem."""
+    return (
+        "[Ecosystem reminder] "
+        "This project uses AITerminalTools. Tool name = command (GIT, PYTHON, etc.). "
+        "Discover tools: exec 'TOOL --search tools \"keyword\"'. "
+        "Load skills: exec 'SKILLS show <name>'. "
+        "Read docs: read_file('tool/<NAME>/for_agent.md')."
+    )
+
+
+def _build_quality_reminder() -> str:
+    """Periodic quality guidelines reminder."""
+    return (
+        "[Quality reminder] "
+        "After writing/editing, verify with read_file. "
+        "Use edit_file for targeted changes (not full rewrite). "
+        "If stuck after 3 failed attempts, try a different strategy or ask_user."
+    )
+
+
 def build_context(session: AgentSession, user_text: str,
                   tier: int = 1,
                   context_feed: Optional[Dict[str, Any]] = None,
                   project_root: str = "") -> str:
     """Package user text with system context for the LLM.
 
-    Args:
-        session: Current agent session.
-        user_text: The user's message.
-        tier: Context richness (0=minimal, 1=standard, 2=full).
-        context_feed: Additional context hints.
-        project_root: Project root for brain/experience file loading.
+    Context is tiered by richness:
+      Tier 0: Command output only (for AI IDEs with their own context).
+      Tier 1: + directory listing + error hints + tool discovery.
+      Tier 2: + skills injection + quality checks + periodic reminders.
 
-    Returns:
-        Packaged message string.
+    Reminder schedule for feed rounds (message_count > 1):
+      Every feed:    runtime header, environment, original task, read-before-write
+      Every 3 feeds: tool ecosystem reminder
+      Every 5 feeds: memory refresh, quality guidelines
+      First only:    full soul + bootstrap context
     """
     parts = []
     cwd = session.codebase_root
+    msg_num = session.message_count
 
-    if tier >= 2 and session.message_count <= 1 and project_root:
+    if tier >= 2 and msg_num <= 1 and project_root:
         try:
             from logic.agent.brain import inject_bootstrap_context
             brain_type = getattr(session, "brain_type", "default") or "default"
@@ -65,7 +95,7 @@ def build_context(session: AgentSession, user_text: str,
         except Exception:
             pass
 
-    if tier >= 1 and session.message_count <= 1:
+    if tier >= 1 and msg_num <= 1:
         parts.append(build_runtime_header(cwd))
         parts.append(
             f"[Working directory] {cwd}\n"
@@ -74,7 +104,7 @@ def build_context(session: AgentSession, user_text: str,
         if listing:
             parts.append(listing)
 
-    if tier >= 1 and session.message_count > 1:
+    if tier >= 1 and msg_num > 1:
         parts.append(build_runtime_header(cwd))
         original_prompt = getattr(session, "initial_prompt", "")
         if original_prompt:
@@ -86,6 +116,23 @@ def build_context(session: AgentSession, user_text: str,
                 f"[IMPORTANT] Before modifying any file, you MUST "
                 f"read_file first. Use absolute paths when the task "
                 f"references files outside your working directory. {listing}")
+
+    if tier >= 2 and msg_num > 1:
+        if msg_num % REMINDER_SCHEDULE["tool_ecosystem"] == 0:
+            parts.append(_build_tool_ecosystem_reminder())
+
+        if msg_num % REMINDER_SCHEDULE["memory_refresh"] == 0 and project_root:
+            try:
+                from logic.agent.brain import inject_memory_only
+                memory_block = inject_memory_only(project_root,
+                    getattr(session, "brain_type", "default") or "default")
+                if memory_block.strip():
+                    parts.append(f"[Memory refresh]\n{memory_block}")
+            except (ImportError, Exception):
+                pass
+
+        if msg_num % REMINDER_SCHEDULE["quality_guidelines"] == 0:
+            parts.append(_build_quality_reminder())
 
     if tier >= 1:
         env_block = session.environment.serialize()

@@ -19,5 +19,11 @@
   },
   "cost": {
     "free_tier": true
+  },
+  "benchmarks": {
+    "arena_elo": 1155,
+    "arena_rank": 50,
+    "source": "lmsys-chatbot-arena",
+    "updated": "2026-03"
   }
 }

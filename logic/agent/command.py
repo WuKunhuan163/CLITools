@@ -37,7 +37,8 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
         return
 
     gui_mode = "--gui" in args or "--live" in args
-    filtered_args = [a for a in args if a not in ("--gui", "--live")]
+    dry_run = "--dry-run" in args
+    filtered_args = [a for a in args if a not in ("--gui", "--live", "--dry-run")]
 
     subcmd = filtered_args[0] if filtered_args else ""
     rest = filtered_args[1:]
@@ -50,9 +51,11 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
         return
 
     if subcmd == "prompt":
-        _handle_prompt(rest, tool_name, project_root, tool_dir, mode=mode)
+        _handle_prompt(rest, tool_name, project_root, tool_dir, mode=mode,
+                       dry_run=dry_run)
     elif subcmd == "feed":
-        _handle_feed(rest, tool_name, project_root, tool_dir, mode=mode)
+        _handle_feed(rest, tool_name, project_root, tool_dir, mode=mode,
+                     dry_run=dry_run)
     elif subcmd == "status":
         _handle_status(rest, project_root)
     elif subcmd == "sessions":
@@ -88,9 +91,11 @@ def _print_help(tool_name: str, mode: str = "agent"):
 
 Usage:
   {tool_name} {flag} prompt "Your task description"
-  {tool_name} {flag} --gui prompt "..."    Open browser GUI with initial prompt
-  {tool_name} {flag} --gui                 Open browser GUI (no initial prompt)
+  {tool_name} {flag} --dry-run prompt "..."  Show full prompt without calling LLM
+  {tool_name} {flag} --gui prompt "..."      Open browser GUI with initial prompt
+  {tool_name} {flag} --gui                   Open browser GUI (no initial prompt)
   {tool_name} {flag} feed <SESSION_ID> "Follow-up instruction"
+  {tool_name} {flag} --dry-run feed <SID> "..."  Show feed prompt without calling LLM
   {tool_name} {flag} status [SESSION_ID]
   {tool_name} {flag} sessions
   {tool_name} {flag} setup
@@ -284,7 +289,8 @@ def _get_system_prompt(tool_name: str, lang: str = "en",
 
 
 def _handle_prompt(args: list, tool_name: str, project_root: str,
-                   tool_dir: str, mode: str = "agent"):
+                   tool_dir: str, mode: str = "agent",
+                   dry_run: bool = False):
     """Start a new session with an initial prompt."""
     if not args:
         flag = f"--{mode}"
@@ -307,9 +313,15 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
     from logic.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
     DIM = get_color("DIM", "\033[2m")
+    YELLOW = get_color("YELLOW", "\033[33m")
     RESET = get_color("RESET", "\033[0m")
 
     label = MODE_LABELS.get(mode, "Agent")
+
+    if dry_run:
+        return _print_dry_run(
+            session, prompt, tool_name, project_root, mode, provider)
+
     print(f"  {BOLD}{label} session started.{RESET} {DIM}{session.id}{RESET}")
     if mode in ("ask", "plan"):
         print(f"  {DIM}Read-only mode: file modifications disabled.{RESET}")
@@ -341,7 +353,8 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
 
 
 def _handle_feed(args: list, tool_name: str, project_root: str,
-                 tool_dir: str, mode: str = "agent"):
+                 tool_dir: str, mode: str = "agent",
+                 dry_run: bool = False):
     """Send a follow-up to an existing session."""
     if len(args) < 2:
         flag = f"--{mode}"
@@ -358,6 +371,10 @@ def _handle_feed(args: list, tool_name: str, project_root: str,
 
     session_mode = getattr(session, 'mode', mode)
     provider = session.provider_name or _get_provider_name()
+
+    if dry_run:
+        return _print_dry_run(
+            session, text, tool_name, project_root, session_mode, provider)
 
     events = []
     def emit(evt):
@@ -516,6 +533,55 @@ def _handle_brain(args: list, project_root: str):
     else:
         print(f"Unknown brain subcommand: {args[0]}")
         print("Usage: --agent brain [list|init <name>|show <name>]")
+
+
+def _print_dry_run(session: AgentSession, user_text: str,
+                   tool_name: str, project_root: str,
+                   mode: str, provider_name: str):
+    """Display the full prompt that would be sent to the LLM, without executing."""
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    DIM = get_color("DIM", "\033[2m")
+    YELLOW = get_color("YELLOW", "\033[33m")
+    CYAN = get_color("CYAN", "\033[36m")
+    RESET = get_color("RESET", "\033[0m")
+
+    system_prompt = _get_system_prompt(tool_name, mode=mode)
+    from logic.agent.context import build_context
+    packaged = build_context(
+        session, user_text, tier=session.tier or 2,
+        project_root=project_root)
+
+    label = MODE_LABELS.get(mode, "Agent")
+    is_new = session.message_count <= 0
+
+    print(f"\n  {YELLOW}{BOLD}[DRY RUN]{RESET} {label} mode | Provider: {provider_name}")
+    print(f"  {DIM}Session: {session.id} | "
+          f"{'New session' if is_new else f'Existing ({session.message_count} msgs)'} | "
+          f"CWD: {session.codebase_root}{RESET}")
+    print()
+
+    print(f"  {CYAN}{BOLD}═══ SYSTEM PROMPT ({len(system_prompt)} chars) ═══{RESET}")
+    for line in system_prompt.split("\n"):
+        print(f"  {DIM}{line}{RESET}")
+    print()
+
+    print(f"  {CYAN}{BOLD}═══ USER MESSAGE ({len(packaged)} chars) ═══{RESET}")
+    for line in packaged.split("\n"):
+        print(f"  {line}")
+    print()
+
+    from logic.agent.tools import get_tool_defs_for_mode
+    tools = get_tool_defs_for_mode(mode)
+    tool_names = [t["function"]["name"] for t in tools if "function" in t]
+    print(f"  {CYAN}{BOLD}═══ TOOLS ({len(tool_names)}) ═══{RESET}")
+    for name in tool_names:
+        print(f"  {DIM}- {name}{RESET}")
+
+    total_chars = len(system_prompt) + len(packaged)
+    est_tokens = total_chars // 4
+    print(f"\n  {DIM}Estimated input: ~{est_tokens} tokens ({total_chars} chars){RESET}")
+    print(f"  {YELLOW}{BOLD}No LLM call was made.{RESET}")
 
 
 def _print_event(evt: dict):

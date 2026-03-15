@@ -40,5 +40,11 @@
     "min_interval_s": 2.0,
     "jitter_s": 1.0,
     "large_context_delay_s": 10.0
+  },
+  "benchmarks": {
+    "arena_elo": 1147,
+    "arena_rank": 55,
+    "source": "lmsys-chatbot-arena",
+    "updated": "2026-03"
   }
 }

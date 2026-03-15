@@ -88,6 +88,16 @@ def load_recent_daily(project_root: str, brain_type: str = "default",
     return result
 
 
+def inject_memory_only(project_root: str, brain_type: str = "default") -> str:
+    """Load just the MEMORY.md file for periodic refresh during feed rounds."""
+    d = get_experience_dir(project_root, brain_type)
+    fpath = d / "MEMORY.md"
+    if fpath.exists():
+        content = fpath.read_text(encoding="utf-8", errors="replace")
+        return content[:MAX_FILE_CHARS]
+    return ""
+
+
 def inject_bootstrap_context(project_root: str, brain_type: str = "default") -> str:
     """Build the injected context block from bootstrap + recent daily notes."""
     parts = []

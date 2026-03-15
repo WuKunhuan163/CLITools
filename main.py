@@ -671,6 +671,10 @@ def _tool_search_handler(search_args):
             print(f"     {content}")
 
 
+# Root ToolBase instance for hooks, call-register, agent, skills infrastructure
+from logic.tool.blueprint.base import ToolBase as _ToolBase
+_root_tool = _ToolBase("TOOL", is_root=True)
+
 # Maps --flag to handler function
 _TOOL_FLAG_HANDLERS = {
     "--dev": lambda args: _tool_dev_handler(args),
@@ -685,6 +689,14 @@ _TOOL_FLAG_HANDLERS = {
     "--lang": lambda args: _tool_lang_handler(args),
     "--rule": lambda args: _tool_rule_handler(args),
     "--search": lambda args: _tool_search_handler(args),
+    "--hooks": lambda args: _root_tool._handle_hooks_command(args),
+    "--call-register": lambda args: _root_tool._handle_call_register(args),
+    "--agent": lambda args: _root_tool._handle_agent(args),
+    "--ask": lambda args: _root_tool._handle_agent(args, mode="ask"),
+    "--plan": lambda args: _root_tool._handle_agent(args, mode="plan"),
+    "--session": lambda args: _root_tool._handle_session(args),
+    "--setup": lambda args: _root_tool.run_setup(),
+    "--skills": lambda args: _root_tool._handle_skills_command(args),
 }
 
 
@@ -702,9 +714,17 @@ def _print_tool_help():
     print(f"  --lang <sub>             Language management (audit, list)")
     print(f"  --audit <sub>            Code quality audits (imports, quality, code)")
     print(f"  --rule <sub>             AI rule management (create, inject)")
-    print(f"  --search <sub> <query>  Semantic search (tools, interfaces, skills, lessons, discoveries, all)")
+    print(f"  --search <sub> <query>   Semantic search (tools, interfaces, skills, lessons, discoveries, all)")
     print(f"  --dev <sub>              Developer commands")
     print(f"  --test <sub>             Run tests")
+    print(f"  --agent <prompt>         Start agent session (whole project as codespace)")
+    print(f"  --ask <prompt>           Agent in ask mode (read-only)")
+    print(f"  --plan <prompt>          Agent in plan mode")
+    print(f"  --session <sub>          Manage agent sessions")
+    print(f"  --hooks <sub>            Manage tool hooks")
+    print(f"  --call-register <desc>   Register tool call with semantic description")
+    print(f"  --skills <sub>           Search and manage skills")
+    print(f"  --setup                  Run root setup wizard")
     print(f"\nUse TOOL --<command> --help for details on each command.")
 
 
@@ -718,19 +738,14 @@ def main():
         _print_tool_help()
         return
 
-    for flag, handler in _TOOL_FLAG_HANDLERS.items():
-        if flag in stripped_argv:
-            idx = stripped_argv.index(flag)
-            handler(stripped_argv[idx + 1:])
-            return
+    primary = stripped_argv[0]
+    canon = primary if primary.startswith("--") else f"--{primary.lstrip('-')}"
 
-    bare_cmd = stripped_argv[0].lstrip("-")
-    dashed = f"--{bare_cmd}"
-    if dashed in _TOOL_FLAG_HANDLERS:
-        _TOOL_FLAG_HANDLERS[dashed](stripped_argv[1:])
+    if canon in _TOOL_FLAG_HANDLERS:
+        _TOOL_FLAG_HANDLERS[canon](stripped_argv[1:])
         return
 
-    user_cmd = stripped_argv[0]
+    user_cmd = primary
     from interface.utils import suggest_commands
     flags = list(_TOOL_FLAG_HANDLERS.keys())
     bare_names = [f.lstrip("-") for f in flags]
@@ -738,9 +753,9 @@ def main():
     matches = suggest_commands(user_cmd, candidates, n=3, cutoff=0.5)
     normalized = []
     for m in matches:
-        canon = f"--{m}" if not m.startswith("-") else m
-        if canon not in normalized:
-            normalized.append(canon)
+        c = f"--{m}" if not m.startswith("-") else m
+        if c not in normalized:
+            normalized.append(c)
     from interface.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
     DIM = get_color("DIM", "\033[2m")

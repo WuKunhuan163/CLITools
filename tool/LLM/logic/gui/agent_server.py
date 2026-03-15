@@ -45,7 +45,7 @@ _SYSTEM_PROMPTS = {
 2. **write_file(path=..., content=...)** — 创建新文件或完全覆盖。content必须是完整文件。
 3. **edit_file(path=..., old_text=..., new_text=...)** — 修改已有文件中的某段文本。先用read_file查看，然后精确替换。推荐用于修复bug和小改动。
 4. **read_file(path=...)** — 读取文件内容。
-5. **search(pattern=...)** — 在项目中搜索文本/代码。
+5. **search(pattern=..., path=...)** — 在文件内容中搜索文本（grep风格）。注意：这不是文件列表工具。要列出文件，请用 exec(command="find <dir> -name '*.py'")。
 6. **todo(action=..., items=...)** — 管理任务列表。
 7. **ask_user(question=...)** — 向用户提问获取反馈。
 
@@ -78,9 +78,19 @@ _SYSTEM_PROMPTS = {
 - 使用Google Fonts或优质字体族
 
 ## 文件修改规则
-- **修改已有文件**：优先使用edit_file(old_text, new_text)进行精确替换。先read_file查看内容。
+- **修改已有文件**：优先使用edit_file(old_text, new_text)进行精确替换。先read_file查看内容，然后复制要修改的精确片段作为old_text。
 - **创建新文件**：使用write_file，content必须是完整的、可运行的代码。
 - write_file的content永远是完整文件，不要只写片段。
+- **大文件**：如果read_file被截断，使用start_line/end_line参数读取特定部分。不要反复重读同一个文件。
+
+### edit_file示例
+假设文件中有：
+```python
+def hello():
+    print("hello")
+```
+要添加参数，调用：edit_file(path="file.py", old_text='def hello():\\n    print("hello")', new_text='def hello(name):\\n    print(f"hello {name}")')
+要在函数后添加新函数：edit_file(path="file.py", old_text='    print("hello")', new_text='    print("hello")\\n\\ndef goodbye():\\n    print("bye")')
 
 ## 调试规则
 - 测试失败时，先确定bug在测试还是实现中。选定一侧修改，不要两边同时改。
@@ -110,7 +120,7 @@ You are an autonomous AI Agent. You can independently plan, execute, and verify 
 2. **write_file(path=..., content=...)** — Create new files or fully overwrite. Content must be the complete file.
 3. **edit_file(path=..., old_text=..., new_text=...)** — Modify a specific part of an existing file. First read_file to see current content, then replace the exact text. Recommended for bug fixes and small modifications.
 4. **read_file(path=...)** — Read file contents.
-5. **search(pattern=...)** — Search for text/code in the project.
+5. **search(pattern=..., path=...)** — Search for text INSIDE files (grep-style). NOT for listing files. To list files, use exec(command="find <dir> -name '*.py'").
 6. **todo(action=..., items=...)** — Manage a task list.
 7. **ask_user(question=...)** — Ask the user a question for feedback.
 
@@ -148,9 +158,19 @@ When writing code:
 - Add necessary imports
 
 ## File Modification Rules
-- **Modify existing files**: Prefer edit_file(old_text, new_text) for targeted changes. First read_file to see current content.
+- **Modify existing files**: Prefer edit_file(old_text, new_text) for targeted changes. First read_file to see current content, then copy the exact snippet to modify as old_text.
 - **Create new files**: Use write_file with COMPLETE, runnable code.
 - write_file content is always the full file, never a fragment.
+- **Large files**: If read_file is truncated, use start_line/end_line params to read specific sections. Do NOT re-read the same file repeatedly.
+
+### edit_file Example
+If the file contains:
+```python
+def hello():
+    print("hello")
+```
+To add a parameter: edit_file(path="file.py", old_text='def hello():\\n    print("hello")', new_text='def hello(name):\\n    print(f"hello {name}")')
+To append a new function: edit_file(path="file.py", old_text='    print("hello")', new_text='    print("hello")\\n\\ndef goodbye():\\n    print("bye")')
 
 ## Debugging Rules
 - When tests fail, first determine whether the bug is in the test or the implementation. Pick ONE side to fix, don't oscillate between both.
@@ -229,6 +249,8 @@ class AgentServer:
                 sid = path.split("/api/history/")[1].strip("/")
                 events = self._event_history.get(sid, [])
                 return {"ok": True, "events": events}
+            elif path == "/api/configured_models":
+                return self._get_configured_models()
             return {"ok": False, "error": "Unknown endpoint"}
 
         if method == "POST":
@@ -389,6 +411,28 @@ class AgentServer:
             })
         self._push_sse(evt)
 
+    def _get_configured_models(self) -> dict:
+        """Return models that have at least one configured+available provider."""
+        try:
+            from tool.LLM.logic.registry import list_models, list_providers as list_reg_providers
+            available_providers = set()
+            for p in list_reg_providers():
+                if p.get("available"):
+                    available_providers.add(p.get("name", ""))
+
+            configured = [{"value": "auto", "label": "Auto"}]
+            for m in list_models():
+                mid = m["model"]
+                provs = m.get("providers", [])
+                if any(p in available_providers for p in provs):
+                    configured.append({
+                        "value": mid,
+                        "label": m.get("display_name", mid),
+                    })
+            return {"ok": True, "models": configured}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def _get_usage_data(self) -> dict:
         """Aggregate usage data for Settings panel."""
         models = {}
@@ -402,18 +446,26 @@ class AgentServer:
             model_json_path = os.path.join(
                 os.path.dirname(__file__), "..", "models",
                 mid.replace("-", "_").replace(".", "_"), "model.json")
+            cost_info = {}
+            bench_info = {}
             free_tier = False
             if os.path.exists(model_json_path):
                 try:
                     with open(model_json_path) as f:
                         mj = json.load(f)
-                    free_tier = mj.get("cost", {}).get("free_tier", False)
+                    cost_info = mj.get("cost", {})
+                    bench_info = mj.get("benchmarks", {})
+                    free_tier = cost_info.get("free_tier", False)
                 except Exception:
                     pass
             models[mid] = {
                 "display_name": m.get("display_name", mid),
                 "providers": m.get("providers", []),
                 "free_tier": free_tier,
+                "input_price": cost_info.get("input_per_1m", cost_info.get("input_per_1k", 0) * 1000),
+                "output_price": cost_info.get("output_per_1m", cost_info.get("output_per_1k", 0) * 1000),
+                "currency": cost_info.get("currency", "USD"),
+                "benchmarks": bench_info,
                 "total_calls": 0, "input_tokens": 0, "output_tokens": 0, "total_cost": 0,
             }
 

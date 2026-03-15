@@ -7,8 +7,9 @@ import json
 class ToolBase:
     """Base class for all tools to handle dependencies, common utilities, and exception logging."""
     
-    def __init__(self, tool_name):
+    def __init__(self, tool_name, is_root=False):
         self.tool_name = tool_name
+        self.is_root = is_root
         self.no_warning = "--no-warning" in sys.argv
 
         import inspect
@@ -17,36 +18,35 @@ class ToolBase:
         from logic.resolve import setup_paths, get_tool_module_path
         self.project_root = setup_paths(caller_file)
 
-        curr = caller_file.parent
-        self.tool_dir = curr
-        while curr != curr.parent and curr != self.project_root.parent:
-            if (curr / "tool.json").exists():
-                self.tool_dir = curr
-                break
-            curr = curr.parent
+        if is_root:
+            self.tool_dir = self.project_root
+        else:
+            curr = caller_file.parent
+            self.tool_dir = curr
+            while curr != curr.parent and curr != self.project_root.parent:
+                if (curr / "tool.json").exists():
+                    self.tool_dir = curr
+                    break
+                curr = curr.parent
 
         self.script_dir = self.tool_dir
         self.tool_module_path = get_tool_module_path(self.tool_dir, self.project_root)
             
         self.tool_json_path = self.tool_dir / "tool.json"
         self.dependencies = []
-        self._load_metadata()
+        if not is_root:
+            self._load_metadata()
         
-        # Load tool-specific config for CPU limits
         self._cpu_limit = None
         self._cpu_timeout = None
         self._load_tool_config()
         
-        # Hooks engine (lazy-loaded on first use)
         self._hooks_engine = None
 
-        # Auto-reexecute with correct python if PYTHON is a dependency
-        # Must happen BEFORE setting sys.argv[0], since execve uses it
-        if "PYTHON" in self.dependencies:
+        if not is_root and "PYTHON" in self.dependencies:
             from logic.utils import check_and_reexecute_with_python
             check_and_reexecute_with_python(self.tool_name)
 
-        # Set argv[0] so argparse shows the tool name in usage text
         sys.argv[0] = self.tool_name
 
     def _load_tool_config(self):
@@ -318,6 +318,11 @@ class ToolBase:
         hooks_args = _extract_flag_args("--hooks")
         if hooks_args is not None:
             self._handle_hooks_command(hooks_args)
+            return True
+
+        call_reg_args = _extract_flag_args("--call-register")
+        if call_reg_args is not None:
+            self._handle_call_register(call_reg_args)
             return True
 
         if len(sys.argv) > 1:
@@ -592,6 +597,133 @@ class ToolBase:
             return
 
         print(f"Usage: {self.tool_name} skills [list | show <name> | search <query>]")
+
+    def _handle_call_register(self, args):
+        """Handle --call-register: register an upcoming tool call with semantic description.
+
+        This fires the before_tool_call hook, which triggers skills matching.
+        Usage: TOOL_NAME --call-register "description of what I'm about to do"
+               TOOL_NAME --call-register --rounds 5  (grant 5 subsequent calls without re-registering)
+               TOOL_NAME --call-register --status     (show current registration status)
+               TOOL_NAME --call-register --off         (disable call-register requirement)
+               TOOL_NAME --call-register --on          (enable call-register requirement)
+        """
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        DIM = get_color("DIM", "\033[2m")
+        GREEN = get_color("GREEN", "\033[32m")
+        RESET = get_color("RESET", "\033[0m")
+
+        reg_file = Path("/tmp") / f"call-register-{self.tool_name}"
+
+        if "--off" in args:
+            config_file = self.get_data_dir() / "config.json"
+            cfg = {}
+            if config_file.exists():
+                try:
+                    cfg = json.loads(config_file.read_text())
+                except Exception:
+                    pass
+            cfg["call_register_enabled"] = False
+            config_file.write_text(json.dumps(cfg, indent=2))
+            print(f"  {BOLD}Call-register disabled.{RESET}")
+            return
+
+        if "--on" in args:
+            config_file = self.get_data_dir() / "config.json"
+            cfg = {}
+            if config_file.exists():
+                try:
+                    cfg = json.loads(config_file.read_text())
+                except Exception:
+                    pass
+            cfg["call_register_enabled"] = True
+            config_file.write_text(json.dumps(cfg, indent=2))
+            print(f"  {BOLD}Call-register enabled.{RESET}")
+            return
+
+        if "--status" in args:
+            remaining = 0
+            if reg_file.exists():
+                try:
+                    data = json.loads(reg_file.read_text())
+                    remaining = data.get("remaining", 0)
+                except Exception:
+                    pass
+            print(f"  {BOLD}Call-register{RESET} {DIM}remaining calls: {remaining}{RESET}")
+            return
+
+        rounds = 1
+        description_parts = []
+        i = 0
+        while i < len(args):
+            if args[i] == "--rounds" and i + 1 < len(args):
+                try:
+                    rounds = int(args[i + 1])
+                except ValueError:
+                    pass
+                i += 2
+            elif not args[i].startswith("--"):
+                description_parts.append(args[i])
+                i += 1
+            else:
+                i += 1
+
+        description = " ".join(description_parts)
+        if not description:
+            print(f"  Usage: {self.tool_name} --call-register \"description\" [--rounds N]")
+            return
+
+        reg_data = {"remaining": rounds, "description": description}
+        reg_file.write_text(json.dumps(reg_data))
+
+        results = self.fire_hook("before_tool_call",
+                                 command=description,
+                                 description=description)
+
+        matched_skills = []
+        for r in results:
+            if isinstance(r, dict) and r.get("matched_skills"):
+                matched_skills.extend(r["matched_skills"])
+
+        print(f"  {BOLD}{GREEN}Registered.{RESET} {DIM}{rounds} call(s) granted.{RESET}")
+        if matched_skills:
+            print(f"  {BOLD}Relevant skills:{RESET}")
+            for s in matched_skills[:5]:
+                print(f"    - {s['name']}: {DIM}{s['description'][:80]}{RESET}")
+            print(f"  {DIM}Load with: SKILLS show <name>{RESET}")
+        else:
+            print(f"  {DIM}No matching skills found.{RESET}")
+
+    def check_call_register(self) -> bool:
+        """Check if --call-register is required and has remaining calls.
+
+        Returns True if the tool can proceed, False if --call-register is needed first.
+        """
+        config_file = self.get_data_dir() / "config.json"
+        enabled = True
+        if config_file.exists():
+            try:
+                cfg = json.loads(config_file.read_text())
+                enabled = cfg.get("call_register_enabled", True)
+            except Exception:
+                pass
+        if not enabled:
+            return True
+
+        reg_file = Path("/tmp") / f"call-register-{self.tool_name}"
+        if not reg_file.exists():
+            return False
+        try:
+            data = json.loads(reg_file.read_text())
+            remaining = data.get("remaining", 0)
+            if remaining <= 0:
+                return False
+            data["remaining"] = remaining - 1
+            reg_file.write_text(json.dumps(data))
+            return True
+        except Exception:
+            return False
 
     def _handle_hooks_command(self, args):
         """Handle 'TOOLNAME hooks [list|show <name>|enable <name>|disable <name>]'."""

@@ -7,6 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 :root {
   --bg: #0f1117;
@@ -57,8 +58,30 @@ body.light-mode {
   --purple: #7c3aed;
   --purple-dim: rgba(124,58,237,0.06);
 }
+body.brilliant-mode {
+  --bg: #0a0e1a;
+  --surface: #111827;
+  --surface-2: #1e2640;
+  --surface-3: #283350;
+  --border: #2d3a5c;
+  --border-active: #4a5a8a;
+  --text: #e8ecf7;
+  --text-2: #9ca8c8;
+  --text-3: #6b7aa0;
+  --accent: #6c5ce7;
+  --accent-dim: rgba(108,92,231,0.18);
+  --green: #00e676;
+  --green-dim: rgba(0,230,118,0.12);
+  --orange: #ffab00;
+  --orange-dim: rgba(255,171,0,0.12);
+  --red: #ff5252;
+  --red-dim: rgba(255,82,82,0.12);
+  --purple: #b388ff;
+  --purple-dim: rgba(179,136,255,0.12);
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: var(--font); background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; user-select: none; -webkit-user-select: none; }
+.messages, .messages *, .input-field, textarea, input[type="text"], pre, code, .msg-text, .tool-result-content { user-select: text; -webkit-user-select: text; }
 
 /* ── Sidebar ── */
 .sidebar { width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
@@ -93,13 +116,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .settings-overlay.open { display: flex; }
 .settings-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 860px; max-width: 92vw; height: 580px; max-height: 85vh; box-shadow: 0 12px 48px rgba(0,0,0,0.5); display: flex; overflow: hidden; }
 .settings-sidebar { width: 180px; border-right: 1px solid var(--border); padding: 16px 0; flex-shrink: 0; display: flex; flex-direction: column; }
-.settings-sidebar-title { font-size: 13px; font-weight: 700; padding: 0 16px 12px; color: var(--text); letter-spacing: 0.3px; }
+.settings-sidebar-title { font-size: 13px; font-weight: 700; padding: 0 16px 12px; color: var(--text); letter-spacing: 0.3px; display: flex; align-items: center; gap: 8px; }
 .settings-tab { padding: 9px 16px; font-size: 13px; cursor: pointer; color: var(--text-2); display: flex; align-items: center; gap: 8px; transition: all var(--transition); }
 .settings-tab:hover { background: rgba(255,255,255,0.04); color: var(--text); }
 .settings-tab.active { background: var(--accent-dim); color: var(--accent); font-weight: 600; border-right: 2px solid var(--accent); }
 .settings-tab i { font-size: 16px; }
 .settings-content { flex: 1; overflow-y: auto; padding: 20px 24px; min-width: 0; }
-.settings-close { position: absolute; top: 12px; right: 16px; border: none; background: none; color: var(--text-3); cursor: pointer; font-size: 20px; padding: 4px; border-radius: 4px; z-index: 1; }
+.settings-close { border: none; background: none; color: var(--text-3); cursor: pointer; font-size: 18px; padding: 2px 4px; border-radius: 4px; flex-shrink: 0; }
 .settings-close:hover { color: var(--text); background: rgba(255,255,255,0.06); }
 
 /* ── Settings Section Styles ── */
@@ -130,6 +153,18 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .settings-add-key { margin-top: 6px; }
 .settings-add-key-btn { background: none; border: 1px dashed var(--border); color: var(--text-3); font-size: 11px; padding: 4px 10px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
 .settings-add-key-btn:hover { border-color: var(--accent); color: var(--accent); }
+.sub-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 3000; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.15s ease; }
+.sub-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); width: 360px; max-height: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); display: flex; flex-direction: column; overflow: hidden; }
+.sub-panel-header { padding: 12px 16px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.sub-panel-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+.sub-panel-item { padding: 8px 16px; font-size: 12px; display: flex; align-items: center; gap: 8px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.sub-panel-item.selected { background: var(--accent-dim); }
+.sub-panel-actions { padding: 8px; border-top: 1px solid var(--border); display: flex; gap: 4px; justify-content: center; }
+.sub-panel-actions button { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; color: var(--text-2); font-size: 11px; padding: 4px 10px; cursor: pointer; }
+.sub-panel-actions button:hover { border-color: var(--accent); color: var(--accent); }
+.sub-panel-search { padding: 6px 12px; border-bottom: 1px solid var(--border); }
+.sub-panel-search input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; color: var(--text); font-size: 11px; font-family: var(--font); outline: none; }
+.sub-panel-search input:focus { border-color: var(--accent); }
 .settings-key-form { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .settings-key-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-size: 12px; font-family: var(--mono); color: var(--text-1); outline: none; }
 .settings-key-input:focus { border-color: var(--accent); }
@@ -189,7 +224,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .msg-group { display: flex; flex-direction: column; animation: fadeIn 0.3s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 .msg-user { align-self: flex-end; max-width: 65%; background: var(--accent); color: white; padding: 10px 16px; border-radius: 18px 18px 4px 18px; font-size: 14px; line-height: 1.55; margin-bottom: 8px; word-break: break-word; overflow-wrap: break-word; }
-.msg-text { padding: 12px 0 4px 0; font-size: 14px; line-height: 1.7; color: var(--text); max-width: 90%; }
+.msg-text { padding: 12px 0 4px 0; font-size: 14px; line-height: 1.7; color: var(--text); max-width: 90%; word-break: break-word; overflow-wrap: break-word; }
 .msg-text .md-h1 { font-size: 20px; font-weight: 600; margin: 16px 0 8px; color: var(--text); line-height: 1.3; }
 .msg-text .md-h2 { font-size: 17px; font-weight: 600; margin: 14px 0 6px; color: var(--text); line-height: 1.3; }
 .msg-text .md-h3 { font-size: 15px; font-weight: 600; margin: 12px 0 4px; color: var(--text-2); line-height: 1.3; }
@@ -240,7 +275,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .tool-icon.edit { background: var(--orange-dim); color: var(--orange); font-size: 13px; }
 .tool-icon.search { background: var(--orange-dim); color: var(--orange); }
 .tool-icon.think { background: var(--purple-dim); color: var(--purple); }
-.tool-desc { color: var(--text); font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tool-desc { color: var(--text); font-size: 12.5px; font-weight: 500; overflow-wrap: anywhere; word-break: break-word; }
 .tool-cmd-inline { color: var(--text-3); font-family: var(--mono); font-size: 11.5px; font-weight: 400; margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
 .tool-label { color: var(--text-3); font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.3px; flex-shrink: 0; }
 .diff-stats { font-family: var(--mono); font-size: 11.5px; font-weight: 500; margin-left: auto; flex-shrink: 0; display: flex; gap: 6px; }
@@ -394,7 +429,7 @@ body.debug-mode .debug-block { display: block; }
 
 /* ── Model Info Line ── */
 .model-info { display: flex; align-items: center; gap: 7px; padding: 4px 0; margin: 8px 0 2px; font-size: 11.5px; color: var(--text-3); animation: fadeIn 0.2s ease; white-space: nowrap; flex-wrap: nowrap; overflow: hidden; }
-.model-info img { width: 16px; height: 16px; border-radius: 3px; opacity: 1 !important; filter: brightness(1.5) contrast(1.2); }
+.model-info img { width: 16px; height: 16px; border-radius: 3px; opacity: 1 !important; }
 .model-info .model-name { font-weight: 600; color: var(--text-2); }
 .model-info .model-latency { font-family: var(--mono); font-size: 10.5px; }
 .model-info .model-round { font-family: var(--mono); font-size: 10px; color: var(--text-3); }
@@ -421,15 +456,20 @@ body.debug-mode .debug-block { display: block; }
 .pill-select { position: relative; display: inline-flex; }
 .pill-btn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font-size: 12px; font-family: var(--font); cursor: pointer; outline: none; white-space: nowrap; transition: all var(--transition); }
 .pill-btn:hover { border-color: var(--text-3); color: var(--text); }
-.pill-btn img { width: 14px; height: 14px; border-radius: 3px; opacity: 1 !important; filter: brightness(1.5) contrast(1.2); }
+.pill-btn img { width: 14px; height: 14px; border-radius: 3px; opacity: 1 !important; }
 .pill-btn i { font-size: 14px; }
 .pill-btn .pill-chevron { font-size: 10px; color: var(--text-3); margin-left: 2px; }
-.pill-menu { display: none; position: absolute; bottom: calc(100% + 4px); left: 0; min-width: 160px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 100; overflow: hidden; animation: fadeIn 0.15s ease; }
-.pill-menu.open { display: block; }
+.pill-menu { display: none; position: absolute; bottom: calc(100% + 4px); left: 0; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 100; overflow: hidden; animation: fadeIn 0.15s ease; }
+.pill-menu.open { display: flex; flex-direction: column; }
+.pill-menu-items { overflow-y: auto; max-height: 280px; }
+.pill-menu-search { border-top: 1px solid var(--border); padding: 6px 8px; }
+.pill-menu-search input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; color: var(--text); font-size: 11px; font-family: var(--font); outline: none; }
+.pill-menu-search input:focus { border-color: var(--accent); }
+.pill-menu-search input::placeholder { color: var(--text-3); }
 .pill-option { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: background 0.1s; }
 .pill-option:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 .pill-option.active { color: var(--accent); }
-.pill-option img { width: 14px; height: 14px; border-radius: 3px; opacity: 1 !important; filter: brightness(1.5) contrast(1.2); }
+.pill-option img { width: 14px; height: 14px; border-radius: 3px; opacity: 1 !important; }
 .pill-option i.bx { font-size: 15px; }
 
 /* ── Ask User ── */
@@ -473,8 +513,8 @@ body.debug-mode .debug-block { display: block; }
   <div class="main-header">
     <div class="main-title" id="main-title">New Task</div>
     <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-      <div class="debug-toggle" id="theme-toggle" onclick="toggleTheme()" title="Switch between dark and light mode">
-        <i class="bx bx-sun" id="theme-icon" style="font-size:14px;"></i>
+      <div class="debug-toggle" id="theme-toggle" onclick="cycleTheme()" title="Cycle color mode">
+        <i class="bx bx-moon" id="theme-icon" style="font-size:14px;"></i>
       </div>
       <div class="debug-toggle" id="debug-toggle" onclick="toggleDebug()" title="Show raw LLM events and system feeds">
         <span>Debug</span>
@@ -512,7 +552,7 @@ body.debug-mode .debug-block { display: block; }
 
   <div class="input-area">
     <div class="input-row">
-      <textarea class="input-field" id="input" placeholder="Type a message..." rows="1" autocomplete="off"></textarea>
+      <textarea class="input-field" id="input" placeholder="Type a message. Ctrl+Enter to send." rows="1" autocomplete="off"></textarea>
       <button class="btn-send" id="btn-send" onclick="sendMessage()"><i class="bx bx-send" style="font-size:20px"></i></button>
     </div>
     <div class="input-selectors">
@@ -529,7 +569,7 @@ body.debug-mode .debug-block { display: block; }
         <option value="0">&infin; unlimited</option>
       </select>
       <div class="selector-spacer"></div>
-      <div class="shortcut-hint" style="padding:0"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to send</div>
+      <!-- shortcut hint moved to placeholder -->
     </div>
   </div>
 </main>
@@ -537,9 +577,8 @@ body.debug-mode .debug-block { display: block; }
 <!-- Settings Overlay -->
 <div class="settings-overlay" id="settings-overlay" onclick="if(event.target===this)closeSettings()">
   <div class="settings-panel" style="position:relative">
-    <button class="settings-close" onclick="closeSettings()"><i class="bx bx-x"></i></button>
     <div class="settings-sidebar">
-      <div class="settings-sidebar-title">Settings</div>
+      <div class="settings-sidebar-title"><button class="settings-close" onclick="closeSettings()"><i class="bx bx-x"></i></button> Settings</div>
       <div class="settings-tab active" data-tab="general" onclick="switchSettingsTab('general')"><i class="bx bx-cog"></i> General</div>
       <div class="settings-tab" data-tab="models" onclick="switchSettingsTab('models')"><i class="bx bx-chip"></i> Models</div>
       <div class="settings-tab" data-tab="providers" onclick="switchSettingsTab('providers')"><i class="bx bx-server"></i> Providers</div>
@@ -560,16 +599,27 @@ let currentMode = 'agent';
 let currentModel = 'zhipu-glm-4.7-flash';
 let currentTurnLimit = 10;
 
-const ZHIPU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/zhipu.svg';
-const GOOGLE_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/gemini.svg';
-const BAIDU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/wenxin.svg';
-const TENCENT_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/hunyuan.svg';
-const SILICONFLOW_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/siliconcloud.svg';
+const ZHIPU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/zhipu-color.svg';
+const GOOGLE_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/gemini-color.svg';
+const BAIDU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/wenxin-color.svg';
+const TENCENT_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/hunyuan-color.svg';
+const SILICONFLOW_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/siliconcloud-color.svg';
+const _ICON = n => `https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/${n}-color.svg`;
+const PROVIDER_LOGOS = {
+  zhipu: _ICON('zhipu'),
+  google: _ICON('google'),
+  baidu: _ICON('baidu'),
+  tencent: _ICON('tencent'),
+  siliconflow: _ICON('siliconcloud'),
+  nvidia: _ICON('nvidia'),
+  alibaba: _ICON('alibaba'),
+  qwen: _ICON('qwen'),
+};
 const MODEL_LOGOS = {
   'zhipu-glm-4.7-flash': ZHIPU_LOGO,
   'zhipu-glm-4-flash': ZHIPU_LOGO,
   'zhipu-glm-4.7': ZHIPU_LOGO,
-  'nvidia-glm-4-7b': 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/nvidia.svg',
+  'nvidia-glm-4-7b': 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/nvidia-color.svg',
   'google-gemini-2.0-flash': GOOGLE_LOGO,
   'baidu-ernie-speed-8k': BAIDU_LOGO,
   'tencent-hunyuan-lite': TENCENT_LOGO,
@@ -606,28 +656,37 @@ const MODEL_OPTIONS = [
   return a.label.localeCompare(b.label);
 });
 
-function buildPillSelect(container, options, currentValue, onChange) {
-  function render() {
+function buildPillSelect(container, options, currentValue, onChange, opts = {}) {
+  const searchable = opts.searchable !== false && options.length > 5;
+  function render(filter) {
     const current = options.find(o => o.value === currentValue) || options[0];
     let iconHtml;
-    if (current.logo) {
-      iconHtml = `<img src="${current.logo}" alt="">`;
-    } else if (current.icon) {
-      iconHtml = `<i class="bx ${current.icon}"></i>`;
-    } else {
-      iconHtml = '';
-    }
+    if (current.logo) iconHtml = `<img src="${current.logo}" alt="">`;
+    else if (current.icon) iconHtml = `<i class="bx ${current.icon}"></i>`;
+    else iconHtml = '';
+
+    const filtered = filter
+      ? options.filter(o => o.label.toLowerCase().includes(filter.toLowerCase()))
+      : options;
+
+    const itemsHtml = filtered.map(o => {
+      let oIcon;
+      if (o.logo) oIcon = `<img src="${o.logo}" alt="">`;
+      else if (o.icon) oIcon = `<i class="bx ${o.icon}"></i>`;
+      else oIcon = '';
+      return `<div class="pill-option${o.value === currentValue ? ' active' : ''}" data-value="${esc(o.value)}">${oIcon} ${esc(o.label)}</div>`;
+    }).join('');
+
+    const searchHtml = searchable
+      ? `<div class="pill-menu-search"><input type="text" placeholder="Search..." value="${esc(filter || '')}"></div>`
+      : '';
+
     container.innerHTML = `<button class="pill-btn">${iconHtml} ${esc(current.label)}<i class="bx bx-chevron-down pill-chevron"></i></button>`
-      + `<div class="pill-menu">${options.map(o => {
-        let oIcon;
-        if (o.logo) oIcon = `<img src="${o.logo}" alt="">`;
-        else if (o.icon) oIcon = `<i class="bx ${o.icon}"></i>`;
-        else oIcon = '';
-        return `<div class="pill-option${o.value === currentValue ? ' active' : ''}" data-value="${esc(o.value)}">${oIcon} ${esc(o.label)}</div>`;
-      }).join('')}</div>`;
+      + `<div class="pill-menu"><div class="pill-menu-items">${itemsHtml}</div>${searchHtml}</div>`;
+
     const btn = container.querySelector('.pill-btn');
     const menu = container.querySelector('.pill-menu');
-    btn.onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
+    btn.onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); const si = menu.querySelector('.pill-menu-search input'); if (si) setTimeout(() => si.focus(), 50); };
     container.querySelectorAll('.pill-option').forEach(opt => {
       opt.onclick = (e) => {
         e.stopPropagation();
@@ -637,13 +696,24 @@ function buildPillSelect(container, options, currentValue, onChange) {
         render();
       };
     });
+    const searchInput = menu.querySelector('.pill-menu-search input');
+    if (searchInput) {
+      searchInput.onclick = (e) => e.stopPropagation();
+      searchInput.oninput = (e) => {
+        const wasOpen = menu.classList.contains('open');
+        render(e.target.value);
+        if (wasOpen) container.querySelector('.pill-menu').classList.add('open');
+        const ni = container.querySelector('.pill-menu-search input');
+        if (ni) { ni.focus(); ni.selectionStart = ni.selectionEnd = ni.value.length; }
+      };
+    }
   }
   render();
   document.addEventListener('click', () => {
     const m = container.querySelector('.pill-menu');
     if (m) m.classList.remove('open');
   });
-  return { setValue(v) { currentValue = v; render(); } };
+  return { setValue(v) { currentValue = v; render(); }, setOptions(newOpts) { options = newOpts; render(); } };
 }
 
 function setMode(mode) {
@@ -689,24 +759,31 @@ function toggleDebug() {
   engine.setDebugMode(debugMode, createDebugBlock);
 }
 
-function toggleTheme() {
-  lightMode = !lightMode;
-  document.body.classList.toggle('light-mode', lightMode);
+const THEMES = {
+  dark:      { label: 'Dark',      icon: 'bx-moon',    cls: '' },
+  light:     { label: 'Light',     icon: 'bx-sun',     cls: 'light-mode' },
+  brilliant: { label: 'Brilliant', icon: 'bx-palette',  cls: 'brilliant-mode' },
+};
+let currentTheme = localStorage.getItem('theme') || 'dark';
+if (!THEMES[currentTheme]) currentTheme = 'dark';
+
+function applyTheme(name) {
+  currentTheme = name;
+  document.body.classList.remove('light-mode', 'brilliant-mode');
+  if (THEMES[name]?.cls) document.body.classList.add(THEMES[name].cls);
   const icon = $('theme-icon');
-  if (icon) icon.className = lightMode ? 'bx bx-moon' : 'bx bx-sun';
-  const toggle = $('theme-toggle');
-  if (toggle) toggle.classList.toggle('active', lightMode);
-  localStorage.setItem('theme', lightMode ? 'light' : 'dark');
+  if (icon) icon.className = 'bx ' + (THEMES[name]?.icon || 'bx-moon');
+  localStorage.setItem('theme', name);
 }
 
-(function initTheme() {
-  if (lightMode) {
-    const icon = document.getElementById('theme-icon');
-    if (icon) icon.className = 'bx bx-moon';
-    const toggle = document.getElementById('theme-toggle');
-    if (toggle) toggle.classList.add('active');
-  }
-})();
+function cycleTheme() {
+  const keys = Object.keys(THEMES);
+  const next = keys[(keys.indexOf(currentTheme) + 1) % keys.length];
+  applyTheme(next);
+  if (settingsTab === 'general') renderSettingsTab();
+}
+
+(function initTheme() { applyTheme(currentTheme); })();
 
 function formatDebugUsage(evt) {
   const parts = [];
@@ -849,7 +926,7 @@ async function sendMessage() {
   sending = true;
   input.value = '';
   input.style.height = 'auto';
-  input.placeholder = 'Type a message...';
+  input.placeholder = 'Type a message. Ctrl+Enter to send.';
 
   try {
     const payload = { session_id: activeSessionId, text, mode: currentMode, model: currentModel, turn_limit: currentTurnLimit };
@@ -963,8 +1040,6 @@ async function loadOlderEvents() {
 /* ── Settings Panel ── */
 let settingsTab = 'general';
 let usageData = { models: {}, providers: {}, calls: [] };
-let lightMode = localStorage.getItem('theme') === 'light';
-if (lightMode) document.body.classList.add('light-mode');
 
 function openSettings() {
   $('settings-overlay').classList.add('open');
@@ -999,14 +1074,16 @@ function renderSettingsTab() {
 }
 
 function renderGeneralView() {
-  const checked = lightMode ? 'checked' : '';
   const histN = engine._maxRoundHistory || 10;
+  const themeOpts = Object.entries(THEMES).map(([k, v]) =>
+    `<option value="${k}" ${k === currentTheme ? 'selected' : ''}>${v.label}</option>`
+  ).join('');
   return `<div class="settings-section-title">Appearance</div>
     <div class="settings-card" style="padding:16px;">
-      <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:13px;">
-        <input type="checkbox" ${checked} onchange="toggleTheme()" style="accent-color:var(--accent);width:16px;height:16px;">
-        <span><strong>Light Mode</strong><br><span style="color:var(--text-3);font-size:11.5px;">Switch between dark and light appearance</span></span>
-      </label>
+      <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+        <span><strong>Color Mode</strong></span>
+        <select onchange="applyTheme(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:120px;">${themeOpts}</select>
+      </div>
     </div>
     <div class="settings-section-title" style="margin-top:16px;">Debug</div>
     <div class="settings-card" style="padding:16px;">
@@ -1024,18 +1101,24 @@ function renderModelsView() {
   if (!modelNames.length) {
     return `<div class="settings-section-title">Models</div><div class="settings-empty">No model data yet. Start a conversation to see usage statistics.</div>`;
   }
-  let html = '<div class="settings-section-title">Models</div>';
+  let html = `<div class="settings-section-title" style="display:flex;align-items:center;gap:10px;">Models<input type="text" id="settings-model-search" placeholder="Filter..." oninput="renderSettingsTab()" style="margin-left:auto;width:120px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--text);font-family:var(--font);outline:none;"></div>`;
+  const modelSearch = (document.getElementById('settings-model-search')?.value || '').toLowerCase();
   for (const name of modelNames) {
     const m = models[name];
+    if (modelSearch && !(MODEL_DISPLAY_NAMES[name] || name).toLowerCase().includes(modelSearch)) continue;
     const logo = MODEL_LOGOS[name] || ZHIPU_LOGO || '';
     const displayName = MODEL_DISPLAY_NAMES[name] || name;
-    const tierBadge = m.free_tier ? '<span class="settings-badge free">Free</span>' : '<span class="settings-badge paid">Paid</span>';
+    const tierBadge = fmtPriceBadge(m, name);
     const provChips = (m.providers || []).map(p =>
-      `<div class="settings-provider-chip"><span class="drag-handle">⠿</span> ${esc(p)}</div>`
+      `<div class="settings-provider-chip" onclick="openProviderOrderOverlay('${esc(name)}',this)" style="cursor:pointer;">${PROVIDER_LOGOS[p.split('-')[0]] ? '<img src="' + PROVIDER_LOGOS[p.split('-')[0]] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : ''} ${esc(p)}</div>`
     ).join('');
     const modelCalls = calls.filter(c => c.model === name || c.provider === name);
+    const bench = m.benchmarks || {};
+    const benchTags = bench.arena_elo
+      ? `<span class="settings-badge" style="background:var(--purple-dim);color:var(--purple);cursor:pointer;margin-left:4px;" onclick="openBenchOverlay('${esc(name)}',event)" title="Click to compare">ELO ${bench.arena_elo}</span>` + (bench.arena_rank ? `<span class="settings-badge" style="background:${bench.arena_rank <= 10 ? 'var(--green-dim);color:var(--green)' : bench.arena_rank <= 30 ? 'var(--accent-dim);color:var(--accent)' : 'var(--surface-3);color:var(--text-2)'};margin-left:2px;cursor:pointer;" onclick="openBenchOverlay('${esc(name)}',event)" title="Click to compare">#${bench.arena_rank}</span>` : '')
+      : '';
     html += `<div class="settings-card">
-      <div class="settings-card-title"><img src="${logo}" alt=""> ${esc(displayName)} ${tierBadge}</div>
+      <div class="settings-card-title"><img src="${logo}" alt=""> ${esc(displayName)} ${tierBadge} ${benchTags}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${m.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(m.input_tokens || 0)}</div><div class="settings-stat-label">Input Tokens</div></div>
@@ -1043,7 +1126,7 @@ function renderModelsView() {
         <div class="settings-stat"><div class="settings-stat-value">${m.total_cost ? '$' + m.total_cost.toFixed(4) : '$0'}</div><div class="settings-stat-label">Cost</div></div>
       </div>
       ${provChips ? '<div style="margin-top:8px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;">Providers</div><div class="settings-provider-list">' + provChips + '</div>' : ''}
-      ${renderCallsTable(modelCalls)}
+      ${renderCallsTable(modelCalls, 'model_' + name)}
     </div>`;
   }
   return html;
@@ -1056,19 +1139,24 @@ function renderProvidersView() {
   if (!provNames.length) {
     return `<div class="settings-section-title">Providers</div><div class="settings-empty">No provider data yet. Start a conversation to see usage statistics.</div>`;
   }
-  let html = '<div class="settings-section-title">Providers</div>';
+  let html = `<div class="settings-section-title" style="display:flex;align-items:center;gap:10px;">Providers<input type="text" id="settings-prov-search" placeholder="Filter..." oninput="renderSettingsTab()" style="margin-left:auto;width:120px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--text);font-family:var(--font);outline:none;"></div>`;
+  const provSearch = (document.getElementById('settings-prov-search')?.value || '').toLowerCase();
   for (const name of provNames) {
     const p = providers[name];
+    if (provSearch && !name.toLowerCase().includes(provSearch)) continue;
     const displayName = name.charAt(0).toUpperCase() + name.slice(1);
-    const modelChips = (p.models || []).map(m =>
-      `<div class="settings-provider-chip">${esc(MODEL_DISPLAY_NAMES[m] || m)}</div>`
-    ).join('');
+    const modelChips = (p.models || []).map(m => {
+      const mData = (usageData.models || {})[m];
+      const badge = mData ? ' ' + fmtPriceBadge(mData) : '';
+      const mLogo = MODEL_LOGOS[m] ? '<img src="' + MODEL_LOGOS[m] + '" style="width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:2px;">' : '';
+      return `<div class="settings-provider-chip">${mLogo}${esc(MODEL_DISPLAY_NAMES[m] || m)}${badge}</div>`;
+    }).join('');
     const keysHtml = (p.api_keys || []).map(k =>
       `<div class="settings-key-row"><span class="settings-key-mask">${maskKey(k.key)}</span><span class="settings-key-label">${esc(k.label || 'default')}</span></div>`
     ).join('') || '<div style="font-size:11px;color:var(--text-3);padding:4px 0;">No API keys configured</div>';
     const provCalls = calls.filter(c => (c.provider || '').includes(name));
     html += `<div class="settings-card">
-      <div class="settings-card-title"><i class="bx bx-server" style="font-size:16px;color:var(--accent)"></i> ${esc(displayName)}</div>
+      <div class="settings-card-title">${PROVIDER_LOGOS[name] ? '<img src="' + PROVIDER_LOGOS[name] + '" alt="" style="width:16px;height:16px;border-radius:3px;">' : '<i class="bx bx-server" style="font-size:16px;color:var(--accent)"></i>'} ${esc(displayName)}</div>
       <div class="settings-stats">
         <div class="settings-stat"><div class="settings-stat-value">${p.total_calls || 0}</div><div class="settings-stat-label">Calls</div></div>
         <div class="settings-stat"><div class="settings-stat-value">${fmtTokens(p.input_tokens || 0)}</div><div class="settings-stat-label">Input Tokens</div></div>
@@ -1086,18 +1174,34 @@ function renderProvidersView() {
           <span class="settings-key-status"></span>
         </div>
       </div>
-      ${renderCallsTable(provCalls)}
+      ${renderCallsTable(provCalls, 'prov_' + name)}
     </div>`;
   }
   return html;
 }
 
-function renderCallsTable(calls) {
+const CALLS_PER_PAGE = 8;
+const MAX_STORED_CALLS = 1024;
+const _callsPageState = {};
+
+function renderCallsTable(calls, tableId) {
   if (!calls.length) return '';
-  const recent = calls.slice(-20).reverse();
+  const all = calls.slice(-MAX_STORED_CALLS).reverse();
+  const totalPages = Math.max(1, Math.ceil(all.length / CALLS_PER_PAGE));
+  if (!_callsPageState[tableId]) _callsPageState[tableId] = 1;
+  const page = Math.min(_callsPageState[tableId], totalPages);
+  const start = (page - 1) * CALLS_PER_PAGE;
+  const pageItems = all.slice(start, start + CALLS_PER_PAGE);
+
+  const pagerHtml = totalPages > 1 ? `<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;font-size:11px;color:var(--text-3);">
+    <button onclick="_callsPageNav('${tableId}',-1)" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-2);cursor:pointer;padding:2px 8px;font-size:11px;" ${page <= 1 ? 'disabled' : ''}>&lsaquo;</button>
+    <span>Page ${page}/${totalPages}</span>
+    <button onclick="_callsPageNav('${tableId}',1)" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-2);cursor:pointer;padding:2px 8px;font-size:11px;" ${page >= totalPages ? 'disabled' : ''}>&rsaquo;</button>
+  </div>` : '';
+
   return `<div style="margin-top:10px;font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;">Recent Calls</div>
     <table class="settings-table"><thead><tr><th>Time</th><th>Model</th><th>In</th><th>Out</th><th>Latency</th><th>Status</th></tr></thead><tbody>
-    ${recent.map(c => `<tr>
+    ${pageItems.map(c => `<tr>
       <td>${fmtTime(c.timestamp)}</td>
       <td>${esc(MODEL_DISPLAY_NAMES[c.model] || c.model || '-')}</td>
       <td>${c.input_tokens || '-'}</td>
@@ -1105,12 +1209,178 @@ function renderCallsTable(calls) {
       <td>${c.latency_s ? c.latency_s + 's' : '-'}</td>
       <td class="${c.ok ? 'td-ok' : 'td-err'}">${c.ok ? 'OK' : 'ERR'}</td>
     </tr>`).join('')}
-    </tbody></table>`;
+    </tbody></table>${pagerHtml}`;
 }
 
+function _callsPageNav(tableId, delta) {
+  _callsPageState[tableId] = (_callsPageState[tableId] || 1) + delta;
+  renderSettingsTab();
+}
+
+function fmtPriceBadge(m, modelKey) {
+  const onclick = modelKey ? ` onclick="openPriceOverlay('${modelKey}',event)" style="cursor:pointer;"` : '';
+  if (m.free_tier) return `<span class="settings-badge free"${onclick}>Free</span>`;
+  if (m.input_price > 0 || m.output_price > 0) {
+    const sym = (m.currency || 'USD') === 'CNY' ? '¥' : '$';
+    return `<span class="settings-badge paid"${onclick}>${sym}${m.input_price.toFixed(2)},${m.output_price.toFixed(2)}/M</span>`;
+  }
+  return `<span class="settings-badge paid"${onclick}>Paid</span>`;
+}
 function fmtTokens(n) { return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n); }
 function fmtTime(ts) { if (!ts) return '-'; const d = new Date(ts * 1000); return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
 function maskKey(k) { if (!k || k.length < 8) return '••••'; return k.slice(0, 4) + '••••' + k.slice(-4); }
+
+let _provOrderState = null;
+function openProviderOrderOverlay(modelName) {
+  const models = usageData.models || {};
+  const m = models[modelName];
+  if (!m || !m.providers || m.providers.length < 2) return;
+
+  _provOrderState = { model: modelName, providers: [...m.providers], selected: 0 };
+  const overlay = document.createElement('div');
+  overlay.className = 'sub-overlay';
+  overlay.id = 'prov-order-overlay';
+  overlay.onclick = (e) => { if (e.target === overlay) closeProviderOrderOverlay(); };
+  _renderProvOrderOverlay(overlay);
+  document.body.appendChild(overlay);
+}
+
+function _renderProvOrderOverlay(overlay) {
+  if (!overlay) overlay = document.getElementById('prov-order-overlay');
+  if (!overlay || !_provOrderState) return;
+  const s = _provOrderState;
+  overlay.innerHTML = `<div class="sub-panel">
+    <div class="sub-panel-header">
+      <span>Provider Priority: ${esc(MODEL_DISPLAY_NAMES[s.model] || s.model)}</span>
+      <button onclick="closeProviderOrderOverlay()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;"><i class="bx bx-x"></i></button>
+    </div>
+    <div class="sub-panel-list">
+      ${s.providers.map((p, i) => {
+        const vendor = p.split('-')[0];
+        const logo = PROVIDER_LOGOS[vendor] ? '<img src="' + PROVIDER_LOGOS[vendor] + '" style="width:14px;height:14px;border-radius:2px;">' : '';
+        return `<div class="sub-panel-item${i === s.selected ? ' selected' : ''}" onclick="_provOrderState.selected=${i};_renderProvOrderOverlay()">${logo} <span style="flex:1">${esc(p)}</span><span style="color:var(--text-3);font-size:10px;">#${i + 1}</span></div>`;
+      }).join('')}
+    </div>
+    <div class="sub-panel-actions">
+      <button onclick="_moveProvider(-Infinity)"><i class="bx bx-arrow-to-top"></i> Top</button>
+      <button onclick="_moveProvider(-1)"><i class="bx bx-up-arrow-alt"></i> Up</button>
+      <button onclick="_moveProvider(1)"><i class="bx bx-down-arrow-alt"></i> Down</button>
+      <button onclick="_moveProvider(Infinity)"><i class="bx bx-arrow-to-bottom"></i> Bottom</button>
+    </div>
+  </div>`;
+}
+
+function _moveProvider(dir) {
+  const s = _provOrderState;
+  if (!s) return;
+  const i = s.selected;
+  const arr = s.providers;
+  if (dir === -Infinity) { const [item] = arr.splice(i, 1); arr.unshift(item); s.selected = 0; }
+  else if (dir === Infinity) { const [item] = arr.splice(i, 1); arr.push(item); s.selected = arr.length - 1; }
+  else if (dir === -1 && i > 0) { [arr[i], arr[i-1]] = [arr[i-1], arr[i]]; s.selected = i - 1; }
+  else if (dir === 1 && i < arr.length - 1) { [arr[i], arr[i+1]] = [arr[i+1], arr[i]]; s.selected = i + 1; }
+  _renderProvOrderOverlay();
+}
+
+function openBenchOverlay(modelName, e) {
+  if (e) e.stopPropagation();
+  const models = usageData.models || {};
+  const allModels = Object.entries(models).filter(([, m]) => m.benchmarks?.arena_elo).sort((a, b) => (b[1].benchmarks.arena_elo || 0) - (a[1].benchmarks.arena_elo || 0));
+  if (!allModels.length) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'sub-overlay';
+  overlay.id = 'bench-overlay';
+  overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); } };
+
+  const labels = allModels.map(([k, m]) => MODEL_DISPLAY_NAMES[k] || k);
+  const elos = allModels.map(([, m]) => m.benchmarks.arena_elo);
+  const colors = allModels.map(([k]) => k === modelName ? 'rgba(91,141,239,0.9)' : 'rgba(139,143,163,0.4)');
+
+  overlay.innerHTML = `<div class="sub-panel" style="width:500px;max-height:500px;">
+    <div class="sub-panel-header"><span>Arena ELO Comparison</span><button onclick="this.closest('.sub-overlay').remove()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;"><i class="bx bx-x"></i></button></div>
+    <div style="padding:16px;flex:1;"><canvas id="bench-chart"></canvas></div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  const ctx = document.getElementById('bench-chart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Arena ELO', data: elos, backgroundColor: colors, borderRadius: 4 }] },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { min: Math.min(...elos) - 50, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-3)', font: { size: 11 } } },
+        y: { grid: { display: false }, ticks: { color: 'var(--text-2)', font: { size: 11, family: 'Inter' } } }
+      }
+    }
+  });
+}
+
+function openPriceOverlay(modelName, e) {
+  if (e) e.stopPropagation();
+  const models = usageData.models || {};
+  const allModels = Object.entries(models).sort((a, b) => {
+    const ai = a[1].free_tier ? 0 : (a[1].input_price || 0);
+    const bi = b[1].free_tier ? 0 : (b[1].input_price || 0);
+    return ai - bi;
+  });
+  if (allModels.length < 2) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'sub-overlay';
+  overlay.id = 'price-overlay';
+  overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); } };
+
+  const labels = allModels.map(([k, m]) => MODEL_DISPLAY_NAMES[k] || k);
+  const inputPrices = allModels.map(([, m]) => m.free_tier ? 0 : (m.input_price || 0));
+  const outputPrices = allModels.map(([, m]) => m.free_tier ? 0 : (m.output_price || 0));
+  const hlColors = allModels.map(([k]) => k === modelName ? 0.9 : 0.4);
+
+  overlay.innerHTML = `<div class="sub-panel" style="width:500px;max-height:500px;">
+    <div class="sub-panel-header"><span>Price Comparison (per 1M tokens)</span><button onclick="this.closest('.sub-overlay').remove()" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;"><i class="bx bx-x"></i></button></div>
+    <div style="padding:16px;flex:1;"><canvas id="price-chart"></canvas></div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  const ctx = document.getElementById('price-chart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Input', data: inputPrices, backgroundColor: hlColors.map(a => `rgba(74,222,128,${a})`), borderRadius: 4 },
+        { label: 'Output', data: outputPrices, backgroundColor: hlColors.map(a => `rgba(251,191,36,${a})`), borderRadius: 4 },
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { color: 'var(--text-2)', font: { size: 11 } } } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-3)', font: { size: 11 } } },
+        y: { grid: { display: false }, ticks: { color: 'var(--text-2)', font: { size: 11, family: 'Inter' } } }
+      }
+    }
+  });
+}
+
+function closeProviderOrderOverlay() {
+  const overlay = document.getElementById('prov-order-overlay');
+  if (overlay) overlay.remove();
+  if (_provOrderState) {
+    const models = usageData.models || {};
+    if (models[_provOrderState.model]) {
+      models[_provOrderState.model].providers = _provOrderState.providers;
+    }
+    _provOrderState = null;
+    renderSettingsTab();
+  }
+}
 
 function toggleKeyInput(btn) {
   const form = btn.parentElement.querySelector('.settings-key-form');
@@ -1257,16 +1527,28 @@ async function init() {
     const resp = await fetch('/api/sessions');
     const data = await resp.json();
     if (data.ok && data.sessions) {
+      let runningId = null;
       data.sessions.forEach(s => {
         engine.addSession(s.id, s.title, s.status);
-        if (!initialSessionId) {
-          initialSessionId = s.id;
-        }
+        if (s.status === 'running') runningId = s.id;
+        if (!initialSessionId) initialSessionId = s.id;
       });
+      if (runningId) initialSessionId = runningId;
     }
   } catch (err) {
     console.warn('Failed to load sessions:', err);
   }
+
+  try {
+    const cfgResp = await fetch('/api/configured_models');
+    const cfgData = await cfgResp.json();
+    if (cfgData.ok && cfgData.models && cfgData.models.length > 1) {
+      const newOpts = cfgData.models.map(m => ({
+        value: m.value, label: m.label, logo: MODEL_LOGOS[m.value] || ZHIPU_LOGO
+      }));
+      modelPill.setOptions(newOpts);
+    }
+  } catch (e) { console.warn('Failed to load configured models:', e); }
 
   if (initialSessionId) {
     activeSessionId = initialSessionId;

@@ -29,6 +29,10 @@ function esc(s) {
   return d.innerHTML;
 }
 
+function escWbr(s) {
+  return esc(s).replace(/([/._\-\\])/g, '$1<wbr>');
+}
+
 function md(text) {
   const codeBlocks = [];
   let s = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
@@ -928,7 +932,7 @@ class AgentGUIEngine {
       headerContent =
         '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
         + '<div class="tool-icon edit"><i class="bx ' + iconClass + '" style="font-size:13px"></i></div>'
-        + '<span class="tool-desc">' + esc(info.label) + '</span>'
+        + '<span class="tool-desc">' + escWbr(info.label) + '</span>'
         + newTag
         + '<span class="diff-stats" data-tc="diffstats"></span>'
         + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
@@ -936,7 +940,7 @@ class AgentGUIEngine {
       headerContent =
         '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
         + '<i class="bx ' + info.icon + ' tool-natural-icon"></i>'
-        + '<span class="tool-desc">' + esc(info.label) + '</span>'
+        + '<span class="tool-desc">' + escWbr(info.label) + '</span>'
         + (info.detail ? '<span class="tool-detail">' + esc(info.detail) + '</span>' : '')
         + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
     }
