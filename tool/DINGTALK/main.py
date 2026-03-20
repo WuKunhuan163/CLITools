@@ -74,12 +74,22 @@ def main():
     parser.add_argument("--phone", default=None, help="Phone number for contact lookup or messaging")
     parser.add_argument("--userid", default=None, help="DingTalk userId")
     parser.add_argument("--webhook", default=None, help="Webhook URL for group messages")
+    parser.add_argument("--setup-tutorial", action="store_true", dest="setup_tutorial",
+                        help="Run interactive setup tutorial")
 
     if tool.handle_command_line(parser):
         return
 
     args, unknown = parser.parse_known_args()
     cmd = args.command
+
+    if getattr(args, 'setup_tutorial', False):
+        import importlib.util
+        tutorial_mod = Path(__file__).resolve().parent / "logic" / "command" / "tutorial_cmd.py"
+        spec = importlib.util.spec_from_file_location("dingtalk_tutorial_cmd", str(tutorial_mod))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        sys.exit(module.execute(tool))
 
     if cmd == "status":
         from tool.DINGTALK.logic.api import _load_config
