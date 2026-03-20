@@ -4,6 +4,7 @@ Provides reusable utility functions: preflight checks, retry decorators,
 file cleanup/rotation, fuzzy matching, display helpers, timezone, and
 system introspection.
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from logic._.utils.preflight import (
     preflight,
     check_command_exists,

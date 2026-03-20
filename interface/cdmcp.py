@@ -2,6 +2,7 @@
 
 Provides functions to load CDMCP (Chrome DevTools MCP) modules.
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from logic._.utils.chrome.loader import (
     load_cdmcp,
     load_cdmcp_overlay,

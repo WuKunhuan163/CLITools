@@ -12,6 +12,7 @@ Quick start::
     km = KnowledgeManager(project_root)
     results = km.search("rate limiting", scope="all", top_k=5)
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from logic._.search.tools import (
     search_tools,
     search_interfaces,

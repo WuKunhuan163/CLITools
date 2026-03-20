@@ -11,6 +11,7 @@ Quick start::
     eco_search(root, "rate limit")  # unified semantic search
     eco_tool(root, "LLM")        # tool deep-dive
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from pathlib import Path
 from typing import Optional
 

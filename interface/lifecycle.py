@@ -3,6 +3,7 @@
 Provides tool lifecycle operations: list, install, uninstall, sync.
 Utility functions for use by non-command code (e.g. ToolBase, setup engine).
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from logic._.setup.lifecycle import (
     list_tools,
     install_tool,

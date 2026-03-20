@@ -3,6 +3,7 @@
 Provides standardized terminal output formatters that enforce the
 minimal-emphasis rule (bold/color only on core phrases).
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from logic._.utils.turing.status import (
     fmt_status,
     fmt_detail,

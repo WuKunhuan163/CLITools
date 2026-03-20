@@ -2,6 +2,7 @@
 
 Provides all commonly-used Turing Machine classes and helpers.
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from logic._.utils.turing.models.progress import ProgressTuringMachine
 from logic._.utils.turing.logic import TuringStage, TuringTask, StepResult, WorkerState
 from logic._.utils.turing.worker import TuringWorker

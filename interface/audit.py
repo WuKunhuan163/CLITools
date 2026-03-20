@@ -3,6 +3,7 @@
 Provides programmatic access to the code quality auditing system,
 import quality checking, and hooks/interface quality audits.
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from logic._.audit.code_quality import (
     run_full_audit,
     print_report,

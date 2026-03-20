@@ -11,6 +11,7 @@ Usage:
     brain.search("provider bug", tier="knowledge")
     brain.append("knowledge", "lessons", {"lesson": "...", "tool": "LLM"})
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from pathlib import Path
 from typing import Dict, List, Optional
 

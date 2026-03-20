@@ -21,6 +21,7 @@ Provides two categories of interfaces:
            if tavily:
                results = tavily.search("python best practices")
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from interface.registry import get_interface, list_interfaces
 
 __all__ = ["get_interface", "list_interfaces"]

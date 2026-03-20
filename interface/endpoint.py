@@ -21,6 +21,7 @@ Usage (tool implementor)::
             from my_tool.logic.endpoint import handle_endpoint
             handle_endpoint(args)
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 
 import json
 from typing import Any, Callable, Dict, List, Optional

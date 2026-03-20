@@ -16,6 +16,7 @@ Modes:
 Brain/Memory:
     from interface.agent import inject_bootstrap_context, write_memory, write_daily_note
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from logic._.agent.state import (  # noqa: F401
     AgentSession,
     AgentEnvironment,

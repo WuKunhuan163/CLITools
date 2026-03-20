@@ -1,11 +1,14 @@
 """Tool base and setup interface.
 
+# TODO: Migrate — this module will be refactored. Base classes now live in
+#       interface/base.py (canonical source: __/interface/).
+#       Tool-specific re-exports (IDE, USERINPUT) will move to dedicated facades.
+
 Provides the core tool infrastructure classes.
 IDE functions delegate to tool/IDE/interface/ for detection and deployment.
 """
-from logic._.base.blueprint.base import ToolBase
-from logic._.base.blueprint.mcp import MCPToolBase
-from logic._.base.cli import CliEndpoint
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
+from interface.base import ToolBase, MCPToolBase, CliEndpoint
 from logic._.setup.engine import ToolEngine
 from logic._.dev.resource import fetch_resource
 from tool.USERINPUT.logic.prompts import get_default_prompts

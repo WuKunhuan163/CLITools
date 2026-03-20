@@ -4,6 +4,7 @@ Follows the symmetrical design pattern: each tool at tool/<NAME>/interface/main.
 exposes functions for cross-tool communication. This registry provides a central
 way to access those interfaces from any part of the codebase.
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 import importlib
 import sys
 from pathlib import Path

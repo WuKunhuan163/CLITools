@@ -8,6 +8,7 @@ Usage:
     wm.open_workspace(info["id"])
     wm.close_workspace()
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from pathlib import Path
 from typing import Dict, List, Optional
 

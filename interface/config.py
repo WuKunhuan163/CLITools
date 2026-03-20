@@ -3,6 +3,7 @@
 Provides access to color management, settings, global config, width checks,
 and AI rule generation.
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from logic._.config import get_color, get_setting, get_global_config
 from logic._.config.manager import print_width_check
 from logic._.config.main import set_global_config

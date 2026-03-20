@@ -2,6 +2,7 @@
 
 Provides tool development workflow commands.
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from logic._.dev.commands import (
     dev_sync,
     dev_reset,

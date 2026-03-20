@@ -2,6 +2,7 @@
 
 Provides access to the GUI framework: blueprints, engine, manager, and styles.
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from logic._.gui.tkinter.blueprint.button_bar.gui import ButtonBarWindow
 from logic._.gui.tkinter.blueprint.tutorial.gui import TutorialWindow, TutorialStep
 from logic._.gui.tkinter.blueprint.base import BaseGUIWindow, setup_common_bottom_bar

@@ -2,6 +2,7 @@
 
 Provides all Chrome DevTools Protocol utilities for browser automation.
 """
+# TODO: [migration] This facade will be migrated/rewritten as part of the __/ architecture restructure.
 from logic._.utils.chrome.session import (
     CDP_PORT,
     CDPSession,
