@@ -353,8 +353,8 @@ def _get_active_blueprint(root: Path) -> Optional[Dict]:
     Resolution order:
     1. data/_/runtime/_/eco/brain/blueprint.json (active runtime blueprint)
     2. If it has inherits/type/active, also load the referenced type from
-       logic/brain/blueprint/ and merge commands from both
-    3. Fallback to logic/brain/blueprint/base.json
+       logic/_/brain/blueprint/ and merge commands from both
+    3. Fallback to logic/_/brain/blueprint/base.json
     """
     root = Path(root)
     result = {}

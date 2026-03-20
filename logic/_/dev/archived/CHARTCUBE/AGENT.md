@@ -6,7 +6,7 @@ CHARTCUBE automates AntV ChartCube (`chartcube.alipay.com`) via CDMCP. No authen
 
 ## Architecture
 
-- **Base class**: `MCPToolBase` from `logic.base.blueprint.mcp`
+- **Base class**: `MCPToolBase` from `logic._.base.blueprint.mcp`
 - **CDP layer**: `logic.chrome.session.CDPSession` for page-level WebSocket communication
 - **Session management**: `logic.cdmcp_loader` → `GOOGLE.CDMCP` session manager
 - **Overlays**: Badge ("ChartCube MCP"), favicon (purple "C"), focus indicator

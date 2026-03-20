@@ -1,7 +1,7 @@
 """GitIgnore management for AITerminalTools.
 
 Auto-generates .gitignore from base patterns + tool.json git_ignore entries.
-Previously lived in logic/git/manager.py; moved here because it's exclusively
+Previously lived in logic/_/git/manager.py; moved here because it's exclusively
 consumed by the setup flow (ToolEngine.install, TOOL --setup).
 """
 

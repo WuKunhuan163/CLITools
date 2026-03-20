@@ -44,7 +44,7 @@ class DemoWindow(BaseGUIWindow):
 
 if __name__ == "__main__":
     from logic._.gui.engine import setup_gui_environment, get_safe_python_for_gui
-    from logic.base.blueprint.base import ToolBase
+    from logic._.base.blueprint.base import ToolBase
     from logic._.utils.turing.models.progress import ProgressTuringMachine
     from logic._.utils.turing.logic import TuringStage
     from logic._.config import get_color

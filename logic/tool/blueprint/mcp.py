@@ -10,7 +10,7 @@ MCP-enabled tools inherit from MCPToolBase to gain:
 import sys
 from typing import Optional, Dict, Any
 
-from logic.base.blueprint.base import ToolBase
+from logic._.base.blueprint.base import ToolBase
 
 
 class MCPToolBase(ToolBase):

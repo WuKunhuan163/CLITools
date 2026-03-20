@@ -33,7 +33,7 @@ This function applies the "limit + delete half" pattern automatically.
 
 ### Reference Implementation (for custom cases)
 
-`logic/git/persistence.py` — `GitPersistenceManager._cleanup_old_caches`:
+`logic/_/git/persistence.py` — `GitPersistenceManager._cleanup_old_caches`:
 
 ```python
 def _cleanup_old_caches(self):
@@ -115,7 +115,7 @@ The "delete half" ratio is fixed by convention — do not expose it as a separat
 ## Live Examples
 
 - `tool/OPENCLAW/logic/session.py` — `SessionLog.rotate()`: per-session log retention.
-- `logic/git/persistence.py` — `GitPersistenceManager._cleanup_old_caches()`: branch-switch persistence caches.
+- `logic/_/git/persistence.py` — `GitPersistenceManager._cleanup_old_caches()`: branch-switch persistence caches.
 
 ## Anti-Patterns
 

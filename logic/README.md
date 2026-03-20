@@ -58,7 +58,7 @@ Shared core logic for the AITerminalTools framework. Every sub-package here is u
 
 ```python
 from logic.config.main import get_global_config
-from logic.base.blueprint.base import ToolBase
+from logic._.base.blueprint.base import ToolBase
 from logic.turing.stage import TuringStage
 ```
 

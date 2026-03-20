@@ -9,7 +9,7 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from logic.git.engine import auto_squash_if_needed, DEFAULT_SQUASH_CONFIG
+from logic._.git.engine import auto_squash_if_needed, DEFAULT_SQUASH_CONFIG
 
 
 def run_git(args, cwd):

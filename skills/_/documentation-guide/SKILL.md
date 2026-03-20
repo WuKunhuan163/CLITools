@@ -63,7 +63,7 @@ Each README.md at a directory level must answer:
 
 ### The Context-Free Agent Test
 
-Imagine an agent dropped into this ecosystem with no prior context. They read the root AGENT.md, which tells them about the tool architecture. They navigate to `logic/`, read its AGENT.md, which tells them about shared utilities. They follow the pointer to `logic/brain/AGENT.md`, which explains brain management.
+Imagine an agent dropped into this ecosystem with no prior context. They read the root AGENT.md, which tells them about the tool architecture. They navigate to `logic/`, read its AGENT.md, which tells them about shared utilities. They follow the pointer to `logic/_/brain/AGENT.md`, which explains brain management.
 
 At no point should the agent need to grep for information. The layered docs should guide them like a GPS — each turn reveals the next direction.
 

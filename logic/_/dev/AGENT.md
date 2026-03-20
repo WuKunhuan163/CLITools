@@ -9,4 +9,4 @@
 
 ## Usage
 
-Import from `logic.dev.commands` for backward compatibility; implementation in `logic.tool.dev.commands` and `logic.git.manager`.
+Import from `logic.dev.commands` for backward compatibility; implementation in `logic.tool.dev.commands` and `logic._.git.manager`.

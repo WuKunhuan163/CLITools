@@ -26,8 +26,8 @@ def _load_template(filename: str, **kwargs) -> str:
 
 def dev_sync(project_root: Path, quiet: bool = False, translation_func: Optional[Callable] = None) -> bool:
     """Synchronize branches in a linear chain: dev -> tool -> main -> test."""
-    from logic.git.utils import align_branches_logic
-    from logic.git.persistence import get_persistence_manager
+    from logic._.git.utils import align_branches_logic
+    from logic._.git.persistence import get_persistence_manager
 
     pm = get_persistence_manager(project_root)
     locker_key = pm.save_tools_data(branch="dev")
@@ -90,7 +90,7 @@ def dev_enter(branch: str, project_root: Path, force: bool = False, translation_
     RED = get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
 
-    from logic.git.persistence import get_persistence_manager
+    from logic._.git.persistence import get_persistence_manager
     pm = get_persistence_manager(project_root)
 
     try:

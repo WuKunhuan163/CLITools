@@ -3,9 +3,9 @@
 Provides the core tool infrastructure classes.
 IDE functions delegate to tool/IDE/interface/ for detection and deployment.
 """
-from logic.base.blueprint.base import ToolBase
-from logic.base.blueprint.mcp import MCPToolBase
-from logic.base.cli import CliEndpoint
+from logic._.base.blueprint.base import ToolBase
+from logic._.base.blueprint.mcp import MCPToolBase
+from logic._.base.cli import CliEndpoint
 from logic._.setup.engine import ToolEngine
 from logic._.dev.resource import fetch_resource
 from tool.USERINPUT.logic.prompts import get_default_prompts

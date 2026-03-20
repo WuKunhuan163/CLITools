@@ -60,7 +60,7 @@ Multi-step wizard with `TutorialStep` objects:
 Use the `run_gui` method provided by `ToolBase`:
 
 ```python
-from logic.base.blueprint.base import ToolBase
+from logic._.base.blueprint.base import ToolBase
 
 tool = ToolBase("MyTool")
 # ...

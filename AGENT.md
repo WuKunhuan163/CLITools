@@ -34,7 +34,7 @@
 
 If this is your first encounter with this project, follow these steps in order:
 
-1. **Read `data/_/runtime/_/eco/brain/context.md`** — contains the previous session's state, current tasks, and what to resume. If it exists and has content, you have continuity. Act on it. (The default brain instance uses the `clitools` blueprint — see `logic/brain/blueprint/` for alternatives.)
+1. **Read `data/_/runtime/_/eco/brain/context.md`** — contains the previous session's state, current tasks, and what to resume. If it exists and has content, you have continuity. Act on it. (The default brain instance uses the `clitools` blueprint — see `logic/_/brain/blueprint/` for alternatives.)
 2. **Run `TOOL status`** (in terminal) — see all registered tools and their installation status. This shows you what the ecosystem has.
 3. **Run `TOOL --eco search "<your task keywords>"`** — before writing any code, search for existing tools, skills, and lessons. This is your most important habit. Returns targeted results (~1K tokens).
 4. **Run `TOOL --eco guide`** to see the full onboarding flow. For a specific tool: `TOOL --eco tool <NAME>`. For a specific skill: `TOOL --eco skill <name>`. For blueprint shortcuts: `TOOL --eco cmds`.
@@ -579,7 +579,7 @@ As an AI agent, you MUST follow these operational rules:
 - **Binary Files**: If you must track binary files (like in `tool/PYTHON/data/install/`), ensure they are marked as `binary` in `.gitattributes` to prevent corruption by line-ending conversion.
 - **Shadowing**: When developing tools, use the Universal Path Resolver (`from interface.resolve import setup_paths; setup_paths(__file__)`) to ensure the project root is at `sys.path[0]`. This prevents a tool's local `logic/` from shadowing the root `logic/`.
 - **Import facade**: All code outside `logic/` and `interface/` MUST import from `interface.*`, never from `logic.*` directly. This includes `main.py`, `setup.py`, hooks, and tests. Only code inside `logic/` may call other `logic/` modules. Run `TOOL --audit imports` to check compliance. See the `code-quality-review` skill for the full rule set (IMP001-IMP005).
-- **`.gitignore` is auto-generated**: Never edit `.gitignore` directly. Modify `GitIgnoreManager.base_patterns` in `logic/git/manager.py` instead. See Section 9.
+- **`.gitignore` is auto-generated**: Never edit `.gitignore` directly. Modify `GitIgnoreManager.base_patterns` in `logic/_/git/manager.py` instead. See Section 9.
 - **TM hygiene**: Never use `print()` inside a `TuringStage` action. Use `stage.refresh()` if you need live updates, or rely on the stage success/fail messages. Inner prints break the erasable line tracking.
 - **Keyboard Cancellation**: When a user cancels an operation (Ctrl+C or USERINPUT Cancel button), the system prints a red bold "**Operation cancelled** by user." message, ensures keyboard suppression is released, and exits with code 130 (POSIX SIGINT convention). USERINPUT's Cancel button produces the same exit code 130, so the Turing Machine's `INTERRUPTED` state handles both uniformly.
 - **Reference Counting**: The `KeyboardSuppressor` uses reference counting to prevent deadlocks and ensure input echoing is restored only after all active suppressors have stopped.
@@ -646,10 +646,10 @@ Tools import shared framework utilities from `interface.*`. See `interface/AGENT
 - `logic.audit`: Code quality auditing infrastructure (ruff, vulture integration).
 
 ### Auto-Generated `.gitignore` (CRITICAL)
-The `.gitignore` file is **auto-generated** by `GitIgnoreManager` in `logic/git/manager.py`. **Never edit `.gitignore` directly** — your changes will be overwritten on the next `TOOL --dev sync` or `initialize_git_state()` call.
+The `.gitignore` file is **auto-generated** by `GitIgnoreManager` in `logic/_/git/manager.py`. **Never edit `.gitignore` directly** — your changes will be overwritten on the next `TOOL --dev sync` or `initialize_git_state()` call.
 
 To add a new root directory to Git tracking:
-1. Add `"!/your_dir/"` to `GitIgnoreManager.base_patterns` in `logic/git/manager.py`.
+1. Add `"!/your_dir/"` to `GitIgnoreManager.base_patterns` in `logic/_/git/manager.py`.
 2. Run `TOOL --dev sync` to regenerate `.gitignore`.
 
 To add tool-specific ignore rules:
@@ -911,7 +911,7 @@ For full guidance, read `SKILLS show mcp-development` and `SKILLS show cdmcp-web
 1. Create tool: `TOOL --dev create <NAME>`
 2. **tool.json**: Add `"PYTHON"` and `"GOOGLE.CDMCP"` to `"dependencies"`. Add `"websocket-client"` to `"pip_dependencies"`.
 3. **Root tool.json**: Add the tool name to the `"tools"` array.
-4. **main.py**: Use `MCPToolBase("NAME", session_name="name")` from `logic.base.blueprint.mcp`.
+4. **main.py**: Use `MCPToolBase("NAME", session_name="name")` from `logic._.base.blueprint.mcp`.
 5. **logic/chrome/api.py**: All CDP operations. Use `boot_tool_session()` + `session.require_tab()` + `CDPSession(ws)`.
 6. **setup.py**: Verify `_r` (not `project_root`) in the path resolver.
 7. Install: Run `<NAME> setup`.
@@ -1023,7 +1023,7 @@ As tools mature, their features MUST be stabilized into unit tests. Read `SKILLS
 - **No emoji**: Do not use emoji in code or console outputs.
 - **Localization**: Never hardcode user-facing strings; use `_("key", "Default")`.
 - **Import from `interface.*`**: Never import directly from `logic.*` in tool code.
-- **`.gitignore` is auto-generated**: Modify `GitIgnoreManager.base_patterns` in `logic/git/manager.py`, not `.gitignore` directly.
+- **`.gitignore` is auto-generated**: Modify `GitIgnoreManager.base_patterns` in `logic/_/git/manager.py`, not `.gitignore` directly.
 - **Sanity checks**: Every tool must pass `TOOL --dev sanity-check <NAME>`.
 
 By following these architecture rules and agent patterns, you ensure that the project remains robust, maintainable, and "agent-friendly."

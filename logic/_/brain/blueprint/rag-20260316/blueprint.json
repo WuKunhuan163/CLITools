@@ -1,0 +1,59 @@
+{
+  "name": "rag-20260316",
+  "version": "1.0",
+  "inherits": "base",
+  "description": "Vector-enhanced brain using embeddings for semantic retrieval. Extends flatfile with a vector index for knowledge and episodic tiers.",
+  "sessions": {
+    "enabled": true,
+    "manifest_file": "MANIFEST.md"
+  },
+  "tiers": {
+    "working": {
+      "description": "Hot state: same as clitools (flatfile).",
+      "backend": "flatfile",
+      "relative_path": "working/",
+      "files": {
+        "context": "context.md",
+        "tasks": "tasks.json",
+        "activity": "activity.jsonl"
+      },
+      "lifecycle": "session",
+      "inject_at": "sessionStart"
+    },
+    "knowledge": {
+      "description": "Semantic knowledge store. Lessons indexed as vector embeddings for semantic search.",
+      "backend": "rag",
+      "relative_path": "knowledge/",
+      "files": {
+        "lessons": "lessons.jsonl",
+        "embeddings": "embeddings.npy",
+        "index": "faiss.index",
+        "metadata": "metadata.json"
+      },
+      "lifecycle": "permanent",
+      "inject_at": "on_demand",
+      "embedding_config": {
+        "model": "sentence-transformers/all-MiniLM-L6-v2",
+        "dimension": 384,
+        "index_type": "faiss_flat"
+      }
+    },
+    "episodic": {
+      "description": "Semantic long-term memory with embedded personality traits.",
+      "backend": "rag",
+      "relative_path": "episodic/",
+      "files": {
+        "soul": "SOUL.md",
+        "memory": "MEMORY.md",
+        "memory_embeddings": "memory_embeddings.npy",
+        "daily": "daily/"
+      },
+      "lifecycle": "permanent",
+      "inject_at": "sessionStart"
+    }
+  },
+  "dependencies": {
+    "pip": ["sentence-transformers", "faiss-cpu", "numpy"],
+    "note": "Requires PYTHON tool with these packages installed. Run: PYTHON pip install sentence-transformers faiss-cpu numpy"
+  }
+}

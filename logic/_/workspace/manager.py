@@ -115,7 +115,7 @@ class WorkspaceManager:
         (brain_dir / "episodic" / "daily").mkdir(parents=True)
 
         if blueprint_type:
-            from logic.brain.loader import resolve_blueprint
+            from logic._.brain.loader import resolve_blueprint
             bp_dir = resolve_blueprint(blueprint_type)
             if bp_dir and (bp_dir / "blueprint.json").exists():
                 shutil.copy2(bp_dir / "blueprint.json", brain_dir / "blueprint.json")

@@ -27,7 +27,7 @@ TOOL --eco cmd <name>          Run a shortcut
 
 ## Blueprint Commands
 
-Brain blueprints (`data/_/runtime/_/eco/brain/blueprint.json` or `logic/brain/blueprint/<type>/blueprint.json`) can define custom commands:
+Brain blueprints (`data/_/runtime/_/eco/brain/blueprint.json` or `logic/_/brain/blueprint/<type>/blueprint.json`) can define custom commands:
 
 ```json
 {

@@ -51,7 +51,7 @@ cdmcp_loader.py -> chrome/, _/config/
 
 ## Key Gotchas
 
-1. **`ToolBase` location**: Canonical at `logic.base.blueprint.base`. Always import from `logic.base.blueprint.base`.
+1. **`ToolBase` location**: Canonical at `logic._.base.blueprint.base`. Always import from `logic._.base.blueprint.base`.
 
 2. **Config JSON files**: `config/colors.json` and `config/settings.json` are static defaults, not runtime data. Runtime config goes in `data/config.json` at the project root.
 
@@ -84,7 +84,7 @@ interface/AGENT.md           # FACADE LAYER — import from here in tools
 logic/tool/AGENT.md          # ToolBase, MCPToolBase, hooks, lifecycle
 logic/_/gui/AGENT.md           # GUI blueprints, widgets, style
 logic/turing/AGENT.md        # Progress display, stages, workers
-logic/git/AGENT.md           # Git operations, .gitignore auto-gen, persistence
+logic/_/git/AGENT.md           # Git operations, .gitignore auto-gen, persistence
 logic/_/utils/AGENT.md         # Display, logging, system
 logic/chrome/AGENT.md        # Chrome session, CDP
 logic/mcp/AGENT.md           # MCP infrastructure

@@ -1,9 +1,9 @@
 """EcoCommand — alias for CliEndpoint, the base class for all cli.py endpoints.
 
-Canonical location: logic/base/cli.py
+Canonical location: logic/_/base/cli.py
 This module re-exports CliEndpoint as EcoCommand for existing eco command files.
 """
-from logic.base.cli import CliEndpoint
+from logic._.base.cli import CliEndpoint
 
 EcoCommand = CliEndpoint
 

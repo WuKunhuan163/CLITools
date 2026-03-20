@@ -18,7 +18,7 @@ sys.path.insert(0, str(_r))
 from logic._.utils.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.base.blueprint.base import ToolBase
+from logic._.base.blueprint.base import ToolBase
 from logic._.config import get_color
 
 BOLD = get_color("BOLD")

@@ -71,7 +71,7 @@ class GitEngine:
 
     def maintain_history(self, base: int = 50, stage=None) -> Dict[str, Any]:
         """Runs auto_squash_if_needed and returns a structured result dict."""
-        from logic.git.engine import auto_squash_if_needed, DEFAULT_SQUASH_CONFIG
+        from logic._.git.engine import auto_squash_if_needed, DEFAULT_SQUASH_CONFIG
         
         config = dict(DEFAULT_SQUASH_CONFIG)
         config["base"] = base

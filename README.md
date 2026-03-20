@@ -153,7 +153,7 @@ AITerminalTools/
 Pluggable brain blueprints — different memory architectures for AI agents. A blueprint defines how an agent stores, retrieves, and manages knowledge across sessions.
 
 ```
-logic/brain/
+logic/_/brain/
 ├── blueprint/        # Versioned architecture definitions
 │   ├── base.json     # Shared ecosystem rules (all blueprints inherit)
 │   └── <name>/       # Individual blueprints (blueprint.json + README.md)

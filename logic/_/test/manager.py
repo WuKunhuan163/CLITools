@@ -50,7 +50,7 @@ def test_tool_with_args(args, project_root: Path, translation_func: Optional[Cal
         start_branch = "dev"
 
     # Save persistence directories before any potential branch switch
-    from logic.git.persistence import get_persistence_manager
+    from logic._.git.persistence import get_persistence_manager
     pm = get_persistence_manager(project_root)
     locker_key = pm.save_tools_persistence()
 
@@ -143,7 +143,7 @@ def run_installation_test(tool_name: str, project_root: Path, stay_on_test: bool
     RED = get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
 
-    from logic.git.persistence import get_persistence_manager
+    from logic._.git.persistence import get_persistence_manager
     pm = get_persistence_manager(project_root)
     locker_key = pm.save_tools_persistence()
     

@@ -36,7 +36,7 @@ Root mirrors this: `logic/`, `interface/`, `hooks/`, `test/`, `data/`, `skills/`
 **logic/ Module Rule:** The root `logic/` directory has exactly two categories of subdirectories:
 
 1. **`logic/_/`** — Shared infrastructure (config, agent, setup, hooks, utils, gui, etc.)
-2. **`logic/<COMMAND>/`** — Command-specific shared logic, where `<COMMAND>` matches an installed tool command in `bin/`. Examples: `logic/brain/` (matches `bin/BRAIN`), `logic/git/` (matches `bin/GIT`), `logic/tool/` (matches `bin/TOOL`).
+2. **`logic/<COMMAND>/`** — Command-specific shared logic, where `<COMMAND>` matches an installed tool command in `bin/`. Examples: `logic/_/brain/` (matches `bin/BRAIN`), `logic/_/git/` (matches `bin/GIT`), `logic/tool/` (matches `bin/TOOL`).
 
 Nothing else is allowed at the `logic/` level except `__init__.py` and documentation. If a module is shared infrastructure (used by multiple tools, not command-specific), it belongs in `logic/_/`. If it's command-specific shared logic for a tool that's invoked as `TOOL_NAME "xxx"` (no sub-commands), it can go in `logic/<command>/main.py`.
 
@@ -170,7 +170,7 @@ Tiers are **syntactically unambiguous** — `---dev`, `--dev`, and `-dev` are th
 
 #### Implementation
 
-The base tool at `logic/base/blueprint/base.py` handles all three tiers in `handle_command_line()`:
+The base tool at `logic/_/base/blueprint/base.py` handles all three tiers in `handle_command_line()`:
 
 1. Decorators (`-*`) stripped from `sys.argv`
 2. All `---` tokens collected into a list; the registered handler is found (unordered)
@@ -265,7 +265,7 @@ User data follows path correspondence with code:
 | `logic/_/eco/` | `data/_/eco/` | Ecosystem state |
 | `logic/_/audit/` | `data/_/audit/` | Audit caches/results |
 | `logic/_/assistant/` | `data/_/assistant/` | Session data |
-| `logic/brain/` | `data/_/runtime/brain/` | Brain working state |
+| `logic/_/brain/` | `data/_/runtime/brain/` | Brain working state |
 | `tool/<NAME>/logic/` | `tool/<NAME>/data/` | Tool-specific data |
 
 **Rule:** Runtime/user data ALWAYS lives under `data/` (gitignored by default). Code NEVER writes to `logic/` or root directories for data storage. If you see `runtime/` or `workspace/` at root level, it's a migration bug — the canonical location is `data/_/runtime/` and `data/_/workspace/`.

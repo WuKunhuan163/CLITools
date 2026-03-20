@@ -1053,7 +1053,13 @@ def main():
         remaining = [a for a in sys.argv[1:] if a not in _gui_cmd_map and a != "--no-warning"]
         return handle_gui_remote_command("USERINPUT", tool.project_root, _gui_cmd_map[_gui_match], remaining, tool.get_translation)
 
-    parser = argparse.ArgumentParser(description="USERINPUT Tool")
+    # Eco commands (---prefix) are handled by ToolBase
+    has_eco = any(a.startswith("---") for a in sys.argv[1:])
+    if has_eco:
+        if tool.handle_command_line(): return 0
+
+    parser = argparse.ArgumentParser(description="USERINPUT Tool", add_help=False)
+    parser.add_argument('-h', '--help', action='store_true', dest='show_help')
     parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--id', type=str)
     parser.add_argument('--hint', type=str)
@@ -1079,9 +1085,12 @@ def main():
     parser.add_argument('--cpu-timeout', type=int, default=None)
     parser.add_argument('--auto-commit-message', type=str, default=None,
                         help="Append a progress message to the auto-commit")
-    
-    if tool.handle_command_line(parser): return 0
+
     args, unknown = parser.parse_known_args()
+
+    if args.show_help:
+        parser.print_help()
+        return 0
 
     # Suggest flags for bare words that look like known options
     _known_flags = {'list', 'gui', 'add', 'delete', 'queue', 'enquiry',

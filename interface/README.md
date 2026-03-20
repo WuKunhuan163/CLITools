@@ -2,7 +2,7 @@
 
 Public facade layer. **All tools MUST import shared utilities from `interface.*`**, not directly from `logic.*`. The `interface/` modules re-export stable symbols from `logic/` internals, providing a clean API boundary.
 
-This directory is auto-tracked in `.gitignore` via `GitIgnoreManager.base_patterns` (see `logic/git/manager.py`).
+This directory is auto-tracked in `.gitignore` via `GitIgnoreManager.base_patterns` (see `logic/_/git/manager.py`).
 
 ## Modules
 
