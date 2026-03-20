@@ -208,6 +208,46 @@ class AuditCommand(EcoCommand):
                 stage.success_name = "logic structure — compliant"
             return True
 
+        def _audit_command_symmetry(stage):
+            """Check that shared eco commands have logic/_/ implementations
+            and tools with logic/ subdirs have proper hierarchy."""
+            findings = []
+            
+            SHARED_ECO_COMMANDS = {
+                "dev", "test", "setup", "config", "eco", "skills",
+                "hooks", "audit", "assistant", "agent", "status",
+                "install", "search", "list", "workspace", "migrate",
+                "reinstall", "uninstall",
+            }
+            DECORATOR_FLAGS = {"no-warning", "tool-quiet"}
+            
+            logic_shared = root / "logic" / "_"
+            if logic_shared.exists():
+                shared_dirs = {d.name for d in logic_shared.iterdir()
+                              if d.is_dir() and not d.name.startswith(".")
+                              and d.name != "__pycache__"}
+                
+                for cmd in sorted(SHARED_ECO_COMMANDS):
+                    if cmd not in shared_dirs:
+                        findings.append(f"shared --{cmd} has no logic/_/{cmd}/ directory")
+            
+            tool_dir = root / "tool"
+            if tool_dir.exists():
+                for td in sorted(tool_dir.iterdir()):
+                    if not td.is_dir() or td.name.startswith(".") or td.name.startswith("_"):
+                        continue
+                    tool_logic = td / "logic"
+                    tool_interface = td / "interface"
+                    if tool_logic.is_dir() and not tool_interface.is_dir():
+                        findings.append(f"tool/{td.name}/ has logic/ but no interface/")
+            
+            results["command_symmetry_findings"] = findings
+            if findings:
+                stage.success_name = f"command symmetry — {len(findings)} issues"
+            else:
+                stage.success_name = "command symmetry — compliant"
+            return True
+
         def _audit_archived(stage):
             tool_dir = root / "tool"
             archived_dir = root / "logic" / "_" / "install" / "archived"
@@ -244,6 +284,9 @@ class AuditCommand(EcoCommand):
                         active_status="Checking", success_status="Checked",
                         bold_part="Checking", is_sticky=True),
             TuringStage("logic_structure", _audit_logic_structure,
+                        active_status="Checking", success_status="Checked",
+                        bold_part="Checking", is_sticky=True),
+            TuringStage("command_symmetry", _audit_command_symmetry,
                         active_status="Checking", success_status="Checked",
                         bold_part="Checking", is_sticky=True),
             TuringStage("archived", _audit_archived,
@@ -305,6 +348,14 @@ class AuditCommand(EcoCommand):
             for name in logic_violations:
                 print(f"  \033[33m{name}\033[0m — should be under logic/_/ (shared infra) or match a bin/ command")
             print(f"\n  \033[2mSee skill: symmetric-design > logic/ Module Rule\033[0m")
+
+        cmd_findings = results.get("command_symmetry_findings", [])
+        if cmd_findings:
+            print(f"\n{SEP}")
+            print(f"\n\033[1m\033[33mCommand Symmetry Issues\033[0m")
+            for finding in cmd_findings:
+                print(f"  \033[33m{finding}\033[0m")
+            print(f"\n  \033[2mSee skill: symmetric-design > Command Symmetry\033[0m")
 
         dupes = results.get("archived_duplicates", [])
         if dupes:

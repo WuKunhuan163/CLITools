@@ -102,6 +102,20 @@ The brain system (`data/_/runtime/_/eco/brain/`) is designed to be pluggable. Ev
 
 Intelligence growth is measured by artifact quality: lessons with actionable context, skills that prevent classes of mistakes, infrastructure that automates what skills describe, hooks that enforce what infrastructure provides. Session count is irrelevant — a single session that produces one good skill is worth more than ten sessions that produce no artifacts.
 
+## Metacognitive Auditing
+
+Building audit tools is a core metacognitive activity. When a meta-agent creates an audit, it is:
+
+1. **Externalizing its quality criteria** — What was previously "I know bad structure when I see it" becomes a function that evaluates structure programmatically.
+2. **Closing the feedback loop** — The audit detects the same class of issues the agent previously fixed manually, ensuring they don't recur.
+3. **Teaching future agents** — An audit with clear findings and references to skills gives context-free agents actionable guidance.
+
+The progression: human notices pattern → agent records lesson → agent writes skill → agent builds audit → audit runs automatically. This is the knowledge pipeline applied to quality itself.
+
+**Example:** The `--audit logic_structure` check was created after manually discovering that `logic/gui/` and `logic/utils/` were misplaced shared infrastructure. Instead of just moving them and moving on, the meta-agent built an audit that prevents ANY future directory from being added to `logic/` without matching a `bin/` command. The one-time fix became a permanent guard.
+
+**Example:** The command symmetry audit was created after manually identifying tools with `logic/` but no `interface/`. The audit now surfaces these automatically, ensuring the interface layer isn't forgotten as new tools are added.
+
 ## Anti-Patterns
 
 - **Task tunnel vision**: Completing the assigned task without observing the surrounding environment. The task is done, but the system is no better.

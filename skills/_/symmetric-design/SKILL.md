@@ -61,15 +61,75 @@ When naming resources, prefer a single canonical name. If every provider logo is
 
 ### 3. Command Symmetry
 
-Every symmetric command (`--audit`, `--dev`, `--eco`, `--list`) inherits from `EcoCommand` and follows the same dispatch pattern:
+Commands follow a **three-tier classification** based on their role in the ecosystem. Each tier has a distinct indicator pattern, implementation location, and dispatch mechanism.
 
-```python
-class AuditCommand(EcoCommand):
-    name = "audit"
-    def handle(self, args): ...
+#### Tier 1: Shared Eco Commands (prefix: `--`)
+
+Framework-level commands available to **all tools**. Their implementation lives in `logic/_/<name>/command.py`. They are intercepted in `handle_command_line()` before tool-specific argparse runs.
+
+| Command | Implementation | Purpose |
+|---------|---------------|---------|
+| `--dev` | `logic/_/dev/command.py` | Development utilities |
+| `--test` | `logic/_/test/manager.py` | Test runner |
+| `--setup` | `logic/_/setup/engine.py` | Tool installation |
+| `--config` | `logic/_/config/` | Configuration |
+| `--eco` | `logic/_/eco/navigation.py` | Ecosystem navigation |
+| `--skills` | `logic/_/skills/command.py` | Skill management |
+| `--hooks` | `logic/_/hooks/` | Hook management |
+| `--audit` | `logic/_/audit/command.py` | Code quality |
+| `--assistant` | `logic/_/assistant/` | Agent sessions |
+| `--agent` / `--ask` / `--plan` | `logic/_/agent/command.py` | Agent modes |
+| `--endpoint` | `logic/_/assistant/` | API endpoints |
+| `--install` / `--uninstall` | `logic/_/setup/` | Subtool management |
+| `--rule` | `logic/_/setup/` | Rule display |
+
+**Key rule:** If a command is shared (appears in `base.py`'s dispatch), its logic MUST be in `logic/_/`. Conversely, if logic is in `logic/_/`, it should be reachable via a shared `--command`.
+
+#### Tier 2: Hierarchical Commands (tool-specific subparsers)
+
+Tool-specific commands whose argparse structure **mirrors the directory structure** in `tool/<NAME>/logic/`. Each subcommand level corresponds to a directory level:
+
+```
+TOOL_NAME subcmd1 subcmd2 action args
+    └─→ tool/<NAME>/logic/subcmd1/subcmd2/main.py → handle_action(args)
 ```
 
-This means every command can be found in `logic/_/<name>/command.py`, tested the same way, and extended the same way.
+Example: `LLM provider add openai` → `tool/LLM/logic/provider/add/main.py` or `tool/LLM/logic/provider/engine.py:handle_add()`.
+
+**Implementation:** Use `argparse.add_subparsers()` hierarchically. Each `logic/` subdirectory with a `main.py` or `__init__.py` becomes a potential subparser level. The convention ensures:
+- `README.md` at each `logic/` subdirectory guides users
+- `AGENT.md` at each level guides agents navigating the command tree
+- Terminal `main.py` files contain the actual command handler
+
+#### Tier 3: Decorator Commands (modifiers)
+
+Flags that modify the behavior of other commands without producing their own dispatch. They are stripped from `sys.argv` before dispatch.
+
+| Decorator | Effect |
+|-----------|--------|
+| `--no-warning` | Suppress warning output |
+| `--tool-quiet` | Minimize all output |
+| `--mcp-*` | Rewrite to bare subcommand for MCP |
+
+**Indicator:** Decorators use the `--no-*` or `--tool-*` prefix patterns. They NEVER have subcommands of their own and are always `action="store_true"` boolean flags.
+
+#### Dispatch Order
+
+The dispatch follows a strict precedence:
+1. **Decorators** are stripped first (early parse)
+2. **Shared eco commands** are intercepted via `_extract_flag_args()`
+3. **Subtool delegation** checks for `tool/<NAME>/tool/<CMD>/main.py`
+4. **Hierarchical commands** fall through to tool's own argparse
+
+#### On argparse Indicators
+
+Python's `argparse` supports `prefix_chars` (default: `-`) but not semantic "type indicators." The three tiers are distinguished by **convention and registration**, not by different prefix characters:
+
+- Shared eco commands: registered in `SHARED_ECO_COMMANDS` constant in `base.py`
+- Hierarchical commands: discovered from `tool/<NAME>/logic/` directory structure
+- Decorators: registered in `DECORATOR_FLAGS` constant in `base.py`
+
+This registry-based approach prevents naming collisions (the user's concern about "text is dangerous") because new commands are validated against the existing registry before being added.
 
 ### 4. Documentation Symmetry
 
@@ -116,6 +176,39 @@ tool/LLM/data/
 
 Zero entropy in naming. The path is constructable: `data/{provider}/logo.svg`.
 
+### 6. Non-CLI Content Symmetry
+
+Non-CLI content (web frontends, HTML GUIs, static assets, configuration templates) follows the same modular principle as CLI commands: **store alongside the command that manages it.**
+
+| Content Type | Location | Managed By |
+|-------------|----------|------------|
+| HTML GUI | `tool/<NAME>/logic/<feature>/gui/` | The feature's command handler |
+| Web frontend | `logic/_/assistant/gui/` | `--assistant` shared command |
+| Static assets | `tool/<NAME>/data/` or `logic/_/utils/asset/` | Setup/migration |
+| Config templates | `logic/_/setup/IDE/<ide>/` | `--setup` command |
+| Report output | `report/<namespace>/` | `--report` command |
+
+**Rule:** Every non-CLI file should be reachable from its managing command's "relative directory." If `--assistant` manages the web GUI, the GUI lives in `logic/_/assistant/gui/`. If `tool/LLM` has a configuration wizard, it lives in `tool/LLM/logic/setup/gui/`. This shares information entropy with the CLI hierarchy — you don't need a separate mental model for where non-CLI files live.
+
+**Path Construction:** Given a command path, the non-CLI content path is constructable:
+- Shared eco command `--X` → non-CLI content in `logic/_/X/gui/` or `logic/_/X/static/`
+- Tool command `TOOL sub` → non-CLI content in `tool/TOOL/logic/sub/gui/`
+- Assets shared across tools → `logic/_/utils/asset/`
+
+### 7. Data Symmetry
+
+User data follows path correspondence with code:
+
+| Code Location | Data Location | Purpose |
+|--------------|---------------|---------|
+| `logic/_/eco/` | `data/_/eco/` | Ecosystem state |
+| `logic/_/audit/` | `data/_/audit/` | Audit caches/results |
+| `logic/_/assistant/` | `data/_/assistant/` | Session data |
+| `logic/brain/` | `data/_/runtime/brain/` | Brain working state |
+| `tool/<NAME>/logic/` | `tool/<NAME>/data/` | Tool-specific data |
+
+**Rule:** Runtime/user data ALWAYS lives under `data/` (gitignored by default). Code NEVER writes to `logic/` or root directories for data storage. If you see `runtime/` or `workspace/` at root level, it's a migration bug — the canonical location is `data/_/runtime/` and `data/_/workspace/`.
+
 ## When to Break Symmetry
 
 Symmetry is a strong default, not an absolute rule. Break it when:
@@ -134,3 +227,28 @@ Run `TOOL --audit quality` to detect structural asymmetries:
 - Inconsistent hook configurations
 
 The audit system itself follows symmetric design — each audit phase uses the same input/output patterns, making the full-flow audit possible.
+
+## Information Entropy Quantification
+
+The entropy audit (`TOOL --audit --experimental entropy`) quantifies structural predictability across 6 dimensions:
+
+| Dimension | What It Measures | Metric |
+|-----------|-----------------|--------|
+| Directory Structure | Tool skeleton consistency | % of tools missing canonical items |
+| Naming | Casing/file naming patterns | Shannon entropy of naming patterns |
+| Path Correspondence | Code ↔ data mirroring | % of logic/_/ modules with data/_/ mirrors |
+| Module Coherence | logic/ dirs match bin/ commands | Violation count |
+| Sibling Balance | Even-sized peer directories | Coefficient of variation |
+| Import Graph | Interface usage vs direct logic/ | Bypass ratio |
+
+**Interpretation scale:** 0.0 = perfectly predictable, 1.0 = maximum chaos.
+
+| Score | Grade | Meaning |
+|-------|-------|---------|
+| 0.00-0.15 | Excellent | Knowing one part predicts the rest |
+| 0.15-0.30 | Good | Minor inconsistencies |
+| 0.30-0.50 | Moderate | Needs attention |
+| 0.50-0.70 | Poor | Significant disorganization |
+| 0.70-1.00 | Critical | Restructuring needed |
+
+The entropy audit protocol outputs JSON following a standardized envelope format (version, timestamp, connections, suggestions), enabling trend tracking across audit runs and CI/CD integration.
