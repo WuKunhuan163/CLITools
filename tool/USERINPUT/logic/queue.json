@@ -1,1 +1,8 @@
-{"prompts": ["Queued task"]}
+{
+  "prompts": [
+    "成功接收: 好的，现在你用这个闭环工作流，继续深化探索ShowDoc MCP。（如果没有这个工具，请先TOOL dev create创建）",
+    "成功接收: 好的，现在你用这个闭环工作流，继续深化探索HowdyGo MCP。（如果没有这个工具，请先TOOL dev create创建）",
+    "成功接收: 好的，现在你用这个闭环工作流，继续深化探索c7c7.app (InsCode快马) MCP。（如果没有这个工具，请先TOOL dev create创建）",
+    "上述新工具的MCP都太简略——请认认真真结合最新的skill来完成！每一个网页版的工具按钮都那么多，隐藏交互那么多，你都尝试了没有？我们有足够的时间，请认真开发！确保CDMCP的for_agent以及README都有引导agent来看skill的陈述。假设下次是另一个agent来开发，这些引导一定要能让其更快访问到该skill、遵循其才可以。"
+  ]
+}

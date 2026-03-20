@@ -218,6 +218,10 @@ The legacy top-level directories (`logic/base/`, `logic/brain/`, `logic/git/`, `
 
 Run `TOOL ---help` to see the full command tree generated from `argparse.json` files.
 
+**Tool-internal decomposition**: Tools with complex CLIs (like USERINPUT) decompose their `logic/` directory using the same pattern: each subcommand gets `cli.py` + `argparse.json` in a subdirectory, and `main.py` becomes a thin router. See `tool/USERINPUT/logic/README.md` for the reference implementation.
+
+**Parallel hierarchy**: Command directories map to data directories: `logic/_/<name>/cli.py` ↔ `data/_/<name>/`. Root directories `report/`, `skills/`, `migrate/` follow the same pattern. See `logic/AGENT.md` for details.
+
 Tools import everything via `interface/` and never reference `logic/_/` directly.
 
 ## 2. Standard Tool Structure

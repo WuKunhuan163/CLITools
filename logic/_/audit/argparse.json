@@ -17,6 +17,15 @@
     },
     "entropy": {
       "description": "Information entropy analysis"
+    },
+    "colocated": {
+      "description": "Verify __/ directories are only referenced by parent endpoint (referential integrity)"
+    },
+    "endpoints": {
+      "description": "Smoke-test all eco command endpoints via full dispatch chain (argparse.json-driven)"
+    },
+    "skills": {
+      "description": "Audit skill hierarchy: README.md, AGENT.md coverage"
     }
   }
 }

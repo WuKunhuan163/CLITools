@@ -74,6 +74,38 @@ Directories named `__/` within a command endpoint hold **co-located data** speci
 - `__/` directories are auditable: `TOOL ---audit` checks referential integrity
 - No business logic in `__/` — only data, fixtures, and templates
 
+### Tool-Internal CLI Decomposition
+
+Tools with complex CLIs can decompose their `logic/` directory using the same pattern as eco commands. Each subcommand gets its own `cli.py` and `argparse.json`:
+
+```
+tool/USERINPUT/logic/
+├── cli.py               ← Root entry point (no-args default)
+├── argparse.json         ← Root schema
+├── queue/cli.py          ← --queue subcommand
+├── prompt/cli.py         ← --system-prompt subcommand
+├── config/cli.py         ← --config subcommand
+└── main.py routes to the appropriate cli.py
+```
+
+`main.py` becomes a thin router: create ToolBase, detect mode, dispatch.
+
+### Parallel Hierarchy Pattern
+
+Command directories (`logic/_/<name>/cli.py`) have parallel data directories (`data/_/<name>/`). This mapping is auditable:
+
+| Command | Data | Description |
+|---------|------|-------------|
+| `logic/_/brain/cli.py` | `data/_/runtime/_/eco/brain/` | Brain state |
+| `logic/_/audit/cli.py` | `data/_/audit/` | Audit cache |
+| `logic/_/assistant/` | `data/_/runtime/sessions/` | Session data |
+| `logic/_/test/cli.py` | `data/_/test/` | Test results |
+
+Root-level data directories follow the same pattern:
+- `report/` → user reports (mapped to `---dev` or future `---report`)
+- `skills/` → skill guides (mapped to `---skills`)
+- `migrate/` → migration data (mapped to `---migrate`)
+
 ### argparse.json Schema
 
 ```json

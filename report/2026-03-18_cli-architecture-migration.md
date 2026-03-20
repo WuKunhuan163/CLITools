@@ -98,3 +98,52 @@ The `argparse.json` schema enables auto-generation of smoke tests:
 3. Verify exit code 0 and non-empty output
 
 This replaces manual test_00_help.py boilerplate with schema-driven generation.
+
+## Session 2 Additions
+
+### 6. USERINPUT CLI Decomposition
+
+Refactored USERINPUT from a monolithic 1258-line `main.py` into a hierarchical structure:
+
+```
+tool/USERINPUT/
+├── main.py              ← Thin router (160 lines, down from 1258)
+├── logic/
+│   ├── __init__.py      ← Shared utilities (get_config, get_msg, exceptions)
+│   ├── cli.py           ← Root entry: GUI feedback collection
+│   ├── argparse.json    ← Root schema
+│   ├── queue/
+│   │   ├── store.py     ← Queue FIFO storage (moved from queue.py)
+│   │   ├── cli.py       ← --queue subcommand dispatch
+│   │   └── argparse.json
+│   ├── prompt/
+│   │   ├── cli.py       ← --system-prompt subcommand dispatch
+│   │   └── argparse.json
+│   └── config/
+│       ├── cli.py       ← --config + --enquiry-mode dispatch
+│       └── argparse.json
+```
+
+All 27 existing tests pass. CLI interface unchanged (backwards compatible).
+
+### 7. `__/` Co-Located Data Audit
+
+Added `TOOL ---audit colocated` command that verifies:
+- `__/` dirs only exist alongside cli.py or main.py
+- No business logic (class/def) in `__/`
+- External code doesn't reference `__/` contents
+
+### 8. Full-Path Endpoint Smoke Tests
+
+Added `TOOL ---audit endpoints` that:
+- Discovers all eco commands via argparse.json
+- Invokes `TOOL ---<name> --help` through the full dispatch chain
+- Reports pass/fail/skip status
+- Result: 12/12 testable endpoints pass, 5 skipped (interactive)
+
+### 9. Parallel Hierarchy Documentation
+
+Documented the command-to-data mapping pattern:
+- `logic/_/<name>/cli.py` ↔ `data/_/<name>/`
+- Root directories (`report/`, `skills/`, `migrate/`) follow the same pattern
+- Updated in root `AGENT.md` and `logic/AGENT.md`

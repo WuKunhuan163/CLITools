@@ -14,7 +14,7 @@ class TestUserInputConfig(unittest.TestCase):
         interval = 45
         env = os.environ.copy()
         env["TOOL_LANGUAGE"] = "en" # Force English for output check
-        res = subprocess.run([str(bin_path), "config", "--focus-interval", str(interval)], 
+        res = subprocess.run([str(bin_path), "--config", "--focus-interval", str(interval)], 
                             capture_output=True, text=True, env=env)
         self.assertEqual(res.returncode, 0)
         # The output now contains the values in a multiple-config message

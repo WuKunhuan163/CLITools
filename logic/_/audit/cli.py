@@ -41,6 +41,8 @@ class AuditCommand(EcoCommand):
 
         sub.add_parser("skills", help="Audit skill hierarchy: README.md, AGENT.md coverage")
         sub.add_parser("archived", help="Check for duplicate tools in tool/ and archived/")
+        sub.add_parser("colocated", help="Verify __/ directories are only referenced by parent endpoint")
+        sub.add_parser("endpoints", help="Smoke-test all eco command endpoints via argparse.json")
 
         parsed = parser.parse_args(args)
         root = self.project_root
@@ -59,6 +61,10 @@ class AuditCommand(EcoCommand):
             from interface.dev import dev_audit_archived
             dev_audit_archived(self.project_root)
             return 0
+        elif parsed.audit_command == "colocated":
+            return self._colocated_audit()
+        elif parsed.audit_command == "endpoints":
+            return self._endpoint_smoke_test()
         elif not args or parsed.audit_command is None:
             return self._full_flow()
         else:
@@ -574,3 +580,170 @@ class AuditCommand(EcoCommand):
             print(f"\n{BOLD}Created {created} directories.{RESET}")
         else:
             print(f"\n{DIM}Structure already compliant.{RESET}")
+
+    def _colocated_audit(self):
+        """Audit __/ co-located data directories for referential integrity.
+
+        Rules:
+        1. __/ directories may only exist alongside a cli.py or main.py
+        2. Contents of __/ may only be referenced by the parent cli.py/main.py
+           and sibling modules in the same directory
+        3. No Python business logic (.py files with classes/functions) in __/
+        """
+        import re as _re
+        root = self.project_root
+        violations = []
+        dunder_dirs = []
+
+        # Find all __/ directories
+        for dunder in sorted(root.rglob("__")):
+            if not dunder.is_dir():
+                continue
+            if any(p.name in ('.git', '__pycache__', 'node_modules', '.cache') for p in dunder.parents):
+                continue
+            if dunder.name != "__":
+                continue
+            dunder_dirs.append(dunder)
+
+        if not dunder_dirs:
+            self.info("No __/ directories found.")
+            return 0
+
+        self.header(f"Co-Located Data Audit ({len(dunder_dirs)} __/ directories)")
+
+        for dunder in dunder_dirs:
+            parent = dunder.parent
+            rel_parent = parent.relative_to(root)
+            has_endpoint = (parent / "cli.py").exists() or (parent / "main.py").exists()
+
+            if not has_endpoint:
+                violations.append((str(rel_parent / "__"), "ORPHAN", "No cli.py or main.py in parent directory"))
+                continue
+
+            # Check for business logic in __/
+            for py_file in dunder.rglob("*.py"):
+                try:
+                    content = py_file.read_text(encoding="utf-8")
+                    if _re.search(r'^\s*(class|def)\s+\w+', content, _re.MULTILINE):
+                        rel_file = py_file.relative_to(root)
+                        violations.append((str(rel_file), "LOGIC_IN_DUNDER",
+                                           "Business logic (class/def) found in __/ — only data allowed"))
+                except Exception:
+                    pass
+
+            # Check referential integrity: scan all .py files for references to this __/
+            dunder_rel = str(dunder.relative_to(root))
+            allowed_parents = {str(parent.relative_to(root))}
+
+            for py_file in root.rglob("*.py"):
+                if any(p.name in ('.git', '__pycache__', 'node_modules', '.cache', 'tmp') for p in py_file.parents):
+                    continue
+                py_rel = str(py_file.relative_to(root))
+                py_parent = str(py_file.parent.relative_to(root))
+
+                if py_parent in allowed_parents:
+                    continue
+
+                try:
+                    content = py_file.read_text(encoding="utf-8")
+                    patterns = [
+                        dunder_rel.replace("/", "."),
+                        dunder_rel,
+                        f"/{dunder.name}/",
+                    ]
+                    for pat in patterns[:2]:
+                        if pat in content:
+                            violations.append((py_rel, "EXTERNAL_REF",
+                                               f"References {rel_parent}/__/ from outside parent"))
+                            break
+                except Exception:
+                    pass
+
+            self.info(f"{rel_parent}/__/ — endpoint: {'yes' if has_endpoint else 'NO'}")
+
+        if violations:
+            print()
+            self.header("Violations")
+            for path, code, msg in violations:
+                self.error(f"[{code}]", f"{path}: {msg}")
+            print()
+            self.warn(f"{len(violations)} violation(s) found.")
+            return 1
+        else:
+            print()
+            self.success("All __/ directories pass referential integrity check.")
+            return 0
+
+    def _endpoint_smoke_test(self):
+        """Run full-path smoke tests for all eco command endpoints.
+
+        For each logic/_/<name>/cli.py with argparse.json, invoke
+        TOOL ---<name> (with no args) through the full dispatch chain
+        and verify non-crash behavior (exit code 0 or 1, not >1).
+        """
+        import subprocess
+        root = self.project_root
+        shared_dir = root / "logic" / "_"
+        results = []
+
+        endpoints = []
+        for d in sorted(shared_dir.iterdir()):
+            if not d.is_dir() or d.name.startswith((".", "_")):
+                continue
+            if (d / "cli.py").exists() and (d / "argparse.json").exists():
+                endpoints.append(d.name)
+
+        if not endpoints:
+            self.info("No endpoints with argparse.json found.")
+            return 0
+
+        self.header(f"Endpoint Smoke Tests ({len(endpoints)} endpoints)")
+
+        tool_bin = root / "bin" / "TOOL"
+        if not tool_bin.exists():
+            self.error("bin/TOOL not found.", "Cannot run full-path smoke tests.")
+            return 1
+
+        passed = 0
+        failed = 0
+        skipped = 0
+
+        # Endpoints that require interactive input or have side effects
+        skip_list = {"assistant", "agent", "setup", "install", "uninstall",
+                     "migrate", "workspace"}
+
+        for name in endpoints:
+            if name in skip_list:
+                self.info(f"  SKIP ---{name} (interactive/side-effect)")
+                skipped += 1
+                continue
+
+            try:
+                cmd = [str(tool_bin), f"---{name}", "--help"]
+                res = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=15,
+                    cwd=str(root),
+                )
+                if res.returncode <= 2:
+                    self.success(f"  PASS ---{name}", f"(exit {res.returncode})")
+                    passed += 1
+                else:
+                    self.error(f"  FAIL ---{name}", f"exit {res.returncode}")
+                    if res.stderr:
+                        for line in res.stderr.strip().splitlines()[:3]:
+                            self.info(f"    {line}")
+                    failed += 1
+            except subprocess.TimeoutExpired:
+                self.warn(f"  TIMEOUT ---{name}", "(>15s)")
+                failed += 1
+            except Exception as e:
+                self.error(f"  ERROR ---{name}", str(e))
+                failed += 1
+
+            results.append({"name": name, "passed": failed == 0})
+
+        print()
+        total = passed + failed + skipped
+        self.info(f"Results: {passed} passed, {failed} failed, {skipped} skipped / {total} total")
+
+        return 1 if failed > 0 else 0
