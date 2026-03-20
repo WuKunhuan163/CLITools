@@ -5,14 +5,10 @@
 !/tool.json
 !/README.md
 !/for_agent.md
-!/for_agent_reflection.md
-!/.gitignore
-!/.gitattributes
 
 # --- Framework Directories ---
 !/logic/
 !/interface/
-!/bin/
 !/test/
 !/tool/
 !/report/
@@ -49,6 +45,9 @@ pip-delete-this-directory.txt
 Thumbs.db
 
 # --- Tool Specific Rules ---
+# 
+!/bin/
+
 # PYTHON
 !/tool/PYTHON/
 /tool/PYTHON/data/*

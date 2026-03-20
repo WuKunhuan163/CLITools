@@ -465,7 +465,8 @@ class BaseGUIWindow:
         import tkinter as tk
         has_links = "[" in text and "]" in text and "(" in text and ")" in text
         has_bold = "**" in text
-        if has_links or has_bold:
+        has_code = "`" in text
+        if has_links or has_bold or has_code:
             return self.add_inline_links(parent, text)
 
         if font is None:
@@ -502,10 +503,12 @@ class BaseGUIWindow:
 
     def add_inline_links(self, frame, text_content):
         """
-        Creates a tk.Text widget that supports inline clickable links and bold text.
+        Creates a tk.Text widget that supports inline clickable links, bold text,
+        and inline code blocks.
         Supported formats:
           - Links:  [Link Label](https://link.url)
           - Bold:   **bold text**
+          - Code:   `code text` (rendered with monospace font and background)
         """
         import webbrowser
         import re
@@ -521,13 +524,24 @@ class BaseGUIWindow:
 
         bold_font = (base_font[0], base_font[1], "bold") if isinstance(base_font, tuple) else base_font
         text_widget.tag_config("bold", font=bold_font)
+
+        code_font_size = base_font[1] - 1 if isinstance(base_font, tuple) and len(base_font) > 1 else 12
+        code_font = ("Menlo", code_font_size)
+        text_widget.tag_config("code",
+                               font=code_font,
+                               background="#e8e8e8",
+                               foreground="#c7254e",
+                               relief="flat",
+                               lmargin1=2, rmargin=2)
         
         link_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
         bold_pattern = r'\*\*([^*]+)\*\*'
-        combined = re.compile(f'({link_pattern})|({bold_pattern})')
+        code_pattern = r'`([^`]+)`'
+        combined = re.compile(f'({link_pattern})|({bold_pattern})|({code_pattern})')
         
         last_idx = 0
         link_counter = 0
+        code_counter = 0
         for match in combined.finditer(text_content):
             text_widget.insert(tk.END, text_content[last_idx:match.start()])
             
@@ -542,6 +556,21 @@ class BaseGUIWindow:
                 text_widget.tag_bind(tag_name, "<Button-1>", lambda e, u=url: webbrowser.open_new(u))
             elif match.group(5) is not None:
                 text_widget.insert(tk.END, match.group(5), "bold")
+            elif match.group(7) is not None:
+                code_text = match.group(7)
+                code_tag = f"code_{code_counter}"
+                copy_tag = f"copy_{code_counter}"
+                code_counter += 1
+
+                text_widget.insert(tk.END, " ")
+                text_widget.insert(tk.END, code_text, ("code", code_tag))
+                text_widget.insert(tk.END, " \u2398 ", (copy_tag,))
+                copy_font_size = base_font[1] if isinstance(base_font, tuple) and len(base_font) > 1 else 14
+                text_widget.tag_config(copy_tag, foreground="#888888", font=(base_font[0], copy_font_size))
+                text_widget.tag_bind(copy_tag, "<Enter>", lambda e: text_widget.config(cursor="hand2"))
+                text_widget.tag_bind(copy_tag, "<Leave>", lambda e: text_widget.config(cursor="arrow"))
+                text_widget.tag_bind(copy_tag, "<Button-1>",
+                                     lambda e, ct=code_text, tw=text_widget, tg=copy_tag: self._copy_code(ct, tw, tg))
             
             last_idx = match.end()
             
@@ -559,6 +588,16 @@ class BaseGUIWindow:
         _update_height()
         
         return text_widget
+
+    def _copy_code(self, text, text_widget, tag_name):
+        """Copy code text to clipboard and briefly flash the copy icon."""
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
+            text_widget.tag_config(tag_name, foreground="#228B22")
+            self.root.after(800, lambda: text_widget.tag_config(tag_name, foreground="#999999"))
+        except Exception:
+            pass
 
     def on_container_resize(self, event):
         """Callback for container <Configure> events to handle dynamic image and text wrapping."""

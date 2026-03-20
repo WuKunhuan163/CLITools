@@ -17,14 +17,10 @@ class GitIgnoreManager:
             "!/tool.json",
             "!/README.md",
             "!/for_agent.md",
-            "!/for_agent_reflection.md",
-            "!/.gitignore",
-            "!/.gitattributes",
             "",
             "# --- Framework Directories ---",
             "!/logic/",
             "!/interface/",
-            "!/bin/",
             "!/test/",
             "!/tool/",
             "!/report/",
@@ -65,15 +61,19 @@ class GitIgnoreManager:
     def get_tool_rules(self):
         """
         Scans all tools (including nested ones) for their 'tool.json' and extracts 'git_ignore' field.
-        Converts relative patterns to project-relative patterns.
+        Also reads root tool.json. Converts relative patterns to project-relative patterns.
         """
         tool_dir = self.project_root / "tool"
         rules = {}
-        if not tool_dir.exists():
-            return rules
 
-        # Recursively find all tool.json files under tool/
-        for tool_json_path in tool_dir.rglob("tool.json"):
+        all_json_paths = []
+        root_json = self.project_root / "tool.json"
+        if root_json.exists():
+            all_json_paths.append(root_json)
+        if tool_dir.exists():
+            all_json_paths.extend(tool_dir.rglob("tool.json"))
+
+        for tool_json_path in all_json_paths:
             tool_path = tool_json_path.parent
             # Get relative path from project root to tool directory
             # e.g. "tool/iCloud/tool/iCloudPD"

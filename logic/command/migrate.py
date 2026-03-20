@@ -35,34 +35,71 @@ MIGRATION_LEVELS = [
 ]
 
 
-def list_domains() -> List[Dict[str, Any]]:
-    """List all registered migration domains with their info."""
-    domains = []
-    if not MIGRATE_DIR.exists():
-        return domains
+def _find_all_migrate_dirs() -> List[Path]:
+    """Find all migrate/ directories: root-level and tool-specific."""
+    dirs = []
+    if MIGRATE_DIR.exists():
+        dirs.append(MIGRATE_DIR)
+    tool_dir = _PROJECT_ROOT / "tool"
+    if tool_dir.exists():
+        for td in sorted(tool_dir.iterdir()):
+            migrate_sub = td / "migrate"
+            if td.is_dir() and migrate_sub.is_dir():
+                dirs.append(migrate_sub)
+    return dirs
 
-    for d in sorted(MIGRATE_DIR.iterdir()):
-        info_file = d / "info.json"
-        if d.is_dir() and info_file.exists():
-            try:
-                info = json.loads(info_file.read_text())
-                info["path"] = str(d)
-                info["domain"] = d.name
-                domains.append(info)
-            except Exception:
-                domains.append({"domain": d.name, "path": str(d), "error": "invalid info.json"})
+
+def list_domains() -> List[Dict[str, Any]]:
+    """List all registered migration domains with their info.
+
+    Scans both the root migrate/ directory and tool/<NAME>/migrate/ directories.
+    """
+    domains = []
+    seen = set()
+
+    for mdir in _find_all_migrate_dirs():
+        for d in sorted(mdir.iterdir()):
+            info_file = d / "info.json"
+            if d.is_dir() and info_file.exists() and d.name not in seen:
+                try:
+                    info = json.loads(info_file.read_text())
+                    info["path"] = str(d)
+                    info["domain"] = d.name
+                    tool_name = info.get("target_tool", "")
+                    if mdir != MIGRATE_DIR:
+                        info["scope"] = mdir.parent.name
+                    domains.append(info)
+                    seen.add(d.name)
+                except Exception:
+                    domains.append({"domain": d.name, "path": str(d), "error": "invalid info.json"})
+                    seen.add(d.name)
     return domains
+
+
+def _find_domain_dir(domain: str) -> Optional[Path]:
+    """Locate a domain directory by name across all migrate locations."""
+    root_path = MIGRATE_DIR / domain
+    if root_path.exists() and (root_path / "info.json").exists():
+        return root_path
+    tool_dir = _PROJECT_ROOT / "tool"
+    if tool_dir.exists():
+        for td in sorted(tool_dir.iterdir()):
+            candidate = td / "migrate" / domain
+            if candidate.exists() and (candidate / "info.json").exists():
+                return candidate
+    return None
 
 
 def get_domain_info(domain: str) -> Optional[Dict[str, Any]]:
     """Get info for a specific domain."""
-    info_file = MIGRATE_DIR / domain / "info.json"
-    if not info_file.exists():
+    domain_dir = _find_domain_dir(domain)
+    if not domain_dir:
         return None
+    info_file = domain_dir / "info.json"
     try:
         info = json.loads(info_file.read_text())
         info["domain"] = domain
-        info["path"] = str(MIGRATE_DIR / domain)
+        info["path"] = str(domain_dir)
         return info
     except Exception:
         return {"domain": domain, "error": "invalid info.json"}
@@ -74,7 +111,9 @@ def get_domain_module(domain: str, level: str):
     The module should expose an execute(args) function.
     """
     import importlib.util
-    domain_dir = MIGRATE_DIR / domain
+    domain_dir = _find_domain_dir(domain)
+    if not domain_dir:
+        return None
 
     level_file = domain_dir / f"{level.replace('-', '_')}.py"
     if not level_file.exists():
@@ -97,7 +136,10 @@ def check_pending(domain: str) -> Dict[str, Any]:
 
     The domain module should expose a check_pending() function.
     """
-    domain_dir = MIGRATE_DIR / domain
+    domain_dir = _find_domain_dir(domain)
+    if not domain_dir:
+        return {"pending": [], "up_to_date": True}
+
     check_file = domain_dir / "check.py"
     if not check_file.exists():
         return {"pending": [], "up_to_date": True}
@@ -118,8 +160,8 @@ def scan_domain(domain: str) -> Dict[str, Any]:
     The domain module should expose a scan_available() function that returns
     a list of item names, and a harness_to_tool_name(name) function for mapping.
     """
-    domain_dir = MIGRATE_DIR / domain
-    if not domain_dir.exists():
+    domain_dir = _find_domain_dir(domain)
+    if not domain_dir:
         return {"error": f"Domain '{domain}' not found"}
 
     import importlib.util

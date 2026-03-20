@@ -24,9 +24,9 @@ def run(on_step_change=None):
         "**Steps:**\n\n"
         "1. Go to https://open-dev.dingtalk.com/fe/app — select your app\n"
         "2. In the left sidebar, click **权限管理** (Permissions)\n"
-        "3. Search for each permission scope below and click **申请权限** (Apply)\n"
-        "4. For scopes starting with `qyapi_`, search in the classic permissions tab\n"
-        "5. For scopes like `Contact.User.Read`, search in the new-style permissions\n\n"
+        "3. Use the search box to find each permission below — it supports "
+        "both formats (`Contact.User.Read` and `qyapi_get_member`) in one search\n"
+        "4. Click **申请权限** (Apply) for each\n\n"
         "**Note:** Some permissions require admin approval. If your organization "
         "has approval workflows, you may need to wait for confirmation."
     )

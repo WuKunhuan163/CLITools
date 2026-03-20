@@ -1,6 +1,9 @@
 {
   "name": "TOOL",
   "version": "1.0.0",
+  "git_ignore": [
+    "root:!/bin/"
+  ],
   "dependencies": [
     "psutil",
     "pynput", 

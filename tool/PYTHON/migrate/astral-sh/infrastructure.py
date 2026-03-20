@@ -8,7 +8,7 @@ This is a refactored version of tool/PYTHON/logic/install.py's download logic.
 import sys
 from pathlib import Path
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def execute(args=None):
