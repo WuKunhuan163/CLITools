@@ -46,7 +46,7 @@ def uninstall_tool(tool_name: str, project_root: Path, force_yes: bool = False, 
 def list_tools(project_root: Path, force: bool = False, translation_func = None):
     """List all available tools and their status."""
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))
-    cache_path = project_root / "data" / "tool_cache.json"
+    cache_path = project_root / "data" / "tools.json"
     
     BOLD = get_color("BOLD", "\033[1m")
     YELLOW = get_color("YELLOW", "\033[33m")

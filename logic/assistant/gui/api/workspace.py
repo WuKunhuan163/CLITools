@@ -135,7 +135,7 @@ class WorkspaceMixin:
 
         initial = body.get("dir", "")
         cmd = [sys.executable, fd_bin, "--directory",
-               "--title", "Select Workspace Directory"]
+               "--tool-quiet", "--title", "Select Workspace Directory"]
         if initial:
             cmd.extend(["--dir", initial])
 
@@ -148,16 +148,36 @@ class WorkspaceMixin:
         if result.returncode != 0:
             return {"ok": False, "error": "Cancelled"}
 
+        import re as _re
+        import json as _json
+        _ansi_re = _re.compile(r'\x1b\[[0-9;]*m')
+
         path = ""
-        for line in result.stdout.strip().splitlines():
-            if line.startswith("Selected: "):
-                path = line[len("Selected: "):].strip()
+        lines = result.stdout.strip().splitlines()
+
+        for line in lines:
+            if line.startswith("TOOL_RESULT_JSON:"):
+                try:
+                    payload = _json.loads(line[len("TOOL_RESULT_JSON:"):])
+                    val = payload.get("stdout", "").strip()
+                    if val and val != "None":
+                        path = val
+                except Exception:
+                    pass
                 break
-            import re as _re
-            m = _re.match(r"^\s*\d+\.\s*(.*)$", line)
-            if m:
-                path = m.group(1).strip()
-                break
+
+        if not path:
+            for line in lines:
+                clean = _ansi_re.sub('', line).strip()
+                if clean.startswith("Selected:"):
+                    path = clean[len("Selected:"):].strip()
+                    if path:
+                        break
+                m = _re.match(r"^\s*\d+\.\s*(.*)$", clean)
+                if m:
+                    path = m.group(1).strip()
+                    if path:
+                        break
         if not path:
             return {"ok": False, "error": "No directory selected"}
 

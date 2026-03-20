@@ -1,6 +1,6 @@
 ---
 name: record-cache
-description: Caching and persistence patterns in AITerminalTools. Covers AuditManager, tool_cache, test cache, and log rotation.
+description: Caching and persistence patterns in AITerminalTools. Covers AuditManager, tools, test cache, and log rotation.
 ---
 
 # Record & Cache Patterns

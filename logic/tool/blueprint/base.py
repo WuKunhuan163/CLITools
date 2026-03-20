@@ -459,6 +459,7 @@ class ToolBase:
 
         from logic.asset.migrate import migrate_logos, migrate_filetypes, migrate_all
 
+        synced = 0
         if target == "logos":
             d, s, e = migrate_logos(force)
         elif target == "filetypes":
@@ -466,8 +467,11 @@ class ToolBase:
         else:
             result = migrate_all(force)
             d, s, e = result["downloaded"], result["skipped"], result["errors"]
+            synced = result.get("synced_to_llm", 0)
 
         print(f"  {BOLD}{GREEN}Downloaded{RESET} {d} files, {DIM}skipped {s}{RESET}")
+        if synced:
+            print(f"  {BOLD}{GREEN}Synced{RESET} {synced} logos to LLM tool directories")
         if e:
             print(f"  {BOLD}{RED}Failed{RESET} {len(e)}: {DIM}{', '.join(e[:10])}{RESET}")
 
@@ -1260,7 +1264,7 @@ class ToolBase:
             codebase_root=str(self.tool_dir),
             tier=2,
         )
-        save_session(session, project_root)
+        save_session(session, project_root, tool_dir=str(self.tool_dir))
         self._save_active_session_id(session.id)
 
         from logic.agent.command import _find_running_gui_port
@@ -1285,9 +1289,10 @@ class ToolBase:
         )
         project_root = str(self.project_root)
 
+        td = str(self.tool_dir)
         if args:
             sid = args[0]
-            session = load_session(sid, project_root)
+            session = load_session(sid, project_root, tool_dir=td)
             if session:
                 self._save_active_session_id(sid)
                 print(f"  {BOLD}Checked out.{RESET} {DIM}{sid} ({session.tool_name}, "
@@ -1300,7 +1305,7 @@ class ToolBase:
                 codebase_root=str(self.tool_dir),
                 tier=2,
             )
-            save_session(session, project_root)
+            save_session(session, project_root, tool_dir=td)
             self._save_active_session_id(session.id)
             print(f"  {BOLD}New session created.{RESET} {DIM}{session.id}{RESET}")
 
@@ -1318,8 +1323,10 @@ class ToolBase:
         GREEN = get_color("GREEN", "\033[32m")
         RESET = get_color("RESET", "\033[0m")
 
+        from logic.agent.state import get_sessions_dir
         sessions_dir = self.project_root / "runtime" / "sessions"
-        data_sessions_dir = self.project_root / "data" / "session"
+        tool_sessions_dir = get_sessions_dir(
+            str(self.project_root), tool_dir=str(self.tool_dir))
 
         def _notify_gui_delete(sid):
             """Notify running GUI server to delete a session."""
@@ -1340,7 +1347,7 @@ class ToolBase:
         if "--all" in args:
             count = 0
             gui_sids = set()
-            for d in (sessions_dir, data_sessions_dir):
+            for d in (sessions_dir, tool_sessions_dir):
                 if d.is_dir():
                     for item in list(d.iterdir()):
                         try:
@@ -1376,8 +1383,8 @@ class ToolBase:
                             removed += 1
                         except OSError:
                             pass
-            if data_sessions_dir.is_dir():
-                for item in data_sessions_dir.iterdir():
+            if tool_sessions_dir.is_dir():
+                for item in tool_sessions_dir.iterdir():
                     if item.name.startswith(sid):
                         try:
                             item.unlink()

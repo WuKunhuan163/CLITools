@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
-SESSIONS_DIR_NAME = "session"
+SESSIONS_DIR_NAME = "assistant/session"
 
 
 @dataclass
@@ -145,38 +145,50 @@ class AgentSession:
         }
 
 
-def get_sessions_dir(project_root: str) -> Path:
-    """Return the directory where agent sessions are stored."""
-    d = Path(project_root) / "data" / SESSIONS_DIR_NAME
+def get_sessions_dir(project_root: str, tool_dir: str = "") -> Path:
+    """Return the directory where agent sessions are stored.
+
+    If *tool_dir* is given (e.g. ``tool/LLM``), sessions are stored under
+    that tool's own ``data/assistant/session/`` directory, keeping each tool's
+    assistant state isolated.  Otherwise falls back to the project-level dir.
+    """
+    base = Path(tool_dir) if tool_dir else Path(project_root)
+    d = base / "data" / SESSIONS_DIR_NAME
     d.mkdir(parents=True, exist_ok=True)
     return d
 
 
-def save_session(session: AgentSession, project_root: str):
+def save_session(session: AgentSession, project_root: str,
+                 tool_dir: str = ""):
     """Persist session state to disk."""
-    d = get_sessions_dir(project_root)
+    d = get_sessions_dir(project_root, tool_dir=tool_dir)
     path = d / f"{session.id}.json"
     path.write_text(json.dumps(session.to_dict(), indent=2))
 
 
-def load_session(session_id: str, project_root: str) -> Optional[AgentSession]:
-    """Load a session from disk."""
-    d = get_sessions_dir(project_root)
-    path = d / f"{session_id}.json"
-    if not path.exists():
-        return None
-    try:
-        data = json.loads(path.read_text())
-        s = AgentSession(**{k: v for k, v in data.items()
-                           if k in AgentSession.__dataclass_fields__})
-        return s
-    except Exception:
-        return None
+def load_session(session_id: str, project_root: str,
+                 tool_dir: str = "") -> Optional[AgentSession]:
+    """Load a session from disk.
+
+    Searches *tool_dir* first (if given), then falls back to *project_root*.
+    """
+    for td in ([tool_dir, ""] if tool_dir else [""]):
+        d = get_sessions_dir(project_root, tool_dir=td)
+        path = d / f"{session_id}.json"
+        if path.exists():
+            try:
+                data = json.loads(path.read_text())
+                s = AgentSession(**{k: v for k, v in data.items()
+                                   if k in AgentSession.__dataclass_fields__})
+                return s
+            except Exception:
+                return None
+    return None
 
 
-def list_sessions(project_root: str) -> List[dict]:
+def list_sessions(project_root: str, tool_dir: str = "") -> List[dict]:
     """List all saved agent sessions."""
-    d = get_sessions_dir(project_root)
+    d = get_sessions_dir(project_root, tool_dir=tool_dir)
     sessions = []
     for f in sorted(d.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
         try:

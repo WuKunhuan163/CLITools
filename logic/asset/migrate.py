@@ -104,14 +104,26 @@ def _discover_filetype_icons() -> Dict[str, str]:
             elif "plain" in svg_versions:
                 icons[name] = f"{DEVICON_BASE}/{name}/{name}-plain.svg"
     except Exception:
-        _FALLBACK = {
-            "python": "python/python-original", "javascript": "javascript/javascript-original",
-            "typescript": "typescript/typescript-original", "java": "java/java-original",
-            "go": "go/go-original", "rust": "rust/rust-original",
-            "html5": "html5/html5-original", "css3": "css3/css3-original",
-            "bash": "bash/bash-original", "json": "json/json-original",
-        }
-        for name, path in _FALLBACK.items():
+        pass
+
+    _REQUIRED = {
+        "python": "python/python-original", "javascript": "javascript/javascript-original",
+        "typescript": "typescript/typescript-original", "java": "java/java-original",
+        "go": "go/go-original", "rust": "rust/rust-original",
+        "html5": "html5/html5-original", "css3": "css3/css3-original",
+        "bash": "bash/bash-original", "json": "json/json-original",
+        "react": "react/react-original", "sass": "sass/sass-original",
+        "markdown": "markdown/markdown-original", "yaml": "yaml/yaml-original",
+        "ruby": "ruby/ruby-original", "php": "php/php-original",
+        "c": "c/c-original", "cplusplus": "cplusplus/cplusplus-original",
+        "postgresql": "postgresql/postgresql-original",
+        "vuejs": "vuejs/vuejs-original", "svelte": "svelte/svelte-original",
+        "xml": "xml/xml-original", "swift": "swift/swift-original",
+        "kotlin": "kotlin/kotlin-original", "dart": "dart/dart-original",
+        "r": "r/r-original", "lua": "lua/lua-original",
+    }
+    for name, path in _REQUIRED.items():
+        if name not in icons:
             icons[name] = f"{DEVICON_BASE}/{path}.svg"
     return icons
 
@@ -168,14 +180,63 @@ def migrate_filetypes(force: bool = False) -> Tuple[int, int, List[str]]:
     return downloaded, skipped, errors
 
 
+def sync_logos_to_llm() -> int:
+    """Copy central provider logos to LLM tool model/provider directories.
+
+    Scans each LLM provider directory; if it lacks logo.svg but a central
+    copy exists in logic/asset/image/providers/<vendor>.svg, copies it there.
+    Same for model directories using the vendor fallback.
+    Returns the number of files copied.
+    """
+    import shutil
+    copied = 0
+    llm_providers = Path(__file__).resolve().parent.parent.parent / "tool" / "LLM" / "logic" / "providers"
+    llm_models = Path(__file__).resolve().parent.parent.parent / "tool" / "LLM" / "logic" / "models"
+
+    if llm_providers.is_dir():
+        for pdir in llm_providers.iterdir():
+            if not pdir.is_dir() or pdir.name.startswith(("_", ".")):
+                continue
+            logo = pdir / "logo.svg"
+            if logo.exists():
+                continue
+            src = _ASSET_DIR / "providers" / f"{pdir.name}.svg"
+            if src.exists():
+                shutil.copy2(src, logo)
+                copied += 1
+
+    if llm_models.is_dir():
+        for mdir in llm_models.iterdir():
+            if not mdir.is_dir() or mdir.name.startswith(("_", ".")):
+                continue
+            logo = mdir / "logo.svg"
+            if logo.exists():
+                continue
+            mj = mdir / "model.json"
+            if mj.exists():
+                try:
+                    meta = json.loads(mj.read_text())
+                    vendor = meta.get("vendor", "")
+                    if vendor:
+                        src = _ASSET_DIR / "providers" / f"{vendor}.svg"
+                        if src.exists():
+                            shutil.copy2(src, logo)
+                            copied += 1
+                except Exception:
+                    pass
+    return copied
+
+
 def migrate_all(force: bool = False) -> dict:
-    """Download all assets. Returns summary."""
+    """Download all assets and sync to tool directories. Returns summary."""
     d1, s1, e1 = migrate_logos(force)
     d2, s2, e2 = migrate_filetypes(force)
+    synced = sync_logos_to_llm()
     return {
         "downloaded": d1 + d2,
         "skipped": s1 + s2,
         "errors": e1 + e2,
+        "synced_to_llm": synced,
     }
 
 

@@ -193,7 +193,7 @@ const _BOXICON_FALLBACK = {
 };
 function fileExtIcon(filename) {
   const ext = (filename || '').split('.').pop().toLowerCase();
-  if (_DEVICON_MAP[ext]) return `_devicon_:/asset/icon/devicon/${_DEVICON_MAP[ext]}.svg`;
+  if (_DEVICON_MAP[ext]) return `_devicon_:/asset/icon/filetypes/${_DEVICON_MAP[ext]}.svg`;
   return _BOXICON_FALLBACK[ext] || 'bx-code-alt';
 }
 function renderFileIcon(filename) {
@@ -362,6 +362,7 @@ class AgentGUIEngine {
     this._roundHistory = [];
     this._maxRoundHistory = 16;
     this._maxContextTokens = 0;
+    this._eventIdx = 0;
 
     this._registerDefaults();
     this._initScrollToBottom();
@@ -402,6 +403,9 @@ class AgentGUIEngine {
     this.registerBlock('sandbox_prompt', (evt) => this._renderSandboxPrompt(evt));
     this.registerBlock('sandbox_resolved', (evt) => this._handleSandboxResolved(evt));
     this.registerBlock('mode_switch_resolved', (evt) => this._renderModeSwitchResolved(evt));
+    this.registerBlock('hunk_reverted', (evt) => this._handleHunkDecision(evt, 'reverted'));
+    this.registerBlock('hunk_accepted', (evt) => this._handleHunkDecision(evt, 'accepted'));
+    this.registerBlock('scroll_to_block', (evt) => this._handleScrollToBlock(evt));
   }
 
   /* ── Replay / Debug Mode ── */
@@ -425,10 +429,17 @@ class AgentGUIEngine {
       const debugEl = this._createDebugBlock(evt);
       if (debugEl) this.chatArea.appendChild(debugEl);
     }
+    const beforeCount = this.chatArea.children.length;
+    const idx = this._eventIdx++;
     const handler = this.blockRegistry[evt.type];
     if (handler) {
       await handler(evt);
       if (evt.type !== 'text' && !isStreamDelta) this._appendSpacer();
+    }
+    const afterCount = this.chatArea.children.length;
+    for (let i = beforeCount; i < afterCount; i++) {
+      const el = this.chatArea.children[i];
+      if (el && !el.dataset.eventIdx) el.dataset.eventIdx = idx;
     }
     } catch (err) {
       console.error('[AgentGUIEngine] processEvent error:', err, 'evt:', evt);
@@ -1976,6 +1987,53 @@ class AgentGUIEngine {
       bubble.style.border = `1px solid ${color}`;
       bubble.style.padding = '6px 12px';
       setTimeout(() => { if (bubble.parentNode) bubble.remove(); }, 3000);
+    }
+  }
+
+  _handleScrollToBlock(evt) {
+    const idx = evt.event_idx;
+    if (idx == null) return;
+    this.scrollToEventIdx(idx);
+  }
+
+  scrollToEventIdx(idx) {
+    const el = this.chatArea.querySelector('[data-event-idx="' + idx + '"]');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('highlight-pulse');
+      setTimeout(() => el.classList.remove('highlight-pulse'), 2000);
+    }
+  }
+
+  _handleHunkDecision(evt, decision) {
+    const path = evt.path || '';
+    const hunkIndex = evt.hunk_index;
+    const cls = decision === 'accepted' ? 'accepted' : 'rejected';
+    const allToolCalls = [...this.chatArea.querySelectorAll('.tool-call[data-tool-type="edit"]')];
+    const fileTCs = allToolCalls.filter(tc => {
+      const cmd = (tc.dataset.toolCmd || '').replace(/^(write|edit)\s+/, '');
+      return cmd === path;
+    });
+
+    if (hunkIndex != null && hunkIndex < fileTCs.length) {
+      const tc = fileTCs[hunkIndex];
+      if (!tc.classList.contains('decided')) {
+        tc.classList.add(cls, 'decided');
+        tc.querySelectorAll('.diff-hunk').forEach(h => {
+          h.classList.add(cls, 'decided');
+          h.querySelectorAll('.diff-hunk-actions').forEach(a => a.remove());
+        });
+      }
+    } else if (path) {
+      fileTCs.forEach(tc => {
+        if (!tc.classList.contains('decided')) {
+          tc.classList.add(cls, 'decided');
+          tc.querySelectorAll('.diff-hunk').forEach(h => {
+            h.classList.add(cls, 'decided');
+            h.querySelectorAll('.diff-hunk-actions').forEach(a => a.remove());
+          });
+        }
+      });
     }
   }
 

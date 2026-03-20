@@ -158,9 +158,9 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
     elif subcmd == "config":
         _handle_config(rest, project_root)
     elif subcmd == "status":
-        _handle_status(rest, project_root)
+        _handle_status(rest, project_root, tool_dir)
     elif subcmd == "sessions":
-        _handle_sessions(project_root)
+        _handle_sessions(project_root, tool_dir)
     elif subcmd == "setup":
         _handle_setup(project_root)
     elif subcmd == "export":
@@ -607,6 +607,9 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
     provider = _get_provider_name()
     codebase = tool_dir or os.path.join(project_root, "tool", tool_name)
 
+    from logic.assistant.sandbox import set_tool_sandbox_dir
+    set_tool_sandbox_dir(tool_dir or None)
+
     ws_info = _ensure_workspace(codebase, project_root, tool_name)
 
     session = AgentSession(
@@ -673,7 +676,7 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
     result = loop.run_turn(prompt)
     if _gui_injector:
         _gui_injector.flush_and_stop()
-    save_session(session, project_root)
+    save_session(session, project_root, tool_dir=tool_dir)
 
     flag = f"--{mode}"
     print(f"\n  {BOLD}Session complete.{RESET} {DIM}ID: {session.id}{RESET}")
@@ -692,7 +695,7 @@ def _handle_feed(args: list, tool_name: str, project_root: str,
     session_id = args[0]
     text = " ".join(args[1:])
 
-    session = load_session(session_id, project_root)
+    session = load_session(session_id, project_root, tool_dir=tool_dir)
     if not session:
         print(f"Session {session_id} not found.")
         return
@@ -733,7 +736,7 @@ def _handle_feed(args: list, tool_name: str, project_root: str,
     result = loop.run_turn(text)
     if _gui_injector:
         _gui_injector.flush_and_stop()
-    save_session(session, project_root)
+    save_session(session, project_root, tool_dir=tool_dir)
 
     from logic.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
@@ -1363,16 +1366,16 @@ def _handle_config(args: list, project_root: str):
     print(f"  {BOLD}Saved.{RESET} {DIM}{key} = {value}{RESET}")
 
 
-def _handle_status(args: list, project_root: str):
+def _handle_status(args: list, project_root: str, tool_dir: str = ""):
     """Show session status."""
     if args:
-        session = load_session(args[0], project_root)
+        session = load_session(args[0], project_root, tool_dir=tool_dir)
         if session:
             print(json.dumps(session.to_dict(), indent=2))
         else:
             print(f"Session {args[0]} not found.")
     else:
-        sessions = list_sessions(project_root)
+        sessions = list_sessions(project_root, tool_dir=tool_dir)
         if not sessions:
             print("No agent sessions found.")
             return
@@ -1380,9 +1383,9 @@ def _handle_status(args: list, project_root: str):
         print(json.dumps(latest, indent=2))
 
 
-def _handle_sessions(project_root: str):
+def _handle_sessions(project_root: str, tool_dir: str = ""):
     """List all agent sessions."""
-    sessions = list_sessions(project_root)
+    sessions = list_sessions(project_root, tool_dir=tool_dir)
     if not sessions:
         print("No agent sessions found.")
         return

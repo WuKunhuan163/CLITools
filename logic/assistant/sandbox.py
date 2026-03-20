@@ -23,7 +23,7 @@ Five layers (evaluated in order):
    - "always": run this command without asking
    - "forbidden": never run this command
    - None (not set): follow system sandbox policy
-   Stored in data/sandbox_permissions.json
+   Stored in data/assistant/sandbox.json
 """
 import json
 import os
@@ -32,9 +32,37 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
-_PERM_FILE = _DATA_DIR / "sandbox_permissions.json"
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_ROOT_DATA_DIR = _PROJECT_ROOT / "data" / "assistant"
+_ROOT_PERM_FILE = _ROOT_DATA_DIR / "sandbox.json"
 _lock = threading.Lock()
+
+_active_tool_dir: Optional[Path] = None
+
+
+def _resolve_perm_file() -> Path:
+    """Return the sandbox permissions file path.
+
+    If a tool-specific dir is set and contains data/assistant/sandbox.json,
+    use that. Otherwise fall back to the project-root sandbox.
+    """
+    if _active_tool_dir:
+        tool_perm = _active_tool_dir / "data" / "assistant" / "sandbox.json"
+        if tool_perm.exists():
+            return tool_perm
+    return _ROOT_PERM_FILE
+
+
+def set_tool_sandbox_dir(tool_dir: Optional[str]):
+    """Set the active tool directory for per-tool sandbox isolation.
+
+    Call with None to reset to project-root sandbox.
+    If a singleton already exists, it is reloaded from the new path.
+    """
+    global _active_tool_dir, _instance
+    _active_tool_dir = Path(tool_dir) if tool_dir else None
+    if _instance is not None:
+        _instance._load()
 
 SYSTEM_POLICIES = ["run_all", "ask_always"]
 COMMAND_POLICIES = ["always", "once", "forbidden"]
@@ -90,9 +118,10 @@ class SandboxManager:
         self._load()
 
     def _load(self):
-        if _PERM_FILE.exists():
+        pf = _resolve_perm_file()
+        if pf.exists():
             try:
-                data = json.loads(_PERM_FILE.read_text())
+                data = json.loads(pf.read_text())
                 self._system_policy = data.get("system_policy", "ask_always")
                 self._command_perms = data.get("command_permissions", {})
                 self._popup_timeout = data.get("popup_timeout", 20)
@@ -103,9 +132,10 @@ class SandboxManager:
                 pass
 
     def _save(self):
+        pf = _resolve_perm_file()
         with _lock:
-            _DATA_DIR.mkdir(parents=True, exist_ok=True)
-            _PERM_FILE.write_text(json.dumps({
+            pf.parent.mkdir(parents=True, exist_ok=True)
+            pf.write_text(json.dumps({
                 "system_policy": self._system_policy,
                 "command_permissions": self._command_perms,
                 "popup_timeout": self._popup_timeout,
