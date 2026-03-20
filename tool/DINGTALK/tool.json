@@ -1,9 +1,11 @@
 {
   "name": "DINGTALK",
-  "version": "1.0.0",
-  "description": "DingTalk messaging and workspace integration",
-  "purpose": "Send messages, manage groups, and interact with DingTalk workspace.",
+  "version": "2.0.0",
+  "description": "DingTalk messaging and workspace integration via official Open Platform API",
+  "purpose": "Send messages (1:1, group, webhook, work notifications), look up contacts, manage todos via DingTalk Open Platform REST API.",
   "dependencies": [
     "PYTHON"
-  ]
+  ],
+  "api": "DingTalk Open Platform (api.dingtalk.com + oapi.dingtalk.com)",
+  "tos_compliant": true
 }

@@ -306,7 +306,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         print(fmt_info(f"Workspace: {ws_info.get('name', '?')} [{ws_info.get('id', '?')[:8]}]"), flush=True)
 
     print(fmt_stage("Checking for running server...", status="active"), flush=True)
-    existing_port = _find_running_gui_port()
+    existing_port = _find_running_gui_port(tool_name)
     if existing_port:
         base_url = f"http://localhost:{existing_port}"
         print(fmt_status("Reusing GUI.", complement=f"at {base_url}"), flush=True)
@@ -384,6 +384,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         scope_name=tool_name,
     )
 
+    _write_tool_gui_state(tool_name, agent.port)
     print(fmt_status("Started GUI.", complement=f"at {agent.url}", style="success"), flush=True)
 
     if prompt:
@@ -1011,24 +1012,31 @@ def _auto_feed(base_url: str, session_id: str, tool_calls: list,
         print(f"  {DIM}Session: {session_id[:8]}{RESET}")
 
 
-def _find_running_gui_port() -> int:
-    """Find the port of a running LLM Agent GUI server."""
-    import socket
+def _find_running_gui_port(tool_name: str = None) -> int:
+    """Find the port of a running GUI server for the given tool.
+
+    Uses per-tool state files for O(1) lookup instead of scanning ports.
+    Falls back to scanning only if no state file exists.
+    """
     import urllib.request
 
-    def _port_open(port: int) -> bool:
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(0.05)
-            s.connect(("127.0.0.1", port))
-            s.close()
-            return True
-        except (ConnectionRefusedError, OSError):
-            return False
+    if tool_name:
+        port = _read_tool_gui_port(tool_name)
+        if port and _verify_gui_identity(port, tool_name):
+            return port
+        if port:
+            _clear_tool_gui_state(tool_name)
 
+    # Fallback: scan for any running server (legacy behavior during migration)
+    import socket
     for port_range in [range(8100, 8200), range(9780, 9800)]:
         for port in port_range:
-            if not _port_open(port):
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(0.05)
+                s.connect(("127.0.0.1", port))
+                s.close()
+            except (ConnectionRefusedError, OSError):
                 continue
             try:
                 resp = urllib.request.urlopen(
@@ -1038,6 +1046,60 @@ def _find_running_gui_port() -> int:
             except Exception:
                 continue
     return 0
+
+
+def _gui_state_path(tool_name: str) -> str:
+    """Return the path to a tool's GUI state file."""
+    _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(_root, "tool", tool_name, "data", "gui_state.json")
+
+
+def _read_tool_gui_port(tool_name: str) -> int:
+    """Read saved GUI port from tool's state file. Returns 0 if not found."""
+    path = _gui_state_path(tool_name)
+    try:
+        with open(path) as f:
+            state = json.load(f)
+        return state.get("port", 0)
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
+        return 0
+
+
+def _write_tool_gui_state(tool_name: str, port: int):
+    """Save GUI port and PID to tool's state file."""
+    path = _gui_state_path(tool_name)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    state = {
+        "port": port,
+        "pid": os.getpid(),
+        "scope": tool_name,
+        "started_at": __import__("time").time(),
+    }
+    with open(path, "w") as f:
+        json.dump(state, f, indent=2)
+
+
+def _clear_tool_gui_state(tool_name: str):
+    """Remove stale GUI state for a tool."""
+    path = _gui_state_path(tool_name)
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+
+
+def _verify_gui_identity(port: int, expected_scope: str) -> bool:
+    """Check if the server on the given port belongs to the expected tool."""
+    import urllib.request
+    try:
+        resp = urllib.request.urlopen(
+            f"http://localhost:{port}/api/identity", timeout=0.5)
+        if resp.status == 200:
+            data = json.loads(resp.read().decode())
+            return data.get("scope") == expected_scope
+    except Exception:
+        pass
+    return False
 
 
 def _ensure_gui_and_create_session(session, provider_name: str,

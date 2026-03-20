@@ -314,6 +314,15 @@ class AgentServer(
             import time as _t
             return {"ok": True, "ts": _t.time()}
 
+        if path == "/api/identity":
+            import time as _t
+            return {
+                "ok": True,
+                "scope": self.scope_name,
+                "pid": os.getpid(),
+                "ts": _t.time(),
+            }
+
         # ── System ─────────────────────────────────────────────
         if path == "/api/state":
             state = self._mgr.get_state()

@@ -1,4 +1,7 @@
-"""MCP configuration for DINGTALK."""
+"""MCP configuration for DINGTALK.
+
+Uses the DingTalk Open Platform REST API - no external npm packages needed.
+"""
 import sys
 from pathlib import Path
 
@@ -13,9 +16,16 @@ def get_mcp_config():
     """Return the MCP configuration for DINGTALK."""
     return MCPToolConfig(
         tool_name="DINGTALK",
-        mcp_server="mcp-dingtalk",
-        mcp_package="mcp-dingtalk",
-        package_type="npm",
-        capabilities=['send-message', 'create-group', 'manage-tasks'],
-        required_env=['DINGTALK_APP_KEY', 'DINGTALK_APP_SECRET'],
+        mcp_server="dingtalk-api",
+        mcp_package=None,
+        package_type="builtin",
+        capabilities=[
+            "send-message",
+            "send-group-message",
+            "webhook-message",
+            "work-notification",
+            "contact-lookup",
+            "create-todo",
+        ],
+        required_env=["DINGTALK_APP_KEY", "DINGTALK_APP_SECRET"],
     )

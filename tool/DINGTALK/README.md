@@ -1,32 +1,50 @@
 # DINGTALK
 
-DingTalk messaging and workspace integration
+DingTalk messaging and workspace integration via official Open Platform API.
 
-**Purpose**: Send messages, manage groups, and interact with DingTalk workspace.
+## Setup
 
-## Capabilities
+1. Create an enterprise internal application at [open.dingtalk.com](https://open.dingtalk.com/)
+2. Enable required permissions: `Robot.Message.Send`, `Robot.GroupMessage.Send`, `Contact.User.Read`
+3. Configure credentials:
 
-- send-message
-- group-management
-- webhook
+```bash
+DINGTALK config app_key <your_app_key>
+DINGTALK config app_secret <your_app_secret>
+DINGTALK config agent_id <your_agent_id>        # optional, for work notifications
+DINGTALK config operator_id <your_user_id>      # optional, for todo creation
+```
 
 ## Usage
 
 ```bash
-DINGTALK status          # Show tool status
-DINGTALK config <k> <v>  # Set configuration
-DINGTALK setup           # Install dependencies
+# Check status
+DINGTALK status
+
+# Look up a contact
+DINGTALK contact --phone +8613925243201
+DINGTALK contact "name"
+
+# Send message by phone number
+DINGTALK send "Hello from DINGTALK" --phone +8618876089955
+
+# Send message by userId
+DINGTALK send "Hello" --userid 12345678
+
+# Send via webhook
+DINGTALK webhook "Deployment complete"
+
+# Send work notification
+DINGTALK notify "Please review" --userid 12345678
+
+# Create todo
+DINGTALK todo "Complete analysis report"
 ```
 
-## Environment Variables
+## API
 
-- `DINGTALK_APP_KEY`
-- `DINGTALK_APP_SECRET`
+Uses DingTalk Open Platform REST API:
+- `api.dingtalk.com` (new API, v1.0)
+- `oapi.dingtalk.com` (legacy API)
 
-## API Key
-
-Obtain credentials at: https://open.dingtalk.com
-
-## MCP Backend
-
-Custom API integration
+No browser automation. No external MCP packages required.
