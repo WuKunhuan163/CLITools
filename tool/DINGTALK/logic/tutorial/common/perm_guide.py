@@ -12,7 +12,7 @@ _TOOL_DIR = Path(__file__).resolve().parent.parent.parent
 
 def run_permission_tutorial(
     title: str,
-    description: str,
+    desc: str,
     permissions: list,
     test_func=None,
     on_step_change=None,
@@ -21,7 +21,7 @@ def run_permission_tutorial(
 
     Args:
         title: Tutorial window title
-        description: Markdown-formatted instructions
+        desc: Markdown-formatted instructions
         permissions: List of {"scope": str, "name": str, "required": bool} dicts
         test_func: Optional callable() -> {"ok": bool, "error": str} to verify
         on_step_change: Callback(step_idx, total, title)

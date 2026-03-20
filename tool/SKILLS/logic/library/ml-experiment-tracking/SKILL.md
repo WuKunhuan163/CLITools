@@ -38,7 +38,7 @@ wandb.finish()
 ## Best Practices
 - Version datasets alongside model code
 - Log environment info (Python version, package versions)
-- Use config files (YAML/JSON) for hyperparameters
+- Use config files (YAML/JSON) for hps
 - Tag experiments with meaningful labels
 - Set random seeds for reproducibility
 

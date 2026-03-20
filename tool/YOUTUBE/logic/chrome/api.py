@@ -501,7 +501,7 @@ def get_video_info(video_url: Optional[str] = None, port: int = CDP_PORT) -> Dic
                         subscribers: subsEl ? subsEl.textContent.trim() : '',
                         views: viewsEl ? viewsEl.textContent.trim() : '',
                         date: dateEl ? dateEl.textContent.trim() : '',
-                        description: descEl ? descEl.textContent.trim().substring(0, 500) : '',
+                        desc: descEl ? descEl.textContent.trim().substring(0, 500) : '',
                         likes: likesEl ? likesEl.textContent.trim() : ''
                     });
                 } catch(e) {

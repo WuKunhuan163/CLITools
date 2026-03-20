@@ -437,7 +437,7 @@ def get_video_info(video_url: Optional[str] = None, port: int = CDP_PORT) -> Dic
                     favorites: favs ? favs.textContent.trim() : '',
                     shares: shares ? shares.textContent.trim() : '',
                     author: up ? up.textContent.trim() : '',
-                    description: desc ? desc.textContent.trim().substring(0, 500) : '',
+                    desc: desc ? desc.textContent.trim().substring(0, 500) : '',
                     bvid: bv ? bv[1] : '',
                     url: window.location.href
                 });
@@ -1052,7 +1052,7 @@ def get_trending(limit: int = 20, port: int = CDP_PORT) -> Dict[str, Any]:
                         author: up ? up.textContent.trim() : '',
                         views: views ? views.textContent.trim() : '',
                         duration: dur ? dur.textContent.trim() : '',
-                        description: desc ? desc.textContent.trim().substring(0, 120) : '',
+                        desc: desc ? desc.textContent.trim().substring(0, 120) : '',
                         bvid: bv ? bv[1] : '',
                         url: bv ? 'https://www.bilibili.com/video/' + bv[1] : ''
                     }});
@@ -2398,7 +2398,7 @@ def get_vip_benefits(port: int = CDP_PORT) -> Dict[str, Any]:
                     var descEl = items[i].querySelector('.desc, .tip, p, .sub-title');
                     out.push({
                         name: nameEl ? nameEl.textContent.trim() : text.substring(0, 40),
-                        description: descEl ? descEl.textContent.trim().substring(0, 100) : text.substring(0, 100)
+                        desc: descEl ? descEl.textContent.trim().substring(0, 100) : text.substring(0, 100)
                     });
                 }
                 return JSON.stringify({ok: true, count: out.length, benefits: out});

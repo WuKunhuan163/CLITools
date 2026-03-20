@@ -32,7 +32,7 @@ class HookInterface:
       - description: str
     """
     event_name: str = ""
-    description: str = ""
+    desc: str = ""
 
     def validate_kwargs(self, kwargs: dict) -> bool:
         """Optional: validate the kwargs passed when the event fires."""
@@ -50,7 +50,7 @@ class HookInstance:
       - execute(**kwargs)      (the actual callback logic)
     """
     name: str = ""
-    description: str = ""
+    desc: str = ""
     event_name: str = ""
     enabled_by_default: bool = False
 

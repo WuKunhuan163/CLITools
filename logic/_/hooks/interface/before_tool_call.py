@@ -8,7 +8,7 @@ Fires before a tool's main logic executes. Used for:
 Kwargs:
     tool: ToolBase instance
     command: str - the command/args being executed
-    description: str - semantic description of what the call does
+    desc: str - semantic description of what the call does
 """
 from logic._.hooks.engine import HookInterface
 

@@ -427,7 +427,7 @@ def send_work_notification(
 
 def create_todo(
     subject: str,
-    description: str = "",
+    desc: str = "",
     due_time: Optional[int] = None,
     executor_ids: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
