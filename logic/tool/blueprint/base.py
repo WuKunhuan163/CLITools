@@ -206,20 +206,25 @@ class ToolBase:
         return subprocess.run(cmd, capture_output=capture_output, text=True)
 
     def handle_command_line(self, parser=None, dev_handler=None, test_handler=None):
-        """Process command line arguments.
+        """Stateless command router — dispatches based on directory structure.
+
+        The base argparse is stateless: the directory structure IS the routing state.
+        main.py just calls this; no command registration needed.
+        
+        Dispatch order:
+        1. Decorators (-flag) stripped from sys.argv
+        2. Eco commands (---flag) discovered via logic/_/<name>/cli.py
+        3. Subtool delegation (tool/<NAME>/tool/<CMD>/main.py)
+        4. Tool's own argparse (hierarchical --commands and positional)
 
         Parameters
         ----------
         parser : argparse.ArgumentParser, optional
-            The tool's own argument parser.
-        dev_handler : callable(list[str]) -> None, optional
-            Custom handler for ``--dev`` sub-commands.  Receives the
-            arguments after ``--dev``.  When *None*, only the built-in
-            dev commands (sanity-check, audit-test, info) are available.
-        test_handler : callable(list[str]) -> None, optional
-            Custom handler for ``--test`` sub-commands.  Receives the
-            arguments after ``--test``.  When *None*, the default test
-            runner is used.
+            The tool's own argument parser for hierarchical commands.
+        dev_handler : callable, optional
+            Override for ---dev dispatch. When None, auto-discovered from logic/_/dev/cli.py.
+        test_handler : callable, optional
+            Override for ---test dispatch. When None, auto-discovered from logic/_/test/cli.py.
 
         Returns True if a command was handled and the tool should exit.
         """

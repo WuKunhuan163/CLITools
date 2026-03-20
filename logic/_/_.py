@@ -1,7 +1,11 @@
-"""EcoCommand — base class for symmetric ecosystem commands.
+"""EcoCommand — base class for shared eco command endpoints (cli.py).
 
-Every symmetric CLI flag (--install, --status, --migrate, etc.) maps to a
-directory under logic/_/<name>/ whose command module inherits from this class.
+Each logic/_/<name>/cli.py that handles a --- eco command inherits from this class.
+The base tool discovers these automatically via directory traversal — no registration needed.
+
+Architecture:
+  main.py (tool root) → base argparse (stateless routing) → cli.py (concrete endpoint)
+
 The base provides:
   - Color palette access
   - Project root discovery

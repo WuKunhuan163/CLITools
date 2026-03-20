@@ -42,6 +42,38 @@ Nothing else is allowed at the `logic/` level except `__init__.py` and documenta
 
 When a new tool lacks any of these directories, it's incomplete — not by convention but by design. The skeleton is the API contract for discoverability.
 
+#### main.py vs cli.py: The Command Lifecycle
+
+These two filenames have distinct semantic roles in the command dispatch lifecycle:
+
+| File | Role | Location | Lifecycle Position |
+|------|------|----------|-------------------|
+| `main.py` | **Start** of command processing | Tool root (`tool/<NAME>/main.py`) | Entry point — inherits base, launches argparse |
+| `cli.py` | **End** of command processing | Deep in `logic/` tree (`logic/_/<cmd>/cli.py`) | Concrete endpoint — application logic |
+
+**Why not rename all to `cli.py`?** `main.py` invokes the base tool's argparse blueprint, which auto-discovers routes by traversing the project's `logic/_/` (shared eco commands) and the tool's `logic/` (hierarchical commands). Each `cli.py` is the final destination where a specific command is actually handled.
+
+**Stateless base argparse:** The base tool's argparse is **stateless** — the directory structure itself IS the routing state. `main.py` doesn't need to declare which commands exist; it just inherits from `ToolBase` and calls `handle_command_line()`. The base discovers available commands by checking which directories have `cli.py` files.
+
+This means `main.py` should be **minimal**:
+
+```python
+from interface.tool import ToolBase
+tool = ToolBase("MY_TOOL")
+parser = argparse.ArgumentParser(prog="MY_TOOL", add_help=False)
+if tool.handle_command_line(parser):
+    return
+```
+
+**Decomposition rule:** If `main.py` contains non-trivial application logic beyond argparse setup, that logic should be decomposed into `cli.py` endpoints under `logic/`. The presence of business logic in `main.py` is a signal that the command tree needs deeper modularization.
+
+**Cross-referencing in cli.py:** Each `cli.py` endpoint can:
+- Import from `interface/` for cross-tool APIs
+- Access peer `cli.py` files via the tool's own `logic/` directory
+- Use the `EcoCommand` base class for shared formatting/utilities
+
+**Scaffold:** Use `TOOL ---dev scaffold <tool_name> <command/path>` to create new entry point directories with `cli.py`, `README.md`, and `AGENT.md` templates.
+
 ### 2. Naming Symmetry
 
 Consistent naming eliminates guesswork:
@@ -49,7 +81,8 @@ Consistent naming eliminates guesswork:
 | Pattern | Rule | Example |
 |---------|------|---------|
 | Tool directories | UPPERCASE | `tool/GIT/`, `tool/PYTHON/` |
-| Entry points | `main.py` | Every tool, every command |
+| Tool entry points | `main.py` | Starts argparse routing |
+| Command endpoints | `cli.py` | Handles a specific command |
 | Interfaces | `interface/main.py` | Public API for cross-tool use |
 | Metadata | `tool.json` | Tool configuration |
 | User docs | `README.md` | Every directory |

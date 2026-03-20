@@ -35,6 +35,16 @@ TOOL ---dev audit-test {name}         # Audit test naming
 TOOL ---audit argparse                # Three-tier conformance
 ```
 
+## File Roles
+
+| File | Purpose |
+|------|---------|
+| `main.py` | Entry point — inherits ToolBase, launches stateless argparse routing |
+| `logic/**/cli.py` | Command endpoints — concrete handlers discovered by directory structure |
+| `interface/main.py` | Public API for cross-tool imports |
+
+**Rule:** If `main.py` has non-trivial logic, decompose it into `cli.py` endpoints under `logic/`.
+
 ## Config
 
 Check `refactor_aggressiveness` before adding backward-compat shims:
