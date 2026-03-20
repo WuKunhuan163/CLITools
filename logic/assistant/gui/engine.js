@@ -35,6 +35,37 @@ window._toggleToolCall = function(el) {
   }
 };
 
+window._sbCopyCmd = function(btn) {
+  const header = btn.closest('.tool-call-header');
+  const cmdEl = header && header.querySelector('.tool-cmd-inline');
+  if (cmdEl) {
+    const text = cmdEl.textContent.replace(/^\$\s*/, '');
+    navigator.clipboard.writeText(text).then(() => {
+      const icon = btn.querySelector('i');
+      if (icon) { icon.className = 'bx bx-check'; setTimeout(() => icon.className = 'bx bx-copy', 1200); }
+    });
+  }
+};
+
+window._sbPolicyChange = function(sel) {
+  fetch('/api/sandbox/system-policy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({policy: sel.value})
+  });
+};
+
+window._sbResolve = function(btn, requestId, decision, persist) {
+  fetch('/api/sandbox/resolve', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({request_id: requestId, decision: decision, persist: !!persist})
+  }).then(() => {
+    const bubble = btn.closest('.sandbox-prompt-bubble');
+    if (bubble) bubble.remove();
+  });
+};
+
 function esc(s) {
   const d = document.createElement('div');
   d.textContent = s;
@@ -330,6 +361,8 @@ class AgentGUIEngine {
     this.registerBlock('model_decision_end', (evt) => this._renderModelDecisionEnd(evt));
     this.registerBlock('model_decision_proposed', (evt) => this._renderModelDecisionProposed(evt));
     this.registerBlock('model_confirmed', (evt) => this._renderModelConfirmed(evt));
+    this.registerBlock('sandbox_prompt', (evt) => this._renderSandboxPrompt(evt));
+    this.registerBlock('sandbox_resolved', (evt) => this._handleSandboxResolved(evt));
   }
 
   /* ── Replay / Debug Mode ── */
@@ -1743,6 +1776,32 @@ class AgentGUIEngine {
 
   onAutoModelChosen(cb) { this._onAutoModelChosen = cb; }
 
+  _renderSandboxPrompt(evt) {
+    const reqId = esc(evt.request_id || '');
+    const cmd = esc(evt.cmd || '');
+    const normalized = esc(evt.normalized || '');
+    const bubble = document.createElement('div');
+    bubble.className = 'sandbox-prompt-bubble';
+    bubble.dataset.requestId = reqId;
+    bubble.innerHTML =
+      '<div class="sb-prompt-title"><i class="bx bx-shield-quarter" style="color:var(--accent)"></i> Permission required</div>'
+      + '<div class="sb-prompt-cmd">$ ' + cmd + '</div>'
+      + '<div class="sb-prompt-options">'
+      + '<button class="sb-opt allow" onclick="window._sbResolve(this,\'' + reqId + '\',\'allow\',false)">Run this time</button>'
+      + '<button class="sb-opt allow" onclick="window._sbResolve(this,\'' + reqId + '\',\'allow\',true)">Always allow <code>' + normalized + '</code></button>'
+      + '<button class="sb-opt deny" onclick="window._sbResolve(this,\'' + reqId + '\',\'deny\',false)">Deny</button>'
+      + '<button class="sb-opt deny" onclick="window._sbResolve(this,\'' + reqId + '\',\'deny\',true)">Always deny <code>' + normalized + '</code></button>'
+      + '</div>';
+    this.chatArea.appendChild(bubble);
+    bubble.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  _handleSandboxResolved(evt) {
+    const reqId = evt.request_id;
+    const bubble = this.chatArea.querySelector('.sandbox-prompt-bubble[data-request-id="' + reqId + '"]');
+    if (bubble) bubble.remove();
+  }
+
   setMaxRoundHistory(n) {
     this._maxRoundHistory = n;
     while (this._roundHistory.length > n) this._roundHistory.shift();
@@ -1958,12 +2017,23 @@ class AgentGUIEngine {
       const otherIconHtml = info.icon && info.icon.startsWith('_devicon_:')
         ? '<img src="' + info.icon.slice(10) + '" class="tool-natural-icon" style="width:14px;height:14px;" alt="">'
         : '<i class="bx ' + (info.icon || 'bx-code-alt') + ' tool-natural-icon"></i>';
+      const isExec = name === 'exec';
+      const sandboxHtml = isExec
+        ? '<div class="sandbox-actions">'
+          + '<button class="sb-btn" title="Copy command" onclick="event.stopPropagation();window._sbCopyCmd(this)"><i class="bx bx-copy"></i></button>'
+          + '<select class="sb-policy-select" title="Sandbox policy" onclick="event.stopPropagation()" onchange="window._sbPolicyChange(this)">'
+          + '<option value="ask_always">Ask</option>'
+          + '<option value="run_all">Run all</option>'
+          + '</select>'
+          + '</div>'
+        : '';
       headerContent =
         '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
         + otherIconHtml
         + '<span class="tool-desc">' + escWbr(info.label) + '</span>'
         + (info.detail ? '<span class="tool-detail">' + esc(info.detail) + '</span>' : '')
-        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>'
+        + sandboxHtml;
     }
 
     const bodyContent = (info.isEdit || info.isRead)

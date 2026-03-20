@@ -700,6 +700,9 @@ class ConversationManager:
         def handler(args: dict) -> dict:
             if name == 'edit_file':
                 self._snapshot_file(args.get('path', ''))
+            sid = self._current_turn_session_id or ""
+            session = self._sessions.get(sid)
+            session_mode = getattr(session, 'mode', 'agent') if session else 'agent'
             ctx = self._ToolContext(
                 emit=self._emit,
                 cwd=self._get_cwd(),
@@ -711,9 +714,10 @@ class ConversationManager:
                 turn_writes=getattr(self, '_turn_writes', []),
                 turn_reads=getattr(self, '_turn_reads', []),
                 round_store=getattr(self, '_round_store', None),
-                session_id=self._current_turn_session_id or "",
+                session_id=sid,
                 round_num=getattr(self, '_current_round', 0),
                 context_lines=self._get_context_lines(),
+                mode=session_mode,
             )
             return self._std_tools[name](args, ctx)
         return handler

@@ -1,0 +1,35 @@
+{
+  "model_id": "deepseek-chat",
+  "display_name": "DeepSeek V3.2 Chat",
+  "vendor": "deepseek",
+  "vendor_display": "DeepSeek",
+  "cost": {
+    "free_tier": false,
+    "input_per_1m": 0.28,
+    "input_cached_per_1m": 0.028,
+    "output_per_1m": 0.42,
+    "currency": "USD"
+  },
+  "capabilities": {
+    "tool_calling": true,
+    "vision": false,
+    "streaming": true,
+    "reasoning": false,
+    "system_prompt": true,
+    "max_context_tokens": 128000,
+    "max_output_tokens": 8192
+  },
+  "rate_limits": {
+    "default": {
+      "rpm": 60,
+      "tpm": 500000,
+      "notes": "Prepaid balance required. Rates vary by account level."
+    }
+  },
+  "recommended_settings": {
+    "min_interval_s": 1.0,
+    "jitter_s": 0.5
+  },
+  "active": false,
+  "lock_reason": "Paid model. Configure DeepSeek API key to unlock."
+}

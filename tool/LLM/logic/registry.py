@@ -85,18 +85,52 @@ _ALIASES = {
     "glm-4-flash": "zhipu-glm-4-flash",
     "glm-4.7": "zhipu-glm-4.7",
     "glm-4.7-flash": "zhipu-glm-4.7-flash",
-    "gemini-2.0-flash": "google-gemini-2.0-flash",
-    "gemini-2.0": "google-gemini-2.0-flash",
-    "gemini-flash": "google-gemini-2.0-flash",
+    "gemini-flash": "google-gemini-2.5-flash",
+    "gemini": "google-gemini-2.5-flash",
+    "gemini-2.5-flash": "google-gemini-2.5-flash",
+    "gemini-flash-lite": "google-gemini-2.5-flash-lite",
+    "gemini-2.5-flash-lite": "google-gemini-2.5-flash-lite",
+    "gemini-pro": "google-gemini-2.5-pro",
+    "gemini-2.5-pro": "google-gemini-2.5-pro",
+    "gemini-3-flash": "google-gemini-3-flash",
+    "gemini-3.1-flash-lite": "google-gemini-3.1-flash-lite",
+    "gemini-3.1-pro": "google-gemini-3.1-pro",
     "ernie-speed-8k": "baidu-ernie-speed-8k",
     "ernie-speed": "baidu-ernie-speed-8k",
-    "ernie-3.5-8k": "baidu-ernie-speed-8k",
     "ernie-speed-pro-128k": "baidu-ernie-speed-8k",
     "ernie-speed-pro": "baidu-ernie-speed-8k",
+    "ernie-4.5-turbo": "baidu-ernie-4.5-turbo-128k",
+    "ernie-4.5-turbo-128k": "baidu-ernie-4.5-turbo-128k",
+    "ernie-turbo": "baidu-ernie-4.5-turbo-128k",
+    "ernie-5.0": "baidu-ernie-5.0",
+    "ernie-5": "baidu-ernie-5.0",
+    "ernie-4.5-8k": "baidu-ernie-4.5-8k",
+    "ernie-4.5-8k-preview": "baidu-ernie-4.5-8k",
+    "ernie-4.5": "baidu-ernie-4.5-8k",
+    "ernie-x1-turbo": "baidu-ernie-x1-turbo-32k",
+    "ernie-x1-turbo-32k": "baidu-ernie-x1-turbo-32k",
+    "ernie-x1.1": "baidu-ernie-x1.1",
+    "ernie-x1.1-preview": "baidu-ernie-x1.1",
+    "ernie-4.0-turbo-8k": "baidu-ernie-4.0-turbo-8k",
+    "ernie-4.0-turbo": "baidu-ernie-4.0-turbo-8k",
+    "ernie-4.5-turbo-32k": "baidu-ernie-4.5-turbo-32k",
     "hunyuan-lite": "tencent-hunyuan-lite",
     "qwen2.5-7b": "siliconflow-qwen2.5-7b",
     "qwen-2.5-7b": "siliconflow-qwen2.5-7b",
     "siliconflow-qwen": "siliconflow-qwen2.5-7b",
+    "claude-sonnet": "anthropic-claude-sonnet-4.6",
+    "claude-sonnet-4.6": "anthropic-claude-sonnet-4.6",
+    "claude-4.6": "anthropic-claude-sonnet-4.6",
+    "claude": "anthropic-claude-sonnet-4.6",
+    "claude-haiku": "anthropic-claude-haiku-4.5",
+    "claude-haiku-4.5": "anthropic-claude-haiku-4.5",
+    "gpt-4o": "openai-gpt-4o",
+    "gpt4o": "openai-gpt-4o",
+    "gpt-4o-mini": "openai-gpt-4o-mini",
+    "gpt4o-mini": "openai-gpt-4o-mini",
+    "deepseek": "deepseek-chat",
+    "deepseek-v3": "deepseek-chat",
+    "deepseek-think": "deepseek-reasoner",
     "auto": "auto",
 }
 
@@ -165,17 +199,71 @@ def _ensure_builtins():
     from tool.LLM.logic.models.glm_4_7_flash.providers.zhipu.pipeline import ZhipuGLM47FlashPipeline
     register("zhipu-glm-4.7-flash", ZhipuGLM47FlashProvider, ZhipuGLM47FlashPipeline(), model="glm-4.7-flash")
 
-    from tool.LLM.logic.models.gemini_2_0_flash.providers.google.interface import GoogleGeminiFlashProvider
-    register("google-gemini-2.0-flash", GoogleGeminiFlashProvider, model="gemini-2.0-flash")
+    from tool.LLM.logic.models.gemini_2_5_flash.providers.google.interface import GoogleGemini25FlashProvider
+    register("google-gemini-2.5-flash", GoogleGemini25FlashProvider, model="gemini-2.5-flash")
+
+    from tool.LLM.logic.models.gemini_2_5_flash_lite.providers.google.interface import GoogleGemini25FlashLiteProvider
+    register("google-gemini-2.5-flash-lite", GoogleGemini25FlashLiteProvider, model="gemini-2.5-flash-lite")
+
+    from tool.LLM.logic.models.gemini_2_5_pro.providers.google.interface import GoogleGemini25ProProvider
+    register("google-gemini-2.5-pro", GoogleGemini25ProProvider, model="gemini-2.5-pro")
+
+    from tool.LLM.logic.models.gemini_3_flash.providers.google.interface import GoogleGemini3FlashProvider
+    register("google-gemini-3-flash", GoogleGemini3FlashProvider, model="gemini-3-flash")
+
+    from tool.LLM.logic.models.gemini_3_1_flash_lite.providers.google.interface import GoogleGemini31FlashLiteProvider
+    register("google-gemini-3.1-flash-lite", GoogleGemini31FlashLiteProvider, model="gemini-3.1-flash-lite")
+
+    from tool.LLM.logic.models.gemini_3_1_pro.providers.google.interface import GoogleGemini31ProProvider
+    register("google-gemini-3.1-pro", GoogleGemini31ProProvider, model="gemini-3.1-pro")
 
     from tool.LLM.logic.models.ernie_speed_8k.providers.baidu.interface import BaiduERNIESpeedProvider
     register("baidu-ernie-speed-8k", BaiduERNIESpeedProvider, model="ernie-speed-8k")
+
+    from tool.LLM.logic.models.ernie_4_5_turbo_128k.providers.baidu.interface import BaiduERNIE45TurboProvider
+    register("baidu-ernie-4.5-turbo-128k", BaiduERNIE45TurboProvider, model="ernie-4.5-turbo-128k")
+
+    from tool.LLM.logic.models.ernie_5_0.providers.baidu.interface import BaiduERNIE50Provider
+    register("baidu-ernie-5.0", BaiduERNIE50Provider, model="ernie-5.0")
+
+    from tool.LLM.logic.models.ernie_4_5_8k.providers.baidu.interface import BaiduERNIE45Provider
+    register("baidu-ernie-4.5-8k", BaiduERNIE45Provider, model="ernie-4.5-8k-preview")
+
+    from tool.LLM.logic.models.ernie_x1_turbo_32k.providers.baidu.interface import BaiduERNIEX1TurboProvider
+    register("baidu-ernie-x1-turbo-32k", BaiduERNIEX1TurboProvider, model="ernie-x1-turbo-32k")
+
+    from tool.LLM.logic.models.ernie_x1_1.providers.baidu.interface import BaiduERNIEX11Provider
+    register("baidu-ernie-x1.1", BaiduERNIEX11Provider, model="ernie-x1.1")
+
+    from tool.LLM.logic.models.ernie_4_0_turbo_8k.providers.baidu.interface import BaiduERNIE40TurboProvider
+    register("baidu-ernie-4.0-turbo-8k", BaiduERNIE40TurboProvider, model="ernie-4.0-turbo-8k")
+
+    from tool.LLM.logic.models.ernie_4_5_turbo_32k.providers.baidu.interface import BaiduERNIE45Turbo32KProvider
+    register("baidu-ernie-4.5-turbo-32k", BaiduERNIE45Turbo32KProvider, model="ernie-4.5-turbo-32k")
 
     from tool.LLM.logic.models.hunyuan_lite.providers.tencent.interface import TencentHunyuanLiteProvider
     register("tencent-hunyuan-lite", TencentHunyuanLiteProvider, model="hunyuan-lite")
 
     from tool.LLM.logic.models.qwen25_7b.providers.siliconflow.interface import SiliconFlowQwenProvider
     register("siliconflow-qwen2.5-7b", SiliconFlowQwenProvider, model="qwen2.5-7b")
+
+    from tool.LLM.logic.models.claude_sonnet_4_6.providers.anthropic.interface import AnthropicClaudeSonnetProvider
+    register("anthropic-claude-sonnet-4.6", AnthropicClaudeSonnetProvider, model="claude-sonnet-4.6")
+
+    from tool.LLM.logic.models.claude_haiku_4_5.providers.anthropic.interface import AnthropicClaudeHaikuProvider
+    register("anthropic-claude-haiku-4.5", AnthropicClaudeHaikuProvider, model="claude-haiku-4.5")
+
+    from tool.LLM.logic.models.gpt_4o.providers.openai.interface import OpenAIGPT4oProvider
+    register("openai-gpt-4o", OpenAIGPT4oProvider, model="gpt-4o")
+
+    from tool.LLM.logic.models.gpt_4o_mini.providers.openai.interface import OpenAIGPT4oMiniProvider
+    register("openai-gpt-4o-mini", OpenAIGPT4oMiniProvider, model="gpt-4o-mini")
+
+    from tool.LLM.logic.models.deepseek_chat.providers.deepseek.interface import DeepSeekChatProvider
+    register("deepseek-chat", DeepSeekChatProvider, model="deepseek-chat")
+
+    from tool.LLM.logic.models.deepseek_reasoner.providers.deepseek.interface import DeepSeekReasonerProvider
+    register("deepseek-reasoner", DeepSeekReasonerProvider, model="deepseek-reasoner")
 
     from tool.LLM.logic.auto import AutoProvider
     register("auto", AutoProvider)

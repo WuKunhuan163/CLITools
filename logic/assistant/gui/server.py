@@ -413,6 +413,36 @@ class AgentServer:
             self._push_sse({"type": "settings_close"})
             return {"ok": True}
 
+        # ── Brain endpoints ──
+        if path == "/api/brain/blueprints" and method == "GET":
+            return self._api_brain_blueprints()
+        if path == "/api/brain/instances" and method == "GET":
+            return self._api_brain_instances()
+        if path == "/api/brain/active" and method == "GET":
+            return self._api_brain_active()
+        if path == "/api/brain/instance" and method == "POST":
+            return self._api_brain_create_instance(body)
+        if path == "/api/brain/switch" and method == "POST":
+            return self._api_brain_switch(body)
+        if path == "/api/brain/audit" and method == "POST":
+            return self._api_brain_audit(body)
+
+        # ── Sandbox endpoints ──
+        if path == "/api/sandbox/state" and method == "GET":
+            return self._api_sandbox_state()
+        if path == "/api/sandbox/system-policy" and method == "POST":
+            return self._api_sandbox_set_system_policy(body)
+        if path == "/api/sandbox/command" and method == "POST":
+            return self._api_sandbox_set_command(body)
+        if path == "/api/sandbox/command" and method == "DELETE":
+            return self._api_sandbox_remove_command(body)
+        if path == "/api/sandbox/check" and method == "POST":
+            return self._api_sandbox_check(body)
+        if path == "/api/sandbox/resolve" and method == "POST":
+            return self._api_sandbox_resolve(body)
+        if path == "/api/sandbox/pending" and method == "GET":
+            return self._api_sandbox_pending()
+
         # ── Essential frontend routes (config saves, text-based revert) ──
         if method == "POST":
             if path == "/api/send" and body.get("_config"):
@@ -864,6 +894,178 @@ class AgentServer:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    # ── Brain management endpoints ──
+
+    def _api_brain_blueprints(self) -> dict:
+        """List all available brain blueprints."""
+        try:
+            from interface.brain import list_blueprints
+            return {"ok": True, "blueprints": list_blueprints()}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _api_brain_instances(self) -> dict:
+        """List all brain instances (sessions)."""
+        try:
+            from interface.brain import get_session_manager
+            sm = get_session_manager()
+            return {"ok": True, "instances": sm.list_sessions()}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _api_brain_active(self) -> dict:
+        """Get the active brain instance and its blueprint type."""
+        try:
+            from interface.brain import get_session_manager
+            sm = get_session_manager()
+            name = sm.active_session()
+            path = sm.session_path(name)
+            bp_file = path / "blueprint.json"
+            bp_type = "clitools-20260316"
+            if bp_file.exists():
+                import json as _j
+                bp = _j.loads(bp_file.read_text(encoding="utf-8"))
+                bp_type = bp.get("name", bp_type)
+            return {
+                "ok": True,
+                "active": {
+                    "name": name,
+                    "blueprint_type": bp_type,
+                    "path": str(path),
+                    "exists": path.exists(),
+                },
+            }
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _api_brain_create_instance(self, body: dict) -> dict:
+        """Create a new brain instance from a blueprint."""
+        name = body.get("name", "").strip()
+        blueprint_type = body.get("blueprint_type", "").strip()
+        if not name:
+            return {"ok": False, "error": "Instance name is required"}
+        try:
+            from interface.brain import get_session_manager
+            sm = get_session_manager()
+            path = sm.create_session(name, brain_type=blueprint_type or None)
+            return {"ok": True, "name": name, "path": str(path)}
+        except FileExistsError:
+            return {"ok": False, "error": f"Instance '{name}' already exists"}
+        except FileNotFoundError as e:
+            return {"ok": False, "error": str(e)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _api_brain_switch(self, body: dict) -> dict:
+        """Switch the active brain instance."""
+        name = body.get("name", "").strip()
+        if not name:
+            return {"ok": False, "error": "Instance name is required"}
+        try:
+            from interface.brain import get_session_manager
+            sm = get_session_manager()
+            sm.switch_session(name)
+            return {"ok": True, "active": name}
+        except FileNotFoundError:
+            return {"ok": False, "error": f"Instance '{name}' not found"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _api_brain_audit(self, body: dict) -> dict:
+        """Audit a brain blueprint for potential issues."""
+        blueprint_name = body.get("blueprint", "").strip()
+        if not blueprint_name:
+            return {"ok": False, "error": "Blueprint name is required"}
+        try:
+            from interface.brain import audit_blueprint
+            result = audit_blueprint(blueprint_name)
+            return {"ok": True, "audit": result}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ── Sandbox endpoints ──
+
+    def _api_sandbox_state(self) -> dict:
+        from logic.assistant.sandbox import get_sandbox
+        sb = get_sandbox()
+        return {"ok": True, **sb.get_state()}
+
+    def _api_sandbox_set_system_policy(self, body: dict) -> dict:
+        policy = body.get("policy", "")
+        from logic.assistant.sandbox import get_sandbox, SYSTEM_POLICIES
+        if policy not in SYSTEM_POLICIES:
+            return {"ok": False, "error": f"Invalid policy. Use: {SYSTEM_POLICIES}"}
+        sb = get_sandbox()
+        sb.system_policy = policy
+        self._push_sse({"type": "sandbox_policy_changed", "policy": policy})
+        return {"ok": True, "policy": policy}
+
+    def _api_sandbox_set_command(self, body: dict) -> dict:
+        cmd = body.get("command", "").strip()
+        policy = body.get("policy", "").strip()
+        from logic.assistant.sandbox import get_sandbox, COMMAND_POLICIES
+        if not cmd:
+            return {"ok": False, "error": "Command is required"}
+        if policy not in COMMAND_POLICIES:
+            return {"ok": False, "error": f"Invalid policy. Use: {COMMAND_POLICIES}"}
+        sb = get_sandbox()
+        sb.set_command_permission(cmd, policy)
+        return {"ok": True, "command": cmd, "policy": policy}
+
+    def _api_sandbox_remove_command(self, body: dict) -> dict:
+        cmd = body.get("command", "").strip()
+        if not cmd:
+            return {"ok": False, "error": "Command is required"}
+        from logic.assistant.sandbox import get_sandbox
+        sb = get_sandbox()
+        sb.remove_command_permission(cmd)
+        return {"ok": True, "removed": cmd}
+
+    def _api_sandbox_check(self, body: dict) -> dict:
+        """Check permission for a command. Returns decision + creates pending if needed."""
+        cmd = body.get("command", "").strip()
+        request_id = body.get("request_id", "")
+        session_id = body.get("session_id", "")
+        if not cmd:
+            return {"ok": False, "error": "Command is required"}
+        from logic.assistant.sandbox import get_sandbox
+        sb = get_sandbox()
+        if not request_id:
+            import uuid
+            request_id = str(uuid.uuid4())[:8]
+        result = sb.create_pending(request_id, cmd, session_id)
+        if result["decision"] == "ask":
+            self._push_sse({
+                "type": "sandbox_prompt",
+                "request_id": request_id,
+                "cmd": cmd,
+                "normalized": result.get("normalized", ""),
+            })
+        return {"ok": True, **result}
+
+    def _api_sandbox_resolve(self, body: dict) -> dict:
+        """Resolve a pending sandbox permission request."""
+        request_id = body.get("request_id", "")
+        decision = body.get("decision", "")
+        persist = body.get("persist", False)
+        if not request_id or not decision:
+            return {"ok": False, "error": "request_id and decision required"}
+        from logic.assistant.sandbox import get_sandbox
+        sb = get_sandbox()
+        result = sb.resolve_pending(request_id, decision, persist)
+        if result.get("ok"):
+            self._push_sse({
+                "type": "sandbox_resolved",
+                "request_id": request_id,
+                "decision": decision,
+            })
+        return result
+
+    def _api_sandbox_pending(self) -> dict:
+        from logic.assistant.sandbox import get_sandbox
+        sb = get_sandbox()
+        return {"ok": True, "pending": sb.get_all_pending()}
+
     def _api_queue(self, sid: str, body: dict) -> dict:
         action = body.get("action", "list")
         if not sid:
@@ -938,8 +1140,8 @@ class AgentServer:
         """
         VENDOR_PROVIDERS = {
             "zhipu": "zhipu-glm-4.7-flash",
-            "google": "google-gemini-2.0-flash",
-            "baidu": "baidu-ernie-speed-8k",
+            "google": "google-gemini-2.5-flash",
+            "baidu": "baidu-ernie-4.5-turbo-128k",
             "tencent": "tencent-hunyuan-lite",
             "siliconflow": "siliconflow-qwen2.5-7b",
             "nvidia": "nvidia-glm-4-7b",
@@ -1096,8 +1298,8 @@ class AgentServer:
                         "value": mid,
                         "label": m.get("display_name", mid),
                         "free_tier": cost.get("free_tier", False),
-                        "input_price_per_1m": (cost.get("input_per_1k", 0) or 0) * 1000,
-                        "output_price_per_1m": (cost.get("output_per_1k", 0) or 0) * 1000,
+                        "input_price_per_1m": cost.get("input_per_1m", 0) or 0,
+                        "output_price_per_1m": cost.get("output_per_1m", 0) or 0,
                         "currency": cost.get("currency", "USD"),
                     })
             return {"ok": True, "models": configured}

@@ -52,6 +52,40 @@ def handle_exec(args: dict, ctx: ToolContext) -> dict:
     exec_desc = f"Run {first_word}" if len(cmd) > 40 else cmd
     ctx.emit({"type": "tool", "name": "exec", "desc": exec_desc, "cmd": cmd})
 
+    try:
+        from logic.assistant.sandbox import get_sandbox
+        import uuid as _uuid
+        sb = get_sandbox()
+        sb.mode = ctx.mode
+        decision, reason = sb.check_permission(cmd)
+        if decision == "deny":
+            ctx.emit({"type": "tool_result", "ok": False,
+                       "output": f"[Sandbox] Blocked: {reason}"})
+            return {"ok": False, "output": f"[Sandbox] Blocked: {reason}"}
+        if decision == "ask":
+            req_id = str(_uuid.uuid4())[:8]
+            sb.create_pending(req_id, cmd, ctx.session_id)
+            ctx.emit({"type": "sandbox_prompt", "request_id": req_id,
+                       "cmd": cmd, "normalized": sb._normalize_cmd(cmd)})
+            wait_start = time.time()
+            while time.time() - wait_start < 120:
+                pending = sb.get_pending(req_id)
+                if pending is None:
+                    break
+                time.sleep(0.5)
+            resolved = sb.get_resolved(req_id)
+            if resolved is None:
+                sb.resolve_pending(req_id, "deny")
+                ctx.emit({"type": "tool_result", "ok": False,
+                           "output": "[Sandbox] Timed out waiting for approval."})
+                return {"ok": False, "output": "[Sandbox] Timed out waiting for approval."}
+            if resolved == "deny":
+                ctx.emit({"type": "tool_result", "ok": False,
+                           "output": "[Sandbox] Command denied by user."})
+                return {"ok": False, "output": "[Sandbox] Command denied by user."}
+    except ImportError:
+        pass
+
     env = _build_exec_env(ctx.project_root)
     max_exec = _get_limit("max_exec_chars", 6000)
 

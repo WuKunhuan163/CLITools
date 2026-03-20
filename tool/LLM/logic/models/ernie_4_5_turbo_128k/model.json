@@ -1,0 +1,33 @@
+{
+  "model_id": "ernie-4.5-turbo-128k",
+  "display_name": "ERNIE 4.5 Turbo 128K",
+  "vendor": "baidu",
+  "vendor_display": "Baidu",
+  "cost": {
+    "free_tier": false,
+    "input_per_1m": 0.8,
+    "output_per_1m": 3.2,
+    "currency": "CNY"
+  },
+  "capabilities": {
+    "tool_calling": true,
+    "vision": false,
+    "streaming": true,
+    "reasoning": false,
+    "system_prompt": true,
+    "max_context_tokens": 131072,
+    "max_output_tokens": 4096
+  },
+  "rate_limits": {
+    "paid": {
+      "rpm": 300,
+      "tpm": 500000,
+      "notes": "Pay-per-use. Cache hit: 0.2 CNY/M input."
+    }
+  },
+  "recommended_settings": {
+    "min_interval_s": 0.5,
+    "jitter_s": 0.2
+  },
+  "active": true
+}

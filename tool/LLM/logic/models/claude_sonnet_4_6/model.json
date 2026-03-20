@@ -1,0 +1,50 @@
+{
+  "model_id": "claude-sonnet-4-6-20260101",
+  "display_name": "Claude Sonnet 4.6",
+  "vendor": "anthropic",
+  "vendor_display": "Anthropic",
+  "cost": {
+    "free_tier": false,
+    "input_per_1m": 3.0,
+    "output_per_1m": 15.0,
+    "currency": "USD"
+  },
+  "capabilities": {
+    "tool_calling": true,
+    "vision": true,
+    "streaming": true,
+    "reasoning": true,
+    "system_prompt": true,
+    "max_context_tokens": 200000,
+    "max_output_tokens": 8192
+  },
+  "rate_limits": {
+    "tier1": {
+      "rpm": 50,
+      "tpm": 40000,
+      "rpd": 1000,
+      "notes": "Tier 1: $5 credit purchase required"
+    },
+    "tier2": {
+      "rpm": 1000,
+      "tpm": 80000,
+      "notes": "Tier 2: $40 cumulative spend"
+    },
+    "tier3": {
+      "rpm": 2000,
+      "tpm": 160000,
+      "notes": "Tier 3: $200 cumulative spend"
+    },
+    "tier4": {
+      "rpm": 4000,
+      "tpm": 400000,
+      "notes": "Tier 4: $400 cumulative spend"
+    }
+  },
+  "recommended_settings": {
+    "min_interval_s": 1.0,
+    "jitter_s": 0.5
+  },
+  "active": false,
+  "lock_reason": "Paid model. Configure Anthropic API key to unlock."
+}

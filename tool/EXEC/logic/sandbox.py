@@ -1,16 +1,27 @@
 """Sandbox engine for command execution.
 
+Three sandbox layers (applied in order, most restrictive wins):
+1. Mode sandbox: ask/plan modes block all filesystem-modifying commands.
+2. System sandbox: global policy (run-everything / ask-every-time).
+3. Command sandbox: per-command policy (run-always / run-once / forbidden).
+
+Additionally, workspace boundary protection requires explicit user approval
+for any command that accesses files/directories outside the project root.
+
 Provides:
 - Policy-based command access control (allow / deny per command)
 - Protected path patterns that block filesystem access
 - Allowed / blocked command lists with user-friendly hints
 - Interactive permission prompting for unknown commands
 - Sandboxed path resolution within the project root
+- Workspace boundary detection for external file access
 """
 import os
 import json
+import re
+import shlex
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # Project root
@@ -243,6 +254,226 @@ def prompt_permission(cmd: str, default_idx: int = 2) -> str:
             return "allow_once"
     except Exception:
         return "deny"
+
+# ---------------------------------------------------------------------------
+# System sandbox policy
+# ---------------------------------------------------------------------------
+
+SYSTEM_POLICIES = ["run_everything", "ask_every_time"]
+_system_policy: str = "ask_every_time"
+
+
+def get_system_policy() -> str:
+    """Current system-level sandbox policy."""
+    _load_policies()
+    data = {}
+    if _SANDBOX_FILE.exists():
+        try:
+            data = json.loads(_SANDBOX_FILE.read_text())
+        except Exception:
+            pass
+    return data.get("system_policy", "ask_every_time")
+
+
+def set_system_policy(policy: str):
+    """Set the system-level sandbox policy."""
+    if policy not in SYSTEM_POLICIES:
+        raise ValueError(f"Invalid policy: {policy}. Must be one of {SYSTEM_POLICIES}")
+    _SANDBOX_FILE.parent.mkdir(parents=True, exist_ok=True)
+    data = {}
+    if _SANDBOX_FILE.exists():
+        try:
+            data = json.loads(_SANDBOX_FILE.read_text())
+        except Exception:
+            pass
+    data["system_policy"] = policy
+    _SANDBOX_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
+
+# ---------------------------------------------------------------------------
+# Mode sandbox
+# ---------------------------------------------------------------------------
+
+FS_MODIFYING_COMMANDS = {
+    "rm", "rmdir", "mv", "cp", "mkdir", "touch", "chmod", "chown",
+    "ln", "unlink", "tee", "truncate", "dd",
+    "git commit", "git push", "git reset", "git checkout",
+    "pip install", "pip uninstall", "npm install", "npm uninstall",
+}
+
+_WRITE_INDICATORS = {
+    ">", ">>", "tee", "sed -i", "mv ", "cp ", "rm ", "mkdir ", "touch ",
+}
+
+
+def is_fs_modifying(cmd_line: str) -> bool:
+    """Heuristic check if a command line modifies the filesystem."""
+    stripped = cmd_line.strip()
+    for pattern in _WRITE_INDICATORS:
+        if pattern in stripped:
+            return True
+    base = stripped.split()[0] if stripped else ""
+    return base in FS_MODIFYING_COMMANDS
+
+
+def mode_allows_command(mode: str, cmd_line: str) -> Tuple[bool, str]:
+    """Check if current mode permits the command.
+
+    Returns (allowed, reason).
+    ask/plan modes block filesystem-modifying commands.
+    agent mode allows everything (defers to system/command sandbox).
+    """
+    if mode in ("ask", "plan"):
+        if is_fs_modifying(cmd_line):
+            return False, f"Mode '{mode}' blocks filesystem-modifying commands."
+    return True, ""
+
+
+# ---------------------------------------------------------------------------
+# Workspace boundary detection
+# ---------------------------------------------------------------------------
+
+_PATH_ARG_PATTERNS = [
+    re.compile(r'(?:cat|head|tail|less|more|vi|vim|nano|code|open)\s+(.+)'),
+    re.compile(r'(?:cd)\s+(.+)'),
+    re.compile(r'(?:rm|rmdir|mkdir|touch|mv|cp|ln)\s+(?:-[a-zA-Z]*\s+)*(.+)'),
+    re.compile(r'>+\s*(.+)'),
+]
+
+
+def extract_paths_from_command(cmd_line: str) -> List[str]:
+    """Extract file/directory path arguments from a command line."""
+    paths = []
+    try:
+        parts = shlex.split(cmd_line)
+    except ValueError:
+        parts = cmd_line.split()
+
+    for part in parts:
+        if part.startswith("/") or part.startswith("~") or part.startswith(".."):
+            paths.append(part)
+        elif "/" in part and not part.startswith("-") and not part.startswith("http"):
+            if os.path.isabs(part):
+                paths.append(part)
+    return paths
+
+
+def is_outside_workspace(path: str) -> bool:
+    """Check if a resolved path is outside the project workspace."""
+    try:
+        p = Path(path).expanduser().resolve()
+        root = _PROJECT_ROOT.resolve()
+        return not str(p).startswith(str(root))
+    except Exception:
+        return True
+
+
+def check_workspace_boundary(cmd_line: str) -> Tuple[bool, List[str]]:
+    """Check if a command accesses paths outside the workspace.
+
+    Returns (has_external, list_of_external_paths).
+    """
+    paths = extract_paths_from_command(cmd_line)
+    external = []
+    for p in paths:
+        expanded = os.path.expanduser(p)
+        if os.path.isabs(expanded):
+            if is_outside_workspace(expanded):
+                external.append(expanded)
+        elif p.startswith(".."):
+            try:
+                resolved = str(Path(p).resolve())
+                if is_outside_workspace(resolved):
+                    external.append(resolved)
+            except Exception:
+                external.append(p)
+    return bool(external), external
+
+
+# ---------------------------------------------------------------------------
+# Unified sandbox decision
+# ---------------------------------------------------------------------------
+
+class SandboxDecision:
+    """Result of sandbox evaluation."""
+    __slots__ = ("allowed", "reason", "requires_prompt", "prompt_type",
+                 "external_paths", "command")
+
+    def __init__(self, allowed: bool = True, reason: str = "",
+                 requires_prompt: bool = False, prompt_type: str = "",
+                 external_paths: Optional[List[str]] = None,
+                 command: str = ""):
+        self.allowed = allowed
+        self.reason = reason
+        self.requires_prompt = requires_prompt
+        self.prompt_type = prompt_type
+        self.external_paths = external_paths or []
+        self.command = command
+
+
+def evaluate_sandbox(cmd_line: str, mode: str = "agent") -> SandboxDecision:
+    """Evaluate all sandbox layers for a command.
+
+    Applies layers in order:
+    1. Mode sandbox (ask/plan blocks FS writes)
+    2. Blocked command list (always denied)
+    3. Workspace boundary check (external paths need approval)
+    4. System sandbox policy
+    5. Command-level policy
+
+    Returns a SandboxDecision indicating whether to proceed, block, or prompt.
+    """
+    base_cmd = cmd_line.strip().split()[0] if cmd_line.strip() else ""
+
+    allowed, reason = mode_allows_command(mode, cmd_line)
+    if not allowed:
+        return SandboxDecision(allowed=False, reason=reason, command=base_cmd)
+
+    cls = classify_command(base_cmd)
+    if cls == "blocked":
+        return SandboxDecision(
+            allowed=False,
+            reason=get_blocked_hint(base_cmd),
+            command=base_cmd,
+        )
+    if cls == "policy_deny":
+        return SandboxDecision(
+            allowed=False,
+            reason=f"Command '{base_cmd}' is forbidden by policy.",
+            command=base_cmd,
+        )
+
+    has_external, ext_paths = check_workspace_boundary(cmd_line)
+    if has_external:
+        return SandboxDecision(
+            allowed=False,
+            requires_prompt=True,
+            prompt_type="workspace_boundary",
+            external_paths=ext_paths,
+            reason=f"Accesses paths outside workspace: {', '.join(ext_paths)}",
+            command=base_cmd,
+        )
+
+    sys_policy = get_system_policy()
+    if sys_policy == "run_everything":
+        if cls in ("allowed", "policy_allow"):
+            return SandboxDecision(allowed=True, command=base_cmd)
+        return SandboxDecision(allowed=True, command=base_cmd)
+
+    if cls == "allowed" or cls == "policy_allow":
+        return SandboxDecision(allowed=True, command=base_cmd)
+
+    if cls == "unknown":
+        return SandboxDecision(
+            allowed=False,
+            requires_prompt=True,
+            prompt_type="unknown_command",
+            reason=f"Unknown command: {base_cmd}",
+            command=base_cmd,
+        )
+
+    return SandboxDecision(allowed=True, command=base_cmd)
+
 
 # ---------------------------------------------------------------------------
 # Convenience: project root accessor

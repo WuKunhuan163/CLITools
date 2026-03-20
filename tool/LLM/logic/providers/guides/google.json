@@ -7,9 +7,9 @@
   "steps": [
     "Visit <a href=\"https://aistudio.google.com/apikey\" target=\"_blank\">Google AI Studio</a>",
     "Sign in with your Google account",
-    "Click \"Create API Key\"",
-    "Copy the generated key",
+    "Click \"Create API Key\" → \"Create API key in new project\"",
+    "Copy the generated key (starts with AIza...)",
     "Paste it above and click \"Validate & Save\""
   ],
-  "notes": "Free tier: 15 RPM, 1M TPM, 1500 RPD. Region-restricted (no direct CN/HK access). May require VPN or proxy."
+  "notes": "Free tier: No billing required. Models with '(Free)' suffix use free quota (15 RPM, 1500 RPD for Flash; lower for Pro). For higher limits, enable Cloud Billing on the project — but this will charge per token. Free and paid keys come from separate projects."
 }

@@ -96,6 +96,60 @@ def list_all_benchmarks(force_refresh: bool = False) -> List[dict]:
                   reverse=True)
 
 
+_VENDOR_PREFIXES = ("baidu-", "google-", "anthropic-", "openai-", "deepseek-",
+                     "zhipu-", "tencent-", "siliconflow-", "nvidia-")
+
+_MANUAL_SLUG_MAP = {
+    "baidu-ernie-4.5-turbo-128k": "ernie-4-5-300b-a47b",
+    "baidu-ernie-4.5-turbo-32k": "ernie-4-5-300b-a47b",
+    "baidu-ernie-4.5-8k": "ernie-4-5-300b-a47b",
+    "baidu-ernie-5.0": "ernie-5-0-thinking-preview",
+    "baidu-ernie-x1.1": "ernie-5-0-thinking-preview",
+    "deepseek-chat": "deepseek-v3-2",
+    "deepseek-reasoner": "deepseek-r1",
+    "anthropic-claude-haiku-4.5": "claude-4-5-haiku",
+}
+
+
+def _normalize_slug(s: str) -> str:
+    """Normalize slug for fuzzy matching: strip vendor prefix, dots→dashes, trim suffixes."""
+    s = s.lower().strip()
+    for prefix in _VENDOR_PREFIXES:
+        if s.startswith(prefix):
+            s = s[len(prefix):]
+            break
+    s = s.replace(".", "-")
+    for suffix in ("-preview", "-latest", "-non-reasoning"):
+        s = s.removesuffix(suffix)
+    return s
+
+
+def _match_aa_model(our_slug: str, aa_models: list) -> Optional[dict]:
+    """Find best matching AA model for one of our model slugs."""
+    if our_slug in _MANUAL_SLUG_MAP:
+        target = _MANUAL_SLUG_MAP[our_slug]
+        for m in aa_models:
+            if m.get("slug") == target:
+                return m
+
+    norm = _normalize_slug(our_slug)
+    best, best_score = None, 0
+    for m in aa_models:
+        aa_slug = m.get("slug", "")
+        aa_norm = _normalize_slug(aa_slug)
+        aa_name = m.get("name", "").lower().replace(".", "-")
+        if norm == aa_norm:
+            return m
+        score = 0
+        if norm in aa_norm or aa_norm in norm:
+            score = max(len(norm), len(aa_norm))
+        elif norm in aa_name:
+            score = len(norm)
+        if score > best_score:
+            best, best_score = m, score
+    return best if best_score >= 6 else None
+
+
 def get_rankings_for_our_models(our_model_slugs: List[str], force_refresh: bool = False) -> Dict[str, dict]:
     """Get rankings relative to our supported models only.
     
@@ -106,13 +160,10 @@ def get_rankings_for_our_models(our_model_slugs: List[str], force_refresh: bool 
         return {}
 
     slug_map = {}
-    for m in all_models:
-        s = m.get("slug", "")
-        n = m.get("name", "").lower()
-        for our_slug in our_model_slugs:
-            if our_slug.lower() in s or our_slug.lower() in n or s in our_slug.lower():
-                slug_map[our_slug] = m
-                break
+    for our_slug in our_model_slugs:
+        matched = _match_aa_model(our_slug, all_models)
+        if matched:
+            slug_map[our_slug] = matched
 
     all_eval_keys = set()
     for mdata in slug_map.values():

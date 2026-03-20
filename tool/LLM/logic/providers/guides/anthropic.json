@@ -1,0 +1,16 @@
+{
+  "vendor": "anthropic",
+  "name": "Anthropic",
+  "url": "https://console.anthropic.com/",
+  "docs_url": "https://docs.anthropic.com/en/api",
+  "key_portal_url": "https://console.anthropic.com/settings/keys",
+  "steps": [
+    "Visit <a href=\"https://console.anthropic.com/\" target=\"_blank\">Anthropic Console</a>",
+    "Create an account or sign in",
+    "Add a payment method (credit purchase required for API access)",
+    "Go to <a href=\"https://console.anthropic.com/settings/keys\" target=\"_blank\">API Keys</a>",
+    "Click \"Create Key\", name it, and copy the key (starts with sk-ant-...)",
+    "Paste it above and click \"Validate & Save\""
+  ],
+  "notes": "Paid only. Tier 1 requires $5 credit purchase. Rate limits increase with spend ($40→Tier2, $200→Tier3). Prompt caching available for up to 90% savings on cached tokens."
+}

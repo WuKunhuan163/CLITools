@@ -124,7 +124,7 @@ A context-free agent discovers tools through this sequence:
 - `logic/rate_limiter.py` -- `RateLimiter`: token-bucket with RPM cap, min interval, jitter, and adaptive 429 backoff. `retry_on_transient(fn, max_retries, rate_limiter)` for auto-retry.
 - `logic/usage.py` -- `record_usage()`, `get_summary()`, `get_daily_summary()`, `rotate_usage()` -- persistent JSONL tracking.
 - `logic/registry.py` -- `get_provider(name)`, `list_providers()`, `register(name, cls)`.
-- `logic/config.py` -- `get_config_value(key)`, `set_config_value(key, value)` -- stores in `data/llm_config.json`.
+- `logic/config.py` -- `get_config_value(key)`, `set_config_value(key, value)` -- stores in `data/config.json`.
 
 ## Provider Architecture
 

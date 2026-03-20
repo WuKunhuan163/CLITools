@@ -1,0 +1,35 @@
+{
+  "model_id": "gemini-3.1-pro-preview",
+  "display_name": "Gemini 3.1 Pro (Preview)",
+  "vendor": "google",
+  "vendor_display": "Google",
+  "cost": {
+    "free_tier": false,
+    "input_per_1m": 2.0,
+    "output_per_1m": 12.0,
+    "currency": "USD"
+  },
+  "capabilities": {
+    "tool_calling": true,
+    "vision": true,
+    "streaming": true,
+    "reasoning": true,
+    "system_prompt": true,
+    "max_context_tokens": 1048576,
+    "max_output_tokens": 8192
+  },
+  "rate_limits": {
+    "paid_tier1": {
+      "rpm": 1000,
+      "tpm": 2000000,
+      "rpd": 10000,
+      "notes": "Paid only. Most advanced."
+    }
+  },
+  "recommended_settings": {
+    "min_interval_s": 1.0,
+    "jitter_s": 0.5
+  },
+  "active": false,
+  "lock_reason": "Paid-only preview. No free tier available."
+}

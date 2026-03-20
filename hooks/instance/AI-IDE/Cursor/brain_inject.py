@@ -172,7 +172,7 @@ def main():
         f"Environment: {ide_str} IDE detected. "
         "Tools are CLI commands — run them in the terminal shell, not as Python imports. "
         "Symmetric design: tool/<NAME>/ each has main.py, logic/, interface/, tool.json. "
-        "Root mirrors this: logic/ (shared), interface/ (facade, import from here), bin/ (executables). "
+        "Root mirrors this: logic/ (shared), interface/ (facade, import from here), bin/ (executables), data/ (API keys/caches, gitignored), tmp/ (temp scripts, gitignored). "
         "Every directory has README.md (users) + for_agent.md (agents) — read these for context. "
         "Run `TOOL status` to see installed tools. "
         "Run `TOOL --search all \"query\"` to find anything. "

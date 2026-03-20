@@ -145,7 +145,7 @@ This tool follows the YAB-Bridge compliance framework:
 
 ## Token Storage
 
-- `data/llm_config.json` -- NVIDIA API key and provider settings
+- `data/config.json` -- NVIDIA API key and provider settings
 
 ## Known Issues
 

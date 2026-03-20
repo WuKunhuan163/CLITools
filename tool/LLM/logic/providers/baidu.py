@@ -1,13 +1,15 @@
 """Baidu Qianfan vendor configuration.
 
-API docs: https://cloud.baidu.com/doc/qianfan/s/rmh4stp0j
-Free models: ernie-speed-pro-128k, ernie-lite-pro-128k (10000 RPM, 800K TPM)
-Key format: bce-v3/ALTAK-... (Bearer token authentication)
+V2 API Key authentication (OpenAI-compatible).
+API key format: bce-v3/ALTAK-xxx/secret
+
+API docs: https://cloud.baidu.com/doc/qianfan-docs/s/Jm8r1826a
+Key portal: https://console.bce.baidu.com/iam/#/iam/apikey/list
 """
 
 DISPLAY_NAME = "Baidu"
 CONFIG_VENDOR = "baidu"
 CONFIG_KEY_ENV = "BAIDU_API_KEY"
 API_URL = "https://qianfan.baidubce.com/v2/chat/completions"
-DOCS_URL = "https://cloud.baidu.com/doc/qianfan/s/rmh4stp0j"
+DOCS_URL = "https://cloud.baidu.com/doc/qianfan-docs/s/Jm8r1826a"
 KEY_PORTAL_URL = "https://console.bce.baidu.com/iam/#/iam/apikey/list"

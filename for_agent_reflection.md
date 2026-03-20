@@ -108,6 +108,28 @@ Before each USERINPUT call, evaluate yourself against these dimensions:
 - Reduced entropy: merged overlapping content, removed outdated material
 - Added useful command sequences to recipes or relevant for_agent.md
 - Checked doc symmetry: tools I touched have both README.md and for_agent.md
+- Used correct directories: `data/` for API keys/caches (gitignored), `tmp/` for temp scripts (gitignored, clean up), `logs/` for debug output (gitignored), `runtime/` for brain/experience (tracked)
+
+**Meta-Cognition** — Did I observe my own learning process?
+
+The teacher/student/observer cycle: you are simultaneously the student (learning the system), the worker (completing tasks), and the teacher (improving the system for future agents). A capable agent can switch between these roles fluidly.
+
+- **Student**: Did I notice when I struggled to find something? That struggle IS the signal — record it as a lesson, then fix the discovery path so the next agent doesn't struggle.
+- **Worker**: Did I complete the task efficiently, or did I re-derive solutions I could have found in the brain/skills?
+- **Teacher**: After solving a problem, did I ask "how would I have found this faster?" and then build that shortcut?
+- **Observer**: Can I detect my own "RAG formation"? Signs of progress: (1) I recall a past lesson before making a mistake, (2) I check for_agent_reflection.md without being told, (3) I use BRAIN recall proactively, (4) I create infrastructure instead of just documenting.
+- **Evolution metric**: Am I advancing along the pipeline? Lesson count alone isn't progress. Progress = fewer lessons repeated + more skills created + more infrastructure replacing skills.
+
+**Reflexive Awareness** — Did I pause to consider system-level consequences of my actions?
+
+These are "reflex arcs" — when you perform a specific action, automatically consider the associated system implications:
+
+- **Creating a root-level file?** → `.gitignore` uses deny-all (`/*`). New root files are invisible to git unless whitelisted. Add `!/filename` to `GitIgnoreManager.base_patterns` in `logic/git/manager.py` (not just manual `.gitignore` edit — it's auto-generated). See `for_agent.md` Section 9.
+- **Modifying a tool's directory structure?** → Symmetric pattern: `logic/`, `interface/`, `hooks/`, `data/`, `test/`. Check `logic/tool/template/`. `data/`/`logs/` are gitignored, `runtime/` is tracked.
+- **Adding cross-tool functionality?** → Implementation in `logic/`, expose via `interface/main.py`. Import from `interface.*` never `logic.*`. Verify with `TOOL --audit imports`.
+- **Changing brain-related behavior?** → Brain commands are ecosystem-level. Blueprint-specific behaviors go in `logic/brain/blueprint/<name>/blueprint.json`. Use `BrainSessionManager` for paths.
+- **Touching documentation?** → `README.md` = stable overview only. `for_agent.md` = operational guide. `for_agent_reflection.md` = stable protocol (NOT a recording file). Keep doc symmetry.
+- **Updating a root-level pattern?** → Check whether the template (`logic/tool/template/`) propagates the same convention. Root rules that don't cascade to templates will be silently ignored by new tools. Batch-update existing instances if needed.
 
 **Interface Discipline** — Did I follow the three-layer pattern?
 - Put implementation in `logic/`, not directly in `main.py` or `interface/`
@@ -126,6 +148,12 @@ Before each USERINPUT call, evaluate yourself against these dimensions:
 - Used `ls -la | grep` as fallback when Glob/Grep return empty (paths with spaces fail silently)
 - Read `hooks/interface/AI-IDE/Cursor/for_agent.md` for known quirks if working in Cursor
 - Checked `userinput-timeout.mdc` rule for USERINPUT wait handling
+
+**USERINPUT Resilience** — Did I maintain the feedback loop despite context pressure?
+- Called `USERINPUT` at every significant milestone (task completion, error, fix, before starting new work)
+- Aware that context summarization can erase USERINPUT instructions — the postToolUse hook re-injects reminders
+- If I notice I haven't called USERINPUT in a while, I stop and call it immediately
+- Used `block_until_ms: 120000` (not the default 30s) when invoking USERINPUT via Shell
 
 **System Awareness** — Did I use the ecosystem?
 - Used existing tools instead of reimplementing
@@ -151,11 +179,15 @@ These are the highest-priority system-level weaknesses. Each agent should attemp
 
 **Gap: Context Loss on Session Crash** — If a session crashes, `context.md` may be stale. `BRAIN snapshot` exists but isn't automatic. Ideal fix: integrate auto-snapshot into the USERINPUT hook chain.
 
-**Gap: Cross-Session Memory is Shallow** — `BRAIN recall` now searches lessons, activity log, and context.md. But past session transcripts and detailed tool outputs are still lost. Ideal next step: SQLite FTS5 index of session summaries (see `research/2026-03-16_claude-mem-source-analysis.md`).
+**Gap: Cross-Session Memory is Shallow** — `BRAIN recall` searches via linear scan. The `openclaw-20260316` blueprint defines hybrid search config (vector + BM25). Next step: implement the `sqlite_fts` or `hybrid` backend in `logic/brain/backends/`. See `logic/brain/for_agent.md`.
 
 **Gap: No Tool Categorization in Discovery** — `TOOL status` lists 56+ tools as a flat list. Ideal fix: add `"category"` to `tool.json` and group output by category.
 
-**Gap: IDE-Agnostic Hook Framework** — Only Cursor has hooks (sessionStart, postToolUse, stop). VS Code/Windsurf agents miss brain injection and USERINPUT enforcement entirely. IDE detection exists (`logic/setup/ide_detect.py`) but only Cursor has a deploy module. Ideal fix: abstract the hook framework so each IDE has its own deploy module with equivalent lifecycle hooks.
+**Gap: IDE-Agnostic Hook Framework** — Only Cursor has hooks (sessionStart, postToolUse, stop). VS Code/Windsurf agents miss brain injection and USERINPUT enforcement entirely. Ideal fix: abstract the hook framework per IDE.
+
+**Gap: Procedural Triggers Not Wired to Hooks** — Three-layer reflex arc system exists (`logic/brain/utils/procedural.py` + `graph.py`): blueprint skills, lesson triggers, Graph-RAG associations. But it's not yet auto-injected via postToolUse hooks. Agents must explicitly call `check_procedural_triggers()`. Ideal fix: wire into the postToolUse hook to automatically inject relevant triggers when tool calls match activation patterns.
+
+**Gap: Brain Settings UI is Minimal** — The assistant Settings panel now has a Brain tab showing sessions and blueprints, but lacks: instance creation UI, blueprint detail view, export/import buttons, and per-session brain type display. Backend endpoints exist (`/api/brain/*`) but frontend coverage is partial.
 
 ## Our Advantages (Preserve These)
 

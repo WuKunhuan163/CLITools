@@ -1,0 +1,40 @@
+{
+  "model_id": "gemini-2.5-flash-lite",
+  "display_name": "Gemini 2.5 Flash-Lite",
+  "vendor": "google",
+  "vendor_display": "Google",
+  "cost": {
+    "free_tier": true,
+    "input_per_1m": 0.1,
+    "output_per_1m": 0.4,
+    "currency": "USD"
+  },
+  "capabilities": {
+    "tool_calling": true,
+    "vision": true,
+    "streaming": true,
+    "reasoning": false,
+    "system_prompt": true,
+    "max_context_tokens": 1048576,
+    "max_output_tokens": 8192
+  },
+  "rate_limits": {
+    "free": {
+      "rpm": 30,
+      "tpm": 1000000,
+      "rpd": 1500,
+      "notes": "Free tier: no billing required"
+    },
+    "paid_tier1": {
+      "rpm": 4000,
+      "tpm": 4000000,
+      "rpd": 14400,
+      "notes": "Paid Tier 1"
+    }
+  },
+  "recommended_settings": {
+    "min_interval_s": 1.0,
+    "jitter_s": 0.5
+  },
+  "active": true
+}

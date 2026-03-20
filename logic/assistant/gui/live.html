@@ -832,6 +832,25 @@ body.debug-mode .debug-block { display: block; }
 .tool-file-tag { font-size: 10px; color: var(--green); background: var(--green-dim); padding: 1px 5px; border-radius: 3px; font-weight: 500; }
 .tool-call.no-expand .tool-call-chevron { visibility: hidden; }
 .tool-call.no-expand .tool-call-header { cursor: default; }
+
+/* ── Sandbox UI ── */
+.sandbox-actions { display: flex; align-items: center; gap: 3px; margin-left: 4px; flex-shrink: 0; opacity: 0; transition: opacity 0.15s; }
+.tool-call-header:hover .sandbox-actions { opacity: 1; }
+.sandbox-actions .sb-btn { border: none; background: none; color: var(--text-3); cursor: pointer; font-size: 13px; padding: 2px 4px; display: flex; align-items: center; border-radius: 3px; }
+.sandbox-actions .sb-btn:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+.sandbox-actions .sb-policy-select { background: var(--surface-3); border: 1px solid var(--border); color: var(--text-2); font-size: 10px; border-radius: 4px; padding: 1px 4px; cursor: pointer; outline: none; font-family: var(--mono); }
+.sandbox-actions .sb-policy-select:hover { border-color: var(--text-3); }
+.sandbox-prompt-bubble { position: relative; background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 10px 14px; margin: 6px 0 2px 0; max-width: 90%; animation: fadeIn 0.2s ease; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+.sandbox-prompt-bubble::after { content: ''; position: absolute; bottom: -7px; left: 24px; width: 12px; height: 12px; background: var(--surface-2); border-right: 1px solid var(--accent); border-bottom: 1px solid var(--accent); transform: rotate(45deg); }
+.sandbox-prompt-bubble .sb-prompt-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.sandbox-prompt-bubble .sb-prompt-cmd { font-family: var(--mono); font-size: 11px; color: var(--text-2); background: var(--surface-3); padding: 4px 8px; border-radius: 4px; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sandbox-prompt-bubble .sb-prompt-options { display: flex; gap: 6px; flex-wrap: wrap; }
+.sandbox-prompt-bubble .sb-opt { border: 1px solid var(--border); background: var(--surface-3); color: var(--text-2); font-size: 11px; padding: 4px 10px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+.sandbox-prompt-bubble .sb-opt:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--text); }
+.sandbox-prompt-bubble .sb-opt.allow { border-color: var(--green); }
+.sandbox-prompt-bubble .sb-opt.allow:hover { background: rgba(80,200,120,0.15); color: var(--green); }
+.sandbox-prompt-bubble .sb-opt.deny { border-color: var(--red); }
+.sandbox-prompt-bubble .sb-opt.deny:hover { background: rgba(200,80,80,0.15); color: var(--red); }
 .tool-code-preview { background: var(--surface-2); border-radius: 4px; padding: 10px 12px; margin: 0; overflow-x: auto; }
 .tool-code-preview code { font-family: var(--mono); font-size: 11.5px; color: var(--text); white-space: pre; line-height: 1.5; }
 .tool-write-result { font-size: 12px; color: var(--text-3); padding: 6px 0; }
@@ -945,6 +964,8 @@ body.debug-mode .debug-block { display: block; }
       <div class="settings-tab" role="button" tabindex="0" data-tab="chat" onclick="switchSettingsTab('chat')"><i class="bx bx-chat"></i> <span data-i18n="Chat">Chat</span></div>
       <div class="settings-tab" role="button" tabindex="0" data-tab="models" onclick="switchSettingsTab('models')"><i class="bx bx-chip"></i> <span data-i18n="Models">Models</span></div>
       <div class="settings-tab" role="button" tabindex="0" data-tab="providers" onclick="switchSettingsTab('providers')"><i class="bx bx-server"></i> <span data-i18n="Providers">Providers</span></div>
+      <div class="settings-tab" role="button" tabindex="0" data-tab="brain" onclick="switchSettingsTab('brain')"><i class="bx bx-brain"></i> <span data-i18n="Brain">Brain</span></div>
+      <div class="settings-tab" role="button" tabindex="0" data-tab="permissions" onclick="switchSettingsTab('permissions')"><i class="bx bx-shield-quarter"></i> <span data-i18n="Permissions">Permissions</span></div>
       <div class="settings-tab" role="button" tabindex="0" data-tab="data" onclick="switchSettingsTab('data')"><i class="bx bx-data"></i> <span data-i18n="Data">Data</span></div>
     </div>
     <div class="settings-content" id="settings-content"></div>
@@ -982,6 +1003,9 @@ const PROVIDER_LOGOS = {
   nvidia: _ICON('nvidia'),
   alibaba: _ICON('alibaba'),
   qwen: _ICON('qwen'),
+  anthropic: _ICON('anthropic'),
+  openai: _ICON('openai'),
+  deepseek: _ICON('deepseek'),
   cursor: CURSOR_LOGO,
   copilot: COPILOT_LOGO,
   windsurf: WINDSURF_LOGO,
@@ -995,14 +1019,29 @@ const MODEL_LOGOS = {
   'glm-4-flash': ZHIPU_LOGO,
   'glm-4.7': ZHIPU_LOGO,
   'nvidia-glm-4-7b': _ICON('nvidia'),
-  'google-gemini-2.0-flash': GOOGLE_LOGO,
-  'gemini-2.0-flash': GOOGLE_LOGO,
-  'baidu-ernie-speed-8k': BAIDU_LOGO,
-  'ernie-speed-8k': BAIDU_LOGO,
+  'google-gemini-2.5-flash': GOOGLE_LOGO,
+  'google-gemini-2.5-flash-lite': GOOGLE_LOGO,
+  'google-gemini-2.5-pro': GOOGLE_LOGO,
+  'google-gemini-3-flash': GOOGLE_LOGO,
+  'google-gemini-3.1-flash-lite': GOOGLE_LOGO,
+  'google-gemini-3.1-pro': GOOGLE_LOGO,
+  'baidu-ernie-4.5-turbo-128k': BAIDU_LOGO,
+  'baidu-ernie-5.0': BAIDU_LOGO,
+  'baidu-ernie-x1-turbo-32k': BAIDU_LOGO,
+  'baidu-ernie-x1.1': BAIDU_LOGO,
+  'baidu-ernie-4.5-8k': BAIDU_LOGO,
+  'baidu-ernie-4.0-turbo-8k': BAIDU_LOGO,
+  'baidu-ernie-4.5-turbo-32k': BAIDU_LOGO,
   'tencent-hunyuan-lite': TENCENT_LOGO,
   'hunyuan-lite': TENCENT_LOGO,
   'siliconflow-qwen2.5-7b': SILICONFLOW_LOGO,
   'qwen2.5-7b': SILICONFLOW_LOGO,
+  'anthropic-claude-sonnet-4.6': _ICON('anthropic'),
+  'anthropic-claude-haiku-4.5': _ICON('anthropic'),
+  'openai-gpt-4o': _ICON('openai'),
+  'openai-gpt-4o-mini': _ICON('openai'),
+  'deepseek-chat': _ICON('deepseek'),
+  'deepseek-reasoner': _ICON('deepseek'),
   'auto': null,
   'cursor': CURSOR_LOGO,
   'copilot': COPILOT_LOGO,
@@ -1017,14 +1056,29 @@ const MODEL_DISPLAY_NAMES = {
   'glm-4.7-flash': 'GLM-4.7-Flash',
   'glm-4-flash': 'GLM-4-Flash',
   'glm-4.7': 'GLM-4.7',
-  'google-gemini-2.0-flash': 'Gemini 2.0 Flash',
-  'gemini-2.0-flash': 'Gemini 2.0 Flash',
-  'baidu-ernie-speed-8k': 'ERNIE Speed 8K',
-  'ernie-speed-8k': 'ERNIE Speed 8K',
+  'google-gemini-2.5-flash': 'Gemini 2.5 Flash',
+  'google-gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite',
+  'google-gemini-2.5-pro': 'Gemini 2.5 Pro',
+  'google-gemini-3-flash': 'Gemini 3 Flash',
+  'google-gemini-3.1-flash-lite': 'Gemini 3.1 Flash-Lite',
+  'google-gemini-3.1-pro': 'Gemini 3.1 Pro',
+  'baidu-ernie-4.5-turbo-128k': 'ERNIE 4.5 Turbo 128K',
+  'baidu-ernie-5.0': 'ERNIE 5.0',
+  'baidu-ernie-x1-turbo-32k': 'ERNIE X1-Turbo 32K',
+  'baidu-ernie-x1.1': 'ERNIE X1.1',
+  'baidu-ernie-4.5-8k': 'ERNIE 4.5 8K',
+  'baidu-ernie-4.0-turbo-8k': 'ERNIE 4.0 Turbo 8K',
+  'baidu-ernie-4.5-turbo-32k': 'ERNIE 4.5 Turbo 32K',
   'tencent-hunyuan-lite': 'Hunyuan Lite',
   'hunyuan-lite': 'Hunyuan Lite',
   'siliconflow-qwen2.5-7b': 'Qwen 2.5 7B',
   'qwen2.5-7b': 'Qwen 2.5 7B',
+  'anthropic-claude-sonnet-4.6': 'Claude Sonnet 4.6',
+  'anthropic-claude-haiku-4.5': 'Claude Haiku 4.5',
+  'openai-gpt-4o': 'GPT-4o',
+  'openai-gpt-4o-mini': 'GPT-4o Mini',
+  'deepseek-chat': 'DeepSeek V3',
+  'deepseek-reasoner': 'DeepSeek R1',
   'cursor': 'Cursor',
   'copilot': 'Copilot',
   'windsurf': 'Windsurf',
@@ -1181,7 +1235,7 @@ let currentPalette = localStorage.getItem('brilliantPalette') || 'strawberry';
 /* ── i18n ── */
 const _I18N = {
   zh: {
-    'Settings': '设置', 'General': '通用', 'Chat': '对话', 'Models': '模型', 'Providers': '供应商',
+    'Settings': '设置', 'General': '通用', 'Chat': '对话', 'Models': '模型', 'Providers': '供应商', 'Brain': '大脑',
     'Context Compression': '上下文压缩', 'Compression Trigger': '压缩触发',
     'Debug': '调试', 'Stop': '停止', 'New session': '新会话',
     'Agent': '代理', 'Plan': '计划', 'Ask': '问答', 'Auto': '自动',
@@ -1917,6 +1971,12 @@ function renderSettingsTab() {
     el.innerHTML = renderChatView();
   } else if (settingsTab === 'models') {
     el.innerHTML = renderModelsView();
+  } else if (settingsTab === 'brain') {
+    el.innerHTML = '<div style="padding:24px;color:var(--text-3)">Loading...</div>';
+    renderBrainView().then(html => el.innerHTML = html);
+  } else if (settingsTab === 'permissions') {
+    el.innerHTML = '<div style="padding:24px;color:var(--text-3)">Loading...</div>';
+    renderPermissionsView().then(html => el.innerHTML = html);
   } else if (settingsTab === 'data') {
     el.innerHTML = '<div style="padding:24px;color:var(--text-3)">Loading...</div>';
     renderDataView().then(html => el.innerHTML = html);
@@ -2551,6 +2611,129 @@ async function _executePurge(dtype) {
   } catch (e) {
     alert('Error: ' + e.message);
   }
+}
+
+async function renderBrainView() {
+  let blueprintsHtml = '', instancesHtml = '', activeHtml = '';
+  try {
+    const [bpRes, instRes, actRes] = await Promise.all([
+      fetch('/api/brain/blueprints').then(r => r.json()),
+      fetch('/api/brain/instances').then(r => r.json()),
+      fetch('/api/brain/active').then(r => r.json()),
+    ]);
+    const activeName = actRes.ok ? (actRes.active || 'default') : 'default';
+    activeHtml = `<div style="font-size:13px;color:var(--text-2);margin-bottom:16px;">Active session: <strong style="color:var(--text)">${esc(activeName)}</strong></div>`;
+
+    if (bpRes.ok && bpRes.blueprints) {
+      blueprintsHtml = bpRes.blueprints.map(bp => {
+        const name = bp.name || bp;
+        const desc = bp.description || '';
+        const ver = bp.version || '';
+        return `<div class="settings-card" style="padding:12px 16px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <i class="bx bx-file" style="font-size:18px;color:var(--purple)"></i>
+            <strong style="font-size:13px;">${esc(name)}</strong>
+            ${ver ? `<span style="font-size:10px;color:var(--text-3);">v${esc(ver)}</span>` : ''}
+          </div>
+          ${desc ? `<div style="font-size:11.5px;color:var(--text-3);margin-top:4px;line-height:1.4;">${esc(desc)}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    if (instRes.ok && instRes.instances) {
+      if (instRes.instances.length === 0) {
+        instancesHtml = '<div style="font-size:12px;color:var(--text-3);padding:8px 0;">No sessions created yet.</div>';
+      } else {
+        instancesHtml = instRes.instances.map(inst => {
+          const name = inst.name || '?';
+          const isActive = inst.active;
+          const tasks = inst.tasks != null ? inst.tasks : '?';
+          const activity = inst.activity_entries || 0;
+          const updated = inst.updated || '';
+          return `<div class="settings-card${isActive ? ' configured' : ''}" style="padding:12px 16px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <i class="bx ${isActive ? 'bx-check-circle' : 'bx-circle'}" style="font-size:16px;color:${isActive ? 'var(--green)' : 'var(--text-3)'}"></i>
+              <strong style="font-size:13px;">${esc(name)}</strong>
+              ${isActive ? '<span class="settings-badge" style="background:var(--green-card-bg);color:var(--green)">active</span>' : `<button style="margin-left:auto;font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text-2);cursor:pointer;" onclick="_brainSwitch('${esc(name)}')">Switch</button>`}
+            </div>
+            <div style="display:flex;gap:12px;font-size:11px;color:var(--text-3);margin-top:6px;">
+              <span><i class="bx bx-task"></i> ${tasks} tasks</span>
+              <span><i class="bx bx-pulse"></i> ${activity} log entries</span>
+              ${updated ? `<span><i class="bx bx-time-five"></i> ${esc(updated)}</span>` : ''}
+            </div>
+          </div>`;
+        }).join('');
+      }
+    }
+  } catch (e) {
+    console.warn('Brain fetch error:', e);
+  }
+
+  return `
+    <div class="settings-section-title"><i class="bx bx-brain"></i> ${_('Brain')}</div>
+    ${activeHtml}
+    <div style="font-size:14px;font-weight:600;margin-bottom:8px;color:var(--text);">Sessions</div>
+    ${instancesHtml || '<div style="font-size:12px;color:var(--text-3)">No brain data available.</div>'}
+    <div style="margin-top:20px;font-size:14px;font-weight:600;margin-bottom:8px;color:var(--text);">Available Blueprints</div>
+    ${blueprintsHtml || '<div style="font-size:12px;color:var(--text-3)">No blueprints found.</div>'}
+  `;
+}
+async function _brainSwitch(name) {
+  try {
+    const res = await fetch('/api/brain/switch', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name}) });
+    const data = await res.json();
+    if (data.ok) renderSettingsTab();
+    else alert(data.error || 'Switch failed');
+  } catch (e) { alert('Switch failed: ' + e.message); }
+}
+
+async function renderPermissionsView() {
+  try {
+    const res = await fetch('/api/sandbox/state');
+    const data = await res.json();
+    if (!data.ok) return `<div class="settings-section-title">Permissions</div><div class="settings-empty">Failed to load: ${data.error}</div>`;
+    const sp = data.system_policy || 'ask_always';
+    const perms = data.command_permissions || {};
+    const permKeys = Object.keys(perms).sort();
+    let html = `<div class="settings-section-title">Permissions</div>`;
+    html += `<label style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:14px;">
+      <span style="flex:1"><strong>System Policy</strong><br><span style="color:var(--text-3);font-size:11.5px;">Global execution policy for all commands</span></span>
+      <select onchange="_sbSetSystemPolicy(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-size:12px;font-family:var(--font);cursor:pointer;">
+        <option value="ask_always"${sp==='ask_always'?' selected':''}>Ask every time</option>
+        <option value="run_all"${sp==='run_all'?' selected':''}>Run everything</option>
+      </select></label>`;
+    html += `<div class="settings-section-title" style="margin-top:16px;font-size:14px;">Command Permissions</div>`;
+    if (permKeys.length === 0) {
+      html += `<div style="color:var(--text-3);font-size:12px;padding:8px 0;">No command permissions set yet. Permissions are created when new commands are encountered.</div>`;
+    } else {
+      html += `<table class="settings-table"><thead><tr><th>Command</th><th>Policy</th><th></th></tr></thead><tbody>`;
+      for (const cmd of permKeys) {
+        const pol = perms[cmd];
+        const polColor = pol === 'always' ? 'var(--green)' : pol === 'forbidden' ? 'var(--red)' : 'var(--text-2)';
+        html += `<tr><td style="font-family:var(--mono)">${cmd}</td>
+          <td><select onchange="_sbSetCmdPerm('${cmd}',this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:${polColor};font-size:11px;font-family:var(--mono);cursor:pointer;">
+            <option value="always"${pol==='always'?' selected':''}>Always allow</option>
+            <option value="once"${pol==='once'?' selected':''}>Once</option>
+            <option value="forbidden"${pol==='forbidden'?' selected':''}>Forbidden</option>
+          </select></td>
+          <td><button onclick="_sbRemoveCmdPerm('${cmd}')" style="border:none;background:none;color:var(--text-3);cursor:pointer;font-size:14px;" title="Remove"><i class='bx bx-trash'></i></button></td></tr>`;
+      }
+      html += `</tbody></table>`;
+    }
+    return html;
+  } catch(e) {
+    return `<div class="settings-section-title">Permissions</div><div class="settings-empty">Error: ${e.message}</div>`;
+  }
+}
+
+function _sbSetSystemPolicy(val) {
+  fetch('/api/sandbox/system-policy', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({policy:val}) });
+}
+function _sbSetCmdPerm(cmd, pol) {
+  fetch('/api/sandbox/command', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({command:cmd, policy:pol}) }).then(()=>renderSettingsTab());
+}
+function _sbRemoveCmdPerm(cmd) {
+  fetch('/api/sandbox/command', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({command:cmd}) }).then(()=>renderSettingsTab());
 }
 
 function renderProvidersView() {

@@ -1,0 +1,34 @@
+{
+  "model_id": "ernie-4.5-8k-preview",
+  "api_model_id": "ernie-4.5-8k-preview",
+  "display_name": "ERNIE 4.5 8K",
+  "vendor": "baidu",
+  "vendor_display": "Baidu",
+  "cost": {
+    "free_tier": false,
+    "input_per_1m": 4.0,
+    "output_per_1m": 16.0,
+    "currency": "CNY"
+  },
+  "capabilities": {
+    "tool_calling": true,
+    "vision": true,
+    "streaming": true,
+    "reasoning": false,
+    "system_prompt": true,
+    "max_context_tokens": 8192,
+    "max_output_tokens": 4096
+  },
+  "rate_limits": {
+    "paid": {
+      "rpm": 300,
+      "tpm": 500000,
+      "notes": "Pay-per-use. Also supports search enhancement."
+    }
+  },
+  "recommended_settings": {
+    "min_interval_s": 0.5,
+    "jitter_s": 0.2
+  },
+  "active": true
+}

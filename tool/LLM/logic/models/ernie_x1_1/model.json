@@ -1,0 +1,33 @@
+{
+  "model_id": "ernie-x1.1-preview",
+  "display_name": "ERNIE X1.1 (Preview)",
+  "vendor": "baidu",
+  "vendor_display": "Baidu",
+  "cost": {
+    "free_tier": false,
+    "input_per_1m": 1.0,
+    "output_per_1m": 4.0,
+    "currency": "CNY"
+  },
+  "capabilities": {
+    "tool_calling": true,
+    "vision": false,
+    "streaming": true,
+    "reasoning": true,
+    "system_prompt": true,
+    "max_context_tokens": 131072,
+    "max_output_tokens": 4096
+  },
+  "rate_limits": {
+    "paid": {
+      "rpm": 200,
+      "tpm": 400000,
+      "notes": "Pay-per-use. Latest reasoning model. Supports search enhancement."
+    }
+  },
+  "recommended_settings": {
+    "min_interval_s": 0.5,
+    "jitter_s": 0.3
+  },
+  "active": true
+}

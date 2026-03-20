@@ -1,0 +1,81 @@
+{
+  "name": "base",
+  "version": "1.1",
+  "description": "Shared ecosystem rules inherited by all brain blueprints. Blueprints override tiers (storage) and context_injection but share guidance, hooks, and directory conventions.",
+  "guidance": {
+    "bootstrap": "for_agent.md",
+    "reflection": "for_agent_reflection.md",
+    "onboarding_skill": "agent-onboarding",
+    "brain_commands": [
+      "BRAIN list", "BRAIN add", "BRAIN done", "BRAIN log",
+      "BRAIN reflect", "BRAIN snapshot", "BRAIN recall", "BRAIN digest",
+      "BRAIN session list", "BRAIN session types", "BRAIN session switch",
+      "BRAIN session export", "BRAIN session create"
+    ]
+  },
+  "hooks": {
+    "sessionStart": {
+      "handler": "hooks/instance/AI-IDE/Cursor/brain_inject.py",
+      "description": "Inject brain + ecosystem context into agent at session start"
+    },
+    "postToolUse": {
+      "handler": "hooks/instance/AI-IDE/Cursor/brain_remind.py",
+      "description": "Remind agent of brain commands after tool use"
+    },
+    "stop": {
+      "handler": "hooks/instance/AI-IDE/Cursor/userinput_enforce.py",
+      "description": "Enforce USERINPUT feedback loop before turn end"
+    }
+  },
+  "context_injection": {
+    "sessionStart": {
+      "sources": [
+        {"type": "brain_state", "tier": "working", "files": ["context", "tasks"], "format": "markdown"},
+        {"type": "lessons", "tier": "knowledge", "count": 5, "format": "bullet_list"},
+        {"type": "ecosystem", "module": "logic.agent.ecosystem", "function": "build_ecosystem_info"},
+        {"type": "reflection", "file": "for_agent_reflection.md", "section": "Current System Gaps"}
+      ],
+      "wrapper": {
+        "prefix": "--- AGENT BRAIN + ECOSYSTEM ---",
+        "suffix": "--- END ---"
+      }
+    },
+    "on_demand": {
+      "description": "Brain data retrieved via explicit commands (BRAIN recall, BRAIN snapshot)"
+    }
+  },
+  "directory_conventions": {
+    "tracked": {
+      "logic/": "Internal implementation code",
+      "interface/": "Public API facade (import from here)",
+      "bin/": "CLI entry points for installed tools",
+      "hooks/": "Lifecycle hooks (session start, pre-commit)",
+      "skills/": "Agent skill guides (SKILL.md files)",
+      "runtime/": "Brain (tasks, context), experience (lessons)",
+      "test/": "Unit tests",
+      "report/": "Generated reports",
+      "research/": "Architecture analysis docs"
+    },
+    "gitignored": {
+      "data/": "API keys, runtime config, caches (per-tool)",
+      "logs/": "Session logs, debug output",
+      "tmp/": "Temporary scripts, test data, prototypes (clean up after use)"
+    }
+  },
+  "documentation": {
+    "per_directory": ["README.md", "for_agent.md", "for_agent_reflection.md"],
+    "hierarchy": "root → logic/<module>/ → tool/<NAME>/",
+    "convention": "README.md (users), for_agent.md (agents), for_agent_reflection.md (self-improvement)"
+  },
+  "quality_commands": [
+    "TOOL --audit code",
+    "TOOL --audit imports",
+    "TOOL --lang audit"
+  ],
+  "search_commands": [
+    "TOOL --search all \"query\"",
+    "TOOL --search skills \"topic\"",
+    "TOOL --search docs \"topic\"",
+    "BRAIN recall \"keyword\""
+  ]
+}

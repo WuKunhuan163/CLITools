@@ -19,6 +19,14 @@ Usage:
                                    Append an activity log entry with optional artifact tracking
     BRAIN digest                   Check accumulated lessons for distillation opportunities
     BRAIN reflect [--tool NAME]    Self-reflection: show self-check protocol + current system gaps
+    BRAIN session list              List all brain sessions
+    BRAIN session types             List available brain types
+    BRAIN session create <name> [--type <type>]  Create a session (optionally from a brain type)
+    BRAIN session switch <name>     Switch to a different brain session
+    BRAIN session export <name>     Export a brain session as a zip file
+    BRAIN session load <zipfile> [<name>]  Load a brain session from a zip file
+    BRAIN session migrate           Migrate flat files into sessions/default/
+    BRAIN session manifest [<name>] Regenerate MANIFEST.md for a session
 """
 import sys
 from pathlib import Path
@@ -554,6 +562,109 @@ def cmd_reflect(tool_name: str = None):
     print()
 
 
+def cmd_session(subcmd: str, rest: list):
+    """Manage brain sessions (list, create, switch, export, load, migrate, manifest)."""
+    from logic.brain.instance import BrainSessionManager
+    mgr = BrainSessionManager(ROOT)
+
+    if subcmd == "list":
+        sessions = mgr.list_sessions()
+        if not sessions:
+            print(f"{BOLD}No sessions.{RESET} {DIM}Run: BRAIN session migrate{RESET}")
+            return
+        print(f"{BOLD}Brain Sessions ({len(sessions)}){RESET}\n")
+        for s in sessions:
+            marker = f" {GREEN}(active){RESET}" if s.get("active") else ""
+            tasks = f", {s.get('tasks', 0)} tasks" if "tasks" in s else ""
+            activity = f", {s.get('activity_entries', 0)} activity" if "activity_entries" in s else ""
+            updated = f"  {DIM}updated: {s.get('updated', 'unknown')}{RESET}" if s.get("updated") else ""
+            print(f"  {BOLD}{s['name']}{RESET}{marker}{tasks}{activity}")
+            if updated:
+                print(updated)
+        print()
+        print(f"{DIM}Switch: BRAIN session switch <name>{RESET}")
+        print(f"{DIM}Export: BRAIN session export <name>{RESET}")
+
+    elif subcmd == "types":
+        types = mgr.list_types()
+        if not types:
+            print(f"{BOLD}No brain types found.{RESET}")
+            return
+        print(f"{BOLD}Brain Types ({len(types)}){RESET}\n")
+        for t in types:
+            desc = t.get("description", "")[:80]
+            ver = t.get("version", "")
+            ver_str = f" v{ver}" if ver else ""
+            print(f"  {BOLD}{t['name']}{RESET}{ver_str}")
+            if desc:
+                print(f"    {DIM}{desc}{RESET}")
+        print()
+        print(f"{DIM}Create: BRAIN session create <name> --type <type>{RESET}")
+
+    elif subcmd == "create" and rest:
+        name = rest[0]
+        brain_type = None
+        i = 1
+        while i < len(rest):
+            if rest[i] == "--type" and i + 1 < len(rest):
+                brain_type = rest[i + 1]
+                i += 2
+            else:
+                i += 1
+        try:
+            path = mgr.create_session(name, brain_type=brain_type)
+            type_msg = f" (type: {brain_type})" if brain_type else ""
+            print(f"{BOLD}{GREEN}Created.{RESET}{type_msg} {DIM}{path}{RESET}")
+        except FileExistsError as e:
+            print(f"{BOLD}{RED}Already exists.{RESET} {DIM}{e}{RESET}")
+        except FileNotFoundError as e:
+            print(f"{BOLD}{RED}Type not found.{RESET} {DIM}{e}{RESET}")
+
+    elif subcmd == "switch" and rest:
+        name = rest[0]
+        try:
+            mgr.switch_session(name)
+            print(f"{BOLD}{GREEN}Switched.{RESET} {DIM}Active brain: {name}{RESET}")
+        except FileNotFoundError as e:
+            print(f"{BOLD}{RED}Not found.{RESET} {DIM}{e}{RESET}")
+
+    elif subcmd == "export" and rest:
+        name = rest[0]
+        try:
+            zip_path = mgr.export_session(name)
+            print(f"{BOLD}{GREEN}Exported.{RESET} {DIM}{zip_path}{RESET}")
+        except FileNotFoundError as e:
+            print(f"{BOLD}{RED}Not found.{RESET} {DIM}{e}{RESET}")
+
+    elif subcmd == "load" and rest:
+        zip_path = Path(rest[0])
+        name = rest[1] if len(rest) > 1 else None
+        try:
+            loaded_name = mgr.load_session(zip_path, name)
+            print(f"{BOLD}{GREEN}Loaded.{RESET} {DIM}Session: {loaded_name}{RESET}")
+            print(f"{DIM}Switch: BRAIN session switch {loaded_name}{RESET}")
+        except (FileExistsError, FileNotFoundError) as e:
+            print(f"{BOLD}{RED}Failed.{RESET} {DIM}{e}{RESET}")
+
+    elif subcmd == "migrate":
+        result = mgr.migrate_flat_to_session()
+        if result:
+            print(f"{BOLD}{GREEN}Migrated.{RESET} {DIM}Flat files → sessions/default/{RESET}")
+        else:
+            print(f"{BOLD}Already migrated.{RESET} {DIM}sessions/default/ exists{RESET}")
+
+    elif subcmd == "manifest":
+        name = rest[0] if rest else mgr.active_session()
+        mgr._generate_manifest(name)
+        manifest_path = mgr.session_path(name) / "MANIFEST.md"
+        print(f"{BOLD}{GREEN}Generated.{RESET} {DIM}{manifest_path}{RESET}")
+
+    else:
+        print(f"{BOLD}{RED}Unknown session command.{RESET}", file=sys.stderr)
+        print(f"  Usage: BRAIN session [list|create|switch|export|load|migrate|manifest]")
+        sys.exit(1)
+
+
 def main():
     args = sys.argv[1:]
     if not args or args[0] in ("-h", "--help", "help"):
@@ -618,11 +729,13 @@ def main():
             else:
                 i += 1
         cmd_reflect(tool_name=tool_arg)
+    elif cmd == "session" and len(args) >= 2:
+        cmd_session(args[1], args[2:])
     else:
         import difflib
         known = ["list", "add", "done", "progress", "verify", "delete",
                  "clear-done", "clear-all", "note", "migrate", "status",
-                 "snapshot", "recall", "log", "digest", "reflect"]
+                 "snapshot", "recall", "log", "digest", "reflect", "session"]
         matches = difflib.get_close_matches(cmd, known, n=2, cutoff=0.5)
         print(f"{BOLD}{RED}Unknown command{RESET}: {cmd}", file=sys.stderr)
         if matches:

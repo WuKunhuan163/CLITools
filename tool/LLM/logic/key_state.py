@@ -5,7 +5,7 @@ and selection weight. The AdaptiveKeySelector chooses keys
 probabilistically based on their track record.
 
 State persistence: key states are stored alongside keys in
-llm_config.json under providers.<vendor>.key_states.<key_id>.
+config.json under providers.<vendor>.key_states.<key_id>.
 
 Key lifecycle:
     active   — normal operation

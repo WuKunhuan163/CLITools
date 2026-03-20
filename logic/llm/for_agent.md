@@ -37,7 +37,7 @@ ctx.add_assistant(result["text"])
 
 ## Config
 
-API keys stored in `tool/LLM/data/llm_config.json` (per-provider nested format):
+API keys stored in `tool/LLM/data/config.json` (per-provider nested format):
 ```json
 {"providers": {"zhipu": {"api_key": "..."}, "nvidia": {"api_key": "..."}}}
 ```

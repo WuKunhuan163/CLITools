@@ -19,6 +19,7 @@ class ToolContext:
     session_id: str = ""
     round_num: int = 0
     context_lines: int = 2
+    mode: str = "agent"
 
 
 def _noop_emit(evt: dict):

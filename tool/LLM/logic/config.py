@@ -1,6 +1,6 @@
 """LLM tool configuration management.
 
-Stores API keys and provider settings in ``data/llm_config.json``.
+Stores API keys and provider settings in ``data/config.json``.
 
 Config format (per-provider):
     {
@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 
 _TOOL_DIR = Path(__file__).resolve().parent.parent
 _DATA_DIR = _TOOL_DIR / "data"
-_CONFIG_PATH = _DATA_DIR / "llm_config.json"
+_CONFIG_PATH = _DATA_DIR / "config.json"
 
 _LEGACY_KEY_MAP = {
     "zhipu_api_key": ("zhipu", "api_key"),
@@ -109,6 +109,32 @@ def set_provider_config(provider: str, key: str, value: Any):
     """Set a config value for a specific provider."""
     cfg = load_config()
     cfg.setdefault("providers", {}).setdefault(provider, {})[key] = value
+    save_config(cfg)
+
+
+def get_credentials(provider: str) -> Dict[str, str]:
+    """Get multi-field credentials for a provider.
+
+    Returns dict like {"access_key": "...", "secret_key": "..."}.
+    Falls back to {"api_key": "..."} for single-key providers.
+    """
+    pcfg = get_provider_config(provider)
+    creds = pcfg.get("credentials", {})
+    if creds:
+        return creds
+    single = pcfg.get("api_key", "")
+    if single:
+        return {"api_key": single}
+    keys = pcfg.get("api_keys", [])
+    if keys:
+        return {"api_key": keys[0].get("key", "")}
+    return {}
+
+
+def set_credentials(provider: str, credentials: Dict[str, str]):
+    """Set multi-field credentials for a provider."""
+    cfg = load_config()
+    cfg.setdefault("providers", {}).setdefault(provider, {})["credentials"] = credentials
     save_config(cfg)
 
 

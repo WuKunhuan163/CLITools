@@ -1,6 +1,6 @@
 {
   "model_id": "ernie-speed-8k",
-  "display_name": "ERNIE Speed Pro 128K",
+  "display_name": "ERNIE Speed 8K (Legacy)",
   "vendor": "baidu",
   "capabilities": {
     "tool_calling": true,
@@ -20,12 +20,6 @@
   "cost": {
     "free_tier": true
   },
-  "benchmarks": {
-    "arena_elo": 1100,
-    "arena_rank": 70,
-    "source": "lmsys-chatbot-arena",
-    "updated": "2026-03"
-  },
   "active": false,
-  "lock_reason": "Persistent 429 TPM rate limit on free tier. May require Baidu account with active Qianfan service."
+  "lock_reason": "Legacy model. Replaced by ERNIE 4.5 Turbo 128K. qianfan SDK no longer supported."
 }

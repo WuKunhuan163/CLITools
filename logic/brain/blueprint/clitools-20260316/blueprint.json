@@ -1,0 +1,48 @@
+{
+  "name": "clitools-20260316",
+  "version": "1.1",
+  "inherits": "base",
+  "description": "File-based brain with three tiers and BRAIN CLI integration. The project default — zero external dependencies, full ecosystem integration.",
+  "sessions": {
+    "enabled": true,
+    "manifest_file": "MANIFEST.md"
+  },
+  "tiers": {
+    "working": {
+      "description": "Hot state: current session tasks, context, recent activity.",
+      "backend": "flatfile",
+      "relative_path": "working/",
+      "files": {
+        "context": "context.md",
+        "tasks": "tasks.json",
+        "activity": "activity.jsonl"
+      },
+      "lifecycle": "session",
+      "inject_at": "sessionStart"
+    },
+    "knowledge": {
+      "description": "Persistent knowledge: lessons, skills, institutional memory.",
+      "backend": "flatfile",
+      "relative_path": "knowledge/",
+      "files": {
+        "lessons": "lessons.jsonl",
+        "suggestions": "suggestions.jsonl",
+        "evolution": "evolution.jsonl"
+      },
+      "lifecycle": "permanent",
+      "inject_at": "on_demand"
+    },
+    "episodic": {
+      "description": "Long-term personality and accumulated memory.",
+      "backend": "flatfile",
+      "relative_path": "episodic/",
+      "files": {
+        "soul": "SOUL.md",
+        "memory": "MEMORY.md",
+        "daily": "daily/"
+      },
+      "lifecycle": "permanent",
+      "inject_at": "sessionStart"
+    }
+  }
+}

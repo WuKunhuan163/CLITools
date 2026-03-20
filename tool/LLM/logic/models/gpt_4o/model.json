@@ -1,0 +1,45 @@
+{
+  "model_id": "gpt-4o",
+  "display_name": "GPT-4o",
+  "vendor": "openai",
+  "vendor_display": "OpenAI",
+  "cost": {
+    "free_tier": false,
+    "input_per_1m": 2.50,
+    "output_per_1m": 10.0,
+    "currency": "USD"
+  },
+  "capabilities": {
+    "tool_calling": true,
+    "vision": true,
+    "streaming": true,
+    "reasoning": true,
+    "system_prompt": true,
+    "max_context_tokens": 128000,
+    "max_output_tokens": 16384
+  },
+  "rate_limits": {
+    "tier1": {
+      "rpm": 500,
+      "tpm": 30000,
+      "rpd": 10000,
+      "notes": "Tier 1: $5 credit purchase"
+    },
+    "tier2": {
+      "rpm": 5000,
+      "tpm": 450000,
+      "notes": "Tier 2: $50 cumulative spend"
+    },
+    "tier3": {
+      "rpm": 5000,
+      "tpm": 800000,
+      "notes": "Tier 3: $100 cumulative spend"
+    }
+  },
+  "recommended_settings": {
+    "min_interval_s": 0.5,
+    "jitter_s": 0.3
+  },
+  "active": false,
+  "lock_reason": "Paid model. Configure OpenAI API key to unlock."
+}

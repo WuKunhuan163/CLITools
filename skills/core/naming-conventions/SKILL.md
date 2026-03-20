@@ -24,7 +24,7 @@ description: Naming conventions for the AITerminalTools project covering tools, 
 - **snake_case** for Python files: `session_manager.py`, `chat_html.py`.
 - **UPPERCASE** for special files: `SKILL.md`, `BOOTSTRAP.md`, `README.md`.
 - **kebab-case** for skill directories: `naming-conventions/`, `error-recovery-patterns/`.
-- Config files: `tool.json`, `llm_config.json` (snake_case JSON files).
+- Config files: `tool.json`, `config.json` (snake_case JSON files).
 
 ## Python Code
 

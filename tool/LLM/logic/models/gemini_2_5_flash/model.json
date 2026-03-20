@@ -1,0 +1,40 @@
+{
+  "model_id": "gemini-2.5-flash",
+  "display_name": "Gemini 2.5 Flash",
+  "vendor": "google",
+  "vendor_display": "Google",
+  "cost": {
+    "free_tier": true,
+    "input_per_1m": 0.3,
+    "output_per_1m": 2.5,
+    "currency": "USD"
+  },
+  "capabilities": {
+    "tool_calling": true,
+    "vision": true,
+    "streaming": true,
+    "reasoning": true,
+    "system_prompt": true,
+    "max_context_tokens": 1048576,
+    "max_output_tokens": 8192
+  },
+  "rate_limits": {
+    "free": {
+      "rpm": 10,
+      "tpm": 250000,
+      "rpd": 250,
+      "notes": "Free tier: no billing required. Dec 2025 quota reduction."
+    },
+    "paid_tier1": {
+      "rpm": 2000,
+      "tpm": 4000000,
+      "rpd": 10000,
+      "notes": "Paid Tier 1 with billing enabled"
+    }
+  },
+  "recommended_settings": {
+    "min_interval_s": 1.0,
+    "jitter_s": 0.5
+  },
+  "active": true
+}

@@ -1,0 +1,36 @@
+{
+  "model_id": "ernie-5.0",
+  "display_name": "ERNIE 5.0",
+  "vendor": "baidu",
+  "vendor_display": "Baidu",
+  "cost": {
+    "free_tier": false,
+    "input_per_1m": 6.0,
+    "output_per_1m": 24.0,
+    "input_per_1m_long": 10.0,
+    "output_per_1m_long": 40.0,
+    "currency": "CNY",
+    "notes": "Input <=32K: 6/24; Input 32K-128K: 10/40 (CNY/M tokens)"
+  },
+  "capabilities": {
+    "tool_calling": true,
+    "vision": true,
+    "streaming": true,
+    "reasoning": true,
+    "system_prompt": true,
+    "max_context_tokens": 131072,
+    "max_output_tokens": 4096
+  },
+  "rate_limits": {
+    "paid": {
+      "rpm": 100,
+      "tpm": 300000,
+      "notes": "Pay-per-use. Top-tier model."
+    }
+  },
+  "recommended_settings": {
+    "min_interval_s": 1.0,
+    "jitter_s": 0.5
+  },
+  "active": true
+}

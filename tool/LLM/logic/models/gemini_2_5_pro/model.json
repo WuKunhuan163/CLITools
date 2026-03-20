@@ -1,0 +1,41 @@
+{
+  "model_id": "gemini-2.5-pro",
+  "display_name": "Gemini 2.5 Pro",
+  "vendor": "google",
+  "vendor_display": "Google",
+  "cost": {
+    "free_tier": true,
+    "input_per_1m": 1.25,
+    "output_per_1m": 10.0,
+    "currency": "USD"
+  },
+  "capabilities": {
+    "tool_calling": true,
+    "vision": true,
+    "streaming": true,
+    "reasoning": true,
+    "system_prompt": true,
+    "max_context_tokens": 1048576,
+    "max_output_tokens": 8192
+  },
+  "rate_limits": {
+    "free": {
+      "rpm": 5,
+      "tpm": 250000,
+      "rpd": 25,
+      "notes": "Free tier: very limited quota. Dec 2025 quota reduction."
+    },
+    "paid_tier1": {
+      "rpm": 1000,
+      "tpm": 2000000,
+      "rpd": 10000,
+      "notes": "Paid Tier 1"
+    }
+  },
+  "recommended_settings": {
+    "min_interval_s": 1.0,
+    "jitter_s": 0.5
+  },
+  "active": false,
+  "lock_reason": "Free tier quota very limited (5 RPM, 50 RPD). Persistent 429 errors. Enable billing for reliable access."
+}

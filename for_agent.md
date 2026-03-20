@@ -16,6 +16,12 @@ Welcome to the `AITerminalTools` ecosystem. This guide is designed to provide yo
 ├── hooks/         lifecycle hooks (session start, pre-commit, etc.)
 ├── skills/        agent skill guides (SKILL.md files)
 ├── runtime/       brain (tasks, context), experience (lessons), evolution
+├── test/          unit tests (tracked)
+├── report/        generated reports (tracked)
+├── research/      architecture analysis docs (tracked)
+├── data/          API keys, runtime config, caches (gitignored, per-tool)
+├── logs/          session logs, debug output (gitignored)
+├── tmp/           temporary scripts, test data, prototypes (gitignored, clean up)
 ├── for_agent.md   THIS file — your primary guide
 ├── for_agent_reflection.md  self-improvement protocol and known system gaps
 └── README.md      user-facing documentation
@@ -25,7 +31,7 @@ Welcome to the `AITerminalTools` ecosystem. This guide is designed to provide yo
 
 If this is your first encounter with this project, follow these steps in order:
 
-1. **Read `runtime/brain/context.md`** — contains the previous session's state, current tasks, and what to resume. If it exists and has content, you have continuity. Act on it.
+1. **Read `runtime/brain/context.md`** — contains the previous session's state, current tasks, and what to resume. If it exists and has content, you have continuity. Act on it. (The default brain instance uses the `clitools` blueprint — see `logic/brain/blueprint/` for alternatives.)
 2. **Run `TOOL status`** (in terminal) — see all registered tools and their installation status. This shows you what the ecosystem has.
 3. **Run `TOOL --search all "<your task keywords>"`** — before writing any code, search for existing tools, skills, and lessons. This is your most important habit. Returns targeted results (~1K tokens).
 4. **Run `SKILLS list --core`** — see project-specific skills only (~30 items). For a specific topic, prefer `TOOL --search skills "topic"` (faster, ~500 tokens). Load relevant skills with `SKILLS show <name>`.

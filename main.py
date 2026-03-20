@@ -695,6 +695,121 @@ def _tool_search_handler(search_args):
 from interface.tool import ToolBase as _ToolBase
 _root_tool = _ToolBase("TOOL", is_root=True)
 
+
+def _workspace_handler(action: str, args: list):
+    """Handle TOOL --create-workspace, --open-workspace, --close-workspace, --delete-workspace, --list-workspaces, --workspace."""
+    from interface.workspace import get_workspace_manager
+    from interface.status import fmt_status, fmt_detail, fmt_info
+
+    wm = get_workspace_manager(ROOT_PROJECT_ROOT)
+
+    if action == "create":
+        target_path = args[0] if args else None
+        bp_type = None
+        name = None
+        i = 1
+        while i < len(args):
+            if args[i] == "--type" and i + 1 < len(args):
+                bp_type = args[i + 1]
+                i += 2
+            elif args[i] == "--name" and i + 1 < len(args):
+                name = args[i + 1]
+                i += 2
+            else:
+                i += 1
+
+        if not target_path:
+            try:
+                from tool.FILEDIALOG.interface.main import select_directory
+                target_path = select_directory(title="Select workspace directory")
+                if not target_path:
+                    print(fmt_status("Cancelled.", style="error"))
+                    return
+            except ImportError:
+                print(fmt_status("No path provided.", style="error"))
+                print(fmt_detail("Usage: TOOL --create-workspace <path> [--type <blueprint>] [--name <name>]"))
+                return
+
+        try:
+            info = wm.create_workspace(target_path, name=name, blueprint_type=bp_type)
+            print(fmt_status("Workspace created."))
+            print(fmt_detail(f"ID: {info['id']}"))
+            print(fmt_detail(f"Path: {info['path']}"))
+            print(fmt_detail(f"Blueprint: {info['blueprint_type']}"))
+            print(fmt_info(f"Open: TOOL --open-workspace {info['id']}"))
+        except FileExistsError as e:
+            print(fmt_status("Already exists.", style="error"))
+            print(fmt_detail(str(e)))
+        except FileNotFoundError as e:
+            print(fmt_status("Not found.", style="error"))
+            print(fmt_detail(str(e)))
+
+    elif action == "open":
+        ws_id = args[0] if args else None
+        if not ws_id:
+            print(fmt_status("No workspace ID.", style="error"))
+            print(fmt_detail("Usage: TOOL --open-workspace <workspace_id>"))
+            return
+        try:
+            info = wm.open_workspace(ws_id)
+            print(fmt_status("Workspace opened."))
+            print(fmt_detail(f"Name: {info['name']}"))
+            print(fmt_detail(f"Path: {info['path']}"))
+        except FileNotFoundError as e:
+            print(fmt_status("Not found.", style="error"))
+            print(fmt_detail(str(e)))
+
+    elif action == "close":
+        info = wm.close_workspace()
+        if info:
+            print(fmt_status("Workspace closed."))
+            print(fmt_detail(f"Name: {info['name']}"))
+        else:
+            print(fmt_status("No active workspace."))
+
+    elif action == "delete":
+        ws_id = args[0] if args else None
+        if not ws_id:
+            print(fmt_status("No workspace ID.", style="error"))
+            print(fmt_detail("Usage: TOOL --delete-workspace <workspace_id>"))
+            return
+        try:
+            wm.delete_workspace(ws_id)
+            print(fmt_status("Workspace deleted."))
+            print(fmt_detail(f"ID: {ws_id}"))
+        except FileNotFoundError as e:
+            print(fmt_status("Not found.", style="error"))
+            print(fmt_detail(str(e)))
+
+    elif action == "list":
+        workspaces = wm.list_workspaces()
+        if not workspaces:
+            print(fmt_status("No workspaces."))
+            print(fmt_detail("Create one: TOOL --create-workspace <path>"))
+            return
+        print(f"{BOLD}Workspaces ({len(workspaces)}){RESET}\n")
+        for ws in workspaces:
+            marker = f" {GREEN}(active){RESET}" if ws.get("active") else ""
+            status = ws.get("status", "closed")
+            print(f"  {BOLD}{ws['name']}{RESET}{marker}  {DIM}[{status}]{RESET}")
+            print(f"    {DIM}ID: {ws['id']}  Path: {ws['path']}{RESET}")
+            print(f"    {DIM}Blueprint: {ws.get('blueprint_type', 'default')}{RESET}")
+        print()
+
+    elif action == "status":
+        info = wm.active_workspace_info()
+        if info:
+            print(f"{BOLD}Active Workspace{RESET}")
+            print(fmt_detail(f"Name: {info['name']}"))
+            print(fmt_detail(f"ID: {info['id']}"))
+            print(fmt_detail(f"Path: {info['path']}"))
+            print(fmt_detail(f"Blueprint: {info.get('blueprint_type', 'default')}"))
+            print(fmt_detail(f"Status: {info.get('status', 'unknown')}"))
+        else:
+            print(fmt_status("No active workspace."))
+            print(fmt_detail("Using default scope (AITerminalTools root)."))
+
+
 # Maps --flag to handler function
 _TOOL_FLAG_HANDLERS = {
     "--dev": lambda args: _tool_dev_handler(args),
@@ -714,6 +829,12 @@ _TOOL_FLAG_HANDLERS = {
     "--assistant": lambda args: _root_tool._handle_assistant(args),
     "--setup": lambda args: _root_tool.run_setup(),
     "--skills": lambda args: _root_tool._handle_skills_command(args),
+    "--create-workspace": lambda args: _workspace_handler("create", args),
+    "--delete-workspace": lambda args: _workspace_handler("delete", args),
+    "--open-workspace": lambda args: _workspace_handler("open", args),
+    "--close-workspace": lambda args: _workspace_handler("close", args),
+    "--list-workspaces": lambda args: _workspace_handler("list", args),
+    "--workspace": lambda args: _workspace_handler("status", args),
 }
 
 # Shorthand: --agent/--ask/--plan as top-level commands (omit --assistant).
@@ -753,6 +874,13 @@ def _print_tool_help():
     print(f"  --call-register <desc>   Register tool call with semantic description")
     print(f"  --skills <sub>           Search and manage skills")
     print(f"  --setup                  Run root setup wizard")
+    print(f"\n  Workspace:")
+    print(f"  --create-workspace <path> [--type <blueprint>] [--name <name>]")
+    print(f"  --open-workspace <id>    Open/activate a workspace")
+    print(f"  --close-workspace        Close the active workspace")
+    print(f"  --delete-workspace <id>  Delete a workspace and its data")
+    print(f"  --list-workspaces        List all workspaces")
+    print(f"  --workspace              Show active workspace status")
     print(f"\nUse TOOL --<command> --help for details on each command.")
 
 

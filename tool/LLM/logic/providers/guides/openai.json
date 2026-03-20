@@ -1,0 +1,16 @@
+{
+  "vendor": "openai",
+  "name": "OpenAI",
+  "url": "https://platform.openai.com/",
+  "docs_url": "https://platform.openai.com/docs",
+  "key_portal_url": "https://platform.openai.com/api-keys",
+  "steps": [
+    "Visit <a href=\"https://platform.openai.com/\" target=\"_blank\">OpenAI Platform</a>",
+    "Create an account or sign in",
+    "Add a payment method (required for API access)",
+    "Go to <a href=\"https://platform.openai.com/api-keys\" target=\"_blank\">API Keys</a>",
+    "Click \"Create new secret key\", name it, and copy the key (starts with sk-...)",
+    "Paste it above and click \"Validate & Save\""
+  ],
+  "notes": "Paid only. Tier 1 starts at $5 credit purchase. Rate limits increase with spend. Prompt caching available. Batch API offers 50% discount for async workloads."
+}

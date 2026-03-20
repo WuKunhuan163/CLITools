@@ -1,10 +1,7 @@
-"""Baidu ERNIE Speed Pro 128K via Qianfan v2 platform (OpenAI-compatible endpoint).
+"""ERNIE Speed 8K (Legacy) — replaced by ERNIE 4.5 Turbo 128K.
 
-Free tier: 10000 RPM, 800K TPM (permanently free for Speed/Lite series).
-
-Note: The old 'ernie-speed-8k' was retired from v2 API. The current free Speed
-model is 'ernie-speed-pro-128k'. Our internal name stays 'ernie-speed-8k' for
-backwards compatibility in the provider registry.
+This model previously used the qianfan SDK. Now uses OpenAI-compatible API.
+Kept for backward compatibility; model.json marks it as inactive.
 """
 from tool.LLM.logic.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
@@ -17,7 +14,7 @@ class BaiduERNIESpeedProvider(OpenAICompatProvider):
     MODEL_ID = "ernie-speed-pro-128k"
     CONFIG_VENDOR = vendor.CONFIG_VENDOR
     CONFIG_KEY_ENV = vendor.CONFIG_KEY_ENV
-    DEFAULT_RPM = 10000
+    DEFAULT_RPM = 300
     DEFAULT_MAX_CONTEXT = 131072
     DEFAULT_MAX_OUTPUT = 4096
     MAX_TOKENS_PARAM = "max_completion_tokens"

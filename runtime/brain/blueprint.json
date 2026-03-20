@@ -1,0 +1,70 @@
+{
+  "name": "default",
+  "version": "1.2",
+  "inherits": "base",
+  "description": "File-based brain with three tiers (working/knowledge/episodic) and session management. Inherits shared ecosystem rules from types/base.json.",
+  "sessions": {
+    "enabled": true,
+    "directory": "runtime/brain/sessions/",
+    "active_file": "runtime/brain/.active",
+    "default_session": "default",
+    "manifest_file": "MANIFEST.md",
+    "structure": {
+      "working/": "Hot state: context.md, tasks.json, activity.jsonl",
+      "knowledge/": "Persistent: lessons.jsonl, suggestions.jsonl",
+      "episodic/": "Long-term: SOUL.md, MEMORY.md, daily/"
+    },
+    "commands": [
+      "BRAIN session list",
+      "BRAIN session create <name>",
+      "BRAIN session switch <name>",
+      "BRAIN session export <name>",
+      "BRAIN session load <zipfile> [<name>]",
+      "BRAIN session migrate",
+      "BRAIN session manifest [<name>]"
+    ]
+  },
+  "tiers": {
+    "working": {
+      "description": "Hot state: current session tasks, context, recent activity.",
+      "backend": "flatfile",
+      "path": "runtime/brain/sessions/{session}/working/",
+      "files": {
+        "context": "context.md",
+        "tasks": "tasks.json",
+        "activity": "activity.jsonl"
+      },
+      "lifecycle": "session",
+      "inject_at": "sessionStart"
+    },
+    "knowledge": {
+      "description": "Persistent knowledge: lessons, skills, institutional memory.",
+      "backend": "flatfile",
+      "path": "runtime/brain/sessions/{session}/knowledge/",
+      "files": {
+        "lessons": "lessons.jsonl",
+        "suggestions": "suggestions.jsonl",
+        "evolution": "evolution.jsonl"
+      },
+      "lifecycle": "permanent",
+      "inject_at": "on_demand"
+    },
+    "episodic": {
+      "description": "Long-term personality and accumulated memory per brain type.",
+      "backend": "flatfile",
+      "path": "runtime/brain/sessions/{session}/episodic/",
+      "files": {
+        "soul": "SOUL.md",
+        "memory": "MEMORY.md",
+        "daily": "daily/{date}.md"
+      },
+      "lifecycle": "permanent",
+      "inject_at": "sessionStart"
+    }
+  },
+  "upgrade_path": {
+    "sqlite_fts": "Replace flatfile knowledge tier with SQLite FTS5 for fast full-text search across lessons and activity.",
+    "rag": "Add vector embeddings (sentence-transformers) for semantic retrieval in knowledge tier.",
+    "hybrid": "Combine flatfile working + SQLite knowledge + vector episodic for enterprise-grade agent memory."
+  }
+}

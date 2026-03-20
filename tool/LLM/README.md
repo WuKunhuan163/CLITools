@@ -156,7 +156,7 @@ tool/LLM/
     base.py                      LLMProvider ABC + CostModel
     rate_limiter.py              Token-bucket RPM limiter with jitter + retry
     session_context.py           Multi-turn message array manager
-    config.py                    API key storage (data/llm_config.json)
+    config.py                    API key storage (data/config.json)
     usage.py                     Usage monitoring (data/usage.jsonl)
     registry.py                  Provider discovery and instantiation
     providers/
@@ -171,4 +171,4 @@ tool/LLM/
 
 ## Configuration
 
-API keys are stored in `tool/LLM/data/llm_config.json`. They can also be set via environment variables `NVIDIA_API_KEY` and `ZHIPU_API_KEY`.
+API keys are stored in `tool/LLM/data/config.json`. They can also be set via environment variables `NVIDIA_API_KEY` and `ZHIPU_API_KEY`.

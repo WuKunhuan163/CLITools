@@ -1,0 +1,16 @@
+{
+  "vendor": "deepseek",
+  "name": "DeepSeek",
+  "url": "https://platform.deepseek.com/",
+  "docs_url": "https://api-docs.deepseek.com",
+  "key_portal_url": "https://platform.deepseek.com/api_keys",
+  "steps": [
+    "Visit <a href=\"https://platform.deepseek.com/\" target=\"_blank\">DeepSeek Platform</a>",
+    "Create an account or sign in",
+    "Top up your balance (prepaid model)",
+    "Go to <a href=\"https://platform.deepseek.com/api_keys\" target=\"_blank\">API Keys</a>",
+    "Create a new API key and copy it (starts with sk-...)",
+    "Paste it above and click \"Validate & Save\""
+  ],
+  "notes": "Prepaid balance required. Very affordable: $0.28/M input, $0.42/M output. Automatic cache hits at $0.028/M. Both deepseek-chat and deepseek-reasoner share the same key and endpoint."
+}
