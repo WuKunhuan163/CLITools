@@ -121,15 +121,34 @@ The dispatch follows a strict precedence:
 3. **Subtool delegation** checks for `tool/<NAME>/tool/<CMD>/main.py`
 4. **Hierarchical commands** fall through to tool's own argparse
 
-#### On argparse Indicators
+#### Dash-Level Indicators (argparse-native)
 
-Python's `argparse` supports `prefix_chars` (default: `-`) but not semantic "type indicators." The three tiers are distinguished by **convention and registration**, not by different prefix characters:
+argparse natively supports different dash counts as distinct option prefixes. This gives us **syntactic indicators** for command tiers:
 
-- Shared eco commands: registered in `SHARED_ECO_COMMANDS` constant in `base.py`
-- Hierarchical commands: discovered from `tool/<NAME>/logic/` directory structure
-- Decorators: registered in `DECORATOR_FLAGS` constant in `base.py`
+| Tier | Syntax | argparse | Example |
+|------|--------|----------|---------|
+| Shared eco | `---<name>` (triple dash) | `add_argument('---dev', ...)` | `TOOL ---dev info` |
+| Hierarchical | `--<name>` or positional | `add_argument('--provider', ...)` or subparsers | `TOOL --provider add` |
+| Decorator | `-<name>` (single dash, long) | `add_argument('-no-warning', ...)` | `TOOL -no-warning` |
+| Positional | `<value>` (no dash) | Positional args | `TOOL "query text"` |
 
-This registry-based approach prevents naming collisions (the user's concern about "text is dangerous") because new commands are validated against the existing registry before being added.
+**Verified behavior:**
+- `---eco search query` parses as `Namespace(eco=['search', 'query'])` — works with `nargs='*'`
+- `-no-warning` parses as `Namespace(no_warning=True)` — works with `action='store_true'`
+- `--` (bare double dash) correctly acts as end-of-options, distinct from `---`
+- All three can coexist in one parser: `-no-warning ---eco dev info` parses correctly
+
+This means command tier is **syntactically unambiguous** — no naming collisions possible between tiers. A shared eco command `---dev` can never collide with a hierarchical `--dev` or a decorator `-dev`.
+
+#### Implementation Location
+
+The base tool at `logic/tool/blueprint/base.py` handles all three tiers in `handle_command_line()`:
+
+1. **Decorators** (`-*`) are stripped first from `sys.argv`
+2. **Shared eco commands** (`---*`) are intercepted via registry dispatch
+3. **Hierarchical commands** (`--*` or positional) fall through to tool's argparse
+
+The shared eco command registry lives in `logic/_/eco/registry.py` (planned). Each registered eco command points to its handler in `logic/_/<name>/command.py`.
 
 ### 4. Documentation Symmetry
 
