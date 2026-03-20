@@ -183,6 +183,27 @@ Each tool (and the project root) shares these directory semantics:
 - **Managed Python Environment**: Use `PYTHON --enable` to create symlinks in `bin/` so that `which python` and `pip install` use the managed environment correctly.
 - **Terminal Restoration**: The `KeyboardSuppressor` uses `atexit` to ensure terminal echoing is restored even if the process exits unexpectedly or via `KeyboardInterrupt`.
 
+### Tool Namespace Convention
+
+Tools are organized using a dot-separated namespace: `<Parent>.<Child>`. The `tool/` directory itself is implicitly the root namespace (`TOOL`), so top-level tools like `tool/DINGTALK/` are `TOOL.DINGTALK` with the `TOOL.` prefix omitted.
+
+This namespace convention extends naturally to two patterns:
+
+1. **Sub-tools**: `TOOL --install B` run from tool A creates `tool/A.B/`. When run from root, it creates `tool/B/` (root prefix omitted). Example: `tool/GOOGLE.GDS/` is a sub-tool of `GOOGLE`.
+
+2. **Migration**: `TOOL --migrate --draft-tool <Source> <Name>` creates `tool/<Source>.<Name>/`. Example: migrating blender from CLI-Anything creates `tool/CLIAnything.BLENDER/`. The Source prefix prevents collision when multiple migration sources provide similar tools.
+
+The naming rule generalizes to: when tool A migrates from source B namespace C, the result is `A.B.C` (with A omitted when operating from root). This means `tool/` is a flat namespace where dots encode hierarchy.
+
+### Root Logic Organization
+
+Root `logic/` is split into two tiers:
+
+- **`logic/_/`** — Ecosystem command modules (symmetric CLI flags): agent, assistant, audit, config, dev, eco, hooks, lang, search, setup, test, workspace. Each backs a `TOOL --<name>` command.
+- **`logic/`** (top-level) — Infrastructure modules shared across tools: utils, turing, gui, tool, git, data, command, mcp, llm, brain, chrome, serve, translation, tutorial, accessibility, asset.
+
+Tools import everything via `interface/` and never reference `logic/_/` directly.
+
 ## 2. Standard Tool Structure
 Every tool MUST be created using `TOOL --dev create <NAME>`. Run `SKILLS show tool-development-workflow` for the full development guide.
 

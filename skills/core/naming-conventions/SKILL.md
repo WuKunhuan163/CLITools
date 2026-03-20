@@ -11,6 +11,17 @@ description: Naming conventions for the AITerminalTools project covering tools, 
 - **Dot notation** for sub-tools: `PARENT.CHILD` (e.g. `GOOGLE.GD`, `GOOGLE.GDS`, `iCloud.iCloudPD`).
 - Tool directories: `tool/<NAME>/` matching the tool name exactly.
 
+### Namespace Convention
+
+Tools use dot-separated namespaces where `tool/` is the implicit root (`TOOL`):
+- `tool/DINGTALK/` = `TOOL.DINGTALK` (root prefix omitted)
+- `tool/GOOGLE.GDS/` = `TOOL.GOOGLE.GDS` (root prefix omitted)
+- `A --install B` creates `tool/A.B/` (when A is root TOOL, creates `tool/B/`)
+
+For migration-sourced tools: `A.B.C` where A is the migrating tool (omitted if root), B is the source, C is the namespace:
+- `TOOL --migrate --draft-tool CLI-Anything blender` -> `tool/CLIAnything.BLENDER/`
+- `GOOGLE.GDS --migrate --tool SourceX item` -> `tool/GOOGLE.GDS.SourceX.ITEM/`
+
 ## CLI Subcommands
 
 - **kebab-case** (hyphens): All subcommands use hyphens, never underscores.

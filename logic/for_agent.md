@@ -26,15 +26,27 @@ from logic.resolve import setup_paths
 setup_paths(__file__)
 ```
 
+## Directory Organization
+
+Root `logic/` is split into two tiers:
+
+- **`logic/_/`** — Ecosystem command modules that back symmetric CLI flags (`TOOL --<name>`):
+  `agent`, `assistant`, `audit`, `config`, `dev`, `eco`, `hooks`, `lang`, `search`, `setup`, `test`, `workspace`
+
+- **`logic/`** (top-level) — Infrastructure modules shared by tools and command modules:
+  `utils`, `turing`, `gui`, `tool`, `git`, `data`, `command`, `mcp`, `llm`, `brain`, `chrome`, `serve`, `translation`, `tutorial`, `accessibility`, `asset`
+
+Internal cross-references use `logic._.<module>` for command modules and `logic.<module>` for infrastructure.
+
 ## Package Dependencies
 
 ```
-tool/blueprint/ -> config/, gui/, turing/, utils/, lang/, git/
-gui/ -> config/, turing/, accessibility/, asset/, translation/
-test/ -> config/, turing/, utils/, tool/
-turing/ -> config/, utils/
-lang/ -> config/, translation/
-cdmcp_loader.py -> chrome/, config/
+tool/blueprint/ -> _/config/, gui/, turing/, utils/, _/lang/, git/
+gui/ -> _/config/, turing/, accessibility/, asset/, translation/
+_/test/ -> _/config/, turing/, utils/, tool/
+turing/ -> _/config/, utils/
+_/lang/ -> _/config/, translation/
+cdmcp_loader.py -> chrome/, _/config/
 ```
 
 ## Key Gotchas
@@ -66,17 +78,25 @@ If a tool declares dependencies in `tool.json`, read each dependency's `for_agen
 Every sub-package has `README.md` and `for_agent.md`. For details, read the sub-package docs directly:
 
 ```
-interface/for_agent.md         # FACADE LAYER — import from here in tools
-logic/tool/for_agent.md        # ToolBase, MCPToolBase, hooks, lifecycle
-logic/gui/for_agent.md         # GUI blueprints, widgets, style
-logic/config/for_agent.md      # Global config, colors, rules
-logic/turing/for_agent.md      # Progress display, stages, workers
-logic/test/for_agent.md        # Test runner, CPU monitoring
-logic/git/for_agent.md         # Git operations, .gitignore auto-gen, persistence
-logic/lang/for_agent.md        # i18n, audit
-logic/utils/for_agent.md       # Display, logging, system
-logic/audit/for_agent.md       # Code quality auditing
-logic/chrome/for_agent.md      # Chrome session, CDP
-logic/mcp/for_agent.md         # MCP infrastructure
-logic/accessibility/for_agent.md  # Keyboard, paste detection
+interface/for_agent.md           # FACADE LAYER — import from here in tools
+
+# Infrastructure (logic/)
+logic/tool/for_agent.md          # ToolBase, MCPToolBase, hooks, lifecycle
+logic/gui/for_agent.md           # GUI blueprints, widgets, style
+logic/turing/for_agent.md        # Progress display, stages, workers
+logic/git/for_agent.md           # Git operations, .gitignore auto-gen, persistence
+logic/utils/for_agent.md         # Display, logging, system
+logic/chrome/for_agent.md        # Chrome session, CDP
+logic/mcp/for_agent.md           # MCP infrastructure
+logic/accessibility/for_agent.md # Keyboard, paste detection
+
+# Ecosystem commands (logic/_/)
+logic/_/config/for_agent.md      # Global config, colors, rules
+logic/_/test/for_agent.md        # Test runner, CPU monitoring
+logic/_/lang/for_agent.md        # i18n, audit
+logic/_/audit/for_agent.md       # Code quality auditing
+logic/_/agent/for_agent.md       # Agent loop, tools, context
+logic/_/assistant/for_agent.md   # GUI assistant, std chat
+logic/_/dev/for_agent.md         # Developer commands
+logic/_/hooks/for_agent.md       # Hook engine, lifecycle hooks
 ```

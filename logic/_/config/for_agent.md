@@ -17,9 +17,10 @@
 - `set(key, value)` - Dot notation; auto-creates nested dicts
 - `delete(key)` - Dot notation
 
-### config/rule/manager.py
-- `generate_ai_rule(project_root, target_tool=None, translation_func=None)` - Prints AI agent rules; on macOS copies to clipboard
-- `inject_rule(project_root, translation_func=None)` - Writes rules to `.cursor/rules/AITerminalTools.mdc` (alwaysApply: true)
+### Rule Management (moved to tool/IDE/logic/rule + logic/_/rule/)
+- `generate_ai_rule()` and `inject_rule()` are now in `tool/IDE/logic/rule`
+- The `--rule` symmetric command is at `logic/_/rule/command.py` (RuleCommand)
+- Import via `interface.config` as before
 
 ## Usage Patterns
 
