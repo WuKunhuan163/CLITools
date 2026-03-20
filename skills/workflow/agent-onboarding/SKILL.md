@@ -18,8 +18,8 @@ Use this skill when:
 
 ```bash
 # Does the brain have state from a previous session?
-cat runtime/_/eco/brain/context.md
-cat runtime/_/eco/brain/tasks.md
+cat data/_/runtime/_/eco/brain/context.md
+cat data/_/runtime/_/eco/brain/tasks.md
 
 # Check system gaps and improvement tasks
 BRAIN reflect
@@ -101,7 +101,7 @@ HANDOFF     → BRAIN snapshot "summary" (before session end)
 - **Audit** — run `TOOL --audit code`, `TOOL --lang audit`
 - **Refactor** — clean up code, reorganize structure
 - **Harden** — raise quality of working-but-imperfect infrastructure (fix latent bugs, generalize, align with conventions)
-- **Improve** — fix ecosystem gaps from `BRAIN reflect` and `runtime/_/eco/brain/tasks.md`
+- **Improve** — fix ecosystem gaps from `BRAIN reflect` and `data/_/runtime/_/eco/brain/tasks.md`
 
 **Phase awareness matters.** When executing a user task, focus on their goal. When doing meta activities, focus on ecosystem quality and future agent experience. When capturing, focus on what future agents need to know. Don't mix phases — finish one before starting another.
 
@@ -125,9 +125,9 @@ BRAIN reflect           # Self-check protocol + system gaps (proactive self-impr
 
 | Path | Purpose |
 |------|---------|
-| `runtime/_/eco/brain/context.md` | Current session state (handoff document) |
-| `runtime/_/eco/brain/tasks.md` | Task list with priorities |
-| `runtime/_/eco/experience/lessons.jsonl` | Accumulated lessons |
+| `data/_/runtime/_/eco/brain/context.md` | Current session state (handoff document) |
+| `data/_/runtime/_/eco/brain/tasks.md` | Task list with priorities |
+| `data/_/runtime/_/eco/experience/lessons.jsonl` | Accumulated lessons |
 | `skills/core/` | Core skills (read with `SKILLS show`) |
 | `tool/<NAME>/AGENT.md` | Tool-specific agent documentation |
 | `AGENT.md` (root) | Full architecture guide |

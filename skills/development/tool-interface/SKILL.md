@@ -59,7 +59,7 @@ from tool.GOOGLE.logic.chrome.oauth import handle_oauth_if_needed, close_oauth_t
 ```
 
 > **Important**: `logic/` is internal implementation. Cross-tool access MUST go through `interface/main.py`.
-> The `TOOL audit imports` command enforces this rule (IMP001).
+> The `TOOL --audit imports` command enforces this rule (IMP001).
 
 ## Creating an Interface
 

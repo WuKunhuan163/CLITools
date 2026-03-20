@@ -251,7 +251,7 @@
         "id": "brain_path_safety",
         "activation": {
           "patterns": [
-            "runtime/_/eco/brain",
+            "data/_/runtime/_/eco/brain",
             "brain.*instance",
             "brain.*session",
             "logic/brain"

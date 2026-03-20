@@ -22,10 +22,10 @@ class FlatFileBrainBackend(BrainBackend):
         self.blueprint = blueprint
         self._tier_paths = {}
         for tier_name, tier_config in blueprint.get("tiers", {}).items():
-            self._tier_paths[tier_name] = self.root / tier_config.get("path", f"runtime/_/eco/brain/{tier_name}/")
+            self._tier_paths[tier_name] = self.root / tier_config.get("path", f"data/_/runtime/_/eco/brain/{tier_name}/")
 
     def _resolve_path(self, tier: str, key: str) -> Path:
-        base = self._tier_paths.get(tier, self.root / "runtime" / "_" / "eco" / "brain")
+        base = self._tier_paths.get(tier, self.root / "data" / "_" / "runtime" / "_" / "eco" / "brain")
         files = self.blueprint.get("tiers", {}).get(tier, {}).get("files", {})
         filename = files.get(key, key)
         return base / filename

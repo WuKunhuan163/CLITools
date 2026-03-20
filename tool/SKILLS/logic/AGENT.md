@@ -3,14 +3,14 @@
 ## evolution.py
 
 OpenClaw-inspired self-improvement loop:
-- `record_lesson(text)`: Append to `runtime/_/eco/experience/lessons.jsonl`
+- `record_lesson(text)`: Append to `data/_/runtime/_/eco/experience/lessons.jsonl`
 - `list_lessons()`: Read all lessons
 - `analyze_lessons()`: Review lessons for patterns and actionable insights
 - `generate_suggestions()`: Propose skill/rule improvements
 - `apply_suggestion(id)`: Apply a suggestion (create/update skill or rule)
 - `get_history()`: Read evolution history
 
-`BRAIN_DIR` points to `runtime/_/eco/experience/` (project root).
+`BRAIN_DIR` points to `data/_/runtime/_/eco/experience/` (project root).
 
 ## marketplace.py
 
@@ -36,5 +36,5 @@ Analyzes recent agent transcripts for behavior patterns:
 ## Gotchas
 
 1. **curl fallback**: `_http_get_bytes` falls back to curl subprocess if urllib fails (rate limiting).
-2. **BRAIN_DIR path**: Computed relative to file location — 4 parents up to project root, then `runtime/_/eco/experience/`.
-3. **Marketplace cache**: Stored at `runtime/_/eco/experience/marketplace_cache.json`, refreshed on each browse/search.
+2. **BRAIN_DIR path**: Computed relative to file location — 4 parents up to project root, then `data/_/runtime/_/eco/experience/`.
+3. **Marketplace cache**: Stored at `data/_/runtime/_/eco/experience/marketplace_cache.json`, refreshed on each browse/search.

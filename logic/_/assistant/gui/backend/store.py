@@ -3,7 +3,7 @@
 Stores per-round token data (input/output/context) and file operations
 (read/edit) for serving via /session/<sid>/<type>/<round_id> endpoints.
 
-Storage: runtime/sessions/<sid>/rounds/<round_id>.json
+Storage: data/_/runtime/sessions/<sid>/rounds/<round_id>.json
 """
 import json
 import os

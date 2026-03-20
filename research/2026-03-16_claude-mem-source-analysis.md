@@ -192,7 +192,7 @@ All data is scoped by `project` (derived from cwd). This prevents cross-project 
 | Session tracking | `SessionContext` | Exists |
 | Tool output capture | `_execute_tool_call()` events | Exists |
 | Context compression | `_compress_context()` | Exists (basic) |
-| Session persistence | `runtime/sessions/` | Exists |
+| Session persistence | `data/_/runtime/sessions/` | Exists |
 | Round store | `RoundStore` | Exists |
 | Progressive disclosure | `_truncate_tool_output()` | Exists (basic) |
 

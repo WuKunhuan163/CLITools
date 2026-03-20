@@ -59,7 +59,7 @@ class KnowledgeManager:
 
     Directory layout mirrors the project hierarchy::
 
-        runtime/_/eco/experience/
+        data/_/runtime/_/eco/experience/
         ├── lessons.jsonl              # Global lessons
         ├── discoveries.jsonl          # Global discoveries
         └── tool/
@@ -73,7 +73,7 @@ class KnowledgeManager:
 
     def __init__(self, project_root: str | Path):
         self.root = Path(project_root)
-        self.experience_dir = self.root / "runtime" / "_" / "eco" / "experience"
+        self.experience_dir = self.root / "data" / "_" / "runtime" / "_" / "eco" / "experience"
 
     # ------------------------------------------------------------------
     # Unified search

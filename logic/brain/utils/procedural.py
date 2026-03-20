@@ -214,8 +214,8 @@ def check_action(action_text: str, blueprint_path: Path,
     # Layer 2: Lesson triggers
     if lessons_path is None:
         candidates = [
-            root / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl",
-            root / "runtime" / "_" / "eco" / "brain" / "sessions" / "default" / "knowledge" / "lessons.jsonl",
+            root / "data" / "_" / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl",
+            root / "data" / "_" / "runtime" / "_" / "eco" / "brain" / "sessions" / "default" / "knowledge" / "lessons.jsonl",
         ]
         for c in candidates:
             if c.exists():
@@ -231,7 +231,7 @@ def check_action(action_text: str, blueprint_path: Path,
 
     # Layer 3: Graph-RAG associations
     if use_graph:
-        graph_path = root / "runtime" / "_" / "eco" / "brain" / "action_graph.json"
+        graph_path = root / "data" / "_" / "runtime" / "_" / "eco" / "brain" / "action_graph.json"
         if graph_path.exists():
             from logic.brain.utils.graph import ActionGraph
             graph = ActionGraph(graph_path)

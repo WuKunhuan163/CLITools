@@ -1324,7 +1324,7 @@ class ToolBase:
         RESET = get_color("RESET", "\033[0m")
 
         from logic._.agent.state import get_sessions_dir
-        sessions_dir = self.project_root / "runtime" / "sessions"
+        sessions_dir = self.project_root / "data" / "_" / "runtime" / "sessions"
         tool_sessions_dir = get_sessions_dir(
             str(self.project_root), tool_dir=str(self.tool_dir))
 

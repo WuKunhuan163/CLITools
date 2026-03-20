@@ -7,7 +7,7 @@ description: Institutional memory and lesson recall for agent workflows. Use BEF
 
 ## Why This Exists
 
-Agent sessions are stateless. Past mistakes, architectural decisions, API quirks, and timing gotchas live in `runtime/_/eco/experience/lessons.jsonl` — but only if the agent actually reads them. Without recall, the same errors recur every session.
+Agent sessions are stateless. Past mistakes, architectural decisions, API quirks, and timing gotchas live in `data/_/runtime/_/eco/experience/lessons.jsonl` — but only if the agent actually reads them. Without recall, the same errors recur every session.
 
 This is not about grep. This is about building a habit: **check what the project already knows before acting.**
 

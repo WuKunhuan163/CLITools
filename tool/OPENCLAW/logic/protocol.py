@@ -112,7 +112,7 @@ def _load_bootstrap() -> str:
 def _load_recent_learnings(n: int = 5) -> str:
     """Load the most recent N learnings for quick reference."""
     project_root = Path(__file__).resolve().parent.parent.parent.parent
-    learnings_file = project_root / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
+    learnings_file = project_root / "data" / "_" / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
     if not learnings_file.exists():
         return ""
 
@@ -198,7 +198,7 @@ def build_system_prompt(project_summary: str) -> str:
         "Periodically audit skills for infrastructure conversion potential:",
         "- If a skill describes a reusable pattern (retry, preflight, cleanup), check if logic/utils/ already has it.",
         "- If a skill's code examples are frequently copied, extract them into a utility function.",
-        "- Run TOOL audit code periodically to check for dead code and unused imports.",
+        "- Run TOOL --audit code periodically to check for dead code and unused imports.",
         "- Use TOOL --search skills \"keyword\" to find relevant patterns before writing new code.",
         "",
 

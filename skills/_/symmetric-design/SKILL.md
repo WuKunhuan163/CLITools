@@ -31,7 +31,7 @@ tool/<NAME>/
 └── AGENT.md       # Agent documentation
 ```
 
-Root mirrors this: `logic/`, `interface/`, `hooks/`, `test/`, `data/`, `skills/`, `runtime/`.
+Root mirrors this: `logic/`, `interface/`, `hooks/`, `test/`, `data/`, `skills/`, `data/_/runtime/`.
 
 When a new tool lacks any of these directories, it's incomplete — not by convention but by design. The skeleton is the API contract for discoverability.
 
@@ -72,7 +72,7 @@ Every directory has three potential documentation layers:
 |------|----------|---------|
 | `README.md` | Humans | What this is, how to use it |
 | `AGENT.md` | Agents | How to work with it, what to watch for |
-Not every directory needs both. But when they exist, their role is predictable. Self-improvement gaps are tracked centrally in `runtime/_/eco/brain/tasks.md`.
+Not every directory needs both. But when they exist, their role is predictable. Self-improvement gaps are tracked centrally in `data/_/runtime/_/eco/brain/tasks.md`.
 
 ### 5. Skills Symmetry
 

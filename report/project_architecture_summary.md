@@ -98,7 +98,7 @@ Synchronized via `TOOL dev sync` which propagates dev → tool → main → test
 
 ## Testing Framework
 
-Tests follow the `test_XX_name.py` naming convention. `TOOL test <NAME>` switches to the test branch, runs parallel test discovery, monitors CPU load, and restores the original branch afterward. Per-test `EXPECTED_TIMEOUT` and `EXPECTED_CPU_LIMIT` settings are supported.
+Tests follow the `test_XX_name.py` naming convention. `TOOL --test <NAME>` switches to the test branch, runs parallel test discovery, monitors CPU load, and restores the original branch afterward. Per-test `EXPECTED_TIMEOUT` and `EXPECTED_CPU_LIMIT` settings are supported.
 
 ## Localization
 

@@ -2,14 +2,14 @@
 
 ## Overview
 
-A workspace is an external directory mounted into the AITerminalTools system. Unlike Cursor's "Open Folder" which stores config in the target directory, workspace metadata and brain data are stored centrally in `workspace/<hash_id>/`.
+A workspace is an external directory mounted into the AITerminalTools system. Unlike Cursor's "Open Folder" which stores config in the target directory, workspace metadata and brain data are stored centrally in `data/_/workspace/<hash_id>/`.
 
 ## Key Concept
 
 When a user says "open my project at /home/user/my-app", we:
 1. Generate a deterministic hash ID from the absolute path
-2. Create `workspace/<hash_id>/` with brain, metadata, README, AGENT.md
-3. Track the workspace as active in `workspace/.active`
+2. Create `data/_/workspace/<hash_id>/` with brain, metadata, README, AGENT.md
+3. Track the workspace as active in `data/_/workspace/.active`
 
 This avoids polluting the user's directory and enables integrated management.
 
@@ -52,7 +52,7 @@ wm.close_workspace()
 
 ## Notes
 
-- `workspace/` is gitignored (deny-by-default pattern)
-- Brain data in workspaces uses the same blueprint system as `runtime/_/eco/brain/`
+- `data/_/workspace/` is gitignored (deny-by-default pattern)
+- Brain data in workspaces uses the same blueprint system as `data/_/runtime/_/eco/brain/`
 - When no workspace is open, the default scope is the AITerminalTools root
 - FILEDIALOG integration: if no path is given to `--create-workspace`, the system opens a directory picker

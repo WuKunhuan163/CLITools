@@ -2,9 +2,9 @@
 """sessionStart hook: Inject brain + ecosystem context into Cursor agent.
 
 Fires once when a new Cursor conversation begins. Injects:
-1. Brain state (tasks.json, context.md) from runtime/_/eco/brain/
+1. Brain state (tasks.json, context.md) from data/_/runtime/_/eco/brain/
 2. Ecosystem context (skill catalog, exploration guide, agent behaviors)
-3. Recent experience lessons from runtime/_/eco/experience/lessons.jsonl
+3. Recent experience lessons from data/_/runtime/_/eco/experience/lessons.jsonl
 
 This gives the Cursor agent the same context-awareness as the LLM tool's agent.
 """
@@ -27,7 +27,7 @@ def _log(msg: str):
 
 def _load_brain(project_dir: Path) -> list:
     parts = []
-    brain_dir = project_dir / "runtime" / "_" / "eco" / "brain"
+    brain_dir = project_dir / "data" / "_" / "runtime" / "_" / "eco" / "brain"
 
     tasks_file = brain_dir / "tasks.json"
     if tasks_file.exists():
@@ -51,7 +51,7 @@ def _load_brain(project_dir: Path) -> list:
 
 def _load_lessons(project_dir: Path, count: int = 5) -> list:
     parts = []
-    experience_file = project_dir / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
+    experience_file = project_dir / "data" / "_" / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
     if experience_file.exists():
         lines = experience_file.read_text().strip().split("\n")
         recent = lines[-count:] if len(lines) > count else lines
@@ -99,7 +99,7 @@ def _load_ecosystem(project_dir: Path) -> list:
 def _load_reflection(project_dir: Path) -> list:
     """Load system gaps from brain tasks for agent awareness."""
     parts = []
-    tasks_file = project_dir / "runtime" / "_" / "eco" / "brain" / "tasks.md"
+    tasks_file = project_dir / "data" / "_" / "runtime" / "_" / "eco" / "brain" / "tasks.md"
     if False and tasks_file.exists():  # Disabled: gaps are now in brain tasks, loaded via context
         content = tasks_file.read_text(encoding="utf-8")
         for section_header in ("## Current System Gaps", "## Known Gaps"):

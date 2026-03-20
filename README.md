@@ -84,7 +84,7 @@ Agents don't read everything at once. The system uses layered docs:
 - **L0** (`README.md`): Stable overview. What this is.
 - **L1** (`AGENT.md`): Operational guide. How to work with it.
 
-This pattern repeats at root, logic/, and tool/ levels. Self-improvement gaps are tracked in `runtime/_/eco/brain/tasks.md` and core skills (`skills/_/meta-agent`).
+This pattern repeats at root, logic/, and tool/ levels. Self-improvement gaps are tracked in `data/_/runtime/_/eco/brain/tasks.md` and core skills (`skills/_/meta-agent`).
 
 ### Multi-Tier Knowledge Pipeline
 
@@ -138,15 +138,15 @@ AITerminalTools/
 ├── tool/            # All tools (each has logic/, interface/, hooks/)
 ├── bin/             # Executable symlinks for installed tools
 ├── skills/          # Dictionary-tree of agent skills (hierarchical)
-├── runtime/         # Git-tracked institutional memory
-│   └── _/eco/       # Brain (context, tasks) + experience (lessons)
-├── data/            # Gitignored transient data
-│   └── _/           # Symmetric command data (audit, test, etc.)
+├── data/            # All user/runtime data (gitignored by default)
+│   └── _/           # Symmetric command data
+│       ├── runtime/ # Tracked: brain (context, tasks) + experience (lessons)
+│       └── workspace/ # Tracked: external project workspaces
 └── AGENT.md     # Agent bootstrap guide
 ```
 
 **Transient directories** (gitignored): `data/`, `logs/`, `tmp/`
-**Tracked data**: `runtime/`, `skills/`, `research/`
+**Tracked data**: `data/_/runtime/`, `skills/`, `research/`
 
 ## Brain Ecosystem
 

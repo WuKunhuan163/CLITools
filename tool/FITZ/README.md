@@ -15,11 +15,11 @@ This tool is part of the `TOOL` ecosystem, which provides:
     - `logic.tool.base`: Base class for standardized command handling (e.g., automated `setup` command support).
     - `logic.audit`: General-purpose audit and caching system.
 - **Localization**: Built-in support for multiple languages in `logic/translation/`. Always use the `_()` helper for user-facing strings.
-- **Unit Testing**: Standardized testing framework using `unittest`. Run tests in parallel with `TOOL test FITZ`.
+- **Unit Testing**: Standardized testing framework using `unittest`. Run tests in parallel with `TOOL --test FITZ`.
 
 ## Development Guidelines
 
 1. **Isolation**: Use the `PYTHON` tool dependency for a standalone runtime. Specify dependencies in `tool.json`.
-2. **Testing**: Add unit tests in `test/`. Use `TOOL test FITZ` to run them in parallel.
+2. **Testing**: Add unit tests in `test/`. Use `TOOL --test FITZ` to run them in parallel.
 3. **Translation**: English strings MUST be provided as default arguments within the code; **DO NOT include 'en' sections in translation JSON files**.
 4. **Cleanliness**: Keep the `main` and `test` branches clean. Perform active development on the `dev` or `tool` branch.

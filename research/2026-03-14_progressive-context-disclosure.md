@@ -98,7 +98,7 @@ viking://skills/code_review/
 **Where**: New `SessionStore` class
 
 **Approach**:
-- Save sessions to `runtime/sessions/<session_id>.json`
+- Save sessions to `data/_/runtime/sessions/<session_id>.json`
 - On server start, load existing sessions
 - Auto-save after each round completes
 
@@ -109,7 +109,7 @@ viking://skills/code_review/
 **Approach**:
 - Organize agent knowledge as structured directories:
   ```
-  runtime/_/eco/brain/
+  data/_/runtime/_/eco/brain/
     memory.md          # L0: always loaded
     tasks.json         # L0: active tasks
     lessons/           # L1: loaded on demand
@@ -122,6 +122,6 @@ viking://skills/code_review/
 ## Immediate Actions
 
 1. **Truncate tool results in context** — cap at 500 chars for read/search, 300 for exec
-2. **Add session persistence** — save/load from runtime/sessions/
+2. **Add session persistence** — save/load from data/_/runtime/sessions/
 3. **Implement L0 context header** — always include memory.md + active tasks
 4. **Tool output store** — full results accessible by ID if agent needs them

@@ -2,7 +2,7 @@
 
 Runs ruff (unused imports, unused variables, syntax) and vulture (dead code)
 across the project, returning structured results.  Designed to be called from
-the CLI (``TOOL audit code``) or programmatically via the interface.
+the CLI (``TOOL --audit code``) or programmatically via the interface.
 
 Depends on: ruff, vulture (pip install ruff vulture).
 """

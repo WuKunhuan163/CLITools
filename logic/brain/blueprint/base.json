@@ -76,7 +76,7 @@
       "bin/": "CLI entry points for installed tools",
       "hooks/": "Lifecycle hooks (session start, pre-commit)",
       "skills/": "Agent skill guides (SKILL.md files)",
-      "runtime/": "Brain (tasks, context), experience (lessons)",
+      "data/_/runtime/": "Brain (tasks, context), experience (lessons)",
       "test/": "Unit tests",
       "report/": "Generated reports",
       "research/": "Architecture analysis docs"

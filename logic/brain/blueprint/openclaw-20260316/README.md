@@ -21,7 +21,7 @@ Adapted from [OpenClaw's memory architecture](https://github.com/openclaw/opencl
 | Aspect | OpenClaw | This Blueprint |
 |--------|----------|---------------|
 | Runtime | 24/7 Node.js daemon | On-demand IDE sessions |
-| Storage | `~/.openclaw/memory/` | `runtime/_/eco/brain/sessions/<name>/` |
+| Storage | `~/.openclaw/memory/` | `data/_/runtime/_/eco/brain/sessions/<name>/` |
 | Search | SQLite FTS5 + embeddings | Flatfile default, hybrid optional |
 | Channels | WhatsApp, Telegram, etc. | IDE (Cursor, Claude Code) |
 | Skills | External skill packages | Integrated SKILLS tool |

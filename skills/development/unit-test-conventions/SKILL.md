@@ -62,8 +62,8 @@ Use this when:
 ## Execution
 
 ```bash
-TOOL test <TOOL_NAME>           # Run all tests for a tool
-TOOL test <TOOL_NAME> -k 03    # Run specific test by number
+TOOL --test <TOOL_NAME>           # Run all tests for a tool
+TOOL --test <TOOL_NAME> -k 03    # Run specific test by number
 ```
 
 ## Auditing

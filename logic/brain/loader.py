@@ -1,7 +1,7 @@
 """Brain blueprint loader and validator.
 
 Blueprint definitions live in logic/brain/blueprint/ (versioned packages).
-The active instance config is runtime/_/eco/brain/blueprint.json.
+The active instance config is data/_/runtime/_/eco/brain/blueprint.json.
 
 To add a new brain blueprint:
 1. Create logic/brain/blueprint/<name>-<YYYYMMDD>/blueprint.json
@@ -83,12 +83,12 @@ def load_blueprint_type(name: str) -> Dict:
 
 
 def load_blueprint(root: Path, merge_base: bool = True) -> Dict:
-    """Load the active brain blueprint from runtime/_/eco/brain/blueprint.json.
+    """Load the active brain blueprint from data/_/runtime/_/eco/brain/blueprint.json.
 
     If merge_base is True, the base.json ecosystem rules are merged in
     (blueprint values take precedence for overlapping keys).
     """
-    bp_path = root / "runtime" / "_" / "eco" / "brain" / "blueprint.json"
+    bp_path = root / "data" / "_" / "runtime" / "_" / "eco" / "brain" / "blueprint.json"
     if not bp_path.exists():
         bp = _default_blueprint()
     else:
@@ -123,9 +123,9 @@ def _default_blueprint() -> Dict:
         "name": "default",
         "version": "1.0",
         "tiers": {
-            "working": {"backend": "flatfile", "path": "runtime/_/eco/brain/"},
-            "knowledge": {"backend": "flatfile", "path": "runtime/_/eco/experience/"},
-            "episodic": {"backend": "flatfile", "path": "runtime/_/eco/experience/default/"},
+            "working": {"backend": "flatfile", "path": "data/_/runtime/_/eco/brain/"},
+            "knowledge": {"backend": "flatfile", "path": "data/_/runtime/_/eco/experience/"},
+            "episodic": {"backend": "flatfile", "path": "data/_/runtime/_/eco/experience/default/"},
         },
         "guidance": {
             "bootstrap": "AGENT.md",

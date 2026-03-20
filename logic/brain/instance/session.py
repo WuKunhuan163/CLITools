@@ -5,8 +5,8 @@ knowledge, episodic data, and a hierarchical manifest. Sessions can be
 exported (zip), loaded (unzip), and switched.
 
 Filesystem layout:
-    runtime/_/eco/brain/.active               # Current session name (text file)
-    runtime/_/eco/brain/sessions/
+    data/_/runtime/_/eco/brain/.active               # Current session name (text file)
+    data/_/runtime/_/eco/brain/sessions/
         default/
             MANIFEST.md                 # Hierarchical summary of this brain's contents
             working/
@@ -25,7 +25,7 @@ Filesystem layout:
             ...
 
 Migration from flat layout:
-    On first use, if runtime/_/eco/brain/sessions/ doesn't exist, the current flat
+    On first use, if data/_/runtime/_/eco/brain/sessions/ doesn't exist, the current flat
     files (context.md, tasks.json, activity.jsonl) are migrated into
     sessions/default/working/. Experience files are linked from knowledge/.
 """
@@ -47,7 +47,7 @@ class BrainSessionManager:
 
     def __init__(self, root: Path):
         self.root = Path(root)
-        self.brain_root = self.root / "runtime" / "_" / "eco" / "brain"
+        self.brain_root = self.root / "data" / "_" / "runtime" / "_" / "eco" / "brain"
         self.sessions_dir = self.brain_root / SESSIONS_DIR
         self.active_file = self.brain_root / ACTIVE_FILE
 
@@ -157,7 +157,7 @@ class BrainSessionManager:
         elif type_dir and (type_dir / "defaults" / "SOUL.md").exists():
             shutil.copy2(type_dir / "defaults" / "SOUL.md", session_dir / "episodic" / "SOUL.md")
         else:
-            default_soul = self.root / "runtime" / "_" / "eco" / "experience" / "default" / "SOUL.md"
+            default_soul = self.root / "data" / "_" / "runtime" / "_" / "eco" / "experience" / "default" / "SOUL.md"
             if default_soul.exists():
                 shutil.copy2(default_soul, session_dir / "episodic" / "SOUL.md")
 
@@ -193,7 +193,7 @@ class BrainSessionManager:
 
         Args:
             name: Session name to export.
-            output_path: Output zip path. Defaults to runtime/_/eco/brain/exports/<name>_<timestamp>.zip
+            output_path: Output zip path. Defaults to data/_/runtime/_/eco/brain/exports/<name>_<timestamp>.zip
 
         Returns:
             Path to the created zip file.
@@ -270,12 +270,12 @@ class BrainSessionManager:
                 shutil.copy2(src, dst_path)
                 migrated.append(src_name)
 
-        global_lessons = self.root / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
+        global_lessons = self.root / "data" / "_" / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
         if global_lessons.exists():
             shutil.copy2(global_lessons, default_dir / "knowledge" / "lessons.jsonl")
             migrated.append("lessons.jsonl")
 
-        default_experience = self.root / "runtime" / "_" / "eco" / "experience" / "default"
+        default_experience = self.root / "data" / "_" / "runtime" / "_" / "eco" / "experience" / "default"
         if default_experience.exists():
             for src_file in default_experience.rglob("*"):
                 if src_file.is_file():

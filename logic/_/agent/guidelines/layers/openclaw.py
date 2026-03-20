@@ -28,7 +28,7 @@ def get_guidelines():
         "ecosystem": {
             "patterns": [
                 "OpenClaw loop: Error → Lesson → Rule → Skill → Hook enforcement.",
-                "Lesson store: runtime/_/eco/experience/lessons.jsonl — append-only, severity-classified.",
+                "Lesson store: data/_/runtime/_/eco/experience/lessons.jsonl — append-only, severity-classified.",
                 "Skill creation: SKILLS create <name> — generates SKILL.md in skills/.",
                 "Hook enforcement: hooks/instance/ — lifecycle hooks that enforce learned rules.",
             ],

@@ -81,7 +81,7 @@ IF the task is 50/50 (some judgment + some automation)
 
 **OpenClaw**: `memory_search` tool performs semantic search over `MEMORY.md` + `memory/*.md`. Agent is mandated to search before answering about prior work.
 
-**Our project**: `runtime/_/eco/experience/lessons.jsonl` is file-based. Agent must grep or read the file manually. No semantic search capability. No mandate to check memory before acting.
+**Our project**: `data/_/runtime/_/eco/experience/lessons.jsonl` is file-based. Agent must grep or read the file manually. No semantic search capability. No mandate to check memory before acting.
 
 **Impact**: Agent doesn't recall past lessons unless explicitly directed. Experience capture exists but recall is friction-heavy.
 

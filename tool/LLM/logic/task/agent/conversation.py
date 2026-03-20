@@ -221,8 +221,8 @@ class Session:
         """Load a session from disk.
 
         ``path`` may be:
-        - ``runtime/sessions/<id>/history.json`` (new layout)
-        - ``runtime/sessions/<id>.json`` (legacy flat file — auto-migrated)
+        - ``data/_/runtime/sessions/<id>/history.json`` (new layout)
+        - ``data/_/runtime/sessions/<id>.json`` (legacy flat file — auto-migrated)
 
         Reconstructs status and title from events when the persisted
         metadata is stale (e.g. status saved as "idle" while events show
@@ -604,8 +604,8 @@ class ConversationManager:
         """Load sessions from disk on startup.
 
         Supports both:
-        - New layout: ``runtime/sessions/<id>/history.json``
-        - Legacy layout: ``runtime/sessions/<id>.json`` (auto-migrates)
+        - New layout: ``data/_/runtime/sessions/<id>/history.json``
+        - Legacy layout: ``data/_/runtime/sessions/<id>.json`` (auto-migrates)
         """
         if not os.path.isdir(_SESSIONS_DIR):
             return

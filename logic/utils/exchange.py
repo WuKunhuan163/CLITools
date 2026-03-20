@@ -4,7 +4,7 @@ Fetches daily exchange rates from a public API, caches them for the current
 UTC day, and provides conversion helpers.  Falls back to cached data when
 the network is unavailable.
 
-Cache location: ``runtime/cache/exchange_rates.json``
+Cache location: ``data/_/runtime/cache/exchange_rates.json``
 """
 
 import json
@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-_CACHE_DIR = _PROJECT_ROOT / "runtime" / "cache"
+_CACHE_DIR = _PROJECT_ROOT / "data" / "_" / "runtime" / "cache"
 _CACHE_FILE = _CACHE_DIR / "exchange_rates.json"
 
 _API_URL = "https://open.er-api.com/v6/latest/USD"

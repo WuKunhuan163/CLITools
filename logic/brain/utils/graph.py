@@ -188,7 +188,7 @@ def build_ecosystem_graph(root: Path) -> ActionGraph:
     This pre-seeds the graph with well-known associations.
     New associations can be added dynamically as lessons accumulate.
     """
-    graph_path = root / "runtime" / "_" / "eco" / "brain" / "action_graph.json"
+    graph_path = root / "data" / "_" / "runtime" / "_" / "eco" / "brain" / "action_graph.json"
     graph = ActionGraph(graph_path)
 
     # --- Action nodes ---

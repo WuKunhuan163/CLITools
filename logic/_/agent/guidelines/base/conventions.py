@@ -10,8 +10,8 @@ def get_guidelines():
         "conventions": {
             "experience": [
                 "Record discoveries and gotchas via experience() or SKILLS learn after each non-obvious finding.",
-                "Update runtime/_/eco/brain/tasks.md after completing tasks; mark done, add new ones.",
-                "Update runtime/_/eco/brain/context.md with current work state so the next session can resume.",
+                "Update data/_/runtime/_/eco/brain/tasks.md after completing tasks; mark done, add new ones.",
+                "Update data/_/runtime/_/eco/brain/context.md with current work state so the next session can resume.",
                 "Runtime is a symmetric directory — each tool can have its own runtime/ for tool-specific context.",
                 "Error → Lesson: every unexpected failure must be recorded with severity classification.",
                 "Lesson → Skill: after 3+ lessons on the same theme, synthesize into a reusable skill.",

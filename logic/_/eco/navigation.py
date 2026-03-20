@@ -103,7 +103,7 @@ def get_ecosystem_map(root: Path) -> Dict[str, Any]:
         "tool/": "Individual tools — each has main.py, logic/, interface/, hooks/, test/",
         "skills/": "Agent skill guides — SKILL.md files for development patterns",
         "hooks/": "Lifecycle hooks — session start, pre-commit, tool-call intercept",
-        "runtime/": "Brain state — tasks, context, activity, lessons",
+        "data/_/runtime/": "Brain state — tasks, context, activity, lessons",
         "test/": "Root-level unit tests",
         "data/": "Runtime data — API keys, caches (gitignored)",
         "tmp/": "Temporary scripts and prototypes (gitignored, clean up after use)",
@@ -280,8 +280,8 @@ def _count_skills(root: Path) -> Dict[str, int]:
 
 
 def _brain_summary(root: Path) -> Dict[str, Any]:
-    brain_dir = root / "runtime" / "_" / "eco" / "brain"
-    lessons_file = root / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
+    brain_dir = root / "data" / "_" / "runtime" / "_" / "eco" / "brain"
+    lessons_file = root / "data" / "_" / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
 
     summary: Dict[str, Any] = {"tasks_active": 0, "tasks_done": 0, "lessons": 0}
 
@@ -351,7 +351,7 @@ def _get_active_blueprint(root: Path) -> Optional[Dict]:
     """Load the active brain blueprint JSON.
 
     Resolution order:
-    1. runtime/_/eco/brain/blueprint.json (active runtime blueprint)
+    1. data/_/runtime/_/eco/brain/blueprint.json (active runtime blueprint)
     2. If it has inherits/type/active, also load the referenced type from
        logic/brain/blueprint/ and merge commands from both
     3. Fallback to logic/brain/blueprint/base.json
@@ -359,7 +359,7 @@ def _get_active_blueprint(root: Path) -> Optional[Dict]:
     root = Path(root)
     result = {}
 
-    blueprint_file = root / "runtime" / "_" / "eco" / "brain" / "blueprint.json"
+    blueprint_file = root / "data" / "_" / "runtime" / "_" / "eco" / "brain" / "blueprint.json"
     if blueprint_file.exists():
         try:
             result = json.loads(blueprint_file.read_text())

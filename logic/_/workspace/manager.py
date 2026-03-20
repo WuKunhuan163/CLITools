@@ -35,7 +35,7 @@ class WorkspaceManager:
 
     def __init__(self, root: Path):
         self.root = Path(root)
-        self.ws_root = self.root / "workspace"
+        self.ws_root = self.root / "data" / "_" / "workspace"
         self._active_file = self.ws_root / ".active"
 
     def _ensure_dirs(self):
@@ -217,7 +217,7 @@ class WorkspaceManager:
         """Get the brain data path for a workspace."""
         ws_id = ws_id or self.active_workspace()
         if not ws_id:
-            return self.root / "runtime" / "_" / "eco" / "brain"
+            return self.root / "data" / "_" / "runtime" / "_" / "eco" / "brain"
         return self.ws_root / ws_id / "brain"
 
     def _load_meta(self, ws_id: str) -> Optional[Dict]:
@@ -265,7 +265,7 @@ class WorkspaceManager:
             f"# Workspace Agent Guide: {meta['name']}\n\n"
             f"This workspace targets `{meta['path']}`.\n\n"
             f"## Brain\n\n"
-            f"Brain data for this workspace is at `workspace/{ws_id}/brain/`.\n"
+            f"Brain data for this workspace is at `data/_/workspace/{ws_id}/brain/`.\n"
             f"Blueprint: `{meta['blueprint_type']}`\n\n"
             f"## TODO\n\n"
             f"- (Record workspace-specific development tasks here)\n\n"

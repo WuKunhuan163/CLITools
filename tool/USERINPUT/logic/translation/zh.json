@@ -58,5 +58,5 @@
   "label_system_prompt_item": "系统提示项",
   "label_queue_hint": "管理: --queue --add <文本> | --delete <id> | --move-up/down/to-top/to-bottom <id> | --gui",
   "label_sp_hint": "管理: --system-prompt --add <文本> | --delete <id> | --move-up/down/to-top/to-bottom <id> | --gui",
-  "label_reflection_prompt": "然后执行 BRAIN reflect 进行自检并审视系统gap。在 runtime/_/eco/brain/tasks.md 中记录新gap。\n然后USERINPUT --hint。"
+  "label_reflection_prompt": "然后执行 BRAIN reflect 进行自检并审视系统gap。在 data/_/runtime/_/eco/brain/tasks.md 中记录新gap。\n然后USERINPUT --hint。"
 }

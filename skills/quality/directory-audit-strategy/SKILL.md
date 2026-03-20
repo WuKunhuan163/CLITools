@@ -45,7 +45,7 @@ Check:
 | Item | Correct Location | Wrong Location |
 |------|-----------------|----------------|
 | JSON config templates | `logic/config/` | OK if they're static defaults |
-| Runtime-generated JSON | `data/` or `runtime/` | `logic/config/` |
+| Runtime-generated JSON | `data/` or `data/_/runtime/` | `logic/config/` |
 | Log files | `data/log/` | `logic/` or any code dir |
 | Temporary scripts | `tmp/` or `data/tmp/` | Root of code packages |
 | Cache files | `data/cache/` or tool-local `data/` | Code directories |
@@ -86,7 +86,7 @@ This applies to:
 Symmetric roots in AITerminalTools:
 - `logic/` — Implementation code
 - `data/` — Transient runtime data (gitignored)
-- `runtime/` — Tracked runtime data (git-tracked)
+- `data/_/runtime/` — Tracked runtime data (git-tracked)
 - `interface/` — Public API
 - `hooks/` — Event callbacks
 - `test/` — Unit tests

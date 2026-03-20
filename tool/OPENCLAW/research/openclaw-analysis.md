@@ -75,7 +75,7 @@ Our project's condition: We operate inside Cursor IDE, not as a standalone daemo
 | OpenClaw | AITerminalTools Equivalent | Status |
 |----------|---------------------------|--------|
 | `SOUL.md` | `.cursor/rules/AITerminalTools.mdc` | Exists |
-| `MEMORY.md` | `runtime/_/eco/experience/lessons.jsonl` | Exists |
+| `MEMORY.md` | `data/_/runtime/_/eco/experience/lessons.jsonl` | Exists |
 | `daily logs` | Agent transcripts + session logs | Exists |
 | `evolve_analyze` | `SKILLS lessons` (review) | Basic |
 | `evolve_suggest` | Manual (agent proposes, user approves) | Gap |
@@ -109,7 +109,7 @@ Our project's condition: We operate inside Cursor IDE, not as a standalone daemo
 
 2. **Cross-Tool Interface System**
    - OpenClaw tools communicate by sharing in-process state.
-   - Our `interface/main.py` pattern provides typed, auditable cross-tool APIs. The `TOOL audit imports` (IMP001-IMP004) enforces boundaries.
+   - Our `interface/main.py` pattern provides typed, auditable cross-tool APIs. The `TOOL --audit imports` (IMP001-IMP004) enforces boundaries.
 
 3. **Browser Automation Infrastructure (CDMCP)**
    - OpenClaw has basic browser support (camsnap, peekaboo).

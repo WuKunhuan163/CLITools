@@ -94,7 +94,7 @@ Cross-tool imports **MUST** go through the tool's `interface/main.py`:
 from tool.GOOGLE.interface.main import CDPSession, find_colab_tab
 ```
 
-Direct access to another tool's `logic/` is forbidden. The `TOOL audit imports` command (IMP001) enforces this. Internal imports within the same tool can use `logic/` directly.
+Direct access to another tool's `logic/` is forbidden. The `TOOL --audit imports` command (IMP001) enforces this. Internal imports within the same tool can use `logic/` directly.
 
 ## 7. Developer Commands
 
