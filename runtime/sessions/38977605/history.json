@@ -1,0 +1,975 @@
+{
+ "id": "38977605",
+ "title": "Stream Test",
+ "status": "done",
+ "mode": "agent",
+ "created_at": 1773679549.585508,
+ "message_count": 1,
+ "codebase_root": null,
+ "context": {
+  "system_prompt": "You are an autonomous AI Agent. You can independently plan, execute, and verify tasks.\n\n## Available Tools\n\n1. **exec(command=...)** — Run shell commands (CLI tools, scripts, installs).\n2. **edit_file(path, [start_line, end_line,] new_text)** — Edit or create files.\n   - Targeted edit: start_line + end_line + new_text replaces lines [start, end] inclusive.\n   - New file: path + new_text only (no line params). Creates parent dirs automatically.\n3. **read_file(path, start_line, end_line)** — Read a line range from a file. For large files (100+ lines), use search() first to find relevant line numbers, then read a focused range. For small files or full analysis, reading the entire file is acceptable.\n4. **search(pattern, path)** — Grep-style text search inside files. For listing files, use exec(command=\"find ...\").\n5. **todo(action, items)** — Manage a task list.\n6. **ask_user(question)** — Ask the user for input/feedback.\n7. **think(thought)** — Reason step-by-step before acting. Use for complex decisions or debugging.\n8. **switch_mode(target_mode, explanation)** — Request to switch operating mode (e.g. to \"plan\" for read-only planning). The user may approve or deny. If denied, write your plan to a tmp/ file or use todo() to break the task down.\n\n## Turn Management\n\n**End your turn immediately** when:\n- Greeting → respond briefly, stop.\n- Simple question / analysis → answer in text, stop. Do NOT edit files unless asked.\n- Need user input → state what you need, stop.\n- Task complete → write a summary, stop.\n\n**Use tools** when the user gives a concrete task (create, fix, run, etc.).\n\n## Workflow\n\n1. **Understand**: Determine if this is an action task (create/fix/run) or an information task (analyze/explain/count). For information tasks, read → answer in text. For action tasks, act → verify → report.\n2. **Act**: Call tools directly. Don't describe what you'll do without doing it.\n3. **Verify**: After edits, optionally read back to confirm.\n4. **Report**: Summarize what was done or found.\n\n## Key Behaviors\n\n- **Match the task type**: Questions/analysis → text response. File creation → edit_file. Debugging → read + fix + test. Do NOT edit files when asked to analyze or explain.\n- **Act immediately**: For \"create X\", call edit_file first. For \"analyze X\", read first.\n- **Continuous execution**: Create multiple files sequentially without stopping to explain.\n- **Complete output**: New files must contain complete, runnable code. No placeholders.\n- **Self-repair**: If a command errors, read the source, fix, retry.\n- **Yield when blocked**: State what you need from the user, then stop.\n- **Mode switch**: For very complex tasks where you need to step back and plan, use switch_mode(target_mode=\"plan\"). If denied, use todo() to organize subtasks or write a plan to tmp/plan.md.\n\n## Editing Rules\n\n- **Modify existing files**: Use edit_file(start_line, end_line, new_text) for targeted changes. Read first to find exact line numbers.\n- **Create new files**: Use edit_file(path, new_text=<full content>) without line params.\n- **Cost rule**: For N-line files with K-line changes, targeted edit costs ~K tokens vs ~N for full rewrite. Always prefer targeted edits when K << N.\n\n## Quality Standards\n\n- Error handling, meaningful names, necessary imports in code.\n- Web pages: distinctive colors (not #333/#f5f5f5), real content, complete CSS, good fonts.\n\n## Debugging\n\n- Determine if bug is in test or implementation. Fix one side, don't oscillate.\n- After fixing, re-run tests immediately.\n\n## Forbidden\n\n- Never fabricate execution results.\n- Never claim a change was made without actually calling edit_file.\n- Never use non-ASCII variable names.\n\n## Response Guidelines\n\n- Reply in English.\n- **Every response MUST include text.** Tool-only responses with no text are forbidden.\n- Maximum 2 search attempts for the same query.\n- **Task completion requires a text summary** of what was done and the outcome.\n\n\n[Previous lessons]\n- Command 'cd /Applications/AITerminalTools && python3 tool/TODO/test/t' failed: Traceback (most recent call last):\n  File \"/Applications/AITerminalTools/tool/TODO/test/test_02_validators.py\", line 6, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n\n- Command 'cd /Applications/AITerminalTools && python3 tool/TODO/test/t' failed: Traceback (most recent call last):\n  File \"/Applications/AITerminalTools/tool/TODO/test/test_02_validators.py\", line 7, in <module>\n    from tool.TODO.logic.validators import _trim, MAX_ITEMS\nModuleNo\n- Command 'python3 -B tmp/test_slug_utils.py' failed: ✓ test_empty_string passed\nTraceback (most recent call last):\n  File \"/Applications/AITerminalTools/tmp/test_slug_utils.py\", line 59, in <module>\n    test_unicode()\n  File \"/Applications/AITerminalToo\n- Command 'python3 -B tmp/test_slug_utils.py' failed: ✓ test_empty_string passed\nTraceback (most recent call last):\n  File \"/Applications/AITerminalTools/tmp/test_slug_utils.py\", line 59, in <module>\n    test_unicode()\n  File \"/Applications/AITerminalToo\n- Command 'python3 -B tmp/test_slug_utils.py' failed: ✓ test_empty_string passed\nTraceback (most recent call last):\n  File \"/Applications/AITerminalTools/tmp/test_slug_utils.py\", line 59, in <module>\n    test_unicode()\n  File \"/Applications/AITerminalToo",
+  "messages": [
+   {
+    "role": "system",
+    "content": "You are an autonomous AI Agent. You can independently plan, execute, and verify tasks.\n\n## Available Tools\n\n1. **exec(command=...)** — Run shell commands (CLI tools, scripts, installs).\n2. **edit_file(path, [start_line, end_line,] new_text)** — Edit or create files.\n   - Targeted edit: start_line + end_line + new_text replaces lines [start, end] inclusive.\n   - New file: path + new_text only (no line params). Creates parent dirs automatically.\n3. **read_file(path, start_line, end_line)** — Read a line range from a file. For large files (100+ lines), use search() first to find relevant line numbers, then read a focused range. For small files or full analysis, reading the entire file is acceptable.\n4. **search(pattern, path)** — Grep-style text search inside files. For listing files, use exec(command=\"find ...\").\n5. **todo(action, items)** — Manage a task list.\n6. **ask_user(question)** — Ask the user for input/feedback.\n7. **think(thought)** — Reason step-by-step before acting. Use for complex decisions or debugging.\n8. **switch_mode(target_mode, explanation)** — Request to switch operating mode (e.g. to \"plan\" for read-only planning). The user may approve or deny. If denied, write your plan to a tmp/ file or use todo() to break the task down.\n\n## Turn Management\n\n**End your turn immediately** when:\n- Greeting → respond briefly, stop.\n- Simple question / analysis → answer in text, stop. Do NOT edit files unless asked.\n- Need user input → state what you need, stop.\n- Task complete → write a summary, stop.\n\n**Use tools** when the user gives a concrete task (create, fix, run, etc.).\n\n## Workflow\n\n1. **Understand**: Determine if this is an action task (create/fix/run) or an information task (analyze/explain/count). For information tasks, read → answer in text. For action tasks, act → verify → report.\n2. **Act**: Call tools directly. Don't describe what you'll do without doing it.\n3. **Verify**: After edits, optionally read back to confirm.\n4. **Report**: Summarize what was done or found.\n\n## Key Behaviors\n\n- **Match the task type**: Questions/analysis → text response. File creation → edit_file. Debugging → read + fix + test. Do NOT edit files when asked to analyze or explain.\n- **Act immediately**: For \"create X\", call edit_file first. For \"analyze X\", read first.\n- **Continuous execution**: Create multiple files sequentially without stopping to explain.\n- **Complete output**: New files must contain complete, runnable code. No placeholders.\n- **Self-repair**: If a command errors, read the source, fix, retry.\n- **Yield when blocked**: State what you need from the user, then stop.\n- **Mode switch**: For very complex tasks where you need to step back and plan, use switch_mode(target_mode=\"plan\"). If denied, use todo() to organize subtasks or write a plan to tmp/plan.md.\n\n## Editing Rules\n\n- **Modify existing files**: Use edit_file(start_line, end_line, new_text) for targeted changes. Read first to find exact line numbers.\n- **Create new files**: Use edit_file(path, new_text=<full content>) without line params.\n- **Cost rule**: For N-line files with K-line changes, targeted edit costs ~K tokens vs ~N for full rewrite. Always prefer targeted edits when K << N.\n\n## Quality Standards\n\n- Error handling, meaningful names, necessary imports in code.\n- Web pages: distinctive colors (not #333/#f5f5f5), real content, complete CSS, good fonts.\n\n## Debugging\n\n- Determine if bug is in test or implementation. Fix one side, don't oscillate.\n- After fixing, re-run tests immediately.\n\n## Forbidden\n\n- Never fabricate execution results.\n- Never claim a change was made without actually calling edit_file.\n- Never use non-ASCII variable names.\n\n## Response Guidelines\n\n- Reply in English.\n- **Every response MUST include text.** Tool-only responses with no text are forbidden.\n- Maximum 2 search attempts for the same query.\n- **Task completion requires a text summary** of what was done and the outcome.\n\n\n[Previous lessons]\n- Command 'cd /Applications/AITerminalTools && python3 tool/TODO/test/t' failed: Traceback (most recent call last):\n  File \"/Applications/AITerminalTools/tool/TODO/test/test_02_validators.py\", line 6, in <module>\n    import pytest\nModuleNotFoundError: No module named 'pytest'\n\n- Command 'cd /Applications/AITerminalTools && python3 tool/TODO/test/t' failed: Traceback (most recent call last):\n  File \"/Applications/AITerminalTools/tool/TODO/test/test_02_validators.py\", line 7, in <module>\n    from tool.TODO.logic.validators import _trim, MAX_ITEMS\nModuleNo\n- Command 'python3 -B tmp/test_slug_utils.py' failed: ✓ test_empty_string passed\nTraceback (most recent call last):\n  File \"/Applications/AITerminalTools/tmp/test_slug_utils.py\", line 59, in <module>\n    test_unicode()\n  File \"/Applications/AITerminalToo\n- Command 'python3 -B tmp/test_slug_utils.py' failed: ✓ test_empty_string passed\nTraceback (most recent call last):\n  File \"/Applications/AITerminalTools/tmp/test_slug_utils.py\", line 59, in <module>\n    test_unicode()\n  File \"/Applications/AITerminalToo\n- Command 'python3 -B tmp/test_slug_utils.py' failed: ✓ test_empty_string passed\nTraceback (most recent call last):\n  File \"/Applications/AITerminalTools/tmp/test_slug_utils.py\", line 59, in <module>\n    test_unicode()\n  File \"/Applications/AITerminalToo"
+   },
+   {
+    "role": "user",
+    "content": "---\ntimestamp: 2026-03-17T00:45:56\nplatform: Darwin 24.0.0\nproject_root: /Applications/AITerminalTools\n---\n\n[Working directory] /Applications/AITerminalTools\nAll relative paths resolve against this directory. Use relative paths.\n\n[Files in directory] .DS_Store, .cursor, .git, .gitattributes, .gitignore, README.md, bin, data, for_agent.md, for_agent_reflection.md, hooks, interface, logic, main.py, report, research, resource, runtime, setup.py, skills, test, tmp, tool, tool.json, workspace\n\nFirst, use the think tool to carefully plan your approach. Then create a new file at tmp/stream_test.py with a simple Python script that prints Fibonacci numbers up to 100. Make sure to think first before editing."
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "ovet8l4n",
+      "type": "function",
+      "function": {
+       "name": "think",
+       "arguments": "{\"thought\":\"The user wants me to create a Python script at `tmp/stream_test.py` that prints Fibonacci numbers up to 100.\\n\\n1.  **Plan**:\\n    *   Define a function or simple loop to calculate Fibonacci numbers.\\n    *   The sequence starts 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, ...\\n    *   Stop when the next number exceeds 100.\\n    *   Write this to `tmp/stream_test.py`.\\n    *   Execute the script to verify.\\n\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "ovet8l4n",
+    "content": "[Thinking complete]"
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_202603170046084e6242e0c8794b2c_0",
+      "type": "function",
+      "function": {
+       "name": "edit_file",
+       "arguments": "{\"path\": \"/Applications/AITerminalTools/tmp/stream_test.py\", \"new_text\": \"def fibonacci(n):\\n    a, b = 0, 1\\n    while b <= n:\\n        print(b)\\n        a, b = b, a + b\\n\\nfibonacci(100)\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_202603170046084e6242e0c8794b2c_0",
+    "content": "Written 108 bytes to /Applications/AITerminalTools/tmp/stream_test.py\ndef fibonacci(n):\n    a, b = 0, 1\n    while b <= n:\n        print(b)\n        a, b = b, a + b\n\nfibonacci(100)"
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_20260317004611d00ff5a095e34dd4_0",
+      "type": "function",
+      "function": {
+       "name": "exec",
+       "arguments": "{\"command\": \"/Applications/AITerminalTools/tmp/stream_test.py\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_20260317004611d00ff5a095e34dd4_0",
+    "content": "/bin/sh: /Applications/AITerminalTools/tmp/stream_test.py: Permission denied\n"
+   },
+   {
+    "role": "user",
+    "content": "[System] You made 3+ rounds of tool calls without any explanatory text. Write a text response describing what you've found so far. What is the current status?"
+   },
+   {
+    "role": "assistant",
+    "content": "I have created a new Python script named `stream_test.py` in the `tmp` directory. The script contains a function called `fibonacci` that calculates and prints Fibonacci numbers up to 100. However, when I tried to execute the script, I encountered a permission denied error. This indicates that the script file may not have the necessary execute permissions set. I will need to fix this issue before the script can be executed successfully."
+   }
+  ],
+  "max_context_tokens": 32000
+ },
+ "done_reason": "done",
+ "events": [
+  {
+   "type": "session_status",
+   "id": "38977605",
+   "status": "running",
+   "session_id": "38977605",
+   "ts": 1773679556.491035
+  },
+  {
+   "type": "user",
+   "prompt": "First, use the think tool to carefully plan your approach. Then create a new file at tmp/stream_test.py with a simple Python script that prints Fibonacci numbers up to 100. Make sure to think first before editing.",
+   "ecosystem": {
+    "project_summary": "AITerminalTools: 58+ terminal tools for AI agents. Tool name = command (GIT, PYTHON, SEARCH). Architecture: tool/<NAME>/{{main.py, logic/, interface/}}. Shared: logic/ (internal), interface/ (facade). Docs: README.md (usage), for_agent.md (internals).",
+    "exploration": "Search anything: exec 'TOOL --eco search \"query\"'. Tool info: exec 'TOOL --eco tool <NAME>'. Load skill: exec 'TOOL --eco skill <name>'. Onboarding: exec 'TOOL --eco guide'. Read docs: read_file('tool/<NAME>/for_agent.md'). Installed: ASANA, ATLASSIAN, BACKGROUND, BILIBILI, BOARDMIX, CHARTCUBE, CLOUDFLARE, COGGLE +50 more.",
+    "rationale": {
+     "tools": "Tool = integrated workflow (tool/<NAME>/{main.py, logic/, interface/}). Name IS the command. Fix bugs directly, don't work around them.",
+     "docs": "README.md=usage, for_agent.md=architecture, for_agent_reflection.md=self-improvement protocol, SKILL.md=best practice. Import from interface.*, never logic.* directly. Create interface/main.py for reusable cross-tool APIs.",
+     "memory": "Persistent lessons in runtime/experience/. Search: exec 'TOOL --search lessons \"keywords\"'. Record: experience(lesson=..., tool=...).",
+     "evolution": "Errors -> Lessons -> Skills -> Infrastructure -> Better Tools. Each fix makes the ecosystem permanently smarter."
+    },
+    "standard_tools": "exec (shell commands; tools=commands), read_file, write_file, edit_file, search, todo, ask_user, experience (record lesson to runtime/experience/)",
+    "skills_usage": "Load: exec 'TOOL --eco skill <name>'. Search: exec 'TOOL --eco search \"topic\" --scope skills'.",
+    "skill_catalog": [
+     "turing-machine-development — Progress display system using TuringStage and ProgressTuringMachine. Covers sing",
+     "tmp-test-script — Conventions for the symmetric tmp/ directory in AITerminalTools. Covers temporar",
+     "openclaw — OpenClaw-inspired self-improvement loop. Error -> Lesson -> Rule -> Skill -> Hoo",
+     "unit-test-conventions — Naming conventions, structure, and best practices for unit tests in AITerminalTo",
+     "error-recovery-patterns — Systematic error recovery strategies for multi-step workflows. Covers retry patt",
+     "session-debug-log — Session logging and debug log system in AITerminalTools. Covers tool.log(), Sess",
+     "retention-rotation — Retention and rotation patterns for logs, caches, and file-based storage. Use wh",
+     "unified-gui-development — Guide for synchronized development of HTML GUI and CLI GUI features. Use when ad",
+     "naming-conventions — Naming conventions for the AITerminalTools project covering tools, commands, fil",
+     "tool-dependency-declaration — Declaring tool dependencies in tool.json when importing from other tools' interf",
+     "tool-interface — Create and use tool interfaces (interface/main.py) for cross-tool communication ",
+     "code-quality-review — Static analysis and quality auditing for AITerminalTools. Covers dead code detec",
+     "avoid-duplicate-implementations — Guide for avoiding duplicate implementations when adding new features or pattern",
+     "development-report — Writing development reports for AITerminalTools. Covers naming, content structur",
+     "task-orchestration — How to decompose user requests into multi-tool workflows. Teaches agents to plan",
+     "recipes — End-to-end workflow recipes showing how to compose multiple tools for real tasks",
+     "directory-audit-strategy — Systematic approach to auditing directory structures in symmetric root directori",
+     "tool-development-workflow — Complete guide for developing new tools in AITerminalTools, from template creati",
+     "skill-creation-guide — Guide for creating, managing, and organizing skills in the AITerminalTools proje",
+     "skills-index — Index of all available AITerminalTools skills organized by category. Use as a st"
+    ],
+    "recent_lessons": [
+     "[OPENCLAW] CDMCP open_tab() returns False on failure rather than raising an exception. Functions that call it m",
+     "[OPENCLAW] HTML GUI session items: click handlers must be on the parent row element (session-item), not inner c",
+     "[TOOL] tool.json.tmpl template: JSON braces ({}) must be doubled ({{ }}) to avoid KeyError with Python str.",
+     "[PYTHON] 在异常处理中使用 sys.exit() 时必须传入退出码参数。sys.exit() 无参数会使用当前线程的退出码，导致错误码不可预测。应始终使用 sys.exit(code) 明确指定退出码。",
+     "When creating new root-level directories (hooks/, .cursor/), always check .gitignore first. This pro"
+    ],
+    "agent_behaviors": [
+     "BEFORE any task: exec 'TOOL --eco search \"task keywords\"' to find tools/lessons/skills. Never code blindly.",
+     "Search before creating: no duplicate tools, skills, or lessons. Improve existing ones.",
+     "Act immediately. Interleave actions with 1-line status: 'Reading config... Found 3 endpoints. Testing...'",
+     "If a tool errors: (1) read its source code and for_agent.md, (2) fix the bug directly and retry, (3) if unfixable, search for alternatives via TOOL --eco search, (4) if still stuck, ask the user. Ecosystem tools (TOOL, BRAIN, SKILLS) can have bugs too — treat them the same way. Record: experience(lesson=..., tool=...).",
+     "PIVOT: If 3+ attempts with the same approach fail, STOP and rethink strategy. Search for alternative tools/patterns. Consider equivalent but different paths (browser→API, GUI→CLI, manual→script). Record the failure pattern via SKILLS learn. Build compensatory infrastructure when a persistent limitation is found.",
+     "Promote knowledge: 3+ lessons on same theme -> create skill. Accumulated skills -> infrastructure.",
+     "After changes: update tool's README.md + for_agent.md. Document new infrastructure.",
+     "Complete ALL tasks before stopping. User must confirm satisfaction.",
+     "Prefer tool calls over reading files. exec 'TOOL --eco search X' finds anything.",
+     "You may be interrupted at any round. Proactively record key findings via experience() so progress is never lost.",
+     "SELF-TEST: After implementing or fixing code, always verify by running it. Write tmp/ test scripts for non-trivial changes. Never assume code works without testing.",
+     "ITERATE: Don't stop at first implementation. Test, find issues, fix, test again. Each cycle improves quality.",
+     "BRAIN: exec 'BRAIN log \"activity\"' after each completed task. exec 'BRAIN snapshot \"summary\"' after milestones. exec 'BRAIN digest' between tasks to check for lesson distillation. exec 'BRAIN status' to check progress.",
+     "REFLECT+FEEDBACK: After completing tasks, exec 'BRAIN reflect' (self-check + gap review), then exec 'USERINPUT --hint \"summary\"' (report to user). This paired loop is your core rhythm — never end a turn without both.",
+     "PHASES: Know your current phase. Task phases: Bootstrap → Execute → Verify → Capture → Feedback → Handoff. Meta activities (between tasks): Document, Curate, Audit, Refactor, Harden, Improve. Harden = raise quality of working infrastructure (periodic, not every small issue). Don't mix phases."
+    ],
+    "guidelines": "### Conventions\n**Experience**\n- Record discoveries and gotchas via experience() or SKILLS learn after each non-obvious finding.\n- Update runtime/brain/tasks.md after completing tasks; mark done, add new ones.\n- Update runtime/brain/context.md with current work state so the next session can resume.\n- Runtime is a symmetric directory — each tool can have its own runtime/brain/ for tool-specific context.\n- Error → Lesson: every unexpected failure must be recorded with severity classification.\n- Lesson → Skill: after 3+ lessons on the same theme, synthesize into a reusable skill.\n- Skill → Tool: mechanical skills (repeatable, checklistable) should become automated tools.\n- Tool → Hook: new tools should expose hooks for pre/post event handling.\n- Error → Lesson: every unexpected failure must be recorded with severity classification.\n- Lesson → Skill: after 3+ lessons on the same theme, synthesize into a reusable skill.\n- Skill → Tool: mechanical skills (repeatable, checklistable) should become automated tools.\n- Tool → Hook: new tools should expose hooks for pre/post event handling.\n**Exploration**\n- Before implementing: search for existing skills/tools via TOOL --search all 'query'.\n- Read for_agent.md for tool internals before extending or debugging a tool.\n- Use SKILLS show <name> to load relevant skills; check skills-index for the master list.\n- Prefer extending existing implementations over creating new ones (avoid-duplicate-implementations).\n**Quality**\n- Fix bugs directly in source — don't work around them. Escalation: read source → fix → retry → search alternatives → ask user.\n- Update README.md and for_agent.md after structural changes.\n- Run TOOL --audit code and TOOL --lang audit to verify quality.\n- Use tmp/ scripts for exploratory testing before committing changes.\n- Pre-commit hooks must pass before any commit (severity: BLOCK).\n- Lessons with severity=BLOCK must become automated checks within one session.\n- Pre-commit hooks must pass before any commit (severity: BLOCK).\n- Lessons with severity=BLOCK must become automated checks within one session.\n**Infrastructure**\n- Repeated lessons (3+) on the same theme should become a skill.\n- Mechanical processes described in skills should become automated functions.\n- New root-level directories require .gitignore exceptions (deny-by-default pattern).\n- Imports from tool.X.interface → declare in tool.json dependencies.\n- During Harden: distill knowledge (lessons → skills → automated infrastructure → hooks). Don't leave mechanical knowledge as prose.\n**Self Improvement**\n- Read for_agent_reflection.md after task completion — compare your behavior against the self-check protocol and fix any system gaps you find.\n- Run self-audit after major changes: check for new lessons to capture.\n- Review skills-index periodically for outdated or redundant skills.\n- Propose infrastructure upgrades when manual patterns become repetitive.\n- Feed lessons back into guidelines layers to close the loop.\n- Run self-audit after major changes: check for new lessons to capture.\n- Review skills-index periodically for outdated or redundant skills.\n- Propose infrastructure upgrades when manual patterns become repetitive.\n- Feed lessons back into guidelines layers to close the loop.\n\n### Ecosystem\n**Architecture**\n- Tool = tool/<NAME>/{main.py, logic/, interface/, hooks/, test/}.\n- Shared code: logic/ (internal), interface/ (facade). Import from interface.*, never logic.* directly.\n- Docs: README.md (usage), for_agent.md (agent internals), for_agent_reflection.md (self-improvement), SKILL.md (best practices).\n- Every directory has README.md + for_agent.md forming a layered hierarchy: root → logic/<module>/ → tool/<NAME>/.\n- Symmetric root directories: logic/, interface/, hooks/, test/, skills/, runtime/, data/.\n**Discovery**\n- TOOL --eco search 'query' — find anything (tools, skills, lessons, docs).\n- TOOL --eco tool <NAME> — deep-dive into a specific tool.\n- TOOL --eco skill <name> — read a development skill/pattern.\n- TOOL --eco guide — onboarding for new agents.\n- TOOL --eco map — ecosystem directory structure.\n- TOOL --eco cmds — blueprint shortcut commands.\n- OPENCLAW --status — self-improvement dashboard.\n- OPENCLAW --audit — check for unprocessed lessons needing skill creation.\n- OPENCLAW --status — self-improvement dashboard.\n- OPENCLAW --audit — check for unprocessed lessons needing skill creation.\n**Patterns**\n- Turing machine: use ProgressTuringMachine for multi-stage progress display.\n- Localization: use _() helper + TOOL --lang audit for multi-language support.\n- Hooks: tool/<NAME>/hooks/{interface/, instance/, config.json} for event-driven extensions.\n- Preflight: validate conditions before risky operations (from interface.utils import preflight).\n- OpenClaw loop: Error → Lesson → Rule → Skill → Hook enforcement.\n- Lesson store: runtime/experience/lessons.jsonl — append-only, severity-classified.\n- Skill creation: SKILLS create <name> — generates SKILL.md in skills/core/.\n- Hook enforcement: hooks/instance/ — lifecycle hooks that enforce learned rules.\n**Commands**\n- Every tool name IS its command: GIT, PYTHON, SEARCH, LLM, SKILLS.\n- Symmetric commands: TOOL_NAME --ask (read-only), --plan (design), --agent (autonomous).\n- TOOL --dev create <NAME> — scaffold a new tool with full structure.\n- TOOL --audit code — static analysis; TOOL --audit imports — dependency check.\n",
+    "user_rationale": ""
+   },
+   "user_rationale": "",
+   "system_state": {
+    "nudge_triggered": false
+   },
+   "suggestions": {
+    "relevant_skills": [
+     "tmp-test-script",
+     "exploratory-testing",
+     "unit-test-conventions"
+    ]
+   },
+   "session_id": "38977605",
+   "ts": 1773679556.6129239
+  },
+  {
+   "type": "model_decision_start",
+   "text": "Choosing model…",
+   "session_id": "38977605",
+   "ts": 1773679556.616677
+  },
+  {
+   "type": "model_decision_proposed",
+   "proposed": "google-gemini-3.1-flash-lite",
+   "session_id": "38977605",
+   "ts": 1773679561.335724
+  },
+  {
+   "type": "turn_limit_set",
+   "turn_limit": 20,
+   "session_id": "38977605",
+   "ts": 1773679561.336229
+  },
+  {
+   "type": "debug",
+   "text": "Round 1/20 (max_rounds=20)",
+   "session_id": "38977605",
+   "ts": 1773679561.336262
+  },
+  {
+   "type": "llm_request",
+   "provider": "google-gemini-3.1-flash-lite",
+   "round": 1,
+   "session_id": "38977605",
+   "ts": 1773679561.3363001
+  },
+  {
+   "type": "model_confirmed",
+   "provider": "google-gemini-3.1-flash-lite",
+   "session_id": "38977605",
+   "ts": 1773679565.197508
+  },
+  {
+   "type": "llm_response_start",
+   "round": 1,
+   "session_id": "38977605",
+   "ts": 1773679565.197547
+  },
+  {
+   "type": "tool_stream_start",
+   "index": 0,
+   "name": "think",
+   "round": 1,
+   "session_id": "38977605",
+   "ts": 1773679565.1975648
+  },
+  {
+   "type": "tool_stream_progress",
+   "ts": 1773679565.1975832,
+   "session_id": "38977605",
+   "index": 0,
+   "chars": 421
+  },
+  {
+   "type": "tool_stream_end",
+   "index": 0,
+   "round": 1,
+   "session_id": "38977605",
+   "ts": 1773679565.197608
+  },
+  {
+   "type": "llm_response_end",
+   "round": 1,
+   "latency_s": 3.856,
+   "has_tool_calls": true,
+   "provider": "google-gemini-3.1-flash-lite",
+   "model": "google-gemini-3.1-flash-lite",
+   "_full_text": "",
+   "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0
+   },
+   "session_id": "38977605",
+   "ts": 1773679565.197624
+  },
+  {
+   "type": "debug",
+   "text": "Round 2/20 (max_rounds=20)",
+   "session_id": "38977605",
+   "ts": 1773679565.2071521
+  },
+  {
+   "type": "llm_request",
+   "provider": "google-gemini-3.1-flash-lite",
+   "round": 2,
+   "session_id": "38977605",
+   "ts": 1773679565.207169
+  },
+  {
+   "type": "llm_response_end",
+   "round": 2,
+   "error": true,
+   "error_code": 400,
+   "latency_s": 0,
+   "has_tool_calls": false,
+   "provider": "google-gemini-3.1-flash-lite",
+   "session_id": "38977605",
+   "ts": 1773679567.207335
+  },
+  {
+   "type": "system_notice",
+   "text": "google-gemini-3.1-flash-lite failed: HTTP 400: [{\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"Function call is missing a thought_signature in functionCall parts. This is required for tools to work correctly, and missing thought_signature may lead to degraded model performance. Additional data, function call `default_api:think` , position 2. Please refer to https://ai.google.dev/gemini-api/docs/thought-signatures for more details.\",\n    \"status\": \"INVALID_ARGUMENT\"\n  }\n}\n]",
+   "level": "warning",
+   "session_id": "38977605",
+   "ts": 1773679567.207566
+  },
+  {
+   "type": "debug",
+   "text": "Auto retry (1/3): google-gemini-3.1-flash-lite → zhipu-glm-4-flash",
+   "session_id": "38977605",
+   "ts": 1773679567.2075782
+  },
+  {
+   "type": "model_decision_proposed",
+   "proposed": "zhipu-glm-4-flash",
+   "session_id": "38977605",
+   "ts": 1773679567.207584
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4-flash",
+   "round": 1,
+   "session_id": "38977605",
+   "ts": 1773679567.2075908
+  },
+  {
+   "type": "model_confirmed",
+   "provider": "zhipu-glm-4-flash",
+   "session_id": "38977605",
+   "ts": 1773679571.272394
+  },
+  {
+   "type": "llm_response_start",
+   "round": 1,
+   "session_id": "38977605",
+   "ts": 1773679571.272453
+  },
+  {
+   "type": "tool_stream_start",
+   "index": 0,
+   "name": "edit_file",
+   "round": 1,
+   "session_id": "38977605",
+   "ts": 1773679571.272474
+  },
+  {
+   "type": "tool_stream_progress",
+   "ts": 1773679571.272492,
+   "session_id": "38977605",
+   "index": 0,
+   "chars": 190
+  },
+  {
+   "type": "tool_stream_end",
+   "index": 0,
+   "round": 1,
+   "session_id": "38977605",
+   "ts": 1773679571.272553
+  },
+  {
+   "type": "llm_response_end",
+   "round": 1,
+   "latency_s": 4.064,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4-flash",
+   "model": "zhipu-glm-4-flash",
+   "_full_text": "",
+   "usage": {
+    "prompt_tokens": 3420,
+    "completion_tokens": 70,
+    "total_tokens": 3490
+   },
+   "session_id": "38977605",
+   "ts": 1773679571.2725701
+  },
+  {
+   "type": "tool",
+   "name": "edit_file",
+   "desc": "Created stream_test.py (New)",
+   "file": "/Applications/AITerminalTools/tmp/stream_test.py",
+   "_is_new": true,
+   "session_id": "38977605",
+   "ts": 1773679571.274084
+  },
+  {
+   "type": "tool_result",
+   "ok": true,
+   "output": "Written 108 bytes to /Applications/AITerminalTools/tmp/stream_test.py\ndef fibonacci(n):\n    a, b = 0, 1\n    while b <= n:\n        print(b)\n        a, b = b, a + b\n\nfibonacci(100)",
+   "name": "edit_file",
+   "_path": "/Applications/AITerminalTools/tmp/stream_test.py",
+   "_is_new": true,
+   "session_id": "38977605",
+   "ts": 1773679571.275307
+  },
+  {
+   "type": "debug",
+   "text": "Round 2/20 (max_rounds=20)",
+   "session_id": "38977605",
+   "ts": 1773679571.275498
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4-flash",
+   "round": 2,
+   "session_id": "38977605",
+   "ts": 1773679571.2755342
+  },
+  {
+   "type": "llm_response_start",
+   "round": 2,
+   "session_id": "38977605",
+   "ts": 1773679573.364227
+  },
+  {
+   "type": "llm_response_end",
+   "round": 2,
+   "latency_s": 2.088,
+   "has_tool_calls": true,
+   "provider": "zhipu-glm-4-flash",
+   "model": "zhipu-glm-4-flash",
+   "_full_text": "",
+   "usage": {
+    "prompt_tokens": 3550,
+    "completion_tokens": 18,
+    "total_tokens": 3568
+   },
+   "session_id": "38977605",
+   "ts": 1773679573.3642612
+  },
+  {
+   "type": "tool",
+   "name": "exec",
+   "desc": "Run /Applications/AITerminalTools/tmp/stream_test.py",
+   "cmd": "/Applications/AITerminalTools/tmp/stream_test.py",
+   "session_id": "38977605",
+   "ts": 1773679573.3646898
+  },
+  {
+   "type": "sandbox_prompt",
+   "request_id": "74215313",
+   "cmd": "/Applications/AITerminalTools/tmp/stream_test.py",
+   "normalized": "/Applications/AITerminalTools/tmp/stream_test.py",
+   "mandatory": false,
+   "timeout": 180,
+   "created_at": 1773679573.364753,
+   "session_id": "38977605",
+   "ts": 1773679573.364754
+  },
+  {
+   "type": "sandbox_resolved",
+   "request_id": "74215313",
+   "decision": "allow",
+   "session_id": "38977605"
+  },
+  {
+   "type": "tool_result",
+   "ok": false,
+   "output": "/bin/sh: /Applications/AITerminalTools/tmp/stream_test.py: Permission denied\n",
+   "pid": 136,
+   "elapsed_ms": 30000,
+   "session_id": "38977605",
+   "ts": 1773679702.8645902
+  },
+  {
+   "type": "debug",
+   "text": "Nudging for text explanation",
+   "session_id": "38977605",
+   "ts": 1773679702.86494
+  },
+  {
+   "type": "debug",
+   "text": "Round 3/20 (max_rounds=20)",
+   "session_id": "38977605",
+   "ts": 1773679702.864953
+  },
+  {
+   "type": "llm_request",
+   "provider": "zhipu-glm-4-flash",
+   "round": 3,
+   "session_id": "38977605",
+   "ts": 1773679702.86496
+  },
+  {
+   "type": "llm_response_start",
+   "round": 3,
+   "session_id": "38977605",
+   "ts": 1773679704.642964
+  },
+  {
+   "type": "text",
+   "tokens": "I",
+   "session_id": "38977605",
+   "ts": 1773679704.643039
+  },
+  {
+   "type": "text",
+   "tokens": " have",
+   "session_id": "38977605",
+   "ts": 1773679704.643073
+  },
+  {
+   "type": "text",
+   "tokens": " created",
+   "session_id": "38977605",
+   "ts": 1773679704.6430972
+  },
+  {
+   "type": "text",
+   "tokens": " a new",
+   "session_id": "38977605",
+   "ts": 1773679704.643252
+  },
+  {
+   "type": "text",
+   "tokens": " Python",
+   "session_id": "38977605",
+   "ts": 1773679704.6433501
+  },
+  {
+   "type": "text",
+   "tokens": " script",
+   "session_id": "38977605",
+   "ts": 1773679704.643446
+  },
+  {
+   "type": "text",
+   "tokens": " named",
+   "session_id": "38977605",
+   "ts": 1773679704.643546
+  },
+  {
+   "type": "text",
+   "tokens": " `stream",
+   "session_id": "38977605",
+   "ts": 1773679704.643651
+  },
+  {
+   "type": "text",
+   "tokens": "_test",
+   "session_id": "38977605",
+   "ts": 1773679704.643738
+  },
+  {
+   "type": "text",
+   "tokens": ".py",
+   "session_id": "38977605",
+   "ts": 1773679704.6438122
+  },
+  {
+   "type": "text",
+   "tokens": "` in",
+   "session_id": "38977605",
+   "ts": 1773679704.671123
+  },
+  {
+   "type": "text",
+   "tokens": " the",
+   "session_id": "38977605",
+   "ts": 1773679704.6769862
+  },
+  {
+   "type": "text",
+   "tokens": " `tmp",
+   "session_id": "38977605",
+   "ts": 1773679704.7874491
+  },
+  {
+   "type": "text",
+   "tokens": "` directory",
+   "session_id": "38977605",
+   "ts": 1773679704.787534
+  },
+  {
+   "type": "text",
+   "tokens": ".",
+   "session_id": "38977605",
+   "ts": 1773679704.792095
+  },
+  {
+   "type": "text",
+   "tokens": " The",
+   "session_id": "38977605",
+   "ts": 1773679705.008868
+  },
+  {
+   "type": "text",
+   "tokens": " script",
+   "session_id": "38977605",
+   "ts": 1773679705.009055
+  },
+  {
+   "type": "text",
+   "tokens": " contains",
+   "session_id": "38977605",
+   "ts": 1773679705.01489
+  },
+  {
+   "type": "text",
+   "tokens": " a function",
+   "session_id": "38977605",
+   "ts": 1773679705.1144671
+  },
+  {
+   "type": "text",
+   "tokens": " called",
+   "session_id": "38977605",
+   "ts": 1773679705.195873
+  },
+  {
+   "type": "text",
+   "tokens": " `fib",
+   "session_id": "38977605",
+   "ts": 1773679705.1970088
+  },
+  {
+   "type": "text",
+   "tokens": "onacci",
+   "session_id": "38977605",
+   "ts": 1773679705.197166
+  },
+  {
+   "type": "text",
+   "tokens": "` that",
+   "session_id": "38977605",
+   "ts": 1773679705.298562
+  },
+  {
+   "type": "text",
+   "tokens": " calculates",
+   "session_id": "38977605",
+   "ts": 1773679705.298652
+  },
+  {
+   "type": "text",
+   "tokens": " and",
+   "session_id": "38977605",
+   "ts": 1773679705.302135
+  },
+  {
+   "type": "text",
+   "tokens": " prints",
+   "session_id": "38977605",
+   "ts": 1773679705.3723688
+  },
+  {
+   "type": "text",
+   "tokens": " Fibonacci",
+   "session_id": "38977605",
+   "ts": 1773679705.375734
+  },
+  {
+   "type": "text",
+   "tokens": " numbers",
+   "session_id": "38977605",
+   "ts": 1773679705.3757608
+  },
+  {
+   "type": "text",
+   "tokens": " up",
+   "session_id": "38977605",
+   "ts": 1773679705.375774
+  },
+  {
+   "type": "text",
+   "tokens": " to ",
+   "session_id": "38977605",
+   "ts": 1773679705.449318
+  },
+  {
+   "type": "text",
+   "tokens": "100",
+   "session_id": "38977605",
+   "ts": 1773679705.454345
+  },
+  {
+   "type": "text",
+   "tokens": ".",
+   "session_id": "38977605",
+   "ts": 1773679705.4543989
+  },
+  {
+   "type": "text",
+   "tokens": " However",
+   "session_id": "38977605",
+   "ts": 1773679705.634641
+  },
+  {
+   "type": "text",
+   "tokens": ",",
+   "session_id": "38977605",
+   "ts": 1773679705.6346922
+  },
+  {
+   "type": "text",
+   "tokens": " when",
+   "session_id": "38977605",
+   "ts": 1773679705.634709
+  },
+  {
+   "type": "text",
+   "tokens": " I",
+   "session_id": "38977605",
+   "ts": 1773679705.63483
+  },
+  {
+   "type": "text",
+   "tokens": " tried",
+   "session_id": "38977605",
+   "ts": 1773679705.9710982
+  },
+  {
+   "type": "text",
+   "tokens": " to execute",
+   "session_id": "38977605",
+   "ts": 1773679705.9715788
+  },
+  {
+   "type": "text",
+   "tokens": " the",
+   "session_id": "38977605",
+   "ts": 1773679705.97182
+  },
+  {
+   "type": "text",
+   "tokens": " script",
+   "session_id": "38977605",
+   "ts": 1773679705.972634
+  },
+  {
+   "type": "text",
+   "tokens": ",",
+   "session_id": "38977605",
+   "ts": 1773679705.972669
+  },
+  {
+   "type": "text",
+   "tokens": " I",
+   "session_id": "38977605",
+   "ts": 1773679705.9726841
+  },
+  {
+   "type": "text",
+   "tokens": " encountered",
+   "session_id": "38977605",
+   "ts": 1773679705.972695
+  },
+  {
+   "type": "text",
+   "tokens": " a permission",
+   "session_id": "38977605",
+   "ts": 1773679705.972706
+  },
+  {
+   "type": "text",
+   "tokens": " denied",
+   "session_id": "38977605",
+   "ts": 1773679705.972716
+  },
+  {
+   "type": "text",
+   "tokens": " error",
+   "session_id": "38977605",
+   "ts": 1773679705.972726
+  },
+  {
+   "type": "text",
+   "tokens": ".",
+   "session_id": "38977605",
+   "ts": 1773679706.026797
+  },
+  {
+   "type": "text",
+   "tokens": " This",
+   "session_id": "38977605",
+   "ts": 1773679706.031863
+  },
+  {
+   "type": "text",
+   "tokens": " indicates",
+   "session_id": "38977605",
+   "ts": 1773679706.031977
+  },
+  {
+   "type": "text",
+   "tokens": " that",
+   "session_id": "38977605",
+   "ts": 1773679706.0320609
+  },
+  {
+   "type": "text",
+   "tokens": " the",
+   "session_id": "38977605",
+   "ts": 1773679706.109557
+  },
+  {
+   "type": "text",
+   "tokens": " script",
+   "session_id": "38977605",
+   "ts": 1773679706.1095831
+  },
+  {
+   "type": "text",
+   "tokens": " file",
+   "session_id": "38977605",
+   "ts": 1773679706.109591
+  },
+  {
+   "type": "text",
+   "tokens": " may",
+   "session_id": "38977605",
+   "ts": 1773679706.1095989
+  },
+  {
+   "type": "text",
+   "tokens": " not",
+   "session_id": "38977605",
+   "ts": 1773679706.1860428
+  },
+  {
+   "type": "text",
+   "tokens": " have",
+   "session_id": "38977605",
+   "ts": 1773679706.18607
+  },
+  {
+   "type": "text",
+   "tokens": " the",
+   "session_id": "38977605",
+   "ts": 1773679706.1860778
+  },
+  {
+   "type": "text",
+   "tokens": " necessary",
+   "session_id": "38977605",
+   "ts": 1773679706.1860852
+  },
+  {
+   "type": "text",
+   "tokens": " execute",
+   "session_id": "38977605",
+   "ts": 1773679706.46311
+  },
+  {
+   "type": "text",
+   "tokens": " permissions",
+   "session_id": "38977605",
+   "ts": 1773679706.465201
+  },
+  {
+   "type": "text",
+   "tokens": " set",
+   "session_id": "38977605",
+   "ts": 1773679706.5973618
+  },
+  {
+   "type": "text",
+   "tokens": ".",
+   "session_id": "38977605",
+   "ts": 1773679706.7270348
+  },
+  {
+   "type": "text",
+   "tokens": " I",
+   "session_id": "38977605",
+   "ts": 1773679706.927389
+  },
+  {
+   "type": "text",
+   "tokens": " will",
+   "session_id": "38977605",
+   "ts": 1773679706.938397
+  },
+  {
+   "type": "text",
+   "tokens": " need",
+   "session_id": "38977605",
+   "ts": 1773679706.938549
+  },
+  {
+   "type": "text",
+   "tokens": " to fix",
+   "session_id": "38977605",
+   "ts": 1773679707.087256
+  },
+  {
+   "type": "text",
+   "tokens": " this",
+   "session_id": "38977605",
+   "ts": 1773679707.10161
+  },
+  {
+   "type": "text",
+   "tokens": " issue",
+   "session_id": "38977605",
+   "ts": 1773679707.1017542
+  },
+  {
+   "type": "text",
+   "tokens": " before",
+   "session_id": "38977605",
+   "ts": 1773679707.101772
+  },
+  {
+   "type": "text",
+   "tokens": " the",
+   "session_id": "38977605",
+   "ts": 1773679707.171705
+  },
+  {
+   "type": "text",
+   "tokens": " script",
+   "session_id": "38977605",
+   "ts": 1773679707.171735
+  },
+  {
+   "type": "text",
+   "tokens": " can",
+   "session_id": "38977605",
+   "ts": 1773679707.171744
+  },
+  {
+   "type": "text",
+   "tokens": " be",
+   "session_id": "38977605",
+   "ts": 1773679707.175955
+  },
+  {
+   "type": "text",
+   "tokens": " executed",
+   "session_id": "38977605",
+   "ts": 1773679707.2379038
+  },
+  {
+   "type": "text",
+   "tokens": " successfully",
+   "session_id": "38977605",
+   "ts": 1773679707.245483
+  },
+  {
+   "type": "text",
+   "tokens": ".",
+   "session_id": "38977605",
+   "ts": 1773679707.245497
+  },
+  {
+   "type": "llm_response_end",
+   "round": 3,
+   "latency_s": 4.387,
+   "has_tool_calls": false,
+   "provider": "zhipu-glm-4-flash",
+   "model": "zhipu-glm-4-flash",
+   "_full_text": "I have created a new Python script named `stream_test.py` in the `tmp` directory. The script contains a function called `fibonacci` that calculates and prints Fibonacci numbers up to 100. However, when I tried to execute the script, I encountered a permission denied error. This indicates that the script file may not have the necessary execute permissions set. I will need to fix this issue before the script can be executed successfully.",
+   "usage": {
+    "prompt_tokens": 3624,
+    "completion_tokens": 90,
+    "total_tokens": 3714
+   },
+   "session_id": "38977605",
+   "ts": 1773679707.2529469
+  },
+  {
+   "type": "file_summary",
+   "files": [
+    {
+     "path": "/Applications/AITerminalTools/tmp/stream_test.py",
+     "name": "stream_test.py",
+     "type": "new",
+     "added": 7,
+     "removed": 0
+    }
+   ],
+   "session_id": "38977605",
+   "ts": 1773679707.254348
+  },
+  {
+   "type": "complete",
+   "elapsed_s": 146,
+   "session_id": "38977605",
+   "ts": 1773679707.254364
+  },
+  {
+   "type": "session_status",
+   "id": "38977605",
+   "status": "done",
+   "reason": "done",
+   "session_id": "38977605",
+   "ts": 1773679707.254381
+  },
+  {
+   "type": "task_exit",
+   "session_id": "38977605",
+   "reason": "done",
+   "ts": 1773679707.254387
+  }
+ ]
+}

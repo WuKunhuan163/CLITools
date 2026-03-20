@@ -1,6 +1,13 @@
 # GOOGLE.GDS Agent Guide
 
-This subtool is critical for remote execution flows between the local machine and Google Colab.
+GOOGLE.GDS (Google Drive Shell) replicates a local shell environment bound to Google Drive.
+Core features: file operations (ls, cat, read, grep, edit), virtual environments, and
+background execution via Google Drive API + service account credentials.
+
+> **MCP/CDP browser automation features are DISABLED.** Automated control of
+> Google Colab's web UI may violate Google's ToS. All `--mcp*` commands,
+> CDP boot, and browser-based remount have been disabled. Use the Google Drive
+> API-based workflows (service account, `GDS remount` manual script) instead.
 
 ## Critical Concepts
 
@@ -37,47 +44,14 @@ Logical shells are identified by a `{timestamp}_{6-digit-hash}` ID.
 - Use cases: `pip install`, `apt-get`, `git clone`, or any long-running task with heavy output.
 - Implementation: `_generate_no_capture_script` in `raw_cmd.py` produces a minimal script that validates mount, changes directory, runs the command, and shows a "Finished" message.
 
-### 5. MCP Browser Mode
-`GDS <command> --mcp` enables browser-based execution in the Cursor IDE built-in browser.
+### 5. MCP Browser Mode (DISABLED — ToS Risk)
 
-**No dedicated notebook required.** GDS works with any open Colab tab -- the default "Welcome to Colab" page is sufficient. Run `GDS --mcp boot` to ensure a Colab tab is open.
-
-#### Automated Remount
-`GDS --mcp-remount` performs a fully automated Google Drive remount via CDP:
-1. Injects the remount script into a Colab cell.
-2. Detects and clicks the "Connect to Google Drive" dialog if it appears.
-3. Navigates OAuth consent popup (clicks "Continue" / "Allow" buttons).
-4. Waits for the cell to finish executing.
-5. Verifies the mount result via the Drive API (fingerprint file check).
-
-This is a 4-stage Turing machine: inject -> OAuth -> wait -> verify. The OAuth stage auto-skips if the user is already authorized.
-
-**MCP GUI Fallback Window**: During automated remount, a tkinter GUI window opens with "Copy Script" and "Feedback" buttons (the "Finished" button is hidden in MCP mode). This serves as a user fallback:
-- If MCP succeeds, the GUI auto-closes via flag file mechanism.
-- If MCP fails, the GUI stays open so the user can copy the script for manual execution or click "Feedback" to report issues.
-- The GUI runs as an independent subprocess (`start_new_session=True`) and survives parent exit.
-
-#### Manual MCP Workflow
-1. Run `GDS <command>` (opens GUI window, auto-copies script to clipboard).
-2. Navigate built-in browser to any Colab tab.
-3. Create a new cell (Escape -> Ctrl+M -> B), enter edit mode (Enter).
-4. Use `browser_type` with `slowly: true` to type the cell code.
-5. Press Escape (dismiss autocomplete), then Meta+Enter to execute.
-6. Wait for completion marker, then `GDS --gui-submit` to close the GUI.
-7. Normal result download resumes.
-
-**Key rules:**
-- NEVER use `browser_fill` on Colab cells (breaks CodeMirror).
-- NEVER use Meta+V paste (MCP browser has isolated clipboard, doesn't share with system).
-- Always create fresh cells rather than editing existing ones.
-- Use `browser_type` with `slowly: true` to input code into cells.
-- The GUI window stays open as a safety net; fallback to USERINPUT if MCP fails.
-- Command hash (8-char uppercase) appears in the window title: `GDS Remote Command [XXXXXXXX]`.
-- If "Could not load JavaScript files" error appears, use Runtime -> "Restart session and run all".
-
-**Remote GUI control:**
-- `GDS --gui-submit [--id <id>]`: Click "Finished" button externally.
-- `GDS --gui-cancel`, `--gui-stop`, `--gui-add-time`: Cancel, stop, or extend timeout.
+> **All MCP/CDP browser automation for Colab has been disabled.**
+> Automated control of Google Colab's web interface may violate
+> [Google's Terms of Service](https://research.google.com/colaboratory/faq.html).
+> The `--mcp*` commands, CDP boot, browser-based remount, and cell injection
+> are commented out in the source code but preserved for reference.
+> Use manual workflows (copy script from GUI, paste into Colab manually) instead.
 
 ### 6. Implementation Details
 - **IPv4 Enforcement**: The tool forces IPv4 for Google API calls to avoid 60-second timeouts caused by macOS IPv6 fallback issues.
@@ -92,11 +66,10 @@ The tool automatically tracks command execution count and duration. When thresho
 - **Pre-check flow**: Before every remote command, the reconnection manager checks the counter and flag. If remount is needed, it's triggered automatically.
 - **Lock coordination**: A lock file prevents concurrent remount attempts. The lock has PID-based liveness checks and a 5-minute expiry.
 
-### 8. MCP-Mode Mount Pre-Check (CDP only)
-In CDP/MCP mode, `remote.py execute()` performs a lightweight Drive API check for the mount fingerprint file before running any command. If the fingerprint is missing:
-1. Auto-remount is triggered via `remount_cmd.execute()`.
-2. If remount fails, a clear error message is shown with guidance to run `GDS --remount` manually.
-This prevents the "GUI closed unexpectedly" error that previously occurred when Drive was not mounted.
+### 8. MCP-Mode Mount Pre-Check (DISABLED — ToS Risk)
+
+> This feature relied on CDP browser automation and has been disabled.
+> See section 5 above for details.
 
 ## Common Operations
 

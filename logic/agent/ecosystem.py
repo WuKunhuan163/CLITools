@@ -77,9 +77,10 @@ def build_ecosystem_info(
 
     # -- Exploration guide (compact) --
     exploration = (
-        "Search anything: exec 'TOOL --search all \"query\"'. "
-        "Search tools: exec 'TOOL --search tools \"keyword\"'. "
-        "Load skill: exec 'SKILLS show <name>'. "
+        "Search anything: exec 'TOOL --eco search \"query\"'. "
+        "Tool info: exec 'TOOL --eco tool <NAME>'. "
+        "Load skill: exec 'TOOL --eco skill <name>'. "
+        "Onboarding: exec 'TOOL --eco guide'. "
         "Read docs: read_file('tool/<NAME>/for_agent.md'). "
         f"Installed: {', '.join(top_tools[:8])}"
         + (f" +{tool_count - 8} more" if tool_count > 8 else "")
@@ -101,19 +102,19 @@ def build_ecosystem_info(
         standard_tools += ", read_image (vision)"
 
     # -- Skills (now provided via skill_catalog; just keep the command) --
-    skills_usage = "Load any skill: exec 'SKILLS show <name>'. Search: exec 'TOOL --search skills \"topic\"'."
+    skills_usage = "Load: exec 'TOOL --eco skill <name>'. Search: exec 'TOOL --eco search \"topic\" --scope skills'."
 
     # -- Expected agent behaviors (compact) --
     agent_behaviors = [
-        "BEFORE any task: exec 'TOOL --search all \"task keywords\"' to find tools/lessons/skills. Never code blindly.",
+        "BEFORE any task: exec 'TOOL --eco search \"task keywords\"' to find tools/lessons/skills. Never code blindly.",
         "Search before creating: no duplicate tools, skills, or lessons. Improve existing ones.",
         "Act immediately. Interleave actions with 1-line status: 'Reading config... Found 3 endpoints. Testing...'",
-        "If a tool errors: (1) read its source code and for_agent.md, (2) fix the bug directly and retry, (3) if unfixable, search for alternatives via TOOL --search all, (4) if still stuck, ask the user. Ecosystem tools (TOOL, BRAIN, SKILLS) can have bugs too — treat them the same way. Record: experience(lesson=..., tool=...).",
+        "If a tool errors: (1) read its source code and for_agent.md, (2) fix the bug directly and retry, (3) if unfixable, search for alternatives via TOOL --eco search, (4) if still stuck, ask the user. Ecosystem tools (TOOL, BRAIN, SKILLS) can have bugs too — treat them the same way. Record: experience(lesson=..., tool=...).",
         "PIVOT: If 3+ attempts with the same approach fail, STOP and rethink strategy. Search for alternative tools/patterns. Consider equivalent but different paths (browser→API, GUI→CLI, manual→script). Record the failure pattern via SKILLS learn. Build compensatory infrastructure when a persistent limitation is found.",
         "Promote knowledge: 3+ lessons on same theme -> create skill. Accumulated skills -> infrastructure.",
         "After changes: update tool's README.md + for_agent.md. Document new infrastructure.",
         "Complete ALL tasks before stopping. User must confirm satisfaction.",
-        "Prefer tool calls over reading files. exec 'TOOL --search all X' finds anything.",
+        "Prefer tool calls over reading files. exec 'TOOL --eco search X' finds anything.",
         "You may be interrupted at any round. Proactively record key findings via experience() so progress is never lost.",
         "SELF-TEST: After implementing or fixing code, always verify by running it. Write tmp/ test scripts for non-trivial changes. Never assume code works without testing.",
         "ITERATE: Don't stop at first implementation. Test, find issues, fix, test again. Each cycle improves quality.",

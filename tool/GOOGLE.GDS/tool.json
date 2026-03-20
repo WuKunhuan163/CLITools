@@ -1,8 +1,8 @@
 {
   "name": "GOOGLE.GDS",
   "version": "1.0.0",
-  "description": "Google Drive Remote Controller (GDS)",
-  "purpose": "Provide access to Google Drive files via API and GUI.",
+  "description": "Google Drive Shell (GDS)",
+  "purpose": "Replicate a local shell environment bound to Google Drive's file system. Provides file operations (ls, cat, read, grep, edit), virtual environments, and background execution via Google Drive API.",
   "skills": [
     "turing-machine-development",
     "tool-interface",

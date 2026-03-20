@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
-SESSIONS_DIR_NAME = "agent_sessions"
+SESSIONS_DIR_NAME = "session"
 
 
 @dataclass

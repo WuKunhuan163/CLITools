@@ -1457,13 +1457,20 @@ def restore_stale_session_tabs(port: int = CDP_PORT,
 
 
 def close_orphan_newtabs(session_window_id: Optional[int] = None,
-                         port: int = CDP_PORT) -> int:
-    """Close chrome://newtab/ tabs not in the given session window.
+                         port: int = CDP_PORT,
+                         close_all: bool = False) -> int:
+    """Close chrome://newtab/ tabs.
+
+    Args:
+        session_window_id: The session's window ID.
+        port: CDP port.
+        close_all: If True, close ALL newtab tabs (including in session window).
+                   If False, only close newtabs NOT in the session window.
 
     Returns the number of tabs closed.
     """
     closed = 0
-    if not session_window_id:
+    if not session_window_id and not close_all:
         return closed
     try:
         import urllib.request
@@ -1472,15 +1479,21 @@ def close_orphan_newtabs(session_window_id: Optional[int] = None,
             ws = t.get("webSocketDebuggerUrl")
             if ws and url in ("chrome://newtab/", "chrome://new-tab-page/"):
                 try:
-                    s = CDPSession(ws, timeout=5)
-                    resp = s.send_and_recv("Browser.getWindowForTarget", {})
-                    tab_wid = resp.get("result", {}).get("windowId") if resp else None
-                    s.close()
-                    if tab_wid and tab_wid != session_window_id:
+                    if close_all:
                         tid = t.get("id", "")
                         close_url = f"http://localhost:{port}/json/close/{tid}"
                         urllib.request.urlopen(close_url, timeout=3)
                         closed += 1
+                    elif session_window_id:
+                        s = CDPSession(ws, timeout=5)
+                        resp = s.send_and_recv("Browser.getWindowForTarget", {})
+                        tab_wid = resp.get("result", {}).get("windowId") if resp else None
+                        s.close()
+                        if tab_wid and tab_wid != session_window_id:
+                            tid = t.get("id", "")
+                            close_url = f"http://localhost:{port}/json/close/{tid}"
+                            urllib.request.urlopen(close_url, timeout=3)
+                            closed += 1
                 except Exception:
                     pass
     except Exception:
@@ -1701,7 +1714,7 @@ def boot_tool_session(
         close_session(session_name)
         return {"ok": False, "error": boot_result.get("error", "Boot failed")}
 
-    time.sleep(0.8)
+    time.sleep(1.5)
 
     # Pin + overlays
     try:
@@ -1712,15 +1725,28 @@ def boot_tool_session(
 
         cdp = session.get_cdp()
         if cdp and session.lifetime_tab_id:
-            ov.pin_tab_by_target_id(session.lifetime_tab_id, pinned=True, port=port)
+            pinned = ov.pin_tab_by_target_id(session.lifetime_tab_id, pinned=True, port=port)
+            if not pinned:
+                _log_session("boot:pin_failed", session_name,
+                             f"Failed to pin welcome tab {session.lifetime_tab_id}")
             ov.activate_tab(session.lifetime_tab_id, port)
             ov.inject_favicon(cdp, svg_color="#1a73e8", letter="C")
             ov.inject_badge(cdp, text=f"CDMCP [{sid_short}]", color="#1a73e8")
             ov.inject_focus(cdp, color="#1a73e8")
-    except Exception:
-        pass
+    except Exception as e:
+        _log_session("boot:overlay_error", session_name, str(e))
 
     _ensure_demo_tab(session, server_url, port)
+
+    # Close orphan newtab pages (Chrome opens one by default on fresh launch)
+    try:
+        n_closed = close_orphan_newtabs(
+            session_window_id=session.window_id, port=port, close_all=True)
+        if n_closed:
+            _log_session("boot:orphan_cleanup", session_name,
+                         f"Closed {n_closed} orphan newtab(s)")
+    except Exception:
+        pass
 
     # Start Google auth monitor for the ACCOUNT card
     try:

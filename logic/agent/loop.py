@@ -98,8 +98,8 @@ class AgentLoop:
 
             tools = get_tool_defs_for_mode(self._mode) + self._memory_tool_defs
             round_num = 0
-            empty_retries = 0
-            max_empty_retries = pipeline.get_max_retries()
+            consecutive_empty = 0
+            MAX_CONSECUTIVE_EMPTY = 3
             full_text = ""
 
             flushed_this_turn = False
@@ -142,6 +142,9 @@ class AgentLoop:
                 if full_text is None:
                     break
 
+                if full_text or tool_calls_accum:
+                    consecutive_empty = 0
+
                 if not tool_calls_accum:
                     if full_text:
                         self._context_messages.append(
@@ -172,12 +175,12 @@ class AgentLoop:
                                 self._emit({"type": "text", "tokens": "[Verifying...]\n"})
                                 continue
 
-                    elif tools and empty_retries < max_empty_retries:
-                        empty_retries += 1
-                        flattened = pipeline.prepare_messages(
-                            list(self._context_messages),
-                            turn_number=max(self._session.message_count, 2))
-                        self._context_messages = flattened
+                    elif not full_text and tools:
+                        consecutive_empty += 1
+                        if consecutive_empty >= MAX_CONSECUTIVE_EMPTY:
+                            self._emit({"type": "text",
+                                        "tokens": f"[{consecutive_empty} consecutive empty responses — stopping.]\n"})
+                            break
                         task_reminder = ""
                         if self._session.initial_prompt:
                             task_reminder = (
@@ -190,7 +193,7 @@ class AgentLoop:
                              "Do NOT repeat file reads you already completed. "
                              "Do NOT run ls. Proceed directly with the modifications."
                              + task_reminder})
-                        self._emit({"type": "text", "tokens": "[Empty response, flattening and retrying...]\n"})
+                        self._emit({"type": "text", "tokens": "[Empty response, retrying...]\n"})
                         continue
 
                     break

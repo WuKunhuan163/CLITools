@@ -350,7 +350,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .settings-close:hover { color: var(--text); background: rgba(255,255,255,0.06); }
 
 /* ── Settings Section Styles ── */
-.settings-section-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+.settings-section-title { font-size: 16px; font-weight: 700; margin-top: 24px; margin-bottom: 10px; color: var(--text); }
+.settings-section-title:first-child { margin-top: 0; }
 .settings-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; min-width: 420px; }
 .settings-card.configured { background: var(--green-card-bg); border-color: var(--green-card-border); }
 .settings-stepper { display:inline-flex; align-items:center; border:1px solid var(--border); border-radius:6px; background:var(--bg); overflow:hidden; user-select:none; }
@@ -846,17 +847,19 @@ body.debug-mode .debug-block { display: block; }
 .sandbox-actions .sb-btn:hover { color: var(--text); background: rgba(255,255,255,0.08); }
 .sandbox-actions .sb-policy-select { background: var(--surface-3); border: 1px solid var(--border); color: var(--text-2); font-size: 10px; border-radius: 4px; padding: 1px 4px; cursor: pointer; outline: none; font-family: var(--mono); }
 .sandbox-actions .sb-policy-select:hover { border-color: var(--text-3); }
-.sandbox-prompt-bubble { position: relative; background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 10px 14px; margin: 6px 0 2px 0; max-width: 90%; animation: fadeIn 0.2s ease; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
-.sandbox-prompt-bubble::after { content: ''; position: absolute; bottom: -7px; left: 24px; width: 12px; height: 12px; background: var(--surface-2); border-right: 1px solid var(--accent); border-bottom: 1px solid var(--accent); transform: rotate(45deg); }
-.sandbox-prompt-bubble .sb-prompt-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
-.sandbox-prompt-bubble .sb-prompt-cmd { font-family: var(--mono); font-size: 11px; color: var(--text-2); background: var(--surface-3); padding: 4px 8px; border-radius: 4px; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sandbox-prompt-bubble .sb-prompt-options { display: flex; gap: 6px; flex-wrap: wrap; }
-.sandbox-prompt-bubble .sb-opt { border: 1px solid var(--border); background: var(--surface-3); color: var(--text-2); font-size: 11px; padding: 4px 10px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+.sandbox-prompt-bubble { position: relative; background: var(--surface-2); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 12px 16px; margin: 8px 0 4px 0; max-width: 90%; animation: fadeIn 0.2s ease; box-shadow: 0 4px 16px rgba(0,0,0,0.25); }
+.sandbox-prompt-bubble::after { content: ''; position: absolute; top: -7px; left: 24px; width: 12px; height: 12px; background: var(--surface-2); border-left: 1px solid var(--accent); border-top: 1px solid var(--accent); transform: rotate(45deg); }
+.sandbox-prompt-bubble .sb-prompt-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.sandbox-prompt-bubble .sb-prompt-cmd { font-family: var(--mono); font-size: 12px; color: var(--text); background: var(--surface-3); padding: 6px 10px; border-radius: 6px; margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sandbox-prompt-bubble .sb-prompt-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.sandbox-prompt-bubble .sb-opt { border: 1px solid var(--border); background: var(--surface-3); color: var(--text-2); font-size: 12px; padding: 6px 14px; border-radius: 6px; cursor: pointer; transition: all 0.15s; font-weight: 500; }
 .sandbox-prompt-bubble .sb-opt:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--text); }
-.sandbox-prompt-bubble .sb-opt.allow { border-color: var(--green); }
-.sandbox-prompt-bubble .sb-opt.allow:hover { background: rgba(80,200,120,0.15); color: var(--green); }
-.sandbox-prompt-bubble .sb-opt.deny { border-color: var(--red); }
+.sandbox-prompt-bubble .sb-opt.allow { border-color: var(--green); color: var(--green); }
+.sandbox-prompt-bubble .sb-opt.allow:hover { background: rgba(80,200,120,0.15); }
+.sandbox-prompt-bubble .sb-opt.deny { border-color: var(--red); color: var(--text-3); }
 .sandbox-prompt-bubble .sb-opt.deny:hover { background: rgba(200,80,80,0.15); color: var(--red); }
+.sandbox-countdown { height: 3px; background: var(--accent); border-radius: 0 0 var(--radius-lg) var(--radius-lg); margin: 10px -16px -12px -16px; transition: width linear; }
+.sandbox-countdown.expired { background: var(--red); }
 .tool-code-preview { background: var(--surface-2); border-radius: 4px; padding: 10px 12px; margin: 0; overflow-x: auto; }
 .tool-code-preview code { font-family: var(--mono); font-size: 11.5px; color: var(--text); white-space: pre; line-height: 1.5; }
 .tool-write-result { font-size: 12px; color: var(--text-3); padding: 6px 0; }
@@ -1835,13 +1838,50 @@ async function sendMessage() {
   }
 }
 
+/* ── Workspace Management ── */
+let currentWorkspace = localStorage.getItem('workspace_path') || '';
+
+function setWorkspace(path) {
+  currentWorkspace = (path || '').trim();
+  if (currentWorkspace) {
+    localStorage.setItem('workspace_path', currentWorkspace);
+  } else {
+    localStorage.removeItem('workspace_path');
+  }
+  _updateWorkspaceIndicator();
+}
+
+function _updateWorkspaceIndicator() {
+  let badge = document.getElementById('workspace-badge');
+  if (currentWorkspace) {
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.id = 'workspace-badge';
+      badge.style.cssText = 'font-size:10px;color:var(--text-3);padding:2px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;';
+      badge.title = 'Click to change workspace';
+      badge.onclick = () => {
+        const p = prompt('Workspace directory (empty to reset):', currentWorkspace);
+        if (p !== null) setWorkspace(p);
+      };
+      const footer = document.getElementById('sidebar-footer');
+      if (footer) footer.parentElement.insertBefore(badge, footer);
+    }
+    const short = currentWorkspace.length > 30 ? '...' + currentWorkspace.slice(-27) : currentWorkspace;
+    badge.innerHTML = '<i class="bx bx-folder" style="font-size:11px;vertical-align:-1px;"></i> ' + short;
+  } else if (badge) {
+    badge.remove();
+  }
+}
+
 /* ── Create New Session ── */
 async function createNewSession() {
   try {
+    const body = { title: 'New Task' };
+    if (currentWorkspace) body.codebase_root = currentWorkspace;
     const resp = await fetch('/api/sessions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'New Task' }),
+      body: JSON.stringify(body),
     });
     const data = await resp.json();
     if (data.ok) {
@@ -2015,7 +2055,8 @@ function renderSettingsTab() {
   if (settingsTab === 'general') {
     el.innerHTML = renderGeneralView();
   } else if (settingsTab === 'chat') {
-    el.innerHTML = renderChatView();
+    el.innerHTML = '<div style="padding:24px;color:var(--text-3)">Loading...</div>';
+    renderChatView().then(html => el.innerHTML = html);
   } else if (settingsTab === 'models') {
     el.innerHTML = renderModelsView();
   } else if (settingsTab === 'brain') {
@@ -2130,7 +2171,7 @@ function renderGeneralView() {
     <div class="settings-card" style="padding:16px;">
       <label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;">
         <span style="flex:1"><strong>${_('Default Round Limit')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Default max agent rounds for new tasks. None = unlimited.</span></span>
-        <select onchange="const v=this.value==='0'?0:parseInt(this.value);localStorage.setItem('default_turn_limit',this.value);currentTurnLimit=v;const s=$('turn-limit-select');if(s)s.value=String(v);" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
+        <select onchange="const v=this.value==='0'?0:parseInt(this.value);localStorage.setItem('default_turn_limit',this.value);currentTurnLimit=v;const s=$('turn-limit-select');if(s)s.value=String(v);_saveAssistantConfig('default_turn_limit',v);" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
           ${[2,5,10,20,50,100,200,500,0].map(v => `<option value="${v}" ${v === (parseInt(localStorage.getItem('default_turn_limit'))||20) ? 'selected' : ''}>${v === 0 ? 'None' : v + ' rounds'}</option>`).join('')}
         </select>
       </label>
@@ -2140,11 +2181,17 @@ function renderGeneralView() {
           ${[2,5,10,20,50,100].map(v => `<option value="${v}" ${v === INITIAL_ROUNDS ? 'selected' : ''}>${v} rounds</option>`).join('')}
         </select>
       </label>
-      <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+      <div style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;">
         <span style="flex:1"><strong>${_('Auto-scroll Idle')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Auto-scroll to bottom after inactivity. None to disable.</span></span>
         <select onchange="const v=this.value==='none'?0:parseInt(this.value);_autoScrollIdleS=v;localStorage.setItem('auto_scroll_idle_s',this.value);" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
           ${[{v:'5',l:'5s'},{v:'10',l:'10s'},{v:'20',l:'20s'},{v:'60',l:'1 min'},{v:'120',l:'2 min'},{v:'300',l:'5 min'},{v:'none',l:'None'}].map(o => `<option value="${o.v}" ${(o.v==='none'?_autoScrollIdleS===0:parseInt(o.v)===_autoScrollIdleS) ? 'selected' : ''}>${o.l}</option>`).join('')}
         </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
+        <span style="flex:1"><strong>${_('Workspace')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Working directory for new sessions. Empty = project root.</span></span>
+        <input id="workspace-input" type="text" value="${currentWorkspace||''}" placeholder="(project root)"
+          onchange="setWorkspace(this.value)"
+          style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;font-family:var(--font-mono);width:200px;outline:none;">
       </div>
     </div>`;
 }
@@ -2261,7 +2308,12 @@ function showSubPanel(id, title, bodyHtml, afterRender) {
   if (afterRender) setTimeout(afterRender, 50);
 }
 
-function renderChatView() {
+async function renderChatView() {
+  let sbState = {};
+  try {
+    const sbRes = await fetch('/api/sandbox/state');
+    sbState = await sbRes.json();
+  } catch(e) {}
   const _cs = (window._sessionSettingsSchema || []).reduce((m,s)=>(m[s.key]=s,m),{});
   const crSchema = _cs['compression_ratio'] || {default:0.5,min:0.25,max:0.75,step:0.05};
   const clSchema = _cs['context_lines'] || {default:2,options:[0,1,2,5,10]};
@@ -2275,11 +2327,12 @@ function renderChatView() {
   return `
     <div class="settings-section-title">${_('Context Compression')}</div>
     <div class="settings-card" style="padding:16px;">
-      <label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:14px;">
+      <label style="display:flex;align-items:center;gap:12px;font-size:13px;">
         <span style="flex:1">
           <strong>${_('Compression Trigger')}</strong><br>
           <span style="color:var(--text-3);font-size:11.5px;">
             Compress context when it reaches this % of the model's max context window.
+            When triggered, conversation history is summarized to free space. The ctx% per round is based on this limit.
           </span>
         </span>
         <div class="settings-stepper" id="compression-ratio-stepper" data-key="compression_ratio" data-min="${Math.round(crSchema.min*100)}" data-max="${Math.round(crSchema.max*100)}" data-default="${Math.round(crSchema.default*100)}" data-mode="linear" data-step="${Math.round((crSchema.step||0.05)*100)}">
@@ -2288,13 +2341,6 @@ function renderChatView() {
           <button class="stepper-btn up" onclick="_compressionStep(1)">&#x25B2;</button>
         </div>
       </label>
-      <div style="font-size:11.5px;color:var(--text-3);padding:4px 0;" id="compression-ratio-effective">
-        Effective limit: ${limitLabel}
-      </div>
-      <div style="font-size:11.5px;color:var(--text-3);padding:4px 0;margin-top:4px;">
-        When triggered, the agent compresses its conversation history into a summary to free context space.
-        The ctx% shown per round is based on this effective limit.
-      </div>
     </div>
 
     <div class="settings-section-title">${_('Display')}</div>
@@ -2326,6 +2372,38 @@ function renderChatView() {
         <select onchange="const v=parseInt(this.value);localStorage.setItem('history_context_rounds',v);fetch('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_config:true,key:'history_context_rounds',value:v})})" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
           ${[2,4,8,16,32,64].map(v => `<option value="${v}" ${v === (parseInt(localStorage.getItem('history_context_rounds'))||8) ? 'selected' : ''}>${v} rounds</option>`).join('')}
         </select>
+      </label>
+    </div>
+
+    <div class="settings-section-title">${_('Plan Mode Switch')}</div>
+    <div class="settings-card" style="padding:16px;">
+      <label style="display:flex;align-items:center;gap:12px;font-size:13px;">
+        <span style="flex:1">
+          <strong>${_('Default Decision')}</strong><br>
+          <span style="color:var(--text-3);font-size:11.5px;">
+            When the assistant requests to switch to Plan mode. "Deny" blocks all switches; "Allow" auto-approves; "Ask Every Time" shows a prompt.
+          </span>
+        </span>
+        <select onchange="_setModeSwitchPolicy(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:130px;">
+          <option value="deny" ${(sbState.mode_switch_policy||'deny')==='deny'?'selected':''}>Deny</option>
+          <option value="ask_always" ${(sbState.mode_switch_policy||'deny')==='ask_always'?'selected':''}>Ask Every Time</option>
+          <option value="allow" ${(sbState.mode_switch_policy||'deny')==='allow'?'selected':''}>Allow</option>
+        </select>
+      </label>
+    </div>
+    <div class="settings-card" style="padding:16px;">
+      <label style="display:flex;align-items:center;gap:12px;font-size:13px;">
+        <span style="flex:1">
+          <strong>${_('Switch Timeout')}</strong><br>
+          <span style="color:var(--text-3);font-size:11.5px;">
+            Time to wait for user decision before auto-denying the switch request.
+          </span>
+        </span>
+        <div class="settings-stepper">
+          <button class="stepper-btn down" onclick="_msTimeoutStep(-1)">&#x25BC;</button>
+          <span class="stepper-value" id="ms-timeout-val">${sbState.mode_switch_timeout || 20}s</span>
+          <button class="stepper-btn up" onclick="_msTimeoutStep(1)">&#x25B2;</button>
+        </div>
       </label>
     </div>
   `;
@@ -2373,6 +2451,27 @@ function _ctxLinesStep(dir) {
   document.getElementById('ctx-lines-val').textContent = val;
   fetch('/api/send', {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({_config:true, key:'context_lines', value:val})});
+}
+
+function _setModeSwitchPolicy(val) {
+  fetch('/api/sandbox/mode-switch-policy', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({policy: val})
+  });
+}
+
+const _MS_TIMEOUT_STEPS = [5, 10, 20, 60, 180];
+function _msTimeoutStep(dir) {
+  const el = document.getElementById('ms-timeout-val');
+  if (!el) return;
+  const cur = parseInt(el.textContent);
+  const idx = _MS_TIMEOUT_STEPS.indexOf(cur);
+  const next = idx < 0 ? 20 : _MS_TIMEOUT_STEPS[Math.max(0, Math.min(_MS_TIMEOUT_STEPS.length-1, idx+dir))];
+  el.textContent = next + 's';
+  fetch('/api/sandbox/mode-switch-timeout', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({timeout: next})
+  });
 }
 
 function renderModelsView() {
@@ -2734,6 +2833,9 @@ async function _brainSwitch(name) {
   } catch (e) { alert('Switch failed: ' + e.message); }
 }
 
+let _sbCmdPage = 0;
+const _SB_PAGE_SIZE = 8;
+
 async function renderPermissionsView() {
   try {
     const res = await fetch('/api/sandbox/state');
@@ -2742,22 +2844,59 @@ async function renderPermissionsView() {
     const sp = data.system_policy || 'ask_always';
     const perms = data.command_permissions || {};
     const permKeys = Object.keys(perms).sort();
+    const popupTimeout = data.popup_timeout || 20;
+
     let html = `<div class="settings-section-title">Permissions</div>`;
-    html += `<label style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:14px;">
-      <span style="flex:1"><strong>System Policy</strong><br><span style="color:var(--text-3);font-size:11.5px;">Global execution policy for all commands</span></span>
-      <select onchange="_sbSetSystemPolicy(this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-size:12px;font-family:var(--font);cursor:pointer;">
-        <option value="ask_always"${sp==='ask_always'?' selected':''}>Ask every time</option>
-        <option value="run_all"${sp==='run_all'?' selected':''}>Run everything</option>
-      </select></label>`;
-    html += `<div class="settings-section-title" style="margin-top:16px;font-size:14px;">Command Permissions</div>`;
+
+    html += `<div class="settings-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:600;">System Policy</span>
+        <select onchange="_sbSetSystemPolicy(this.value)" style="margin-left:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-size:12px;font-family:var(--font);cursor:pointer;">
+          <option value="ask_always"${sp==='ask_always'?' selected':''}>Ask every time</option>
+          <option value="run_all"${sp==='run_all'?' selected':''}>Run everything</option>
+        </select>
+      </div>
+      <div style="color:var(--text-3);font-size:11.5px;">Global execution policy for all commands. When set to "Ask", new commands require approval before running.</div>
+    </div>`;
+
+    const bp = data.boundary_policy || 'ask_always';
+    html += `<div class="settings-card" style="margin-top:10px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:600;">Workspace Boundary</span>
+        <select onchange="_sbSetBoundaryPolicy(this.value)" style="margin-left:auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-size:12px;font-family:var(--font);cursor:pointer;">
+          <option value="ask_always"${bp==='ask_always'?' selected':''}>Ask every time</option>
+          <option value="allow_all"${bp==='allow_all'?' selected':''}>Allow all</option>
+          <option value="deny_all"${bp==='deny_all'?' selected':''}>Deny all</option>
+        </select>
+      </div>
+      <div style="color:var(--text-3);font-size:11.5px;">Policy for exec/edit operations outside the workspace boundary. "Ask every time" requires one-time approval (never persisted).</div>
+    </div>`;
+
+    html += `<div class="settings-card" style="margin-top:10px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:600;">Popup Timeout</span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:4px;">
+          <button onclick="_sbAdjustTimeout(-1)" style="border:1px solid var(--border);background:var(--bg);color:var(--text);width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">&minus;</button>
+          <span id="sb-timeout-val" style="font-family:var(--mono);font-size:13px;min-width:36px;text-align:center;">${popupTimeout}s</span>
+          <button onclick="_sbAdjustTimeout(1)" style="border:1px solid var(--border);background:var(--bg);color:var(--text);width:24px;height:24px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">+</button>
+        </div>
+      </div>
+      <div style="color:var(--text-3);font-size:11.5px;">How long the approval popup waits before auto-denying. Mandatory approvals (workspace boundary) have no timeout.</div>
+    </div>`;
+
+    html += `<div class="settings-section-title">Command Policy</div>`;
     if (permKeys.length === 0) {
-      html += `<div style="color:var(--text-3);font-size:12px;padding:8px 0;">No command permissions set yet. Permissions are created when new commands are encountered.</div>`;
+      html += `<div style="color:var(--text-3);font-size:12px;padding:8px 0;">No command policies set. Policies are created when new commands are encountered.</div>`;
     } else {
-      html += `<table class="settings-table"><thead><tr><th>Command</th><th>Policy</th><th></th></tr></thead><tbody>`;
-      for (const cmd of permKeys) {
+      const totalPages = Math.ceil(permKeys.length / _SB_PAGE_SIZE);
+      if (_sbCmdPage >= totalPages) _sbCmdPage = totalPages - 1;
+      if (_sbCmdPage < 0) _sbCmdPage = 0;
+      const pageKeys = permKeys.slice(_sbCmdPage * _SB_PAGE_SIZE, (_sbCmdPage + 1) * _SB_PAGE_SIZE);
+      html += `<table class="settings-table"><tbody>`;
+      for (const cmd of pageKeys) {
         const pol = perms[cmd];
         const polColor = pol === 'always' ? 'var(--green)' : pol === 'forbidden' ? 'var(--red)' : 'var(--text-2)';
-        html += `<tr><td style="font-family:var(--mono)">${cmd}</td>
+        html += `<tr><td style="font-family:var(--mono);font-size:12px;">${cmd}</td>
           <td><select onchange="_sbSetCmdPerm('${cmd}',this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:${polColor};font-size:11px;font-family:var(--mono);cursor:pointer;">
             <option value="always"${pol==='always'?' selected':''}>Always allow</option>
             <option value="once"${pol==='once'?' selected':''}>Once</option>
@@ -2766,6 +2905,13 @@ async function renderPermissionsView() {
           <td><button onclick="_sbRemoveCmdPerm('${cmd}')" style="border:none;background:none;color:var(--text-3);cursor:pointer;font-size:14px;" title="Remove"><i class='bx bx-trash'></i></button></td></tr>`;
       }
       html += `</tbody></table>`;
+      if (totalPages > 1) {
+        html += `<div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:8px;">
+          <button onclick="_sbCmdPageNav(-1)" style="border:1px solid var(--border);background:var(--bg);color:var(--text-3);width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;"${_sbCmdPage===0?' disabled style="opacity:0.3;pointer-events:none;border:1px solid var(--border);background:var(--bg);color:var(--text-3);width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;"':''}><i class='bx bx-chevron-left'></i></button>
+          <span style="font-size:11px;color:var(--text-3);">${_sbCmdPage+1} / ${totalPages}</span>
+          <button onclick="_sbCmdPageNav(1)" style="border:1px solid var(--border);background:var(--bg);color:var(--text-3);width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;"${_sbCmdPage>=totalPages-1?' disabled style="opacity:0.3;pointer-events:none;border:1px solid var(--border);background:var(--bg);color:var(--text-3);width:28px;height:28px;border-radius:4px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;"':''}><i class='bx bx-chevron-right'></i></button>
+        </div>`;
+      }
     }
     return html;
   } catch(e) {
@@ -2781,6 +2927,23 @@ function _sbSetCmdPerm(cmd, pol) {
 }
 function _sbRemoveCmdPerm(cmd) {
   fetch('/api/sandbox/command', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({command:cmd}) }).then(()=>renderSettingsTab());
+}
+function _sbSetBoundaryPolicy(val) {
+  fetch('/api/sandbox/boundary-policy', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({policy:val}) });
+}
+const _SB_TIMEOUT_STEPS = [5, 10, 20, 60, 180];
+function _sbAdjustTimeout(dir) {
+  const el = document.getElementById('sb-timeout-val');
+  if (!el) return;
+  const cur = parseInt(el.textContent);
+  const idx = _SB_TIMEOUT_STEPS.indexOf(cur);
+  const next = idx < 0 ? 20 : _SB_TIMEOUT_STEPS[Math.max(0, Math.min(_SB_TIMEOUT_STEPS.length-1, idx+dir))];
+  el.textContent = next + 's';
+  fetch('/api/sandbox/timeout', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({timeout:next}) });
+}
+function _sbCmdPageNav(dir) {
+  _sbCmdPage += dir;
+  renderSettingsTab();
 }
 
 function renderProvidersView() {
@@ -3510,7 +3673,7 @@ function handleSSEEvent(evt) {
   const _globalEventTypes = new Set([
     'session_created', 'session_renamed', 'session_deleted',
     'settings_changed', 'settings_open', 'settings_close',
-    'inject_input', 'model_switched',
+    'inject_input', 'model_switched', 'mode_switch_resolved',
     'queue_updated', 'turn_limit_set', 'queue_task_started',
   ]);
   if (!_globalEventTypes.has(evt.type) && evt.session_id && evt.session_id !== activeSessionId) {
@@ -3603,6 +3766,15 @@ function handleSSEEvent(evt) {
 
     case 'model_switched': {
       if (modelPill) modelPill.setValue(evt.to);
+      break;
+    }
+
+    case 'mode_switch_resolved': {
+      if (evt.decision === 'allow' && evt.target_mode) {
+        currentMode = evt.target_mode;
+        if (modePill && modePill.setValue) modePill.setValue(evt.target_mode);
+      }
+      engine.enqueueEvent(evt);
       break;
     }
 
@@ -3812,6 +3984,7 @@ async function init() {
     setTimeout(() => gate.remove(), 300);
   }
 
+  _updateWorkspaceIndicator();
   connectSSE();
   _autoResizeInput();
 

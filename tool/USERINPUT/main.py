@@ -945,8 +945,24 @@ win.run()
             os.remove(tmp_path)
 
 
+def _save_prompt_if_long(result):
+    """Save the user's prompt to data/prompt.txt if it has >20 characters."""
+    try:
+        text = result
+        if isinstance(text, str) and text.startswith("__PARTIAL_TIMEOUT__:"):
+            text = text[len("__PARTIAL_TIMEOUT__:"):]
+        if text and len(text.strip()) > 20:
+            data_dir = current_dir / "data"
+            data_dir.mkdir(parents=True, exist_ok=True)
+            prompt_file = data_dir / "prompt.txt"
+            prompt_file.write_text(text.strip(), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def _output_result(result, tool, BOLD, GREEN, RED, YELLOW, RESET, from_queue=False, queue_remaining=0):
     """Format and print the result with system prompt and critical directive."""
+    _save_prompt_if_long(result)
     config = get_config()
     system_prompt = config.get("system_prompt")
 

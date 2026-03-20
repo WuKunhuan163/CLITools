@@ -207,7 +207,14 @@ class LLMProvider(ABC):
                             existing["function"]["arguments"] += fn_delta["arguments"]
                 if ttft is None:
                     ttft = time.time() - t0
+                yield {"ok": True, "tool_calls": tc}
                 continue
+
+            reasoning = chunk.get("reasoning", "")
+            if reasoning:
+                if ttft is None:
+                    ttft = time.time() - t0
+                yield {"ok": True, "reasoning": reasoning}
 
             text = chunk.get("text", "")
             if text:

@@ -73,9 +73,10 @@
     "TOOL --lang audit"
   ],
   "search_commands": [
-    "TOOL --search all \"query\"",
-    "TOOL --search skills \"topic\"",
-    "TOOL --search docs \"topic\"",
-    "BRAIN recall \"keyword\""
+    "TOOL --eco search \"query\"",
+    "TOOL --eco tool <NAME>",
+    "TOOL --eco skill <name>",
+    "TOOL --eco recall \"keyword\"",
+    "TOOL --eco guide"
   ]
 }

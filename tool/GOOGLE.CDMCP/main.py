@@ -41,10 +41,18 @@ class CDMCPTool(ToolBase):
     def __init__(self):
         super().__init__("GOOGLE.CDMCP")
 
+    def _handle_endpoint(self, args):
+        import importlib.util
+        ep_path = _TOOL_DIR / "logic" / "endpoint.py"
+        spec = importlib.util.spec_from_file_location("cdmcp_endpoint", str(ep_path))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.handle_cdmcp_endpoint(args)
+
     def run(self):
         parser = argparse.ArgumentParser(
             description="CDMCP: Chrome DevTools MCP with visual overlays",
-            epilog="MCP commands use --mcp- prefix: e.g., GOOGLE.CDMCP --mcp-status, GOOGLE.CDMCP --mcp-boot",
+            epilog="MCP commands use --mcp- prefix. Monitoring: --endpoint <path> (JSON). e.g., CDMCP --endpoint chrome/status",
             add_help=False,
         )
         sub = parser.add_subparsers(dest="command", help="MCP subcommand (use --mcp-<cmd> prefix)")

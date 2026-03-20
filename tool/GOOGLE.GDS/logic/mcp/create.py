@@ -1,6 +1,11 @@
 """Generic MCP file operations for GDS.
 
-Provides CDP-first (gapi.client) Google Drive operations with browser MCP fallback.
+## ToS Compliance — DISABLED
+CDP-based Google Drive automation may violate Google's Terms of Service.
+This module is preserved for reference but should not be invoked.
+Use the Google Drive API via service account credentials instead.
+
+Original purpose: CDP-first (gapi.client) Google Drive operations with browser MCP fallback.
 """
 import json
 import sys

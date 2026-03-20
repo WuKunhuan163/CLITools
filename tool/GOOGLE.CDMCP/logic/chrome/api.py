@@ -733,7 +733,7 @@ def _set_window_state(window_id: int, state: str, port: int = CDP_PORT) -> Dict[
 # ── Screenshot ──────────────────────────────────────────────────────
 
 def _resolve_tab(tab_id: Optional[str], port: int) -> Optional[Dict]:
-    """Find a tab by explicit ID (full or prefix) or fall back to the last session tab."""
+    """Find a tab by explicit ID (full or prefix), or prefer the last focused/navigated tab."""
     tabs = list_tabs(port)
     page_tabs = [t for t in tabs if t.get("type") == "page"]
     if not page_tabs:
@@ -744,6 +744,10 @@ def _resolve_tab(tab_id: Optional[str], port: int) -> Optional[Dict]:
             return exact
         prefix_matches = [t for t in page_tabs if t["id"].startswith(tab_id)]
         return prefix_matches[0] if len(prefix_matches) == 1 else None
+    if _focused_tab_id:
+        match = next((t for t in page_tabs if t["id"] == _focused_tab_id), None)
+        if match:
+            return match
     sm = _get_session_mgr()
     session = sm.get_any_active_session() if sm else None
     if session and hasattr(session, "_tabs") and session._tabs:

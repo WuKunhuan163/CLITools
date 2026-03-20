@@ -1,6 +1,14 @@
-# GOOGLE.GDS (Google Drive Remote Controller)
+# GOOGLE.GDS (Google Drive Shell)
 
-GOOGLE.GDS is a powerful tool designed to facilitate remote execution on Google Colab using Google Drive as a synchronization layer. It manages service account credentials, provides a bridge for remote file access, and simplifies the Colab environment setup.
+GOOGLE.GDS replicates a local shell environment bound to Google Drive's file system.
+It allows file operations (ls, cat, read, grep, edit), virtual environments, and
+background execution — all synchronized through Google Drive as the storage layer.
+
+> **Note**: This tool was originally designed to automate Google Colab as a remote
+> execution backend. The MCP/CDP browser automation features that controlled Colab
+> have been **disabled** due to potential violations of Google's Terms of Service
+> (automated interaction with the Colab web UI). The core Google Drive API-based
+> functionality (file access, service account management) remains fully functional.
 
 ## Features
 
@@ -112,10 +120,15 @@ Manages logical shells for remote development.
 ### `GDS status`
 Shows the current active shell and its remote configuration.
 
-### MCP Browser Integration
+### MCP Browser Integration (DISABLED — ToS Risk)
 
-When running in an MCP-capable environment (e.g., Cursor IDE), GDS commands can be executed directly in Colab via the built-in browser. **No dedicated notebook is required** -- GDS works with any open Colab tab, including the default "Welcome to Colab" page.
+> **WARNING**: The following MCP/CDP browser automation features have been
+> **disabled**. Automated interaction with Google Colab's web interface may
+> violate [Google Colab's Terms of Service](https://research.google.com/colaboratory/faq.html),
+> specifically the prohibition on automated/programmatic access to the service.
+> These commands are preserved for reference but will raise an error if invoked.
 
+<!--
 #### `GDS --mcp boot`
 Launches debug Chrome and opens a Colab tab (or reuses an existing one).
 
@@ -139,6 +152,7 @@ Creates a Google Drive native file (Colab, Docs, Sheets, etc.) via browser.
 
 #### `GDS --mcp-upload <local_path> [folder]`
 Uploads a local file to Google Drive via browser.
+-->
 
 ### `GDS --reconnection [status|config|reset]`
 Manages the API reconnection (auto-remount) mechanism.
@@ -148,9 +162,10 @@ Manages the API reconnection (auto-remount) mechanism.
 
 When thresholds are exceeded (command count or single-command duration), the next remote command will auto-trigger `GDS --remount` before execution.
 
-### MCP-Mode Mount Pre-Check
+### MCP-Mode Mount Pre-Check (DISABLED — ToS Risk)
 
-In CDP/MCP mode (`--mcp`), the tool performs an automatic mount verification via the Drive API before executing any remote command. If the mount fingerprint is missing or stale, `GDS --remount` is triggered automatically. This prevents the confusing "GUI closed unexpectedly" error that occurs when Drive is not mounted.
+> This feature relied on CDP/MCP browser automation and has been disabled.
+> See "MCP Browser Integration" above for details.
 
 ## Data Locations
 - **Config**: `data/config.json`

@@ -1,6 +1,10 @@
 # GOOGLE.GC -- For Agent Reference
 
-Google Colab automation via CDMCP with MCP visual effects.
+> **ToS Compliance — DISABLED**: All Colab browser automation in this tool
+> has been disabled. Automated interaction with Google Colab's web UI may
+> violate Google's Terms of Service. Do not invoke any commands from this tool.
+
+Google Colab automation via CDMCP with MCP visual effects (disabled).
 
 ## Quick Reference
 

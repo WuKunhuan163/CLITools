@@ -460,11 +460,12 @@ def cmd_reflect(tool_name: str = None):
     print(f"{BOLD}Active Reminders{RESET}")
     reminders = [
         "Minimal emphasis: bold status labels only, no emojis",
-        "Search TOOL --search all before creating anything new",
+        "Search TOOL --eco search before creating anything new",
         "Use absolute paths in tool call arguments",
         "Fix bugs at source; debug via tmp/ scripts",
         "After structural changes: update README.md + for_agent.md",
         "After each task: BRAIN log, BRAIN reflect, USERINPUT --hint",
+        "New agent? Start with TOOL --eco guide for onboarding",
     ]
     for r in reminders:
         print(f"  {DIM}{r}{RESET}")

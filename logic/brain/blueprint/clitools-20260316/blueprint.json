@@ -7,6 +7,36 @@
     "enabled": true,
     "manifest_file": "MANIFEST.md"
   },
+  "commands": {
+    "audit": {
+      "description": "Full code quality + imports audit",
+      "run": "TOOL --audit code && TOOL --audit imports"
+    },
+    "reflect": {
+      "description": "Self-check protocol + system gap review",
+      "run": "BRAIN reflect"
+    },
+    "improve": {
+      "description": "Generate improvement suggestions from lessons",
+      "run": "SKILLS suggest"
+    },
+    "digest": {
+      "description": "Check lessons for distillation opportunities",
+      "run": "BRAIN digest"
+    },
+    "status": {
+      "description": "Brain dashboard + ecosystem overview",
+      "run": "BRAIN status && TOOL eco"
+    },
+    "test": {
+      "description": "Run all root-level tests",
+      "run": "TOOL --test root"
+    },
+    "sanity": {
+      "description": "Sanity-check all installed tools",
+      "run": "TOOL --dev audit-bin && TOOL --audit quality"
+    }
+  },
   "tiers": {
     "working": {
       "description": "Hot state: current session tasks, context, recent activity.",

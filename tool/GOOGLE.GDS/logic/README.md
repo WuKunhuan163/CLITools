@@ -1,6 +1,7 @@
 # GOOGLE.GDS Logic
 
-Google Drive Remote Controller for Colab. Provides a shell-like interface to interact with files on Google Drive through Google Colab's runtime.
+Google Drive Shell — provides a shell-like interface to interact with files on
+Google Drive via service account credentials and the Google Drive API.
 
 ## Structure
 
@@ -19,6 +20,6 @@ Google Drive Remote Controller for Colab. Provides a shell-like interface to int
 | Directory | Purpose |
 |-----------|---------|
 | `command/` | Individual CLI commands (ls, cd, cat, grep, edit, upload, shell, etc.) |
-| `mcp/` | MCP server: CDP-based notebook creation and remote execution |
+| `mcp/` | MCP server: CDP-based notebook creation and remote execution (DISABLED — ToS risk) |
 | `tutorial/` | Interactive setup wizards (setup_guide, mcp_setup) |
 | `translation/` | Localized strings (zh.json) |

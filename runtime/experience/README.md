@@ -22,7 +22,7 @@ Brain-first hierarchy is correct because:
 - Memory (MEMORY.md) **accumulates** across sessions — it's the brain's long-term store
 - Sessions are **ephemeral instances** within a persistent brain
 - Export/import transfers brain + session together as a unit
-- Session state lives separately in `data/agent_sessions/<id>.json`
+- Session state lives separately in `data/session/<id>.json`
 
 Manage brains: `TOOL_NAME --agent brain [list|init <name>|show <name>]`
 

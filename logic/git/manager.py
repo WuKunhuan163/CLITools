@@ -31,6 +31,8 @@ class GitIgnoreManager:
             "!/skills/",
             "!/research/",
             "!/runtime/",
+            "!/hooks/",
+            "!/workspace/",
             "",
             "# --- Transient Directories ---",
             "**/data/",

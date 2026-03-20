@@ -27,11 +27,16 @@ def _get_limit(key: str, default: int) -> int:
 
 
 def _build_exec_env(project_root: str) -> dict:
-    """Build env dict with bin/ and homebrew paths prepended."""
+    """Build env dict with bin/ and homebrew paths prepended.
+
+    Ensures ecosystem tools (TOOL, BRAIN, SKILLS, etc.) are accessible
+    from any workspace CWD, not just the project root.
+    """
     env = os.environ.copy()
     extra_paths = []
     bin_dir = os.path.join(project_root, "bin")
     if os.path.isdir(bin_dir):
+        extra_paths.append(bin_dir)
         extra_paths.extend(
             os.path.join(bin_dir, d) for d in os.listdir(bin_dir)
             if os.path.isdir(os.path.join(bin_dir, d)))
@@ -39,6 +44,7 @@ def _build_exec_env(project_root: str) -> dict:
     extra_paths.extend(p for p in homebrew_paths if os.path.isdir(p))
     if extra_paths:
         env["PATH"] = ":".join(extra_paths) + ":" + env.get("PATH", "")
+    env["TOOL_PROJECT_ROOT"] = project_root
     return env
 
 
@@ -57,16 +63,20 @@ def handle_exec(args: dict, ctx: ToolContext) -> dict:
         import uuid as _uuid
         sb = get_sandbox()
         sb.mode = ctx.mode
-        decision, reason = sb.check_permission(cmd)
+        decision, reason = sb.check_permission(cmd, cwd=ctx.cwd)
         if decision == "deny":
             ctx.emit({"type": "tool_result", "ok": False,
                        "output": f"[Sandbox] Blocked: {reason}"})
             return {"ok": False, "output": f"[Sandbox] Blocked: {reason}"}
-        if decision == "ask":
+        if decision in ("ask", "ask_mandatory"):
+            mandatory = decision == "ask_mandatory"
             req_id = str(_uuid.uuid4())[:8]
-            sb.create_pending(req_id, cmd, ctx.session_id)
+            sb.create_pending(req_id, cmd, ctx.session_id, mandatory=mandatory)
             ctx.emit({"type": "sandbox_prompt", "request_id": req_id,
-                       "cmd": cmd, "normalized": sb._normalize_cmd(cmd)})
+                       "cmd": cmd, "normalized": sb._normalize_cmd(cmd),
+                       "mandatory": mandatory,
+                       "timeout": 0 if mandatory else sb.popup_timeout,
+                       "created_at": time.time()})
             while True:
                 pending = sb.get_pending(req_id)
                 if pending is None:
@@ -418,17 +428,8 @@ def _apply_edit_and_emit(path, content, old_lines_text, new_text, start_lineno,
         try:
             compile(new_content, path, 'exec')
         except SyntaxError as e:
-            _syntax_warning = (f"Edit would cause syntax error: "
+            _syntax_warning = (f"⚠ Syntax warning: "
                                f"{e.msg} ({os.path.basename(path)}, line {e.lineno})")
-
-    if _syntax_warning:
-        ctx.emit({"type": "tool_result", "ok": False,
-                  "output": _syntax_warning,
-                  "name": "edit_file", "_path": path,
-                  "_old_text": old_lines_text, "_new_text": new_text})
-        if ctx.env_obj:
-            ctx.env_obj.record_result(f"edit:{path}", False, _syntax_warning)
-        return {"ok": False, "output": _syntax_warning}
 
     with open(path, "w", encoding="utf-8") as f:
         f.write(new_content)
@@ -436,6 +437,8 @@ def _apply_edit_and_emit(path, content, old_lines_text, new_text, start_lineno,
     new_all = new_content.splitlines()
     diff_preview = _build_diff_preview(all_lines, start_lineno, old_lines,
                                        new_lines, new_all, ctx_n)
+    if _syntax_warning:
+        diff_preview += f"\n\n{_syntax_warning}"
     ctx.emit({"type": "tool_result", "ok": True,
               "output": diff_preview,
               "name": "edit_file", "_path": path,
@@ -462,6 +465,34 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
         return {"ok": False, "output": "Missing path"}
 
     abs_path = path if os.path.isabs(path) else os.path.join(ctx.cwd, path)
+
+    try:
+        from logic.assistant.sandbox import get_sandbox
+        import uuid as _uuid
+        sb = get_sandbox()
+        edit_decision, edit_reason = sb.check_edit_permission(abs_path)
+        if edit_decision == "ask_mandatory":
+            req_id = str(_uuid.uuid4())[:8]
+            sb.create_pending(req_id, f"edit {abs_path}", getattr(ctx, 'session_id', ''),
+                              mandatory=True, kind="edit")
+            ctx.emit({"type": "sandbox_prompt", "request_id": req_id,
+                       "cmd": f"edit {os.path.basename(abs_path)}",
+                       "normalized": f"edit (outside workspace)",
+                       "mandatory": True, "timeout": 0,
+                       "created_at": time.time()})
+            while True:
+                pending = sb.get_pending(req_id)
+                if pending is None:
+                    break
+                time.sleep(0.5)
+            resolved = sb.get_resolved(req_id)
+            if resolved == "deny":
+                ctx.emit({"type": "tool_result", "ok": False,
+                           "output": f"[Sandbox] Edit denied: file outside workspace"})
+                return {"ok": False,
+                        "output": f"[Sandbox] Edit denied: {abs_path} is outside workspace"}
+    except ImportError:
+        pass
 
     if not os.path.exists(abs_path):
         result = handle_write_file({"path": path, "content": new_text}, ctx)
@@ -505,18 +536,8 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
                 try:
                     compile(new_content, path, 'exec')
                 except SyntaxError as syn_e:
-                    _syntax_warning = (f"Edit would cause syntax error: "
+                    _syntax_warning = (f"⚠ Syntax warning: "
                                        f"{syn_e.msg} ({os.path.basename(path)}, line {syn_e.lineno})")
-
-            if _syntax_warning:
-                ctx.emit({"type": "tool_result", "ok": False,
-                          "output": _syntax_warning,
-                          "name": "edit_file", "_path": path,
-                          "_old_text": "\n".join(old_lines_list),
-                          "_new_text": new_text.rstrip("\n")})
-                if ctx.env_obj:
-                    ctx.env_obj.record_result(f"edit:{path}", False, _syntax_warning)
-                return {"ok": False, "output": _syntax_warning}
 
             with open(path, "w", encoding="utf-8") as f:
                 f.write(new_content)
@@ -525,6 +546,8 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
             diff_preview = _build_diff_preview(
                 all_lines, start_lineno, old_lines_list,
                 new_lines_list, new_all, ctx.context_lines)
+            if _syntax_warning:
+                diff_preview += f"\n\n{_syntax_warning}"
             ctx.emit({"type": "tool_result", "ok": True,
                       "output": diff_preview,
                       "name": "edit_file", "_path": path,
@@ -575,6 +598,82 @@ def handle_ask_user(args: dict, ctx: ToolContext) -> dict:
     question = args.get("question", "")
     ctx.emit({"type": "ask_user", "question": question})
     return {"ok": True, "output": f"[Question sent to user: {question}] The user will respond in a follow-up message."}
+
+
+@register_tool("switch_mode")
+def handle_switch_mode(args: dict, ctx: ToolContext) -> dict:
+    """Handle mode switch requests (e.g. agent -> plan).
+
+    This is a sandbox-like gate: the user controls whether mode switches
+    are allowed, denied by default, or require per-instance approval.
+    """
+    target = args.get("target_mode", args.get("mode", "plan"))
+    explanation = args.get("explanation", "")
+
+    ctx.emit({"type": "tool", "name": "switch_mode",
+              "desc": f"Switch to {target} mode"})
+
+    try:
+        from logic.assistant.sandbox import get_sandbox
+        import uuid as _uuid
+        sb = get_sandbox()
+        policy = sb.mode_switch_policy
+
+        if policy == "deny":
+            output = (
+                f"[Mode Switch] Denied by policy. Cannot switch to {target} mode.\n"
+                "Fallback: Write your plan to a tmp/ script or use the TODO tool "
+                "to organize tasks instead."
+            )
+            ctx.emit({"type": "tool_result", "ok": False, "output": output})
+            return {"ok": False, "output": output}
+
+        if policy == "allow":
+            sb.mode = target
+            ctx.emit({"type": "mode_switch_resolved",
+                       "decision": "allow", "target_mode": target})
+            output = f"[Mode Switch] Switched to {target} mode."
+            ctx.emit({"type": "tool_result", "ok": True, "output": output})
+            return {"ok": True, "output": output, "mode": target}
+
+        req_id = str(_uuid.uuid4())[:8]
+        sb.create_pending(req_id, f"switch_mode:{target}", ctx.session_id,
+                          mandatory=False, kind="mode_switch")
+        ctx.emit({"type": "sandbox_prompt", "request_id": req_id,
+                   "cmd": f"Switch to {target} mode",
+                   "normalized": f"mode → {target}",
+                   "mandatory": False,
+                   "timeout": sb.mode_switch_timeout,
+                   "created_at": time.time(),
+                   "kind": "mode_switch",
+                   "explanation": explanation})
+
+        while True:
+            pending = sb.get_pending(req_id)
+            if pending is None:
+                break
+            time.sleep(0.5)
+
+        resolved = sb.get_resolved(req_id)
+        if resolved == "allow":
+            sb.mode = target
+            ctx.emit({"type": "mode_switch_resolved",
+                       "decision": "allow", "target_mode": target})
+            output = f"[Mode Switch] Approved. Now in {target} mode."
+            ctx.emit({"type": "tool_result", "ok": True, "output": output})
+            return {"ok": True, "output": output, "mode": target}
+        else:
+            output = (
+                f"[Mode Switch] User denied switch to {target} mode.\n"
+                "Fallback: Write your plan to a tmp/ script or use the TODO tool "
+                "to organize tasks instead."
+            )
+            ctx.emit({"type": "tool_result", "ok": False, "output": output})
+            return {"ok": False, "output": output}
+    except ImportError:
+        output = f"[Mode Switch] Sandbox not available. Proceeding with {target} mode."
+        ctx.emit({"type": "tool_result", "ok": True, "output": output})
+        return {"ok": True, "output": output, "mode": target}
 
 
 @register_tool("experience")

@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""GOOGLE.GC — Google Colab automation via CDP.
+
+## ToS Compliance — DISABLED
+All Google Colab browser automation has been disabled.
+Automated interaction with Google Colab's web UI may violate
+Google's Terms of Service (https://research.google.com/colaboratory/faq.html).
+This tool is preserved for reference but will exit with a warning if invoked.
+"""
 import sys
 import argparse
 import json

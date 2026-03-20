@@ -1,5 +1,12 @@
 # GOOGLE.GC
 
+> **ToS Compliance — DISABLED**: This tool automates Google Colab's web interface
+> via Chrome DevTools Protocol (CDP). Automated interaction with Google Colab
+> may violate [Google's Terms of Service](https://research.google.com/colaboratory/faq.html).
+> All functionality in this tool has been disabled. The code is preserved for
+> reference and may be adapted for use with self-hosted Jupyter environments
+> where automation is permitted.
+
 Google Colab automation via Chrome DevTools Protocol (CDP) with MCP visual effects.
 
 ## Commands

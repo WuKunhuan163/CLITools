@@ -86,6 +86,7 @@ You are an autonomous AI Agent. You can independently plan, execute, and verify 
 5. **todo(action, items)** — Manage a task list.
 6. **ask_user(question)** — Ask the user for input/feedback.
 7. **think(thought)** — Reason step-by-step before acting. Use for complex decisions or debugging.
+8. **switch_mode(target_mode, explanation)** — Request to switch operating mode (e.g. to "plan" for read-only planning). The user may approve or deny. If denied, write your plan to a tmp/ file or use todo() to break the task down.
 
 ## Turn Management
 
@@ -112,6 +113,7 @@ You are an autonomous AI Agent. You can independently plan, execute, and verify 
 - **Complete output**: New files must contain complete, runnable code. No placeholders.
 - **Self-repair**: If a command errors, read the source, fix, retry.
 - **Yield when blocked**: State what you need from the user, then stop.
+- **Mode switch**: For very complex tasks where you need to step back and plan, use switch_mode(target_mode="plan"). If denied, use todo() to organize subtasks or write a plan to tmp/plan.md.
 
 ## Editing Rules
 
@@ -397,6 +399,14 @@ class AgentServer:
             return self._api_sandbox_resolve(body)
         if path == "/api/sandbox/pending" and method == "GET":
             return self._api_sandbox_pending()
+        if path == "/api/sandbox/timeout" and method == "POST":
+            return self._api_sandbox_set_timeout(body)
+        if path == "/api/sandbox/boundary-policy" and method == "POST":
+            return self._api_sandbox_set_boundary_policy(body)
+        if path == "/api/sandbox/mode-switch-policy" and method == "POST":
+            return self._api_sandbox_set_mode_switch_policy(body)
+        if path == "/api/sandbox/mode-switch-timeout" and method == "POST":
+            return self._api_sandbox_set_mode_switch_timeout(body)
 
         # ── Essential frontend routes (config saves, text-based revert) ──
         if method == "POST":
@@ -995,6 +1005,7 @@ class AgentServer:
                 "request_id": request_id,
                 "cmd": cmd,
                 "normalized": result.get("normalized", ""),
+                "created_at": time.time(),
             })
         return {"ok": True, **result}
 
@@ -1009,17 +1020,69 @@ class AgentServer:
         sb = get_sandbox()
         result = sb.resolve_pending(request_id, decision, persist)
         if result.get("ok"):
-            self._push_sse({
+            resolved_evt = {
                 "type": "sandbox_resolved",
                 "request_id": request_id,
                 "decision": decision,
-            })
+            }
+            session_id = body.get("session_id", "")
+            if not session_id:
+                for sid, events in self._event_history.items():
+                    for e in reversed(events):
+                        if e.get("type") == "sandbox_prompt" and e.get("request_id") == request_id:
+                            session_id = sid
+                            break
+                    if session_id:
+                        break
+            if session_id:
+                resolved_evt["session_id"] = session_id
+                if session_id not in self._event_history:
+                    self._event_history[session_id] = []
+                self._event_history[session_id].append(resolved_evt)
+            self._push_sse(resolved_evt)
         return result
 
     def _api_sandbox_pending(self) -> dict:
         from logic.assistant.sandbox import get_sandbox
         sb = get_sandbox()
         return {"ok": True, "pending": sb.get_all_pending()}
+
+    def _api_sandbox_set_timeout(self, body: dict) -> dict:
+        timeout = body.get("timeout", 20)
+        from logic.assistant.sandbox import get_sandbox
+        sb = get_sandbox()
+        if timeout not in (5, 10, 20, 60, 180):
+            return {"ok": False, "error": "Invalid timeout. Use: 5, 10, 20, 60, 180"}
+        sb.popup_timeout = timeout
+        return {"ok": True, "timeout": timeout}
+
+    def _api_sandbox_set_boundary_policy(self, body: dict) -> dict:
+        policy = body.get("policy", "")
+        from logic.assistant.sandbox import get_sandbox, BOUNDARY_POLICIES
+        if policy not in BOUNDARY_POLICIES:
+            return {"ok": False, "error": f"Invalid policy. Use: {BOUNDARY_POLICIES}"}
+        sb = get_sandbox()
+        sb.boundary_policy = policy
+        return {"ok": True, "policy": policy}
+
+    def _api_sandbox_set_mode_switch_policy(self, body: dict) -> dict:
+        policy = body.get("policy", "")
+        from logic.assistant.sandbox import get_sandbox, MODE_SWITCH_POLICIES
+        if policy not in MODE_SWITCH_POLICIES:
+            return {"ok": False, "error": f"Invalid policy. Use: {MODE_SWITCH_POLICIES}"}
+        sb = get_sandbox()
+        sb.mode_switch_policy = policy
+        self._push_sse({"type": "settings_changed"})
+        return {"ok": True, "policy": policy}
+
+    def _api_sandbox_set_mode_switch_timeout(self, body: dict) -> dict:
+        timeout = body.get("timeout", 20)
+        from logic.assistant.sandbox import get_sandbox, MODE_SWITCH_TIMEOUT_STEPS
+        if timeout not in MODE_SWITCH_TIMEOUT_STEPS:
+            return {"ok": False, "error": f"Invalid timeout. Use: {MODE_SWITCH_TIMEOUT_STEPS}"}
+        sb = get_sandbox()
+        sb.mode_switch_timeout = timeout
+        return {"ok": True, "timeout": timeout}
 
     def _api_queue(self, sid: str, body: dict) -> dict:
         action = body.get("action", "list")
@@ -1169,6 +1232,16 @@ class AgentServer:
             output_tokens=output_text,
         )
 
+    def _lookup_session_title(self, sid: str) -> str:
+        if sid and hasattr(self, '_mgr') and self._mgr:
+            try:
+                s = self._mgr.get_session(sid)
+                if s:
+                    return s.get("title", "")
+            except Exception:
+                pass
+        return ""
+
     def _on_mgr_event(self, evt: dict):
         """Forward ConversationManager events to SSE, track usage, and store history."""
         import time as _t
@@ -1177,7 +1250,24 @@ class AgentServer:
         sid = evt.get("session_id") or self._mgr._current_turn_session_id or self._default_session_id
         if sid:
             evt["session_id"] = sid
-            if evt.get("type") != "tool_stream_delta":
+            if evt.get("type") == "tool_stream_delta":
+                idx = evt.get("index", 0)
+                key = f"_stream_chars_{idx}"
+                prev = getattr(self, key, 0)
+                cur = prev + len(evt.get("content", ""))
+                setattr(self, key, cur)
+                if prev == 0 or cur - prev >= 200 or cur < prev:
+                    if sid not in self._event_history:
+                        self._event_history[sid] = []
+                    self._event_history[sid].append({
+                        "type": "tool_stream_progress", "ts": evt["ts"],
+                        "session_id": sid, "index": idx,
+                        "chars": cur,
+                    })
+            else:
+                if evt.get("type") == "tool_stream_start":
+                    idx = evt.get("index", 0)
+                    setattr(self, f"_stream_chars_{idx}", 0)
                 if sid not in self._event_history:
                     self._event_history[sid] = []
                 self._event_history[sid].append(evt)
@@ -1216,13 +1306,21 @@ class AgentServer:
         if evt.get("type") == "sandbox_prompt":
             req_id = evt.get("request_id", "?")
             cmd = evt.get("cmd", "")
-            print(f"\n\033[1;33m⚠ Sandbox approval needed\033[0m  [{req_id}]")
-            print(f"  Command: {cmd}")
-            print(f"  Approve: curl -X POST http://localhost:{self.port}/api/sandbox/resolve "
-                  f"-H 'Content-Type: application/json' "
-                  f"-d '{{\"request_id\":\"{req_id}\",\"decision\":\"allow\"}}'")
-            print(f"  Deny:    ...same with \"decision\":\"deny\"")
-            print(f"  \033[2mBlocking until resolved.\033[0m\n")
+            sid = evt.get("session_id", "")
+            mandatory = evt.get("mandatory", False)
+            m_tag = " \033[1;31m[mandatory]\033[0m" if mandatory else ""
+            session_title = self._lookup_session_title(sid)
+            label = f" {session_title}" if session_title else ""
+            print(f"\n \033[1;33m>\033[0m \033[1mSandbox\033[0m Waiting for approval{m_tag}", flush=True)
+            print(f"   \033[2m{sid[:8] if sid else ''}·{label}\033[0m", flush=True)
+            print(f"   Command: {cmd}  [{req_id}]", flush=True)
+        if evt.get("type") == "task_exit":
+            sid = evt.get("session_id", "")
+            reason = evt.get("reason", "completed")
+            session_title = self._lookup_session_title(sid)
+            color = "\033[32m" if reason == "completed" else "\033[31m"
+            print(f"\n {color}>\033[0m \033[1mTask {reason}\033[0m", flush=True)
+            print(f"   \033[2m{sid[:8] if sid else ''}· {session_title}\033[0m", flush=True)
 
         self._push_sse(evt)
 
@@ -1815,7 +1913,8 @@ class AgentServer:
         print(f"  Send task:     curl -X POST {base}/api/session/<sid>/send -H 'Content-Type: application/json' -d '{{\"text\":\"hello\"}}'")
         print(f"  List sessions: curl {base}/api/sessions")
         print(f"  Clear all:     curl -X DELETE {base}/api/sessions")
-        print(f"  Sandbox:       curl -X POST {base}/api/sandbox/resolve -H 'Content-Type: application/json' -d '{{\"request_id\":\"<id>\",\"decision\":\"allow\"}}'")
+        print(f"  Sandbox:       curl -X POST {base}/api/sandbox/resolve -H ... '{{\"request_id\":\"<id>\",\"decision\":\"allow\"}}'")
+        print(f"  Sandbox state: curl {base}/api/sandbox/state")
         print()
 
         return self._server

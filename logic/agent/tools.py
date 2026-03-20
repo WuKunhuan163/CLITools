@@ -122,6 +122,34 @@ BUILTIN_TOOL_DEFS: List[Dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "switch_mode",
+            "description": (
+                "Request to switch the assistant's operating mode. "
+                "Use when the current task would benefit from a different mode, "
+                "e.g. switching to 'plan' mode for complex planning before implementation. "
+                "The user controls whether switches are allowed. "
+                "If denied, fall back to writing plans in tmp/ scripts or using the todo tool."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target_mode": {
+                        "type": "string",
+                        "enum": ["plan", "agent"],
+                        "description": "The mode to switch to",
+                    },
+                    "explanation": {
+                        "type": "string",
+                        "description": "Brief explanation for why the switch is needed",
+                    },
+                },
+                "required": ["target_mode"],
+            },
+        },
+    },
 ]
 
 
@@ -243,6 +271,7 @@ class ToolHandlers:
             "search": self.handle_search,
             "ask_user": self.handle_ask_user,
             "todo": self.handle_todo,
+            "switch_mode": self.handle_switch_mode,
         }
 
     def get(self, name: str) -> Optional[Callable]:
@@ -541,3 +570,69 @@ class ToolHandlers:
             for item in items:
                 self._emit({"type": "todo_delete", "id": item.get("id")})
         return {"ok": True}
+
+    def handle_switch_mode(self, args: dict) -> dict:
+        target = args.get("target_mode", args.get("mode", "plan"))
+        explanation = args.get("explanation", "")
+        self._emit({"type": "tool", "name": "switch_mode",
+                     "desc": f"Switch to {target} mode"})
+        try:
+            from logic.assistant.sandbox import get_sandbox
+            import uuid, time
+            sb = get_sandbox()
+            policy = sb.mode_switch_policy
+
+            if policy == "deny":
+                output = (
+                    f"[Mode Switch] Denied by policy. Cannot switch to {target} mode.\n"
+                    "Fallback: Write your plan to a tmp/ script or use the todo tool."
+                )
+                self._emit({"type": "tool_result", "ok": False, "output": output})
+                return {"ok": False, "output": output}
+
+            if policy == "allow":
+                self._mode = target
+                self._emit({"type": "mode_switch_resolved",
+                             "decision": "allow", "target_mode": target})
+                output = f"[Mode Switch] Switched to {target} mode."
+                self._emit({"type": "tool_result", "ok": True, "output": output})
+                return {"ok": True, "output": output, "mode": target}
+
+            req_id = str(uuid.uuid4())[:8]
+            session_id = ""
+            sb.create_pending(req_id, f"switch_mode:{target}", session_id,
+                              mandatory=False, kind="mode_switch")
+            self._emit({"type": "sandbox_prompt", "request_id": req_id,
+                         "cmd": f"Switch to {target} mode",
+                         "normalized": f"mode → {target}",
+                         "mandatory": False,
+                         "timeout": sb.mode_switch_timeout,
+                         "created_at": time.time(),
+                         "kind": "mode_switch",
+                         "explanation": explanation})
+
+            while True:
+                pending = sb.get_pending(req_id)
+                if pending is None:
+                    break
+                time.sleep(0.5)
+
+            resolved = sb.get_resolved(req_id)
+            if resolved == "allow":
+                self._mode = target
+                self._emit({"type": "mode_switch_resolved",
+                             "decision": "allow", "target_mode": target})
+                output = f"[Mode Switch] Approved. Now in {target} mode."
+                self._emit({"type": "tool_result", "ok": True, "output": output})
+                return {"ok": True, "output": output, "mode": target}
+            else:
+                output = (
+                    f"[Mode Switch] User denied switch to {target} mode.\n"
+                    "Fallback: Write your plan to a tmp/ script or use the todo tool."
+                )
+                self._emit({"type": "tool_result", "ok": False, "output": output})
+                return {"ok": False, "output": output}
+        except ImportError:
+            output = f"[Mode Switch] Sandbox not available. Proceeding in {target} mode."
+            self._emit({"type": "tool_result", "ok": True, "output": output})
+            return {"ok": True, "output": output, "mode": target}

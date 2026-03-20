@@ -204,6 +204,7 @@ def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Ca
     (tool_dir / "interface").mkdir(exist_ok=True)
     (tool_dir / "hooks" / "interface").mkdir(parents=True, exist_ok=True)
     (tool_dir / "hooks" / "instance").mkdir(parents=True, exist_ok=True)
+    (tool_dir / "eco").mkdir(exist_ok=True)
     
     main_content = _load_template("core/main.py.tmpl", name=tool_name)
     with open(tool_dir / "main.py", 'w') as f: f.write(main_content)

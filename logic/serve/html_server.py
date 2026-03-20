@@ -77,7 +77,7 @@ class _SSEBroker:
         self._lock = threading.Lock()
 
     def subscribe(self) -> queue.Queue:
-        q = queue.Queue(maxsize=256)
+        q = queue.Queue(maxsize=2048)
         with self._lock:
             self._clients.append(q)
         return q

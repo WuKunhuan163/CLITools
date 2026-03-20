@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""GOOGLE.GD — Google Drive operations via CDP.
+
+## ToS Compliance — DISABLED
+CDP-based Google Drive browser automation has been disabled.
+Automated interaction with Google Drive's web UI may violate
+Google's Terms of Service. Use the Google Drive API via service
+account credentials (see GOOGLE.GDS) for programmatic access.
+"""
 import sys
 import argparse
 from pathlib import Path

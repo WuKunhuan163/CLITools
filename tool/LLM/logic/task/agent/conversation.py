@@ -444,6 +444,33 @@ BUILTIN_TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "switch_mode",
+            "description": (
+                "Request to switch operating mode (e.g. from 'agent' to 'plan' for "
+                "read-only planning). The user controls whether switches are allowed. "
+                "If denied, fall back to writing plans in tmp/ scripts or using "
+                "the todo tool to break down complex tasks."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target_mode": {
+                        "type": "string",
+                        "enum": ["plan", "agent"],
+                        "description": "The mode to switch to",
+                    },
+                    "explanation": {
+                        "type": "string",
+                        "description": "Brief explanation for why the switch is needed",
+                    },
+                },
+                "required": ["target_mode"],
+            },
+        },
+    },
 ]
 
 
@@ -632,6 +659,12 @@ class ConversationManager:
         if guidance == "full":
             parts.append(build_runtime_state())
             parts.append(f"[Working directory] {cwd}\nAll relative paths resolve against this directory. Use relative paths.")
+            if cwd != _PROJECT_ROOT:
+                parts.append(
+                    f"[Ecosystem] Project root: {_PROJECT_ROOT}\n"
+                    f"Ecosystem tools (TOOL, BRAIN, SKILLS, etc.) are in PATH and accessible via exec().\n"
+                    f"Use TOOL_PROJECT_ROOT env var or absolute paths to reference project files."
+                )
             try:
                 files = os.listdir(cwd)
                 if files:
@@ -694,7 +727,8 @@ class ConversationManager:
             self._ToolContext = None
 
         for name in ("exec", "read_file", "search",
-                     "edit_file", "todo", "ask_user", "think", "experience"):
+                     "edit_file", "todo", "ask_user", "think", "experience",
+                     "switch_mode"):
             if name in self._std_tools:
                 self._tool_handlers[name] = self._make_std_handler(name)
             else:
@@ -819,6 +853,8 @@ class ConversationManager:
             session.done_reason = reason
         self._emit({"type": "session_status", "id": session_id,
                     "status": "done", "reason": reason})
+        self._emit({"type": "task_exit", "session_id": session_id,
+                    "reason": reason})
         self._persist_session(session_id)
 
     def _handle_think(self, args: dict) -> dict:
@@ -1496,6 +1532,13 @@ class ConversationManager:
         self._auto_confirmed = False
         self._thread_local.auto_confirmed = False
         self._emit({"type": "session_status", "id": session_id, "status": "running"})
+        try:
+            from logic.assistant.sandbox import get_sandbox
+            sb = get_sandbox()
+            sb.workspace_root = session.codebase_root
+            sb.mode = session_mode
+        except ImportError:
+            pass
         self._fire_hook("on_turn_start",
                         session_id=session_id, user_text=text,
                         message_count=session.message_count)
@@ -1611,8 +1654,6 @@ class ConversationManager:
             effective_limit = 0 if _is_unlimited else turn_limit
             self._emit({"type": "turn_limit_set", "turn_limit": effective_limit})
             round_num = 0
-            empty_retries = 0
-            max_empty_retries = pipeline.get_max_retries()
             consecutive_empty = 0
             MAX_CONSECUTIVE_EMPTY = 3
             _tool_call_history: List[str] = []
@@ -1704,7 +1745,7 @@ class ConversationManager:
                         "task ends. Include a text summary alongside any "
                         "tool calls. Do NOT rely on another round.")
 
-                use_streaming = empty_retries == 0
+                use_streaming = True
                 _fallback_attempted = False
 
                 for _llm_attempt in range(2):
@@ -1926,6 +1967,7 @@ class ConversationManager:
                                     "type": "model_decision_proposed",
                                     "proposed": actual_provider_name,
                                 })
+                                consecutive_empty = 0
                                 round_num -= 1
                                 continue
                         except Exception:
@@ -2076,8 +2118,7 @@ class ConversationManager:
                                 self._emit({"type": "debug",
                                              "text": "Nudging agent to verify written files"})
                                 continue
-                    elif tools and empty_retries < max_empty_retries:
-                        empty_retries += 1
+                    elif tools and consecutive_empty < MAX_CONSECUTIVE_EMPTY:
                         session.context.add_assistant(
                             "I understand. Let me take action now.")
                         retry_prompt = (
@@ -2086,8 +2127,7 @@ class ConversationManager:
                             "Take action NOW — call a tool.")
                         session.context.add_user(retry_prompt)
                         self._emit({"type": "debug",
-                                     "text": f"Empty response retry {empty_retries}/{max_empty_retries}"})
-                        round_num -= 1
+                                     "text": f"Empty response retry {consecutive_empty}/{MAX_CONSECUTIVE_EMPTY}"})
                         continue
                     break
 

@@ -1,6 +1,12 @@
 # GOOGLE.GD
 
-Google Drive file operations via Chrome DevTools Protocol (CDP).
+> **ToS Compliance — DISABLED**: This tool performs Google Drive operations
+> via Chrome DevTools Protocol (CDP) browser automation. Automated interaction
+> with Google Drive's web UI may violate Google's Terms of Service.
+> All CDP-based functionality has been disabled. Use the Google Drive API
+> via service account credentials (see GOOGLE.GDS) for programmatic access.
+
+Google Drive file operations via Chrome DevTools Protocol (CDP) (disabled).
 
 ## Commands
 

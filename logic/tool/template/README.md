@@ -17,6 +17,17 @@ Scaffold templates for `TOOL --dev create <NAME>`. Each `.tmpl` file is loaded b
 | `for_agent.md.tmpl` | `tool/<NAME>/for_agent.md` |
 | `tool_readme.md.tmpl` | `tool/<NAME>/README.md` |
 
+## Generated Directories
+
+| Directory | Purpose |
+|-----------|---------|
+| `logic/` | Internal implementation |
+| `interface/` | Public API facade |
+| `hooks/` | Hook entry points + implementations |
+| `eco/` | Ecosystem navigation data |
+| `test/` | Unit tests |
+| `report/` | Development reports |
+
 ## Placeholders
 
 - `{name}` — full tool name (e.g. `GOOGLE.GDS`)

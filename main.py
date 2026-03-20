@@ -810,6 +810,328 @@ def _workspace_handler(action: str, args: list):
             print(fmt_detail("Using default scope (AITerminalTools root)."))
 
 
+def _tool_eco_handler(eco_args):
+    """Handle ``TOOL eco`` — unified ecosystem navigation."""
+    from interface.eco import (
+        eco_dashboard, eco_search, eco_tool, eco_skill,
+        eco_map, eco_here, eco_guide,
+        eco_blueprint_commands, eco_run_command,
+    )
+
+    subcmd = eco_args[0] if eco_args else ""
+    rest = eco_args[1:] if len(eco_args) > 1 else []
+
+    if subcmd in ("-h", "--help", "help"):
+        _print_eco_help()
+        return
+
+    if not subcmd:
+        _print_eco_dashboard()
+        return
+
+    if subcmd == "search":
+        if not rest:
+            print(f"Usage: TOOL eco search <query> [-n top] [--scope all|tools|skills|lessons|docs]")
+            return
+        query_parts = []
+        top_k = 10
+        scope = "all"
+        tool_filter = None
+        i = 0
+        while i < len(rest):
+            if rest[i] in ("-n", "--top") and i + 1 < len(rest):
+                top_k = int(rest[i + 1]); i += 2
+            elif rest[i] == "--scope" and i + 1 < len(rest):
+                scope = rest[i + 1]; i += 2
+            elif rest[i] == "--tool" and i + 1 < len(rest):
+                tool_filter = rest[i + 1]; i += 2
+            else:
+                query_parts.append(rest[i]); i += 1
+        query = " ".join(query_parts)
+        results = eco_search(ROOT_PROJECT_ROOT, query, scope=scope, top_k=top_k, tool=tool_filter)
+        if not results:
+            print(f"  No results for: {query}")
+            return
+        _print_search_results(results)
+        return
+
+    if subcmd == "tool":
+        name = rest[0] if rest else None
+        if not name:
+            print(f"Usage: TOOL eco tool <TOOL_NAME>")
+            return
+        info = eco_tool(ROOT_PROJECT_ROOT, name)
+        if not info:
+            print(f"  {BOLD}{RED}Not found:{RESET} {name}")
+            return
+        _print_tool_detail(info)
+        return
+
+    if subcmd == "skill":
+        name = rest[0] if rest else None
+        if not name:
+            print(f"Usage: TOOL eco skill <skill_name>")
+            return
+        content = eco_skill(ROOT_PROJECT_ROOT, name)
+        if not content:
+            print(f"  {BOLD}{RED}Not found:{RESET} {name}")
+            return
+        print(content)
+        return
+
+    if subcmd == "map":
+        emap = eco_map(ROOT_PROJECT_ROOT)
+        _print_map(emap)
+        return
+
+    if subcmd == "here":
+        cwd = rest[0] if rest else None
+        ctx = eco_here(ROOT_PROJECT_ROOT, cwd)
+        _print_here(ctx)
+        return
+
+    if subcmd == "guide":
+        guide = eco_guide(ROOT_PROJECT_ROOT)
+        print(guide)
+        return
+
+    if subcmd == "recall":
+        query = " ".join(rest) if rest else ""
+        if not query:
+            print(f"Usage: TOOL eco recall <query>")
+            return
+        import subprocess
+        subprocess.run(["python3", str(ROOT_PROJECT_ROOT / "bin" / "BRAIN"), "recall", query])
+        return
+
+    if subcmd == "cmds":
+        cmds = eco_blueprint_commands(ROOT_PROJECT_ROOT)
+        if not cmds:
+            print(f"  No blueprint commands defined.")
+            print(f"  {DIM}Add 'commands' to your brain blueprint JSON.{RESET}")
+            return
+        print(f"\n  {BOLD}Blueprint Commands{RESET}\n")
+        for name, defn in cmds.items():
+            if isinstance(defn, str):
+                print(f"  {BOLD}{name}{RESET}")
+                print(f"    {DIM}$ {defn}{RESET}")
+            else:
+                desc = defn.get("description", "")
+                run_cmd = defn.get("run", "")
+                print(f"  {BOLD}{name}{RESET}  {desc}")
+                print(f"    {DIM}$ {run_cmd}{RESET}")
+        print(f"\n  {DIM}Run: TOOL eco cmd <name>{RESET}")
+        return
+
+    if subcmd == "cmd":
+        cmd_name = rest[0] if rest else None
+        if not cmd_name:
+            print(f"Usage: TOOL eco cmd <command_name>")
+            return
+        cmd_str = eco_run_command(ROOT_PROJECT_ROOT, cmd_name)
+        if not cmd_str:
+            print(f"  {BOLD}{RED}Not found:{RESET} {cmd_name}")
+            print(f"  {DIM}Run TOOL eco cmds to see available commands.{RESET}")
+            return
+        print(f"  {BOLD}Running:{RESET} {DIM}{cmd_str}{RESET}")
+        import subprocess
+        subprocess.run(cmd_str, shell=True, cwd=str(ROOT_PROJECT_ROOT))
+        return
+
+    # Default: try as dashboard
+    if subcmd:
+        from interface.utils import suggest_commands
+        known = ["search", "tool", "skill", "map", "here", "guide", "recall", "cmds", "cmd"]
+        matches = suggest_commands(subcmd, known, n=2, cutoff=0.4)
+        if matches:
+            print(f"  {BOLD}Unknown:{RESET} {subcmd}. Did you mean: {', '.join(matches)}?")
+        else:
+            print(f"  {BOLD}Unknown:{RESET} {subcmd}")
+        print(f"  {DIM}TOOL eco --help for available commands.{RESET}")
+        return
+
+
+def _print_eco_help():
+    """Print eco subcommand help."""
+    print(f"\n{BOLD}TOOL --eco{RESET} — Ecosystem Navigation\n")
+    print(f"  {BOLD}Explore{RESET}")
+    print(f"    --eco                      Dashboard — tools, skills, brain overview")
+    print(f"    --eco search <query>       Semantic search across all knowledge")
+    print(f"    --eco tool <name>          Deep-dive into a specific tool")
+    print(f"    --eco skill <name>         Read a development skill/pattern")
+    print(f"    --eco map                  Ecosystem directory structure")
+    print(f"    --eco here [cwd]           Context-aware help for current directory")
+    print(f"\n  {BOLD}Remember{RESET}")
+    print(f"    --eco recall <query>       Search brain memory (lessons, activity)")
+    print(f"    --eco guide                Onboarding guide for new agents")
+    print(f"\n  {BOLD}Shortcuts{RESET}")
+    print(f"    --eco cmds                 List blueprint-defined shortcut commands")
+    print(f"    --eco cmd <name>           Run a blueprint shortcut command")
+    print(f"\n  {BOLD}Options{RESET}")
+    print(f"    --eco search <q> --scope tools|skills|lessons|docs  Scoped search")
+    print(f"    --eco search <q> -n 5      Limit results")
+    print(f"    --eco search <q> --tool LLM  Scope to a tool")
+    print(f"\n  {BOLD}Per-tool:{RESET} TOOL_NAME --eco (e.g., LLM --eco, GIT --eco)")
+    print()
+
+
+def _print_search_results(results):
+    """Format and print search results (shared with --search)."""
+    for i, r in enumerate(results, 1):
+        meta = r.get("meta", {})
+        score_pct = int(r["score"] * 100)
+        rtype = meta.get("type", "unknown")
+
+        if rtype == "tool":
+            desc = meta.get("description") or meta.get("purpose") or ""
+            print(f"  {BOLD}{i}. {r['id']}{RESET} ({score_pct}%)")
+            if desc:
+                print(f"     {desc}")
+            print(f"     {DIM}{meta.get('path', '')}{RESET}")
+        elif rtype in ("section", "command"):
+            tool_name = meta.get("tool", "?")
+            heading = meta.get("heading", "") or meta.get("command", "")
+            preview = meta.get("preview", "")[:100]
+            print(f"  {BOLD}{i}. {tool_name}{RESET} > {heading} ({score_pct}%)")
+            if preview:
+                print(f"     {DIM}{preview}{RESET}")
+        elif rtype == "skill":
+            tool_tag = f" [{meta['tool']}]" if meta.get("tool") else ""
+            print(f"  {BOLD}{i}. {r['id']}{RESET}{tool_tag} ({score_pct}%)")
+            print(f"     {DIM}{meta.get('path', '')}{RESET}")
+        elif rtype == "lesson":
+            sev = meta.get("severity", "info")
+            tool_tag = f" [{meta['tool']}]" if meta.get("tool") else ""
+            lesson_text = meta.get("lesson", "")[:120]
+            print(f"  {BOLD}{i}. Lesson{RESET}{tool_tag} ({score_pct}%) [{sev}]")
+            print(f"     {lesson_text}")
+        elif rtype in ("doc", "doc_section"):
+            label = meta.get("module") or meta.get("source") or r["id"]
+            heading = meta.get("heading", "")
+            if heading:
+                label = f"{label} > {heading}"
+            preview = meta.get("preview", "")[:100]
+            print(f"  {BOLD}{i}. {label}{RESET} ({score_pct}%)")
+            if preview:
+                print(f"     {DIM}{preview}{RESET}")
+        else:
+            print(f"  {BOLD}{i}. {r['id']}{RESET} ({score_pct}%) [{rtype}]")
+            print(f"     {DIM}{meta.get('path', '')}{RESET}")
+
+
+def _print_tool_detail(info):
+    """Print detailed tool overview."""
+    print(f"\n  {BOLD}{info['name']}{RESET}")
+    if info.get("description"):
+        print(f"  {info['description']}")
+    print()
+
+    checks = [
+        ("README.md", info.get("has_readme")),
+        ("for_agent.md", info.get("has_for_agent")),
+        ("interface/main.py", info.get("has_interface")),
+        ("hooks/", info.get("has_hooks")),
+        ("test/", info.get("has_tests")),
+    ]
+    for label, ok in checks:
+        marker = f"{GREEN}✓{RESET}" if ok else f"{DIM}·{RESET}"
+        print(f"  {marker} {label}")
+
+    if info.get("test_count"):
+        print(f"    {DIM}{info['test_count']} test file(s){RESET}")
+
+    if info.get("dependencies"):
+        print(f"\n  {BOLD}Dependencies:{RESET} {', '.join(info['dependencies'])}")
+
+    if info.get("interface_functions"):
+        print(f"\n  {BOLD}Interface:{RESET}")
+        for fn in info["interface_functions"][:10]:
+            print(f"    {fn}()")
+
+    print(f"\n  {BOLD}Actions:{RESET}")
+    print(f"    TOOL eco search \"{info['name']}\"  — search related knowledge")
+    if info.get("has_for_agent"):
+        print(f"    Read: tool/{info['name']}/for_agent.md")
+    if info.get("has_readme"):
+        print(f"    Read: tool/{info['name']}/README.md")
+    print()
+
+
+def _print_map(emap):
+    """Print ecosystem structure map."""
+    print(f"\n  {BOLD}Ecosystem Map{RESET}  {DIM}{emap['root']}{RESET}\n")
+    for dirname, info in emap["directories"].items():
+        if not info["exists"]:
+            continue
+        children_str = ""
+        if info["children"]:
+            children_str = f"  {DIM}[{', '.join(info['children'][:8])}" + \
+                (f", +{len(info['children']) - 8}" if len(info["children"]) > 8 else "") + \
+                f"]{RESET}"
+        print(f"  {BOLD}{dirname}{RESET}  {info['purpose']}")
+        if children_str:
+            print(f"  {children_str}")
+    print()
+
+
+def _print_here(ctx):
+    """Print context-aware navigation."""
+    print(f"\n  {BOLD}CWD:{RESET} {ctx['cwd']}")
+
+    if not ctx.get("in_project"):
+        print(f"  {DIM}Outside project.{RESET}")
+        if ctx.get("suggestion"):
+            print(f"  {ctx['suggestion']}")
+        return
+
+    print(f"  {BOLD}Level:{RESET} {ctx['level']}")
+    if ctx.get("tool"):
+        print(f"  {BOLD}Tool:{RESET} {ctx['tool']}")
+    if ctx.get("module"):
+        print(f"  {BOLD}Module:{RESET} {ctx['module']}")
+
+    if ctx.get("docs"):
+        print(f"\n  {BOLD}Docs here:{RESET}")
+        for d in ctx["docs"]:
+            print(f"    {DIM}{d}{RESET}")
+
+    if ctx.get("actions"):
+        print(f"\n  {BOLD}Suggested:{RESET}")
+        for a in ctx["actions"]:
+            print(f"    {a}")
+    print()
+
+
+def _print_eco_dashboard():
+    """Print ecosystem overview dashboard."""
+    from interface.eco import eco_dashboard
+    data = eco_dashboard(ROOT_PROJECT_ROOT)
+    tools = data["tools"]
+    skills = data["skills"]
+    brain = data["brain"]
+    ws = data.get("workspace")
+    bp_cmds = data.get("blueprint_cmds", [])
+
+    print(f"\n  {BOLD}Ecosystem Dashboard{RESET}")
+    print(f"  {'─' * 44}")
+    print(f"  {BOLD}Tools{RESET}:    {tools['installed']}/{tools['total']} installed")
+    print(f"  {BOLD}Skills{RESET}:   {skills['core']} core, {skills['library']} library")
+    print(f"  {BOLD}Brain{RESET}:    {brain['tasks_active']} active tasks, {brain['tasks_done']} done, {brain['lessons']} lessons")
+    if brain.get("context_age_min", -1) >= 0:
+        age = brain["context_age_min"]
+        age_str = f"{age}m ago" if age < 60 else f"{age // 60}h{age % 60}m ago"
+        print(f"  {BOLD}Context{RESET}:  updated {age_str}")
+    else:
+        print(f"  {BOLD}Context{RESET}:  {RED}not initialized{RESET}")
+    if ws:
+        print(f"  {BOLD}Workspace{RESET}: {ws['name']} ({DIM}{ws['path']}{RESET})")
+    if bp_cmds:
+        print(f"  {BOLD}Shortcuts{RESET}: {', '.join(bp_cmds)}")
+    print(f"  {'─' * 44}")
+    print(f"\n  {DIM}TOOL --eco --help for all commands.{RESET}")
+    print(f"  {DIM}TOOL --eco guide for onboarding.{RESET}\n")
+
+
 # Maps --flag to handler function
 _TOOL_FLAG_HANDLERS = {
     "--dev": lambda args: _tool_dev_handler(args),
@@ -824,6 +1146,7 @@ _TOOL_FLAG_HANDLERS = {
     "--lang": lambda args: _tool_lang_handler(args),
     "--rule": lambda args: _tool_rule_handler(args),
     "--search": lambda args: _tool_search_handler(args),
+    "--eco": lambda args: _tool_eco_handler(args),
     "--hooks": lambda args: _root_tool._handle_hooks_command(args),
     "--call-register": lambda args: _root_tool._handle_call_register(args),
     "--assistant": lambda args: _root_tool._handle_assistant(args),
@@ -852,36 +1175,40 @@ except ImportError:
 def _print_tool_help():
     """Print unified help for all TOOL commands."""
     print(f"{BOLD}AITerminalTools Manager{RESET}")
-    print(f"\nUsage: TOOL --<command> [options]\n")
-    print(f"Commands:")
-    print(f"  --install <name>         Install a tool")
-    print(f"  --reinstall <name>       Reinstall a tool")
-    print(f"  --uninstall <name> [-y]  Uninstall a tool")
-    print(f"  --list [--force]         List all available tools")
-    print(f"  --status                 Show installed tools and their status")
-    print(f"  --config <sub>           Manage global configuration (set, show, show-lang)")
-    print(f"  --lang <sub>             Language management (audit, list)")
-    print(f"  --audit <sub>            Code quality audits (imports, quality, code)")
-    print(f"  --rule <sub>             AI rule management (create, inject)")
-    print(f"  --search <sub> <query>   Semantic search (tools, interfaces, skills, lessons, discoveries, docs, all)")
-    print(f"  --dev <sub>              Developer commands")
-    print(f"  --test <sub>             Run tests")
-    print(f"  --assistant <sub>        Manage assistant sessions")
-    print(f"  --agent <prompt>         Assistant agent mode (shorthand for --assistant --agent)")
-    print(f"  --ask <prompt>           Assistant ask mode (shorthand for --assistant --ask)")
-    print(f"  --plan <prompt>          Assistant plan mode (shorthand for --assistant --plan)")
-    print(f"  --hooks <sub>            Manage tool hooks")
-    print(f"  --call-register <desc>   Register tool call with semantic description")
-    print(f"  --skills <sub>           Search and manage skills")
-    print(f"  --setup                  Run root setup wizard")
-    print(f"\n  Workspace:")
-    print(f"  --create-workspace <path> [--type <blueprint>] [--name <name>]")
-    print(f"  --open-workspace <id>    Open/activate a workspace")
-    print(f"  --close-workspace        Close the active workspace")
-    print(f"  --delete-workspace <id>  Delete a workspace and its data")
-    print(f"  --list-workspaces        List all workspaces")
-    print(f"  --workspace              Show active workspace status")
-    print(f"\nUse TOOL --<command> --help for details on each command.")
+    print(f"\nUsage: TOOL <command> [options]\n")
+    print(f"  {BOLD}Ecosystem Navigation (start here){RESET}")
+    print(f"    --eco                      Dashboard — tools, skills, brain overview")
+    print(f"    --eco search <query>       Find anything across the ecosystem")
+    print(f"    --eco tool <name>          Deep-dive into a specific tool")
+    print(f"    --eco skill <name>         Read a development skill/pattern")
+    print(f"    --eco guide                Onboarding guide for new agents")
+    print(f"    --eco map | here | recall  Structure, context, memory search")
+    print(f"    --eco cmds | cmd <name>    Blueprint shortcut commands")
+    print(f"\n  {BOLD}Tool Lifecycle{RESET}")
+    print(f"    --install <name>           Install a tool")
+    print(f"    --reinstall <name>         Reinstall a tool")
+    print(f"    --uninstall <name> [-y]    Uninstall a tool")
+    print(f"    --list [--force]           List all available tools")
+    print(f"    --status                   Show installed tools and their status")
+    print(f"\n  {BOLD}Quality & Search{RESET}")
+    print(f"    --audit <sub>              Code quality audits (imports, quality, code)")
+    print(f"    --search <sub> <query>     Semantic search (tools, skills, lessons, docs, all)")
+    print(f"    --lang <sub>               Language management (audit, list)")
+    print(f"\n  {BOLD}Development{RESET}")
+    print(f"    --dev <sub>                Developer commands (create, sync, sanity-check)")
+    print(f"    --test <sub>               Run tests")
+    print(f"    --config <sub>             Manage global configuration")
+    print(f"    --rule <sub>               AI rule management")
+    print(f"\n  {BOLD}Assistant{RESET}")
+    print(f"    --agent <prompt>           Agent mode")
+    print(f"    --ask <prompt>             Ask mode (read-only)")
+    print(f"    --plan <prompt>            Plan mode")
+    print(f"    --assistant <sub>          Manage sessions")
+    print(f"\n  {BOLD}Workspace{RESET}")
+    print(f"    --create-workspace <path>  Create a new workspace")
+    print(f"    --list-workspaces          List all workspaces")
+    print(f"    --workspace                Show active workspace")
+    print(f"\nUse TOOL <command> --help for details on each command.")
 
 
 def main():
@@ -895,6 +1222,18 @@ def main():
         return
 
     primary = stripped_argv[0]
+    _b = get_color("BOLD", "\033[1m")
+    _d = get_color("DIM", "\033[2m")
+    _r = get_color("RESET", "\033[0m")
+
+    # Enforce --eco prefix to avoid tool name collision
+    if primary == "eco":
+        print(f"{_b}Use --eco{_r} (with prefix).")
+        print(f"  {_d}TOOL --eco                   Dashboard{_r}")
+        print(f"  {_d}TOOL --eco search \"query\"     Search ecosystem{_r}")
+        print(f"  {_d}TOOL --eco --help             All eco commands{_r}")
+        return
+
     canon = primary if primary.startswith("--") else f"--{primary.lstrip('-')}"
 
     if canon in _TOOL_FLAG_HANDLERS:
@@ -912,15 +1251,11 @@ def main():
         c = f"--{m}" if not m.startswith("-") else m
         if c not in normalized:
             normalized.append(c)
-    from interface.config import get_color
-    BOLD = get_color("BOLD", "\033[1m")
-    DIM = get_color("DIM", "\033[2m")
-    RESET = get_color("RESET", "\033[0m")
-    print(f"{BOLD}Unknown command:{RESET} {user_cmd}")
+    print(f"{_b}Unknown command:{_r} {user_cmd}")
     if normalized:
         hint = ", ".join(normalized)
-        print(f"  {DIM}Did you mean: {hint}?{RESET}")
-    print(f"  {DIM}Use TOOL --help for available commands.{RESET}")
+        print(f"  {_d}Did you mean: {hint}?{_r}")
+    print(f"  {_d}Use TOOL --help for available commands.{_r}")
 
 if __name__ == "__main__":
     main()

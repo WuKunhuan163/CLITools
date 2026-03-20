@@ -1,12 +1,16 @@
 """MCP/CDP management commands for GDS.
 
-Subcommands:
+## ToS Compliance — DISABLED
+All CDP/MCP browser automation for Google Colab has been disabled.
+Automated interaction with Google Colab's web UI may violate Google's
+Terms of Service (https://research.google.com/colaboratory/faq.html).
+This module is preserved for reference but should not be invoked.
+
+Original subcommands (now disabled):
   boot            Launch debug Chrome, open a Colab tab
   shutdown        Close the debug Chrome instance
   status          Show CDP connectivity and configuration readiness
   setup-tutorial  Interactive tutorial for CDP-based automation setup
-
-All Chrome/CDP interaction is isolated in helper modules for OS portability.
 """
 import json
 import os

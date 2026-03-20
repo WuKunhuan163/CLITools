@@ -2,10 +2,15 @@
 
 ## Architecture
 
-GDS operates as a remote shell: commands are translated into Python/bash scripts, sent to Colab via CDP (Chrome DevTools Protocol), executed, and results retrieved from Google Drive.
+GDS operates as a Google Drive Shell: commands are translated into operations
+against the Google Drive API via service account credentials.
+
+> **Note**: The original architecture also included CDP/Colab browser automation
+> paths. These have been disabled due to ToS concerns. The Google Drive API
+> path remains fully functional.
 
 ```
-CLI command -> command/<name>.py -> executor.py -> Colab cell -> Drive result file
+CLI command -> command/<name>.py -> executor.py -> Google Drive API -> result
 ```
 
 ## Key Classes
@@ -55,12 +60,13 @@ def execute(tool, args, state_mgr, load_logic, **kwargs):
 | gui_queue | `gui_queue.py` | FIFO queue for GUI interaction windows |
 | tutorial_cmd | `tutorial_cmd.py` | Setup wizard launcher |
 
-## MCP Module (`mcp/`)
-CDP-based automation for Colab notebooks:
+## MCP Module (`mcp/`) — DISABLED (ToS Risk)
+CDP-based automation for Colab notebooks. **All functionality disabled** due to
+potential violation of Google Colab's Terms of Service (automated web UI interaction).
+Code preserved for reference:
 - `cdp_boot.py`: Chrome session bootstrap for GDS
 - `create.py`: Create new Colab notebooks
 - `execute.py`: Execute cells in Colab
-- (notebook.py was removed — GDS no longer requires a dedicated notebook)
 
 ## Tutorial System (`tutorial/`)
 Two guided setup flows:

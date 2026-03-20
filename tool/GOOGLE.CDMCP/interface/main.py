@@ -59,6 +59,27 @@ def load_demo():
     return _load_module("cdmcp_demo", _DEMO_PATH)
 
 
+_INTERACT_PATH = _TOOL_DIR / "logic" / "cdp" / "interact.py"
+
+
+def load_interact():
+    """Load the MCP interaction interfaces module.
+
+    Provides high-level browser automation with visual feedback:
+        - mcp_click, mcp_type, mcp_fill, mcp_paste, mcp_scroll, mcp_drag
+        - mcp_hover, mcp_select_option, mcp_fill_form
+        - mcp_navigate, mcp_navigate_back, mcp_navigate_forward, mcp_reload
+        - mcp_snapshot (accessibility tree)
+        - mcp_is_visible, mcp_is_enabled, mcp_is_checked
+        - mcp_get_attribute, mcp_get_input_value, mcp_get_bounding_box
+        - mcp_console_messages, mcp_network_requests
+        - mcp_search, mcp_clear_search
+        - mcp_handle_dialog, mcp_wait_for
+        - mcp_press_key, mcp_screenshot
+    """
+    return _load_module("cdmcp_interact", _INTERACT_PATH)
+
+
 def load_google_auth():
     """Load the Google auth monitoring module.
 

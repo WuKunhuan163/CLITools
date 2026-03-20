@@ -134,7 +134,7 @@ The `--agent feed` command returns structured JSON:
 ### Key Design Decisions
 
 1. **Stateless feed**: Each `--agent feed` call is self-contained — no long-running server needed for basic operation
-2. **Session persistence**: State saved to `data/agent_sessions/` for crash recovery
+2. **Session persistence**: State saved to `data/session/` for crash recovery
 3. **Provider-agnostic**: Any registered LLM provider can drive the agent loop
 4. **Extensible per-tool**: Each tool can add custom skills, handlers, and quality checks
 5. **Tier-based**: Platform determines how much context to inject (AI IDEs need less)

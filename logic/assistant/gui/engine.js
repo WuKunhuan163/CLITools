@@ -79,7 +79,10 @@ window._sbResolve = function(btn, requestId, decision, persist) {
     body: JSON.stringify({request_id: requestId, decision: decision, persist: !!persist})
   }).then(() => {
     const bubble = btn.closest('.sandbox-prompt-bubble');
-    if (bubble) bubble.remove();
+    if (bubble) {
+      if (bubble._countdownTimer) clearInterval(bubble._countdownTimer);
+      bubble.remove();
+    }
   });
 };
 
@@ -380,6 +383,7 @@ class AgentGUIEngine {
     this.registerBlock('model_confirmed', (evt) => this._renderModelConfirmed(evt));
     this.registerBlock('sandbox_prompt', (evt) => this._renderSandboxPrompt(evt));
     this.registerBlock('sandbox_resolved', (evt) => this._handleSandboxResolved(evt));
+    this.registerBlock('mode_switch_resolved', (evt) => this._renderModeSwitchResolved(evt));
   }
 
   /* ── Replay / Debug Mode ── */
@@ -1298,6 +1302,24 @@ class AgentGUIEngine {
       }
     }
 
+    const failIcon = '<i class="bx bx-x-circle" style="color:var(--red);font-size:12px;"></i>';
+    this.chatArea.querySelectorAll('.tool-status.running').forEach(el => {
+      if (reason === 'cancelled' || reason === 'error') {
+        el.className = 'tool-status error';
+        el.innerHTML = failIcon;
+      } else {
+        el.className = 'tool-status done';
+        el.innerHTML = '';
+      }
+    });
+    this.chatArea.querySelectorAll('.spinner').forEach(sp => {
+      if (reason === 'cancelled' || reason === 'error') {
+        sp.outerHTML = failIcon;
+      } else {
+        sp.style.display = 'none';
+      }
+    });
+
     let elapsed = evt.elapsed_s || 0;
     if (!elapsed && this._taskStartTime) {
       elapsed = Math.round((Date.now() - this._taskStartTime) / 1000);
@@ -1843,26 +1865,116 @@ class AgentGUIEngine {
     const reqId = esc(evt.request_id || '');
     const cmd = esc(evt.cmd || '');
     const normalized = esc(evt.normalized || '');
+    const mandatory = evt.mandatory || false;
+    const timeout = evt.timeout || 0;
+    const createdAt = evt.created_at || 0;
+
+    if (_replayMode && timeout > 0 && !mandatory && createdAt > 0) {
+      const elapsedMs = Date.now() - createdAt * 1000;
+      if (elapsedMs >= timeout * 1000) {
+        return;
+      }
+    }
+
     const bubble = document.createElement('div');
     bubble.className = 'sandbox-prompt-bubble';
     bubble.dataset.requestId = reqId;
+
+    const titleIcon = mandatory
+      ? '<i class="bx bx-lock-alt" style="color:var(--red)"></i>'
+      : '<i class="bx bx-shield-quarter" style="color:var(--accent)"></i>';
+    const titleText = mandatory ? 'Approval required' : 'Permission required';
+
+    let optionsHtml = '<div class="sb-prompt-options">'
+      + '<button class="sb-opt allow" onclick="window._sbResolve(this,\'' + reqId + '\',\'allow\',false)">Allow</button>';
+    if (!mandatory) {
+      optionsHtml += '<button class="sb-opt allow" onclick="window._sbResolve(this,\'' + reqId + '\',\'allow\',true)">Always allow</button>';
+    }
+    optionsHtml += '<button class="sb-opt deny" onclick="window._sbResolve(this,\'' + reqId + '\',\'deny\',false)">Deny</button>';
+    if (!mandatory) {
+      optionsHtml += '<button class="sb-opt deny" onclick="window._sbResolve(this,\'' + reqId + '\',\'deny\',true)">Always deny</button>';
+    }
+    optionsHtml += '</div>';
+
     bubble.innerHTML =
-      '<div class="sb-prompt-title"><i class="bx bx-shield-quarter" style="color:var(--accent)"></i> Permission required</div>'
-      + '<div class="sb-prompt-cmd">$ ' + cmd + '</div>'
-      + '<div class="sb-prompt-options">'
-      + '<button class="sb-opt allow" onclick="window._sbResolve(this,\'' + reqId + '\',\'allow\',false)">Run this time</button>'
-      + '<button class="sb-opt allow" onclick="window._sbResolve(this,\'' + reqId + '\',\'allow\',true)">Always allow <code>' + normalized + '</code></button>'
-      + '<button class="sb-opt deny" onclick="window._sbResolve(this,\'' + reqId + '\',\'deny\',false)">Deny</button>'
-      + '<button class="sb-opt deny" onclick="window._sbResolve(this,\'' + reqId + '\',\'deny\',true)">Always deny <code>' + normalized + '</code></button>'
-      + '</div>';
+      '<div class="sb-prompt-title">' + titleIcon + ' ' + titleText + '</div>'
+      + '<div class="sb-prompt-cmd">$ ' + normalized + '</div>'
+      + optionsHtml;
+
+    if (timeout > 0 && !mandatory) {
+      const bar = document.createElement('div');
+      bar.className = 'sandbox-countdown';
+      bubble.appendChild(bar);
+
+      let totalMs = timeout * 1000;
+      let startTime = Date.now();
+      if (_replayMode && createdAt > 0) {
+        startTime = createdAt * 1000;
+        const remaining = totalMs - (Date.now() - startTime);
+        if (remaining <= 0) {
+          bar.style.width = '0%';
+          bar.classList.add('expired');
+          this.chatArea.appendChild(bubble);
+          return;
+        }
+        bar.style.width = (remaining / totalMs * 100) + '%';
+      } else {
+        bar.style.width = '100%';
+      }
+
+      bubble._countdownTimer = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.max(0, 1 - elapsed / totalMs) * 100;
+        bar.style.width = pct + '%';
+        if (elapsed >= totalMs) {
+          clearInterval(bubble._countdownTimer);
+          bar.classList.add('expired');
+          if (!_replayMode) {
+            window._sbResolve(bubble.querySelector('.sb-opt.deny'), reqId, 'deny', false);
+          }
+        }
+      }, 50);
+    }
+
     this.chatArea.appendChild(bubble);
-    bubble.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (!_replayMode) {
+      bubble.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }
 
   _handleSandboxResolved(evt) {
     const reqId = evt.request_id;
+    const decision = evt.decision || 'deny';
     const bubble = this.chatArea.querySelector('.sandbox-prompt-bubble[data-request-id="' + reqId + '"]');
-    if (bubble) bubble.remove();
+    if (bubble) {
+      if (bubble._countdownTimer) clearInterval(bubble._countdownTimer);
+      const color = decision === 'allow' ? 'var(--green)' : 'var(--red)';
+      const label = decision === 'allow' ? 'Allowed' : 'Denied';
+      bubble.innerHTML = `<div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+        <i class="bx ${decision === 'allow' ? 'bx-check-circle' : 'bx-x-circle'}" style="color:${color};font-size:14px;"></i>
+        <span style="color:${color};font-weight:500;">${label}</span>
+      </div>`;
+      bubble.style.border = `1px solid ${color}`;
+      bubble.style.padding = '6px 12px';
+      setTimeout(() => { if (bubble.parentNode) bubble.remove(); }, 3000);
+    }
+  }
+
+  _renderModeSwitchResolved(evt) {
+    const decision = evt.decision || 'deny';
+    const target = evt.target_mode || 'plan';
+    const color = decision === 'allow' ? 'var(--green)' : 'var(--text-3)';
+    const icon = decision === 'allow' ? 'bx-check-circle' : 'bx-x-circle';
+    const label = decision === 'allow'
+      ? `Switched to ${target} mode`
+      : `Mode switch to ${target} denied`;
+    const el = document.createElement('div');
+    el.className = 'center-notice';
+    el.innerHTML = `<div class="center-notice-inner">
+      <i class="bx ${icon}" style="color:${color};font-size:14px;"></i>
+      <span style="color:${color};font-weight:500;">${esc(label)}</span>
+    </div>`;
+    this.chatArea.appendChild(el);
   }
 
   setMaxRoundHistory(n) {
@@ -2034,7 +2146,7 @@ class AgentGUIEngine {
     if (name === 'exec') {
       const cmdText = cmd || desc || '';
       const short = desc || (cmdText.length > 50 ? cmdText.slice(0, 47) + '...' : cmdText);
-      return { label: short, icon: 'bx-terminal', expandable: true };
+      return { label: short, icon: 'bx-terminal', expandable: true, fullCmd: cmdText };
     }
     if (name === 'todo') {
       return { label: 'Updated tasks', icon: 'bx-list-check', expandable: false };
@@ -2095,10 +2207,14 @@ class AgentGUIEngine {
           + '</select>'
           + '</div>'
         : '';
+      const cmdInline = isExec && info.fullCmd
+        ? '<span class="tool-cmd-inline">$ ' + esc(info.fullCmd) + '</span>'
+        : '';
       headerContent =
         '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
         + otherIconHtml
         + '<span class="tool-desc">' + escWbr(info.label) + '</span>'
+        + cmdInline
         + (info.detail ? '<span class="tool-detail">' + esc(info.detail) + '</span>' : '')
         + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>'
         + sandboxHtml;

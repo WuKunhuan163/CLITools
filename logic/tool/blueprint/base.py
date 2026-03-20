@@ -262,6 +262,11 @@ class ToolBase:
             self._handle_assistant(session_args)
             return True
 
+        endpoint_args = _extract_flag_args("--endpoint")
+        if endpoint_args is not None:
+            self._handle_endpoint(endpoint_args)
+            return True
+
         from logic.agent.command import ALLOW_ASSISTANT_SHORTHAND
         if ALLOW_ASSISTANT_SHORTHAND:
             agent_args = _extract_flag_args("--agent")
@@ -320,6 +325,11 @@ class ToolBase:
         hooks_args = _extract_flag_args("--hooks")
         if hooks_args is not None:
             self._handle_hooks_command(hooks_args)
+            return True
+
+        eco_args = _extract_flag_args("--eco")
+        if eco_args is not None:
+            self._handle_eco_command(eco_args)
             return True
 
         call_reg_args = _extract_flag_args("--call-register")
@@ -715,6 +725,138 @@ class ToolBase:
 
         print(f"Usage: {self.tool_name} skills [list | show <name> | search <query>]")
 
+    def _handle_eco_command(self, args):
+        """Handle 'TOOLNAME --eco [search|skill|guide|tool|here|cmds|cmd]'.
+
+        Per-tool ecosystem navigation. When invoked on a specific tool
+        (e.g., LLM --eco), shows tool-level ecosystem info by default.
+        All subcommands from TOOL eco are available here, scoped to this tool.
+        """
+        from logic.config import get_color
+        BOLD = get_color("BOLD", "\033[1m")
+        GREEN = get_color("GREEN", "\033[32m")
+        DIM = get_color("DIM", "\033[2m")
+        RED = get_color("RED", "\033[31m")
+        RESET = get_color("RESET", "\033[0m")
+
+        subcmd = args[0] if args else ""
+
+        if subcmd in ("-h", "--help", "help"):
+            print(f"\n{BOLD}{self.tool_name} --eco{RESET} — Ecosystem Navigation\n")
+            print(f"  (no args)                    Tool overview (docs, interface, tests)")
+            print(f"  search <query>               Search scoped to {self.tool_name}")
+            print(f"  skill <name>                 Read a skill")
+            print(f"  here                         Context-aware help")
+            print(f"  guide                        Onboarding guide")
+            print(f"  cmds                         Blueprint shortcuts")
+            print(f"  cmd <name>                   Run a blueprint shortcut")
+            print()
+            return
+
+        if subcmd == "search" and len(args) > 1:
+            query = " ".join(args[1:])
+            try:
+                from interface.eco import eco_search
+                results = eco_search(self.project_root, query, tool=self.tool_name)
+                if not results:
+                    print(f"  No results for: {query}")
+                    return
+                for i, r in enumerate(results, 1):
+                    meta = r.get("meta", {})
+                    score_pct = int(r["score"] * 100)
+                    rtype = meta.get("type", "unknown")
+                    print(f"  {BOLD}{i}. {r['id']}{RESET} ({score_pct}%) [{rtype}]")
+                    preview = meta.get("preview", "") or meta.get("description", "") or meta.get("lesson", "")
+                    if preview:
+                        print(f"     {DIM}{preview[:100]}{RESET}")
+            except Exception as e:
+                print(f"  {RED}Search error:{RESET} {e}")
+            return
+
+        if subcmd == "skill" and len(args) > 1:
+            name = args[1]
+            try:
+                from interface.eco import eco_skill
+                content = eco_skill(self.project_root, name)
+                if content:
+                    print(content)
+                else:
+                    print(f"  {BOLD}{RED}Not found:{RESET} {name}")
+            except Exception as e:
+                print(f"  {RED}Error:{RESET} {e}")
+            return
+
+        # Pass through to TOOL eco for global subcommands
+        if subcmd in ("guide", "map", "recall", "cmds", "cmd"):
+            import subprocess as _sp
+            cmd_args = [sys.executable, str(self.project_root / "bin" / "TOOL"), "--eco"] + args
+            _sp.run(cmd_args)
+            return
+
+        if subcmd == "here":
+            try:
+                from interface.eco import eco_here
+                import os
+                ctx = eco_here(self.project_root, os.getcwd())
+                print(f"\n  {BOLD}CWD:{RESET} {ctx['cwd']}")
+                print(f"  {BOLD}Level:{RESET} {ctx.get('level', '?')}")
+                if ctx.get("docs"):
+                    print(f"\n  {BOLD}Docs:{RESET}")
+                    for d in ctx["docs"]:
+                        print(f"    {DIM}{d}{RESET}")
+                if ctx.get("actions"):
+                    print(f"\n  {BOLD}Suggested:{RESET}")
+                    for a in ctx["actions"]:
+                        print(f"    {a}")
+                print()
+            except Exception as e:
+                print(f"  {RED}Error:{RESET} {e}")
+            return
+
+        # Default: show this tool's ecosystem info
+        if not subcmd or subcmd == "info":
+            try:
+                from interface.eco import eco_tool
+                info = eco_tool(self.project_root, self.tool_name)
+                if info:
+                    print(f"\n  {BOLD}{info['name']}{RESET}")
+                    if info.get("description"):
+                        print(f"  {info['description']}")
+                    print()
+                    for label, ok in [
+                        ("README.md", info.get("has_readme")),
+                        ("for_agent.md", info.get("has_for_agent")),
+                        ("interface/main.py", info.get("has_interface")),
+                        ("hooks/", info.get("has_hooks")),
+                        ("test/", info.get("has_tests")),
+                    ]:
+                        marker = f"{GREEN}✓{RESET}" if ok else f"{DIM}·{RESET}"
+                        print(f"  {marker} {label}")
+                    if info.get("interface_functions"):
+                        print(f"\n  {BOLD}Interface:{RESET}")
+                        for fn in info["interface_functions"][:10]:
+                            print(f"    {fn}()")
+                    print(f"\n  {BOLD}Actions:{RESET}")
+                    print(f"    {self.tool_name} --eco search \"query\"")
+                    if info.get("has_for_agent"):
+                        print(f"    Read: tool/{self.tool_name}/for_agent.md")
+                    print()
+                else:
+                    print(f"  {BOLD}{self.tool_name}{RESET}: no tool info available.")
+            except Exception as e:
+                print(f"  {RED}Error:{RESET} {e}")
+            return
+
+        # Unknown subcmd
+        from logic.utils.fuzzy import suggest_commands
+        known = ["search", "skill", "guide", "map", "here", "recall", "cmds", "cmd", "info"]
+        matches = suggest_commands(subcmd, known, n=2, cutoff=0.4)
+        if matches:
+            print(f"  {BOLD}Unknown:{RESET} {subcmd}. Did you mean: {', '.join(matches)}?")
+        else:
+            print(f"  {BOLD}Unknown:{RESET} {subcmd}")
+        print(f"  {DIM}{self.tool_name} --eco --help for available commands.{RESET}")
+
     def _handle_call_register(self, args):
         """Handle --call-register: register an upcoming tool call with semantic description.
 
@@ -1020,6 +1162,17 @@ class ToolBase:
             mode=mode,
         )
 
+    def _handle_endpoint(self, args):
+        """Dispatch ``--endpoint`` commands.  Override in subclasses.
+
+        The default implementation prints a not-available message.
+        Tools like CDMCP override this to provide JSON monitoring endpoints.
+        """
+        from logic.config import get_color
+        DIM = get_color("DIM", "\033[2m")
+        RESET = get_color("RESET", "\033[0m")
+        print(f"  {DIM}No --endpoint commands available for {self.tool_name}.{RESET}")
+
     def _handle_assistant(self, args):
         """Dispatch --assistant subcommands.
 
@@ -1050,6 +1203,11 @@ class ToolBase:
 
         subcmd = filtered[0] if filtered else ""
         rest = filtered[1:]
+
+        if subcmd == "--endpoint" or subcmd == "endpoint":
+            from logic.agent.command import handle_assistant_endpoint
+            handle_assistant_endpoint(rest, self.tool_name)
+            return
 
         gui_api_cmds = {"list", "state", "history", "send", "model",
                         "edits", "accept", "revert", "accept-all",
@@ -1143,7 +1301,7 @@ class ToolBase:
         RESET = get_color("RESET", "\033[0m")
 
         sessions_dir = self.project_root / "runtime" / "sessions"
-        data_sessions_dir = self.project_root / "data" / "agent_sessions"
+        data_sessions_dir = self.project_root / "data" / "session"
 
         def _notify_gui_delete(sid):
             """Notify running GUI server to delete a session."""

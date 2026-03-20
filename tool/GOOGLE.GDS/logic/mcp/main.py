@@ -1,6 +1,13 @@
 """MCP configuration for GOOGLE.GDS.
 
-GDS uses the cursor-ide-browser MCP for:
+## ToS Compliance — DISABLED
+All MCP/CDP browser automation for Google Colab has been disabled.
+Automated interaction with Google Colab's web UI may violate Google's
+Terms of Service (https://research.google.com/colaboratory/faq.html).
+This module is preserved for reference but its functionality should
+not be invoked.
+
+Original capabilities (now disabled):
 - Opening Colab notebooks in the integrated browser
 - Creating notebooks via Drive UI when API upload fails
 - Interactive Colab session management

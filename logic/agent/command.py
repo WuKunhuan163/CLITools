@@ -435,7 +435,12 @@ def _get_system_prompt(tool_name: str, mode: str = "agent") -> str:
             f"3. **edit_file(path=..., old_text=..., new_text=...)** — Modify files.\n"
             f"4. **read_file(path=...)** — Read file contents.\n"
             f"5. **search(pattern=...)** — Search for text/code.\n"
-            f"6. **ask_user(question=...)** — Ask the user a question.\n\n"
+            f"6. **ask_user(question=...)** — Ask the user a question.\n"
+            f"7. **todo(action=..., items=...)** — Manage task lists (init/update/delete items).\n"
+            f"8. **switch_mode(target_mode=..., explanation=...)** — "
+            f"Request to switch to a different operating mode (e.g. 'plan'). "
+            f"The user may approve or deny the switch. If denied, write your plan "
+            f"to a tmp/ file or use the todo tool to organize tasks.\n\n"
             f"## Key Behaviors\n\n"
             f"- Always use tools. Never just describe changes — ACT.\n"
             f"- **Read ALL relevant files before writing.** If you see 2+ files, read them all.\n"
@@ -445,6 +450,9 @@ def _get_system_prompt(tool_name: str, mode: str = "agent") -> str:
             f"- Use edit_file for targeted changes instead of rewriting entire files.\n"
             f"- If a command fails, try a different approach.\n"
             f"- Verify your work: read the file after writing to confirm.\n"
+            f"- If a task is very complex and you cannot plan it clearly in your head, "
+            f"consider using switch_mode to request Plan mode. If denied, use the "
+            f"todo tool to break the task down, or write a plan to tmp/plan.md.\n"
         )
 
     mode_label = MODE_LABELS.get(mode, mode)
@@ -1605,6 +1613,12 @@ Edit control:
 Model:
   {tool_name} --assistant model <model_id>             Switch model
 
+Endpoint (structured JSON, mirrors API paths):
+  {tool_name} --assistant --endpoint --sessions
+  {tool_name} --assistant --endpoint --session <SID> --state
+  {tool_name} --assistant --endpoint --model --list
+  {tool_name} --assistant --endpoint --key --validate <key>
+
 API paths:
   GET    /api/sessions                   POST /api/sessions
   GET    /api/session/<sid>/state        DELETE /api/session/<sid>
@@ -1612,4 +1626,161 @@ API paths:
   GET    /api/session/<sid>/edit         POST /api/session/<sid>/edit/<idx>
   POST   /api/model/switch              GET  /api/model/list
   POST   /api/key/{{validate,save,delete,states,reverify}}
+""")
+
+
+# ── --assistant --endpoint ────────────────────────────────────────────
+
+_PATH_PARAM_KEYS = {"session", "edit"}
+
+_POST_SUFFIXES = {
+    "send", "cancel", "rename", "activate", "switch", "validate",
+    "save", "delete", "states", "reverify", "check", "resolve",
+    "inject", "inject-batch", "input", "audit",
+}
+
+_BODY_PARAM_MAP = {
+    "send": "text",
+    "switch": "model",
+    "validate": "key",
+    "delete": "provider",
+    "reverify": "provider",
+    "rename": "title",
+}
+
+
+def handle_assistant_endpoint(args: list, tool_name: str = "TOOL"):
+    """Route ``--assistant --endpoint`` commands to the GUI HTTP API.
+
+    Builds an API path from ``--flag`` args and dispatches the request.
+    Non-flag args are treated as path parameters (for ``--session``,
+    ``--edit``) or request body values.
+
+    Examples::
+
+        --sessions                         → GET  /api/sessions
+        --session <SID> --state            → GET  /api/session/<SID>/state
+        --session <SID> --send "hello"     → POST /api/session/<SID>/send
+        --model --switch gpt-4             → POST /api/model/switch
+        --model --list                     → GET  /api/model/list
+        --key --validate sk-xxx            → POST /api/key/validate
+        --key --states                     → POST /api/key/states
+        --state                            → GET  /api/state
+        --usage                            → GET  /api/usage
+        --health                           → GET  /api/health
+        --brain --blueprints               → GET  /api/brain/blueprints
+        --sandbox --state                  → GET  /api/sandbox/state
+    """
+    if not args:
+        _endpoint_help(tool_name)
+        return
+
+    port = _find_running_gui_port()
+    if not port:
+        print(json.dumps({"ok": False, "error": "No GUI server found. Start with: TOOL --agent --gui"}))
+        return
+
+    segments = []
+    data_args = []
+    method_override = None
+
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a.startswith("--"):
+            key = a[2:]
+            if key == "delete-method":
+                method_override = "DELETE"
+                i += 1
+                continue
+            segments.append(key)
+            if key in _PATH_PARAM_KEYS and i + 1 < len(args) and not args[i + 1].startswith("--"):
+                segments.append(args[i + 1])
+                i += 2
+                continue
+        else:
+            data_args.append(a)
+        i += 1
+
+    if not segments:
+        _endpoint_help(tool_name)
+        return
+
+    api_path = "/api/" + "/".join(segments)
+    last_seg = segments[-1] if segments else ""
+
+    is_edit_action = ("edit" in segments and data_args
+                      and data_args[0] in ("accept", "revert"))
+
+    if method_override:
+        method = method_override
+    elif last_seg in _POST_SUFFIXES or is_edit_action:
+        method = "POST"
+    else:
+        method = "GET"
+
+    body = None
+    if is_edit_action:
+        body = {"action": data_args[0]}
+    elif method == "POST" and data_args:
+        try:
+            body = json.loads(data_args[0])
+        except (json.JSONDecodeError, IndexError):
+            param_key = _BODY_PARAM_MAP.get(last_seg, "value")
+            body = {param_key: " ".join(data_args)}
+    elif method == "POST":
+        body = {}
+
+    r = _assistant_api(port, method, api_path, body)
+    print(json.dumps(r, indent=2, ensure_ascii=False))
+
+
+def _endpoint_help(tool_name: str = "TOOL"):
+    print(f"""
+Assistant Endpoint (structured JSON, mirrors API paths)
+
+Usage: {tool_name} --assistant --endpoint --<path> [--<sub>] [args]
+
+System:
+  --state                              Full system state
+  --health                             Health check
+  --usage                              Usage data
+
+Sessions:
+  --sessions                           List sessions (GET)
+  --session <SID> --state              Session state
+  --session <SID> --history            Event history
+  --session <SID> --send "prompt"      Send message (POST)
+  --session <SID> --cancel             Cancel running task (POST)
+  --session <SID> --rename "title"     Rename session (POST)
+  --session <SID> --activate           Set as active (POST)
+  --session <SID> --edit               List edit blocks
+  --session <SID> --edit <IDX> accept  Accept/revert hunk (POST)
+
+Model:
+  --model --list                       Configured models
+  --model --switch <model_id>          Switch model (POST)
+
+Keys:
+  --key --validate <key>               Validate API key (POST)
+  --key --save '{{"provider":...}}'      Save API key (POST)
+  --key --delete <provider>            Delete API key (POST)
+  --key --states                       Get key states (POST)
+  --key --reverify <provider>          Reverify key (POST)
+
+Brain:
+  --brain --blueprints                 List brain blueprints
+  --brain --instances                  List brain instances
+  --brain --active                     Active brain info
+
+Sandbox:
+  --sandbox --state                    Sandbox state
+  --sandbox --check '{{}}'               Check command (POST)
+  --sandbox --resolve '{{}}'             Resolve pending (POST)
+
+Deletion:
+  --session <SID> --delete-method      Delete session (DELETE)
+  --sessions --delete-method           Clear all sessions (DELETE)
+
+Path mapping: --key --validate → POST /api/key/validate
 """)

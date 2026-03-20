@@ -27,6 +27,17 @@ CDMCP --mcp-save-auth                           # Save auth cookies for auto-log
 CDMCP --mcp-restore-auth                        # Restore saved cookies (no user interaction)
 CDMCP --mcp-session list                        # List all sessions
 CDMCP --mcp-state                               # Print comprehensive MCP state
+
+# Endpoint monitoring (structured JSON output)
+CDMCP --endpoint chrome/status                  # Chrome CDP availability
+CDMCP --endpoint sessions                       # List all sessions
+CDMCP --endpoint session/<name>/state           # Session detail
+CDMCP --endpoint session/<name>/tabs            # Tabs in session
+CDMCP --endpoint tabs                           # All Chrome page tabs
+CDMCP --endpoint managed                        # Managed tabs with focus/lock state
+CDMCP --endpoint state                          # Full state (sessions + tabs + window)
+CDMCP --endpoint config                         # CDMCP configuration
+CDMCP --endpoint window                         # Session window status
 ```
 
 ## Session API
@@ -63,13 +74,61 @@ result = ensure_chrome()  # {"ok": True, "action": "already_running"|"relaunched
 from logic.cdmcp_loader import load_cdmcp_interact
 interact = load_cdmcp_interact()
 
+# Core interactions (with visual feedback)
 interact.mcp_click(cdp, "a.link", label="Open link", dwell=1.0)
 interact.mcp_type(cdp, "input#search", "query text", char_delay=0.04)
+interact.mcp_fill(cdp, "input#name", "John Doe")  # atomic value set, faster than type
+interact.mcp_fill_form(cdp, [{"selector": "#name", "value": "John"}, {"selector": "#email", "value": "j@x.com"}])
+interact.mcp_select_option(cdp, "select#role", ["admin"])
+interact.mcp_hover(cdp, ".menu-item", label="Menu")
 interact.mcp_wait_and_click(cdp, ".result", timeout=10, dwell=1.0)
-interact.mcp_navigate(cdp, "https://url", wait_selector="h1")
-interact.mcp_scroll(cdp, "down", 300)
 interact.mcp_paste(cdp, "text", selector="textarea")
 interact.mcp_drag(cdp, x1, y1, x2, y2, steps=15, label="Draw", tool_name="Figma")
+interact.mcp_press_key(cdp, "Enter")                # single key
+interact.mcp_press_key(cdp, "Control+s")             # key combo
+interact.mcp_press_key(cdp, "Meta+a")                # Cmd+A on Mac
+
+# Navigation
+interact.mcp_navigate(cdp, "https://url", wait_selector="h1")
+interact.mcp_navigate_back(cdp)
+interact.mcp_navigate_forward(cdp)
+interact.mcp_reload(cdp, wait=2.0)
+interact.mcp_scroll(cdp, "down", 300)
+
+# Page understanding (inspired by Cursor's browser_snapshot)
+interact.mcp_snapshot(cdp)                           # full accessibility tree
+interact.mcp_snapshot(cdp, interactive_only=True)    # interactive elements only
+interact.mcp_snapshot(cdp, selector="#main")          # scoped subtree
+
+# Element state queries
+interact.mcp_is_visible(cdp, "#submit-btn")          # visible + in viewport?
+interact.mcp_is_enabled(cdp, "#submit-btn")          # not disabled?
+interact.mcp_is_checked(cdp, "#agree-checkbox")      # checked?
+interact.mcp_get_attribute(cdp, "#link", "href")     # read attribute
+interact.mcp_get_input_value(cdp, "input#email")     # read input value
+interact.mcp_get_bounding_box(cdp, ".target")        # element rect
+
+# Monitoring
+interact.mcp_console_messages(cdp, limit=50)         # captured console.log/warn/error
+interact.mcp_network_requests(cdp, limit=100)        # Performance API resource entries
+
+# Page search
+interact.mcp_search(cdp, "error message")            # Cmd+F-like text search with highlights
+interact.mcp_clear_search(cdp)
+
+# Dialog handling (call BEFORE action that triggers dialog)
+interact.mcp_handle_dialog(cdp, accept=True)         # auto-accept confirm/alert
+interact.mcp_handle_dialog(cdp, accept=True, prompt_text="answer")
+
+# Waiting
+interact.mcp_wait_for(cdp, text="Success")           # wait for text to appear
+interact.mcp_wait_for(cdp, text_gone="Loading...")    # wait for text to disappear
+interact.mcp_wait_for(cdp, wait_time=3)              # fixed delay
+
+# Screenshot
+interact.mcp_screenshot(cdp)                         # viewport screenshot
+interact.mcp_screenshot(cdp, selector="#chart")      # element screenshot
+interact.mcp_screenshot(cdp, full_page=True)         # full scrollable page
 ```
 
 All operations: auto-lock -> highlight/cursor -> action -> count MPC -> reset idle timer.

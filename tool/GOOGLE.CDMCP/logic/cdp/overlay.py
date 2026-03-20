@@ -942,12 +942,14 @@ def pin_tab_by_target_id(cdp_target_id: str, pinned: bool = True,
             _CACHED_EXT_TARGET = None
             return False
 
-        # Resolve + pin in one shot
+        url_prefix = target_url.split("?")[0] if "?" in target_url else target_url
         expr = (
             f"(async()=>{{try{{"
             f"const tabs=await chrome.tabs.query({{}});"
-            f"const t=tabs.find(t=>t.url==={json.dumps(target_url)});"
-            f"if(!t)return JSON.stringify({{ok:false,error:'tab not found'}});"
+            f"const exact=tabs.find(t=>t.url==={json.dumps(target_url)});"
+            f"const prefix=!exact&&tabs.find(t=>t.url&&t.url.startsWith({json.dumps(url_prefix)}));"
+            f"const t=exact||prefix;"
+            f"if(!t)return JSON.stringify({{ok:false,error:'tab not found',urls:tabs.map(t=>t.url).slice(0,10)}});"
             f"const u=await chrome.tabs.update(t.id,{{pinned:{pin_str}}});"
             f"return JSON.stringify({{ok:true,pinned:u.pinned,id:u.id}});"
             f"}}catch(e){{return JSON.stringify({{ok:false,error:e.message}});}}}})() "

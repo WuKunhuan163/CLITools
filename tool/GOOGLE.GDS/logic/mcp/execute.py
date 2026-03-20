@@ -1,16 +1,18 @@
 """MCP workflow for executing GDS commands via Colab browser automation.
 
-Architecture:
+## ToS Compliance — DISABLED
+All MCP/CDP browser automation for Google Colab has been disabled.
+Automated interaction with Google Colab's web UI may violate Google's
+Terms of Service (https://research.google.com/colaboratory/faq.html).
+This module is preserved for reference but should not be invoked.
+
+Original architecture (now disabled):
     1. GDS command runs normally — opens a Tkinter GUI window (ButtonBarWindow)
        that auto-copies the remote script to the clipboard.
     2. Agent interacts with Colab in the built-in MCP browser:
        navigate → lock → create cell → paste (Cmd+V) → execute → wait for marker.
     3. After output appears, agent sends `GDS --gui-submit` to close the GUI.
     4. Normal GDS flow resumes (result download, etc.).
-
-The GDS GUI Queue ensures multiple --mcp sessions are serialized.
-If MCP browser interaction fails, the GUI window stays open so the user can
-complete the task manually (the agent should fallback to USERINPUT).
 """
 import json
 import sys

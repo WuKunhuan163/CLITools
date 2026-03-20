@@ -27,21 +27,22 @@ Welcome to the `AITerminalTools` ecosystem. This guide is designed to provide yo
 └── README.md      user-facing documentation
 ```
 
-**Documentation convention**: Every directory has up to three docs — `README.md` (user-facing), `for_agent.md` (agent-facing), and `for_agent_reflection.md` (self-improvement protocol). They form a layered hierarchy: root → `logic/<module>/` → `tool/<NAME>/`. When you need context about a module, read its `for_agent.md` first. When modifying code, trace the docs upward (tool → logic → root) and update any that reference changed behavior. Use `TOOL --search docs "topic"` to find relevant documentation sections. When discovering gaps: system-level gaps go to the root `for_agent_reflection.md`; tool-specific gaps go to `tool/<NAME>/for_agent_reflection.md`. Use `BRAIN reflect --tool <NAME>` to check both levels.
+**Documentation convention**: Every directory has up to three docs — `README.md` (user-facing), `for_agent.md` (agent-facing), and `for_agent_reflection.md` (self-improvement protocol). They form a layered hierarchy: root → `logic/<module>/` → `tool/<NAME>/`. When you need context about a module, read its `for_agent.md` first. When modifying code, trace the docs upward (tool → logic → root) and update any that reference changed behavior. Use `TOOL --eco search "topic"` to find relevant documentation sections. When discovering gaps: system-level gaps go to the root `for_agent_reflection.md`; tool-specific gaps go to `tool/<NAME>/for_agent_reflection.md`. Use `BRAIN reflect --tool <NAME>` to check both levels.
 
 If this is your first encounter with this project, follow these steps in order:
 
 1. **Read `runtime/brain/context.md`** — contains the previous session's state, current tasks, and what to resume. If it exists and has content, you have continuity. Act on it. (The default brain instance uses the `clitools` blueprint — see `logic/brain/blueprint/` for alternatives.)
 2. **Run `TOOL status`** (in terminal) — see all registered tools and their installation status. This shows you what the ecosystem has.
-3. **Run `TOOL --search all "<your task keywords>"`** — before writing any code, search for existing tools, skills, and lessons. This is your most important habit. Returns targeted results (~1K tokens).
-4. **Run `SKILLS list --core`** — see project-specific skills only (~30 items). For a specific topic, prefer `TOOL --search skills "topic"` (faster, ~500 tokens). Load relevant skills with `SKILLS show <name>`.
+3. **Run `TOOL --eco search "<your task keywords>"`** — before writing any code, search for existing tools, skills, and lessons. This is your most important habit. Returns targeted results (~1K tokens).
+4. **Run `TOOL --eco guide`** to see the full onboarding flow. For a specific tool: `TOOL --eco tool <NAME>`. For a specific skill: `TOOL --eco skill <name>`. For blueprint shortcuts: `TOOL --eco cmds`.
 5. **Check `runtime/brain/tasks.md`** — see pending tasks and priorities.
 6. **Start working.** After each task: `BRAIN reflect` (self-check), then `USERINPUT --hint` (report to user). This dual-command loop is your core rhythm.
 
 **Key commands to memorize** (all are shell commands — run them in the terminal):
 - `TOOL status` — see all tools and installation status
-- `TOOL --search all "query"` — find anything (tools, skills, lessons, docs)
-- `TOOL --search skills "topic"` — find skills by topic (most token-efficient)
+- `TOOL --eco search "query"` — find anything (tools, skills, lessons, docs)
+- `TOOL --eco tool <NAME>` — deep-dive into a specific tool
+- `TOOL --eco skill <name>` — read a development skill/pattern
 - `SKILLS list --core` — list project skills only (use `SKILLS show <name>` to load)
 - `USERINPUT --hint "summary"` — get user feedback (blocking, always call after task completion)
 - `BRAIN add/done/list` — manage tasks in brain
@@ -140,7 +141,7 @@ Typical flow: Bootstrap → Execute → Verify → Capture → Feedback → (new
 - **Self-test**: After implementing code, always run it to verify. Write `tmp/` test scripts for non-trivial changes.
 - **Iterate**: Don't stop at first implementation. Test, find issues, fix, test again.
 - **Fix at source**: When a tool (including ecosystem tools like TOOL, BRAIN, SKILLS) errors, read its source and for_agent.md, fix the bug directly, and retry. If unfixable, search for alternatives. Ask the user only as last resort.
-- **Pivot on repeated failure**: If 3+ attempts with the same approach fail, stop and rethink. Search `TOOL --search all` for alternative tools/patterns. Consider fundamentally different strategies (e.g., browser automation failing → build a backend API endpoint; GUI interaction failing → use CLI). Record the failure pattern via `SKILLS learn` so future agents avoid the same dead end. Build compensatory infrastructure when a persistent limitation is found.
+- **Pivot on repeated failure**: If 3+ attempts with the same approach fail, stop and rethink. Search `TOOL --eco search` for alternative tools/patterns. Consider fundamentally different strategies (e.g., browser automation failing → build a backend API endpoint; GUI interaction failing → use CLI). Record the failure pattern via `SKILLS learn` so future agents avoid the same dead end. Build compensatory infrastructure when a persistent limitation is found.
 - **Interface-first**: When building reusable functionality, put implementation in `logic/`, expose a public API in `interface/main.py`, and import from `interface.*` (never `logic.*`). See `SKILLS show tool-interface` for the pattern.
 - **Log activity**: After each completed task, run `BRAIN log "User asked X. Did Y. Result: Z." --files "path1,path2"` to build the activity journal. Include `--files` when you create or modify artifacts so follow-up agents can find them via `BRAIN recall`.
 - **Persist**: Run `BRAIN snapshot` after milestones. This ensures continuity if the session is interrupted.
