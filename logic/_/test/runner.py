@@ -202,7 +202,7 @@ class TestRunner:
         return sys.executable
 
     def _save_result(self, test_name, status, full_output, python_info=None):
-        result_dir = self.project_root / "data" / "test" / "result"
+        result_dir = self.project_root / "data" / "_" / "test" / "result"
         result_dir.mkdir(parents=True, exist_ok=True)
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

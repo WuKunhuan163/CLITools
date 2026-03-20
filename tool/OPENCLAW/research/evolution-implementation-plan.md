@@ -7,20 +7,20 @@ We do NOT need to replicate OpenClaw's file-as-brain architecture verbatim. Curs
 ## Architecture
 
 ```
-tool/SKILLS/                        runtime/experience/
+tool/SKILLS/                        runtime/_/eco/experience/
 ├── main.py       (CLI entry)       ├── lessons.jsonl      (captured lessons)
 └── logic/                          ├── suggestions.jsonl  (generated suggestions)
     └── evolution.py (brain logic)  └── evolution.jsonl    (applied changes history)
 ```
 
-The `runtime/` directory is a **symmetric root directory** — each tool (including the project root) has its own `runtime/` for tracked runtime data. `runtime/experience/` at the project root holds the agent's cross-tool institutional memory.
+The `runtime/` directory is a **symmetric root directory** — each tool (including the project root) has its own `runtime/` for tracked runtime data. `runtime/_/eco/experience/` at the project root holds the agent's cross-tool institutional memory.
 
 Data flow:
 
 ```
 Agent Transcripts (agent-transcripts/*.jsonl)
     + Session Logs (tool/*/data/logs/)
-    + Lessons (runtime/experience/lessons.jsonl)
+    + Lessons (runtime/_/eco/experience/lessons.jsonl)
         |
         v
     SKILLS analyze  (pattern recognition)
@@ -44,17 +44,17 @@ Agent Transcripts (agent-transcripts/*.jsonl)
 | Agent identity | `.cursor/rules/AITerminalTools.mdc` (always loaded) |
 | Workspace conventions | `AGENT.md` (always loaded) |
 | Tool-specific knowledge | `tool/<NAME>/AGENT.md` |
-| Institutional memory | `runtime/experience/lessons.jsonl` |
+| Institutional memory | `runtime/_/eco/experience/lessons.jsonl` |
 | Session raw data | `agent-transcripts/*.jsonl` |
 | Curated skills | `skills/core/*/SKILL.md` |
 | Enforcement | `tool/<NAME>/hooks/pre_commit.py` |
-| Improvement suggestions | `runtime/experience/suggestions.jsonl` |
-| Evolution audit trail | `runtime/experience/evolution.jsonl` |
+| Improvement suggestions | `runtime/_/eco/experience/suggestions.jsonl` |
+| Evolution audit trail | `runtime/_/eco/experience/evolution.jsonl` |
 
 ### Data vs Logic Separation
 
 Following AITerminalTools convention:
-- **`runtime/experience/`**: Runtime data produced by the agent during operation (lessons, suggestions, evolution history). Tracked by Git as a symmetric root directory.
+- **`runtime/_/eco/experience/`**: Runtime data produced by the agent during operation (lessons, suggestions, evolution history). Tracked by Git as a symmetric root directory.
 - **`tool/SKILLS/logic/evolution.py`**: The brain system implementation — analysis algorithms, suggestion generation, pattern matching. Pure functions that operate on brain data.
 
 ### Symmetric Root Directory: `runtime/`

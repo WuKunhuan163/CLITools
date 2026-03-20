@@ -59,7 +59,6 @@ root/                        tool/<NAME>/
 ├── interface/  (public API) ├── interface/  (public API)
 ├── hooks/      (lifecycle)  ├── hooks/      (lifecycle)
 ├── AGENT.md             ├── AGENT.md
-├── AGENT_REFLECTION.md  ├── AGENT_REFLECTION.md
 └── README.md                └── README.md
 ```
 
@@ -84,9 +83,8 @@ Tool-specific commands omit the prefix: `BRAIN reflect`, `SKILLS list`, `USERINP
 Agents don't read everything at once. The system uses layered docs:
 - **L0** (`README.md`): Stable overview. What this is.
 - **L1** (`AGENT.md`): Operational guide. How to work with it.
-- **L2** (`AGENT_REFLECTION.md`): Self-improvement. What gaps exist.
 
-This pattern repeats at root, logic/, and tool/ levels.
+This pattern repeats at root, logic/, and tool/ levels. Self-improvement gaps are tracked in `runtime/_/eco/brain/tasks.md` and core skills (`skills/_/meta-agent`).
 
 ### Multi-Tier Knowledge Pipeline
 
@@ -122,8 +120,6 @@ Every directory in the project has up to three documentation files:
 |---|---|---|
 | `README.md` | Humans | What this is, how to use it |
 | `AGENT.md` | AI agents | Navigation guide: what's here, what's below, what's above |
-| `AGENT_REFLECTION.md` | Self-improvement | Known gaps, improvement opportunities |
-
 This is the project's modularization principle applied to documentation: each level of the directory tree is a logical layer, and each layer tells its readers what they can find by going deeper. `AGENT.md` at every level creates a "filesystem for knowledge" — agents navigate it like `cd` and `ls`, always knowing where they are and where to go next.
 
 The rationale: modularized code without modularized documentation is half-modularized. If every `logic/` subdirectory has clean interfaces but no `AGENT.md`, a context-free agent must read source code to understand what's there. Adding `AGENT.md` makes the structure self-describing. Run `TOOL --audit skills` to verify documentation coverage.
@@ -143,9 +139,10 @@ AITerminalTools/
 ├── bin/             # Executable symlinks for installed tools
 ├── skills/          # Dictionary-tree of agent skills (hierarchical)
 ├── runtime/         # Git-tracked institutional memory
-│   └── experience/  # Lessons, suggestions, evolution history
-├── AGENT.md     # Agent bootstrap guide
-└── AGENT_REFLECTION.md  # Self-improvement protocol
+│   └── _/eco/       # Brain (context, tasks) + experience (lessons)
+├── data/            # Gitignored transient data
+│   └── _/           # Symmetric command data (audit, test, etc.)
+└── AGENT.md     # Agent bootstrap guide
 ```
 
 **Transient directories** (gitignored): `data/`, `logs/`, `tmp/`
@@ -222,7 +219,6 @@ See `SKILLS show tool-development-workflow` for the full guide.
 Read `AGENT.md` in this directory. That file is your primary reference. Key entry points:
 
 - `AGENT.md` — Architecture guide, bootstrap protocol, conventions
-- `AGENT_REFLECTION.md` — Self-improvement protocol and system gaps
 - `TOOL --search all "<query>"` — Find anything
 - `BRAIN reflect` — Self-check protocol + active reminders
 - `USERINPUT --hint "summary"` — Report to user (blocking feedback loop)

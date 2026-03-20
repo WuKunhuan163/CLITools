@@ -10,7 +10,7 @@ class TestPythonManage(unittest.TestCase):
     def setUpClass(cls):
         cls.project_root = Path(__file__).resolve().parent.parent.parent.parent
         cls.python_tool = cls.project_root / "bin" / "PYTHON" / "PYTHON"
-        cls.tmp_dir = cls.project_root / "data" / "test" / "tmp" / "python_test"
+        cls.tmp_dir = cls.project_root / "data" / "_" / "test" / "tmp" / "python_test"
         cls.tmp_dir.mkdir(parents=True, exist_ok=True)
 
     def test_list(self):

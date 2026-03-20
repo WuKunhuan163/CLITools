@@ -67,7 +67,7 @@ class TestPythonOps(unittest.TestCase):
                 break
         if not version: self.skipTest("No supported versions found.")
         
-        venv_path = self.project_root / "data" / "test" / "tmp" / "test_venv"
+        venv_path = self.project_root / "data" / "_" / "test" / "tmp" / "test_venv"
         if venv_path.exists():
             import shutil
             shutil.rmtree(venv_path)

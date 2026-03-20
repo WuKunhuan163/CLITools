@@ -280,8 +280,8 @@ def _count_skills(root: Path) -> Dict[str, int]:
 
 
 def _brain_summary(root: Path) -> Dict[str, Any]:
-    brain_dir = root / "runtime" / "brain"
-    lessons_file = root / "runtime" / "experience" / "lessons.jsonl"
+    brain_dir = root / "runtime" / "_" / "eco" / "brain"
+    lessons_file = root / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
 
     summary: Dict[str, Any] = {"tasks_active": 0, "tasks_done": 0, "lessons": 0}
 
@@ -327,7 +327,7 @@ def _workspace_info(root: Path) -> Optional[Dict[str, str]]:
 
 def _find_docs(directory: Path) -> List[str]:
     docs = []
-    for name in ["README.md", "AGENT.md", "AGENT_REFLECTION.md"]:
+    for name in ["README.md", "AGENT.md"]:
         if (directory / name).exists():
             docs.append(str(directory / name))
     return docs
@@ -351,7 +351,7 @@ def _get_active_blueprint(root: Path) -> Optional[Dict]:
     """Load the active brain blueprint JSON.
 
     Resolution order:
-    1. runtime/brain/blueprint.json (active runtime blueprint)
+    1. runtime/_/eco/brain/blueprint.json (active runtime blueprint)
     2. If it has inherits/type/active, also load the referenced type from
        logic/brain/blueprint/ and merge commands from both
     3. Fallback to logic/brain/blueprint/base.json
@@ -359,7 +359,7 @@ def _get_active_blueprint(root: Path) -> Optional[Dict]:
     root = Path(root)
     result = {}
 
-    blueprint_file = root / "runtime" / "brain" / "blueprint.json"
+    blueprint_file = root / "runtime" / "_" / "eco" / "brain" / "blueprint.json"
     if blueprint_file.exists():
         try:
             result = json.loads(blueprint_file.read_text())

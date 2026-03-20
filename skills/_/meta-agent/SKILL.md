@@ -30,7 +30,7 @@ This is the formalization of how meta-agents accumulate intelligence:
 
 1. **Error**: Something unexpected happens. An API returns a surprising format. A file isn't where expected. A command fails silently.
 
-2. **Lesson**: The error is recorded with context — what happened, why, and how it was resolved. Stored in `runtime/experience/lessons.jsonl`.
+2. **Lesson**: The error is recorded with context — what happened, why, and how it was resolved. Stored in `runtime/_/eco/experience/lessons.jsonl`.
 
 3. **Skill**: After 3+ lessons on the same theme, a skill is synthesized — a structured guide that prevents the error class from recurring. Stored in `skills/`.
 
@@ -93,7 +93,7 @@ The ability to switch between these roles fluidly is what separates a meta-agent
 
 ## Making Intelligence Transferable
 
-The brain system (`runtime/brain/`) is designed to be pluggable. Everything a meta-agent learns is stored in files that can be attached to any other assistant. This means:
+The brain system (`runtime/_/eco/brain/`) is designed to be pluggable. Everything a meta-agent learns is stored in files that can be attached to any other assistant. This means:
 
 - Lessons transfer between sessions automatically
 - Skills are discoverable by any agent that searches

@@ -15,10 +15,10 @@ Error -> Fix -> Lesson -> Rule -> Skill -> Hook
 
 ## Data Architecture
 
-Brain logic lives in the SKILLS tool; brain data lives in `runtime/experience/` (a symmetric root directory):
+Brain logic lives in the SKILLS tool; brain data lives in `runtime/_/eco/experience/` (a symmetric root directory):
 
 ```
-tool/SKILLS/                         runtime/experience/
+tool/SKILLS/                         runtime/_/eco/experience/
 ├── main.py       (CLI entry)        ├── lessons.jsonl      (lesson log)
 └── logic/                           ├── suggestions.jsonl  (improvement suggestions)
     └── evolution.py (brain logic)   └── evolution.jsonl    (applied changes history)
@@ -34,7 +34,7 @@ After fixing a non-trivial bug (took > 1 attempt), discovering a cross-module go
 SKILLS learn "Description" --tool TOOL_NAME --severity warning --context "Context"
 ```
 
-Lessons are appended to `runtime/experience/lessons.jsonl`.
+Lessons are appended to `runtime/_/eco/experience/lessons.jsonl`.
 
 ### Severity Guide
 
@@ -174,7 +174,7 @@ def main():
 
 ## Portability
 
-All skills live in `skills/`, brain data in `runtime/experience/`. Both are Git-tracked. Never store institutional knowledge only in `~/.cursor/`. This ensures:
+All skills live in `skills/`, brain data in `runtime/_/eco/experience/`. Both are Git-tracked. Never store institutional knowledge only in `~/.cursor/`. This ensures:
 - New users get the same institutional knowledge
 - Skills and brain data are version-controlled
 - The agent's experience is portable across machines

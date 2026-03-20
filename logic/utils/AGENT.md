@@ -8,7 +8,7 @@
 - `get_display_width(text)` - East Asian width, ANSI stripped, RTL markers ignored
 - `truncate_to_display_width(text, max_width)` - CJK-aware
 - `get_rate_color(rate_str)` - <60% red, 60-90% yellow, 90-100% blue, 100% green
-- `format_table(headers, rows, max_width, save_dir)` - Box-drawing table; truncates and saves full to `data/table/{save_dir}/`
+- `format_table(headers, rows, max_width, save_dir)` - Box-drawing table; truncates and saves full to `data/_/table/{save_dir}/`
 - `print_success_status(action_msg)` - Bold green "Successfully" + message
 - `set_rtl_mode`, `get_rtl_mode` - Global RTL for formatting
 

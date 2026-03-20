@@ -2,9 +2,9 @@
 """sessionStart hook: Inject brain + ecosystem context into Cursor agent.
 
 Fires once when a new Cursor conversation begins. Injects:
-1. Brain state (tasks.json, context.md) from runtime/brain/
+1. Brain state (tasks.json, context.md) from runtime/_/eco/brain/
 2. Ecosystem context (skill catalog, exploration guide, agent behaviors)
-3. Recent experience lessons from runtime/experience/lessons.jsonl
+3. Recent experience lessons from runtime/_/eco/experience/lessons.jsonl
 
 This gives the Cursor agent the same context-awareness as the LLM tool's agent.
 """
@@ -27,7 +27,7 @@ def _log(msg: str):
 
 def _load_brain(project_dir: Path) -> list:
     parts = []
-    brain_dir = project_dir / "runtime" / "brain"
+    brain_dir = project_dir / "runtime" / "_" / "eco" / "brain"
 
     tasks_file = brain_dir / "tasks.json"
     if tasks_file.exists():
@@ -51,7 +51,7 @@ def _load_brain(project_dir: Path) -> list:
 
 def _load_lessons(project_dir: Path, count: int = 5) -> list:
     parts = []
-    experience_file = project_dir / "runtime" / "experience" / "lessons.jsonl"
+    experience_file = project_dir / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
     if experience_file.exists():
         lines = experience_file.read_text().strip().split("\n")
         recent = lines[-count:] if len(lines) > count else lines
@@ -97,11 +97,11 @@ def _load_ecosystem(project_dir: Path) -> list:
 
 
 def _load_reflection(project_dir: Path) -> list:
-    """Load the system gaps section from AGENT_REFLECTION.md for agent awareness."""
+    """Load system gaps from brain tasks for agent awareness."""
     parts = []
-    reflection_file = project_dir / "AGENT_REFLECTION.md"
-    if reflection_file.exists():
-        content = reflection_file.read_text(encoding="utf-8")
+    tasks_file = project_dir / "runtime" / "_" / "eco" / "brain" / "tasks.md"
+    if False and tasks_file.exists():  # Disabled: gaps are now in brain tasks, loaded via context
+        content = tasks_file.read_text(encoding="utf-8")
         for section_header in ("## Current System Gaps", "## Known Gaps"):
             if section_header in content:
                 start = content.index(section_header)
@@ -124,9 +124,8 @@ def _load_reflection(project_dir: Path) -> list:
                             cleaned = cleaned[:dash].strip()
                         gap_lines.append(cleaned)
                 if gap_lines:
-                    parts.append("## Known System Gaps (from AGENT_REFLECTION.md)\n" +
-                                 "\n".join(f"- {g}" for g in gap_lines) +
-                                 "\nRead AGENT_REFLECTION.md for full details and fix guidance.")
+                    parts.append("## Known System Gaps\n" +
+                                 "\n".join(f"- {g}" for g in gap_lines))
                 break
     return parts
 
@@ -185,7 +184,7 @@ def main():
         "1. **Self-Iteration**: Get faster each round. If you re-derive something, fix the discovery path.\n"
         "2. **Environment Improvement**: Fix nearby problems (docs, tests, inconsistencies) proactively.\n"
         "After each task: verify results are user-visible, scan for nearby issues, "
-        "take a proactive quality pass (see AGENT_REFLECTION.md 'Proactive Quality Pass'), "
+        "take a proactive quality pass (see skills/_/meta-agent 'Proactive Quality Pass'), "
         "record improvements via BRAIN log.\n"
     )
 

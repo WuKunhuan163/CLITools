@@ -260,9 +260,6 @@ def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Ca
     readme_content = _load_template("docs/tool_readme.md.tmpl", name=tool_name, short_name=short_name)
     with open(tool_dir / "README.md", 'w') as f: f.write(readme_content)
 
-    reflection_content = _load_template("docs/AGENT_REFLECTION.md.tmpl", name=tool_name)
-    with open(tool_dir / "AGENT_REFLECTION.md", 'w') as f: f.write(reflection_content)
-
     (tool_dir / "data" / "report").mkdir(parents=True, exist_ok=True)
     report_fa = _load_template("docs/report_AGENT.md.tmpl", tool_name=tool_name)
     with open(tool_dir / "data" / "report" / "AGENT.md", 'w') as f: f.write(report_fa)

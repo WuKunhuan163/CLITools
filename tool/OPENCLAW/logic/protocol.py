@@ -112,7 +112,7 @@ def _load_bootstrap() -> str:
 def _load_recent_learnings(n: int = 5) -> str:
     """Load the most recent N learnings for quick reference."""
     project_root = Path(__file__).resolve().parent.parent.parent.parent
-    learnings_file = project_root / "runtime" / "experience" / "lessons.jsonl"
+    learnings_file = project_root / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
     if not learnings_file.exists():
         return ""
 

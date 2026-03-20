@@ -1,6 +1,6 @@
 """JSON-backed brain task manager with numeric IDs.
 
-Stores tasks in runtime/brain/tasks.json and renders a human-readable
+Stores tasks in runtime/_/eco/brain/tasks.json and renders a human-readable
 tasks.md for agents to scan. Supports add, complete, clear, list, and
 bulk operations via a simple API and CLI commands.
 
@@ -23,11 +23,11 @@ STATUS_ORDER = ["in_progress", "verify_pending", "pending", "done"]
 
 
 def _tasks_json(project_root: str) -> Path:
-    return Path(project_root) / "runtime" / "brain" / "tasks.json"
+    return Path(project_root) / "runtime" / "_" / "eco" / "brain" / "tasks.json"
 
 
 def _tasks_md(project_root: str) -> Path:
-    return Path(project_root) / "runtime" / "brain" / "tasks.md"
+    return Path(project_root) / "runtime" / "_" / "eco" / "brain" / "tasks.md"
 
 
 def _now() -> str:

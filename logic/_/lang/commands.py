@@ -55,7 +55,7 @@ def audit_lang(lang_code: str, project_root: Path, force: bool = False, turing: 
         return
 
     if force:
-        p = project_root / "data" / "audit" / "lang" / f"audit_{lang_code}.json"
+        p = project_root / "data" / "_" / "audit" / "lang" / f"audit_{lang_code}.json"
         if p.exists(): p.unlink()
     
     auditor = LangAuditor(project_root, lang_code)
@@ -89,12 +89,12 @@ def audit_lang(lang_code: str, project_root: Path, force: bool = False, turing: 
     print_metric("audit_unused_translations_label", summary.get("unused_translations_count", 0))
     print_metric("audit_en_violations_label", summary.get("en_violations_count", 0), color=RED)
 
-    report_path = project_root / "data" / "audit" / "lang" / f"audit_{lang_code}.json"
+    report_path = project_root / "data" / "_" / "audit" / "lang" / f"audit_{lang_code}.json"
     report_label = _("audit_full_report_label", "Full report saved to")
     print("\n" + f"{BOLD}{BLUE}{report_label}{RESET}: {report_path}")
 
     if cached:
-        AuditManager(project_root / "data" / "audit" / "lang", component_name="LANG_AUDIT", audit_command=f"TOOL lang audit {lang_code}").print_cache_warning()
+        AuditManager(project_root / "data" / "_" / "audit" / "lang", component_name="LANG_AUDIT", audit_command=f"TOOL lang audit {lang_code}").print_cache_warning()
 
 def list_languages(project_root: Path, translation_func: Optional[Callable] = None):
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))

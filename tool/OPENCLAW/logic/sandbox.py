@@ -214,7 +214,7 @@ def _handle_openclaw_experience(parts: list) -> Dict[str, Any]:
     if not lesson:
         return {"ok": False, "error": 'Usage: --openclaw-experience "lesson text"'}
     import time as _time
-    learnings_dir = get_project_root() / "runtime" / "experience"
+    learnings_dir = get_project_root() / "runtime" / "_" / "eco" / "experience"
     learnings_dir.mkdir(parents=True, exist_ok=True)
     entry = {
         "lesson": lesson,
@@ -241,7 +241,7 @@ def _handle_openclaw_status(_parts: list) -> Dict[str, Any]:
     if skills_dir.exists():
         count = sum(1 for _ in skills_dir.rglob("SKILL.md"))
         lines.append(f"Skills: {count}")
-    learnings_file = root / "runtime" / "experience" / "lessons.jsonl"
+    learnings_file = root / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
     if learnings_file.exists():
         try:
             count = sum(1 for _ in open(learnings_file))
@@ -255,7 +255,7 @@ def _handle_openclaw_memory_search(parts: list) -> Dict[str, Any]:
     query = " ".join(parts[1:]).strip().strip('"').strip("'").lower()
     if not query:
         return {"ok": False, "error": 'Usage: --openclaw-memory-search "query"'}
-    learnings_file = get_project_root() / "runtime" / "experience" / "lessons.jsonl"
+    learnings_file = get_project_root() / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl"
     if not learnings_file.exists():
         return {"ok": True, "output": "No lessons recorded yet."}
     results = []

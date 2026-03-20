@@ -9,7 +9,7 @@ class LangAuditor:
     def __init__(self, project_root, lang_code=None):
         self.project_root = Path(project_root)
         self.lang_code = lang_code
-        self.audit_dir = self.project_root / "data" / "audit" / "lang"
+        self.audit_dir = self.project_root / "data" / "_" / "audit" / "lang"
         self.audit_dir.mkdir(parents=True, exist_ok=True)
         if lang_code:
             self.cache_file = self.audit_dir / f"audit_{lang_code}.json"
@@ -72,7 +72,7 @@ class LangAuditor:
                         w["line"] = lineno
                         all_warnings.append(w)
 
-        turing_audit_dir = self.project_root / "data" / "audit" / "turing"
+        turing_audit_dir = self.project_root / "data" / "_" / "audit" / "turing"
         turing_audit_dir.mkdir(parents=True, exist_ok=True)
         report_path = turing_audit_dir / f"audit_turing_{self.lang_code or 'en'}.json"
 

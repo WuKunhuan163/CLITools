@@ -222,7 +222,7 @@ def format_table(headers, rows, max_width=None, save_dir="tmp", full_display_col
     report_path = None
     if is_truncated:
         project_root = Path(__file__).resolve().parent.parent.parent
-        report_root = project_root / "data" / "table" / save_dir
+        report_root = project_root / "data" / "_" / "table" / save_dir
         report_root.mkdir(parents=True, exist_ok=True)
         
         from datetime import datetime
@@ -252,7 +252,7 @@ def save_list_report(items, save_dir="list", filename_prefix="list_report", limi
     Returns the path to the saved file.
     """
     project_root = Path(__file__).resolve().parent.parent.parent
-    report_root = project_root / "data" / "list" / save_dir
+    report_root = project_root / "data" / "_" / "list" / save_dir
     report_root.mkdir(parents=True, exist_ok=True)
     
     from datetime import datetime

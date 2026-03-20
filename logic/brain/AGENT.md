@@ -39,7 +39,7 @@ All blueprints inherit from `logic/brain/blueprint/base.json`, which defines:
 - **Hooks**: IDE integration (session start, post-tool-use, stop)
 - **Context injection**: what brain data gets injected into agent context
 - **Directory conventions**: tracked vs. gitignored symmetric directories
-- **Documentation pattern**: README.md / AGENT.md / AGENT_REFLECTION.md
+- **Documentation pattern**: README.md / AGENT.md
 - **Quality commands**: `TOOL --audit code`, `TOOL --lang audit`
 - **Search commands**: `TOOL --search all`, `BRAIN recall`
 

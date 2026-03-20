@@ -110,8 +110,8 @@ def upgrade_lesson_to_trigger(lesson_index: int, patterns: List[str],
     from logic.brain.utils.procedural import add_trigger_patterns
     if lessons_path is None:
         candidates = [
-            _ROOT / "runtime" / "brain" / "sessions" / "default" / "knowledge" / "lessons.jsonl",
-            _ROOT / "runtime" / "experience" / "lessons.jsonl",
+            _ROOT / "runtime" / "_" / "eco" / "brain" / "sessions" / "default" / "knowledge" / "lessons.jsonl",
+            _ROOT / "runtime" / "_" / "eco" / "experience" / "lessons.jsonl",
         ]
         for c in candidates:
             if c.exists():

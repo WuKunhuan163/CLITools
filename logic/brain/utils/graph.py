@@ -188,7 +188,7 @@ def build_ecosystem_graph(root: Path) -> ActionGraph:
     This pre-seeds the graph with well-known associations.
     New associations can be added dynamically as lessons accumulate.
     """
-    graph_path = root / "runtime" / "brain" / "action_graph.json"
+    graph_path = root / "runtime" / "_" / "eco" / "brain" / "action_graph.json"
     graph = ActionGraph(graph_path)
 
     # --- Action nodes ---
@@ -201,7 +201,7 @@ def build_ecosystem_graph(root: Path) -> ActionGraph:
     graph.add_node("act:edit_brain", "action", "edit brain paths",
                    "Reading or writing brain instance data")
     graph.add_node("act:edit_documentation", "action", "edit documentation",
-                   "Modifying README.md, AGENT.md, or AGENT_REFLECTION.md")
+                   "Modifying README.md or AGENT.md")
     graph.add_node("act:delete_symlink", "action", "delete symlink",
                    "Removing a symbolic link via rm or unlink")
     graph.add_node("act:install_tool", "action", "install tool",
@@ -308,8 +308,8 @@ def build_ecosystem_graph(root: Path) -> ActionGraph:
                    "Skill catalog with descriptions and categories")
     graph.add_node("sys:for_agent_md", "system", "AGENT.md bootstrap",
                    "Section 0 bootstraps agent with ecosystem overview")
-    graph.add_node("sys:for_agent_reflection", "system", "AGENT_REFLECTION.md",
-                   "Self-check protocol, system gaps, reflexive awareness")
+    graph.add_node("sys:meta_agent_skill", "system", "skills/_/meta-agent",
+                   "Self-check protocol, knowledge pipeline, meta-agent philosophy")
     graph.add_node("sys:brain_commands", "system", "BRAIN commands",
                    "log, reflect, recall, snapshot, digest")
     graph.add_node("sys:userinput", "system", "USERINPUT tool",
@@ -324,8 +324,8 @@ def build_ecosystem_graph(root: Path) -> ActionGraph:
                    "logic/setup/ide_detect.py — auto-detect and configure IDE")
 
     # --- File support nodes ---
-    graph.add_node("file:for_agent_reflection", "file", "AGENT_REFLECTION.md",
-                   "Root-level self-check protocol and gap tracking")
+    graph.add_node("file:meta_agent_skill", "file", "skills/_/meta-agent/SKILL.md",
+                   "Meta-agent skill: knowledge pipeline, self-iteration")
     graph.add_node("file:ide_detect", "file", "logic/setup/ide_detect.py",
                    "IDE auto-detection and hook deployment")
     graph.add_node("file:procedural", "file", "logic/brain/utils/procedural.py",

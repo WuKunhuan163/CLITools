@@ -27,7 +27,7 @@ from interface.config import get_color
 CURSOR_SKILLS_DIR = Path.home() / ".cursor" / "skills"
 LIBRARY_DIR = Path(__file__).resolve().parent / "logic" / "library"
 PROJECT_SKILLS_DIR = Path(__file__).resolve().parent.parent.parent / "skills"
-BRAIN_DIR = Path(__file__).resolve().parent.parent.parent / "runtime" / "experience"
+BRAIN_DIR = Path(__file__).resolve().parent.parent.parent / "runtime" / "_" / "eco" / "experience"
 LESSONS_FILE = BRAIN_DIR / "lessons.jsonl"
 
 

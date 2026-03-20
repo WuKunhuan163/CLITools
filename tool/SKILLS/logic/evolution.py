@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from collections import Counter
 
-BRAIN_DIR = Path(__file__).resolve().parent.parent.parent.parent / "runtime" / "experience"
+BRAIN_DIR = Path(__file__).resolve().parent.parent.parent.parent / "runtime" / "_" / "eco" / "experience"
 LESSONS_FILE = BRAIN_DIR / "lessons.jsonl"
 SUGGESTIONS_FILE = BRAIN_DIR / "suggestions.jsonl"
 EVOLUTION_FILE = BRAIN_DIR / "evolution.jsonl"

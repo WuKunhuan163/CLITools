@@ -10,9 +10,9 @@ def get_guidelines():
         "conventions": {
             "experience": [
                 "Record discoveries and gotchas via experience() or SKILLS learn after each non-obvious finding.",
-                "Update runtime/brain/tasks.md after completing tasks; mark done, add new ones.",
-                "Update runtime/brain/context.md with current work state so the next session can resume.",
-                "Runtime is a symmetric directory — each tool can have its own runtime/brain/ for tool-specific context.",
+                "Update runtime/_/eco/brain/tasks.md after completing tasks; mark done, add new ones.",
+                "Update runtime/_/eco/brain/context.md with current work state so the next session can resume.",
+                "Runtime is a symmetric directory — each tool can have its own runtime/ for tool-specific context.",
                 "Error → Lesson: every unexpected failure must be recorded with severity classification.",
                 "Lesson → Skill: after 3+ lessons on the same theme, synthesize into a reusable skill.",
                 "Skill → Tool: mechanical skills (repeatable, checklistable) should become automated tools.",
@@ -40,7 +40,7 @@ def get_guidelines():
                 "During Harden: distill knowledge (lessons → skills → automated infrastructure → hooks). Don't leave mechanical knowledge as prose.",
             ],
             "self_improvement": [
-                "Read AGENT_REFLECTION.md after task completion — compare your behavior against the self-check protocol and fix any system gaps you find.",
+                "After task completion: run BRAIN reflect for self-check, review skills/_/meta-agent for the knowledge pipeline.",
                 "Run self-audit after major changes: check for new lessons to capture.",
                 "Review skills-index periodically for outdated or redundant skills.",
                 "Propose infrastructure upgrades when manual patterns become repetitive.",

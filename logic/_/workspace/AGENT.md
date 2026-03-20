@@ -53,6 +53,6 @@ wm.close_workspace()
 ## Notes
 
 - `workspace/` is gitignored (deny-by-default pattern)
-- Brain data in workspaces uses the same blueprint system as `runtime/brain/`
+- Brain data in workspaces uses the same blueprint system as `runtime/_/eco/brain/`
 - When no workspace is open, the default scope is the AITerminalTools root
 - FILEDIALOG integration: if no path is given to `--create-workspace`, the system opens a directory picker

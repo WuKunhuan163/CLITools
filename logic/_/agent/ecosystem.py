@@ -90,14 +90,14 @@ def build_ecosystem_info(
     # -- Rationale (compact mental models) --
     rationale = {
         "tools": "Tool = integrated workflow (tool/<NAME>/{main.py, logic/, interface/}). Name IS the command. Fix bugs directly, don't work around them.",
-        "docs": "README.md=usage, AGENT.md=architecture, AGENT_REFLECTION.md=self-improvement protocol, SKILL.md=best practice. Import from interface.*, never logic.* directly. Create interface/main.py for reusable cross-tool APIs.",
-        "memory": "Persistent lessons in runtime/experience/. Search: exec 'TOOL --search lessons \"keywords\"'. Record: experience(lesson=..., tool=...).",
+        "docs": "README.md=usage, AGENT.md=architecture, SKILL.md=best practice. Import from interface.*, never logic.* directly. Create interface/main.py for reusable cross-tool APIs.",
+        "memory": "Persistent lessons in runtime/_/eco/experience/. Search: exec 'TOOL --search lessons \"keywords\"'. Record: experience(lesson=..., tool=...).",
         "evolution": "Errors -> Lessons -> Skills -> Infrastructure -> Better Tools. Each fix makes the ecosystem permanently smarter.",
     }
 
     # -- Standard tools (compact: name=description) --
     has_vision = _has_capability(provider_capabilities, "supports_vision")
-    standard_tools = "exec (shell commands; tools=commands), read_file, write_file, edit_file, search, todo, ask_user, experience (record lesson to runtime/experience/)"
+    standard_tools = "exec (shell commands; tools=commands), read_file, write_file, edit_file, search, todo, ask_user, experience (record lesson to runtime/_/eco/experience/)"
     if has_vision:
         standard_tools += ", read_image (vision)"
 

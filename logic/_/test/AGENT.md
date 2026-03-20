@@ -19,7 +19,7 @@
 - `SEQUENTIAL = True` at top - run one at a time
 - `EXPECTED_TIMEOUT = N` - Override default 60s
 - `EXPECTED_CPU_LIMIT = N` - Per-test CPU threshold (default from settings)
-- Results saved to `data/test/result/`
+- Results saved to `data/_/test/result/`
 
 ## Usage Patterns
 

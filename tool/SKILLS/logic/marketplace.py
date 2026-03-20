@@ -13,7 +13,7 @@ from pathlib import Path
 
 CLAWHUB_API = "https://topclawhubskills.com/api"
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "skills"
-MARKETPLACE_CACHE = Path(__file__).resolve().parent.parent.parent.parent / "runtime" / "experience" / "marketplace_cache.json"
+MARKETPLACE_CACHE = Path(__file__).resolve().parent.parent.parent.parent / "runtime" / "_" / "eco" / "experience" / "marketplace_cache.json"
 
 SOURCES = [
     {

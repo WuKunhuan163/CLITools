@@ -108,7 +108,7 @@ walking through a landscape. What you can "see" (nearby tools,
 interfaces, skills) reflects your current position in the project.
 
 Your **persistent memory** lives separately:
-- `runtime/experience/lessons.jsonl` -- Every lesson you've recorded
+- `runtime/_/eco/experience/lessons.jsonl` -- Every lesson you've recorded
 - `skills/core/` -- Structured development patterns
 
 Memory persists across sessions. Your environment resets each session

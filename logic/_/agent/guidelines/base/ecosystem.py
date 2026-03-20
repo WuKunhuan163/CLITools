@@ -11,7 +11,7 @@ def get_guidelines():
             "architecture": [
                 "Tool = tool/<NAME>/{main.py, logic/, interface/, hooks/, test/}.",
                 "Shared code: logic/ (internal), interface/ (facade). Import from interface.*, never logic.* directly.",
-                "Docs: README.md (usage), AGENT.md (agent internals), AGENT_REFLECTION.md (self-improvement), SKILL.md (best practices).",
+                "Docs: README.md (usage), AGENT.md (agent internals), SKILL.md (best practices).",
                 "Every directory has README.md + AGENT.md forming a layered hierarchy: root → logic/<module>/ → tool/<NAME>/.",
                 "Symmetric root directories: logic/, interface/, hooks/, test/, skills/, runtime/, data/.",
             ],

@@ -14,9 +14,9 @@ The engine is responsible for:
 - **Git Integration**: Managing the `resource/tool/PYTHON/data/install/` directory on the `tool` branch, including metadata merging and atomic pushes with rebase-retry logic.
 
 ### 2. Audit and Cache System
-- **Releases Audit**: `tool/PYTHON/data/audit/releases/report_xxx.json` stores a comprehensive matrix of versions, releases, and platform mappings.
-- **Asset Cache**: `tool/PYTHON/data/audit/assets/assets_xxx.json` caches per-tag asset lists to avoid GitHub API rate limits.
-- **Failure Tracking**: `tool/PYTHON/data/audit/failures/` logs detailed error reports for failed migrations.
+- **Releases Audit**: `tool/PYTHON/data/_/audit/releases/report_xxx.json` stores a comprehensive matrix of versions, releases, and platform mappings.
+- **Asset Cache**: `tool/PYTHON/data/_/audit/assets/assets_xxx.json` caches per-tag asset lists to avoid GitHub API rate limits.
+- **Failure Tracking**: `tool/PYTHON/data/_/audit/failures/` logs detailed error reports for failed migrations.
 
 ### 3. Verification and Update Logic
 - **`PYTHON.json` Metadata**: Every migrated version includes a `release` field in its manifest.

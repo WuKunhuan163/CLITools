@@ -25,7 +25,7 @@ BOOTSTRAP_FILES = ["SOUL.md", "IDENTITY.md", "USER.md", "MEMORY.md"]
 
 def get_experience_dir(project_root: str, brain_type: str = "default") -> Path:
     """Return the experience directory for a given brain type."""
-    return Path(project_root) / "runtime" / "experience" / brain_type
+    return Path(project_root) / "runtime" / "_" / "eco" / "experience" / brain_type
 
 
 def ensure_experience_dir(project_root: str, brain_type: str = "default") -> Path:
@@ -148,7 +148,7 @@ def write_memory(project_root: str, content: str,
 
 def list_brain_types(project_root: str):
     """List available brain types."""
-    exp_dir = Path(project_root) / "runtime" / "experience"
+    exp_dir = Path(project_root) / "runtime" / "_" / "eco" / "experience"
     if not exp_dir.exists():
         return []
     return sorted(

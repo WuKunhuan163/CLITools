@@ -75,7 +75,7 @@ Our project's condition: We operate inside Cursor IDE, not as a standalone daemo
 | OpenClaw | AITerminalTools Equivalent | Status |
 |----------|---------------------------|--------|
 | `SOUL.md` | `.cursor/rules/AITerminalTools.mdc` | Exists |
-| `MEMORY.md` | `runtime/experience/lessons.jsonl` | Exists |
+| `MEMORY.md` | `runtime/_/eco/experience/lessons.jsonl` | Exists |
 | `daily logs` | Agent transcripts + session logs | Exists |
 | `evolve_analyze` | `SKILLS lessons` (review) | Basic |
 | `evolve_suggest` | Manual (agent proposes, user approves) | Gap |

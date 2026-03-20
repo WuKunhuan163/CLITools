@@ -217,7 +217,7 @@ class WorkspaceManager:
         """Get the brain data path for a workspace."""
         ws_id = ws_id or self.active_workspace()
         if not ws_id:
-            return self.root / "runtime" / "brain"
+            return self.root / "runtime" / "_" / "eco" / "brain"
         return self.ws_root / ws_id / "brain"
 
     def _load_meta(self, ws_id: str) -> Optional[Dict]:

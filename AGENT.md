@@ -1,7 +1,7 @@
 # AITerminalTools: Guide for AI Agents
 
 > **TL;DR**: This is a 60+ tool CLI ecosystem with symmetric architecture.  
-> Read `runtime/brain/context.md` for session state.  
+> Read `runtime/_/eco/brain/context.md` for session state.  
 > Run `TOOL --eco search "your task"` before coding.  
 > Run `USERINPUT --hint "summary"` after every task.  
 > Browse skills: `TOOL --eco nav` / `TOOL --eco tree`.
@@ -17,27 +17,26 @@
 ├── bin/           CLI entry points — every installed tool has an executable here
 ├── hooks/         lifecycle hooks (session start, pre-commit, etc.)
 ├── skills/        agent skill guides (SKILL.md files)
-├── runtime/       brain (tasks, context), experience (lessons), evolution
+├── runtime/       brain + experience under _/eco/ (tasks, context, lessons)
 ├── test/          unit tests (tracked)
 ├── report/        generated reports (tracked)
 ├── research/      architecture analysis docs (tracked)
-├── data/          API keys, runtime config, caches (gitignored, per-tool)
+├── data/          API keys, caches (gitignored); _/ for symmetric cmd data
 ├── logs/          session logs, debug output (gitignored)
 ├── tmp/           temporary scripts, test data, prototypes (gitignored, clean up)
 ├── AGENT.md   THIS file — your primary guide
-├── AGENT_REFLECTION.md  self-improvement protocol and known system gaps
 └── README.md      user-facing documentation
 ```
 
-**Documentation convention**: Every directory has up to three docs — `README.md` (user-facing), `AGENT.md` (agent-facing), and `AGENT_REFLECTION.md` (self-improvement protocol). They form a layered hierarchy: root → `logic/<module>/` → `tool/<NAME>/`. When you need context about a module, read its `AGENT.md` first. When modifying code, trace the docs upward (tool → logic → root) and update any that reference changed behavior. Use `TOOL --eco search "topic"` to find relevant documentation sections. When discovering gaps: system-level gaps go to the root `AGENT_REFLECTION.md`; tool-specific gaps go to `tool/<NAME>/AGENT_REFLECTION.md`. Use `BRAIN reflect --tool <NAME>` to check both levels.
+**Documentation convention**: Every directory has up to two docs — `README.md` (user-facing) and `AGENT.md` (agent-facing). They form a layered hierarchy: root → `logic/<module>/` → `tool/<NAME>/`. When you need context about a module, read its `AGENT.md` first. When modifying code, trace the docs upward (tool → logic → root) and update any that reference changed behavior. Use `TOOL --eco search "topic"` to find relevant documentation sections. When discovering gaps, record them via `BRAIN log` and track them in `runtime/_/eco/brain/tasks.md`. Use `BRAIN reflect` for self-check protocols.
 
 If this is your first encounter with this project, follow these steps in order:
 
-1. **Read `runtime/brain/context.md`** — contains the previous session's state, current tasks, and what to resume. If it exists and has content, you have continuity. Act on it. (The default brain instance uses the `clitools` blueprint — see `logic/brain/blueprint/` for alternatives.)
+1. **Read `runtime/_/eco/brain/context.md`** — contains the previous session's state, current tasks, and what to resume. If it exists and has content, you have continuity. Act on it. (The default brain instance uses the `clitools` blueprint — see `logic/brain/blueprint/` for alternatives.)
 2. **Run `TOOL status`** (in terminal) — see all registered tools and their installation status. This shows you what the ecosystem has.
 3. **Run `TOOL --eco search "<your task keywords>"`** — before writing any code, search for existing tools, skills, and lessons. This is your most important habit. Returns targeted results (~1K tokens).
 4. **Run `TOOL --eco guide`** to see the full onboarding flow. For a specific tool: `TOOL --eco tool <NAME>`. For a specific skill: `TOOL --eco skill <name>`. For blueprint shortcuts: `TOOL --eco cmds`.
-5. **Check `runtime/brain/tasks.md`** — see pending tasks and priorities.
+5. **Check `runtime/_/eco/brain/tasks.md`** — see pending tasks and priorities.
 6. **Start working.** After each task: `BRAIN reflect` (self-check), then `USERINPUT --hint` (report to user). This dual-command loop is your core rhythm.
 
 **Key commands to memorize** (all are shell commands — run them in the terminal):
@@ -68,7 +67,7 @@ If this is your first encounter with this project, follow these steps in order:
 
 | Phase | What | When |
 |-------|------|------|
-| **Bootstrap** | Read context.md, AGENT_REFLECTION.md, orient | Session start |
+| **Bootstrap** | Read context.md, run BRAIN reflect, orient | Session start |
 | **Execute** | Implement, fix, or investigate the user's task | Core work |
 | **Verify** | Self-test, run code, check edge cases | After each change |
 | **Capture** | `BRAIN log`, `SKILLS learn`, `BRAIN done`, update docs | After verified work |
@@ -84,7 +83,7 @@ If this is your first encounter with this project, follow these steps in order:
 | **Audit** | `TOOL --audit code`, `TOOL --lang audit` | After major changes |
 | **Refactor** | Clean up code, reorganize structure | Periodic or requested |
 | **Harden** | Raise quality of working-but-imperfect infrastructure | Periodic (see triggers below) |
-| **Improve** | Fix ecosystem gaps from AGENT_REFLECTION.md | Between tasks |
+| **Improve** | Fix ecosystem gaps from `runtime/_/eco/brain/tasks.md` | Between tasks |
 
 **Harden** means: a tool or module already works, but isn't enterprise-grade. Hardening activities include:
 
@@ -155,7 +154,7 @@ Typical flow: Bootstrap → Execute → Verify → Capture → Feedback → (new
 - **Log activity**: After each completed task, run `BRAIN log "User asked X. Did Y. Result: Z." --files "path1,path2"` to build the activity journal. Include `--files` when you create or modify artifacts so follow-up agents can find them via `BRAIN recall`.
 - **Persist**: Run `BRAIN snapshot` after milestones. This ensures continuity if the session is interrupted.
 - **Digest periodically**: Run `BRAIN digest` between tasks to check if lessons have accumulated enough for skill distillation (3+ on the same theme → create a skill).
-- **Reflect**: Run `BRAIN reflect` after completing tasks — it shows the self-check protocol and current system gaps. If you fixed a gap, update AGENT_REFLECTION.md (remove fixed, add new). Record session findings in brain, not in AGENT_REFLECTION.md.
+- **Reflect**: Run `BRAIN reflect` after completing tasks — it shows the self-check protocol and current system gaps. Track gaps in `runtime/_/eco/brain/tasks.md`. Record session findings via `BRAIN log`.
 
 > **You can start working now.** The rest of this file is reference material — consult specific sections when you need details about tool structure (Section 2), imports (Section 1), testing (Section 7), or localization (Section 8).
 
@@ -184,7 +183,7 @@ See `interface/AGENT.md` for the full module map. Direct `logic.*` imports are o
 Each tool (and the project root) shares these directory semantics:
 - **`data/`**: Transient runtime data (gitignored). Caches, logs, session artifacts.
 - **`runtime/`**: Tracked runtime data (git-tracked). Institutional memory, evolution history.
-  - `runtime/experience/` at the project root holds the agent's cross-tool experience (lessons, suggestions, evolution history).
+  - `runtime/_/eco/experience/` at the project root holds the agent's cross-tool experience (lessons, suggestions, evolution history).
   - Individual tools can have their own `runtime/` for tool-specific tracked runtime data.
 - **`logic/`**: Implementation code (shared at root, tool-specific under `tool/<NAME>/logic/`).
 - **`interface/`**: Stable facade layer. Re-exports from `logic/` for external consumers (tools, skills, rules). See `interface/AGENT.md`.
@@ -636,7 +635,7 @@ To add tool-specific ignore rules:
 1. Add `"git_ignore": ["pattern1", "pattern2"]` to the tool's `tool.json`.
 2. `GitIgnoreManager.get_tool_rules()` reads these and generates tool-specific sections.
 3. Patterns are automatically prefixed with the tool's path (e.g., `"data/"` → `/tool/TOOL_NAME/data/`).
-4. Use `"root:!/FILENAME"` prefix for project-root-level files (e.g., `"root:!/AGENT_REFLECTION.md"`).
+4. Use `"root:!/FILENAME"` prefix for project-root-level files (e.g., `"root:!/AGENT.md"`).
 
 The base patterns use `/*` (ignore everything) then `!/dir/` (un-ignore specific directories). Currently tracked: `logic/`, `interface/`, `bin/`, `test/`, `tool/`, `report/`, `skills/`, `research/`, `runtime/`.
 
@@ -863,7 +862,7 @@ Browse, search, and install skills from external sources (ClawHub / OpenClaw eco
 - `SKILLS market installed` — List installed marketplace skills.
 
 ### Evolution System
-Agent self-improvement loop (inspired by OpenClaw). Brain data in `runtime/experience/`:
+Agent self-improvement loop (inspired by OpenClaw). Brain data in `runtime/_/eco/experience/`:
 - `SKILLS learn "<lesson>" --tool NAME --severity info|warning|critical` — Record a lesson.
 - `SKILLS lessons` — View recent lessons.
 - `SKILLS analyze` — Pattern recognition across lessons.
@@ -949,7 +948,7 @@ Your intelligence grows through a cycle. Each stage feeds the next:
 ```
 Errors / Surprises
       ↓
-  Lessons (atomic observations in runtime/experience/lessons.jsonl)
+  Lessons (atomic observations in runtime/_/eco/experience/lessons.jsonl)
       ↓   (multiple lessons on the same theme)
   Skills (structured guides in skills/core/)
       ↓   (skills + repeated use cases)

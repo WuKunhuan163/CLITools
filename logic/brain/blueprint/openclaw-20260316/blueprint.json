@@ -3,12 +3,10 @@
   "version": "1.0",
   "inherits": "base",
   "description": "OpenClaw-inspired brain with Markdown-canonical storage, hybrid search (vector + BM25 keyword), pre-compaction memory flush, graceful degradation, and self-improvement feedback loop.",
-
   "sessions": {
     "enabled": true,
     "manifest_file": "MANIFEST.md"
   },
-
   "tiers": {
     "working": {
       "description": "Hot state: curated memory (MEMORY.md) + daily logs (memory/YYYY-MM-DD.md). Markdown is canonical source of truth.",
@@ -76,18 +74,38 @@
         "model": "ebbinghaus_exponential",
         "half_life_days": 30,
         "min_relevance": 0.1,
-        "never_decay": ["preferences", "contacts"]
+        "never_decay": [
+          "preferences",
+          "contacts"
+        ]
       }
     }
   },
-
   "context_injection": {
     "sessionStart": {
       "sources": [
-        {"type": "brain_state", "tier": "working", "files": ["context", "tasks", "curated_memory"], "format": "markdown"},
-        {"type": "memory_search", "tier": "knowledge", "query": "recent learnings errors", "max_results": 5, "format": "bullet_list"},
-        {"type": "ecosystem", "module": "logic.agent.ecosystem", "function": "build_ecosystem_info"},
-        {"type": "reflection", "file": "AGENT_REFLECTION.md", "section": "Current System Gaps"}
+        {
+          "type": "brain_state",
+          "tier": "working",
+          "files": [
+            "context",
+            "tasks",
+            "curated_memory"
+          ],
+          "format": "markdown"
+        },
+        {
+          "type": "memory_search",
+          "tier": "knowledge",
+          "query": "recent learnings errors",
+          "max_results": 5,
+          "format": "bullet_list"
+        },
+        {
+          "type": "ecosystem",
+          "module": "logic.agent.ecosystem",
+          "function": "build_ecosystem_info"
+        }
       ],
       "wrapper": {
         "prefix": "--- AGENT BRAIN + ECOSYSTEM ---",
@@ -102,7 +120,6 @@
       "tracking_key": "memory_flush_compaction_count"
     }
   },
-
   "self_improvement": {
     "enabled": true,
     "capture_scenarios": [
@@ -135,7 +152,6 @@
       "human_approval_required": true
     }
   },
-
   "triggers": {
     "memory_flush": {
       "event": "pre_compaction",
@@ -173,7 +189,6 @@
       }
     }
   },
-
   "procedural_skills": {
     "_description": "ProcMEM-inspired reflex arcs. Each skill has activation conditions (when), execution procedure (what to do), and termination conditions (when done). The hook system matches agent actions against activation patterns and injects the relevant procedure.",
     "_reference": "ProcMEM (Mi et al., ICML 2026): Skill = <activation, execution, termination>",
@@ -181,7 +196,12 @@
       {
         "id": "gitignore_whitelist",
         "activation": {
-          "patterns": ["create.*root.*file", "write.*root.*file", "new file.*/[A-Z]", "Write.*path.*AITerminalTools/[^/]+$"],
+          "patterns": [
+            "create.*root.*file",
+            "write.*root.*file",
+            "new file.*/[A-Z]",
+            "Write.*path.*AITerminalTools/[^/]+$"
+          ],
           "description": "Agent creates or writes a file in the project root directory"
         },
         "execution": [
@@ -195,21 +215,29 @@
       {
         "id": "tool_directory_symmetry",
         "activation": {
-          "patterns": ["mkdir.*tool/", "create.*directory.*tool/", "new.*folder.*tool/"],
+          "patterns": [
+            "mkdir.*tool/",
+            "create.*directory.*tool/",
+            "new.*folder.*tool/"
+          ],
           "description": "Agent creates directories under a tool"
         },
         "execution": [
           "Verify symmetric pattern: logic/, interface/, hooks/, data/, test/",
           "Check template at logic/tool/template/ for required files",
           "data/ and logs/ are gitignored. runtime/ is tracked.",
-          "Ensure AGENT.md, AGENT_REFLECTION.md, README.md exist"
+          "Ensure AGENT.md and README.md exist"
         ],
         "termination": "directory structure matches symmetric pattern"
       },
       {
         "id": "cross_tool_import",
         "activation": {
-          "patterns": ["from tool\\.", "import.*tool\\.", "from logic\\.[a-z].*import"],
+          "patterns": [
+            "from tool\\.",
+            "import.*tool\\.",
+            "from logic\\.[a-z].*import"
+          ],
           "description": "Agent writes a cross-tool or cross-module import"
         },
         "execution": [
@@ -222,7 +250,12 @@
       {
         "id": "brain_path_safety",
         "activation": {
-          "patterns": ["runtime/brain", "brain.*instance", "brain.*session", "logic/brain"],
+          "patterns": [
+            "runtime/_/eco/brain",
+            "brain.*instance",
+            "brain.*session",
+            "logic/brain"
+          ],
           "description": "Agent reads/writes brain-related paths"
         },
         "execution": [
@@ -236,21 +269,28 @@
       {
         "id": "doc_stability_check",
         "activation": {
-          "patterns": ["README.md", "for_agent\\.md", "for_agent_reflection\\.md"],
+          "patterns": [
+            "README.md",
+            "for_agent\\.md",
+            "for_agent_reflection\\.md"
+          ],
           "description": "Agent edits documentation files"
         },
         "execution": [
           "README.md: Stable overview only. No tool lists, model names, or volatile inventories.",
           "AGENT.md: Operational guide. Technical details agents need.",
-          "AGENT_REFLECTION.md: Stable protocol, NOT recording file. Refined not grown.",
-          "Each directory should have all three. Check doc symmetry."
+          "Each directory should have both. Check doc symmetry."
         ],
         "termination": "documentation updated within its designated scope"
       },
       {
         "id": "template_cascade",
         "activation": {
-          "patterns": ["for_agent_reflection.*template", "template.*tmpl", "logic/tool/template"],
+          "patterns": [
+            "for_agent_reflection.*template",
+            "template.*tmpl",
+            "logic/tool/template"
+          ],
           "description": "Agent updates root conventions or templates"
         },
         "execution": [
@@ -263,7 +303,6 @@
       }
     ]
   },
-
   "features": {
     "markdown_canonical": "All memory stored as plain Markdown files — human-readable, editable, version-controllable. Index is derived, files are source of truth.",
     "hybrid_search": "Union-based hybrid search: 70% vector similarity + 30% BM25 keyword matching. Over-fetches 4x candidates before merge.",
@@ -274,10 +313,13 @@
     "self_improvement_loop": "Captures failures/corrections → detects patterns → proposes improvements. Human-in-the-loop for skill changes.",
     "procedural_reflex_arcs": "ProcMEM-inspired skills with activation/execution/termination. Hook system matches agent actions against patterns and injects relevant procedures automatically."
   },
-
   "dependencies": {
     "pip": [],
-    "optional_pip": ["sentence-transformers", "faiss-cpu", "numpy"],
+    "optional_pip": [
+      "sentence-transformers",
+      "faiss-cpu",
+      "numpy"
+    ],
     "note": "Core functionality works with flatfile only. Optional: install sentence-transformers for hybrid search embeddings."
   }
 }

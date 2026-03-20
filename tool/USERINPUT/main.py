@@ -213,7 +213,6 @@ def _build_clipboard_suffix():
     reflection_prompt = get_msg(
         "label_reflection_prompt",
         "Then run BRAIN reflect to self-check and review system gaps. "
-        "Fix gaps and update AGENT_REFLECTION.md if needed.\n"
         "Then USERINPUT --hint."
     )
     parts.append(f"\n\n{reflection_prompt}")

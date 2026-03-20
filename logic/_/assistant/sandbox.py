@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-_ROOT_DATA_DIR = _PROJECT_ROOT / "data" / "assistant"
+_ROOT_DATA_DIR = _PROJECT_ROOT / "data" / "_" / "assistant"
 _ROOT_PERM_FILE = _ROOT_DATA_DIR / "sandbox.json"
 _lock = threading.Lock()
 
@@ -47,7 +47,7 @@ def _resolve_perm_file() -> Path:
     use that. Otherwise fall back to the project-root sandbox.
     """
     if _active_tool_dir:
-        tool_perm = _active_tool_dir / "data" / "assistant" / "sandbox.json"
+        tool_perm = _active_tool_dir / "data" / "_" / "assistant" / "sandbox.json"
         if tool_perm.exists():
             return tool_perm
     return _ROOT_PERM_FILE

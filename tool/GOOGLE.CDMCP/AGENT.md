@@ -215,3 +215,32 @@ If any stage fails, the function returns early with `{"ok": False, "step": "..."
 - **Tab isolation**: `require_tab()` only claims tabs within the session's CDMCP browser window, not from the user's regular tabs.
 - **Persistent HTTP server**: Welcome/demo pages survive process exit via `server_standalone.py`.
 - **Interrupt handling**: All MPC operations check `_was_unlocked()` and return failure if user unlocked mid-operation.
+
+## Known Gaps
+
+1. **Default screenshot targets demo tab** — `--mcp-screenshot` without `--tab-id` captures the demo/session tab instead of the most recently navigated tab. Should track and default to the last user-navigated tab.
+2. **websocket package conflict** — The `websocket` v0.2.1 server package conflicts with `websocket-client`. Fixed by uninstalling the old package but need to ensure `setup.py` doesn't reintroduce it.
+3. **No accessibility tree snapshot** — Cursor's browser has `browser_snapshot` returning a structured accessibility tree with refs for direct element targeting. CDMCP uses CSS selectors only. Consider adding an accessibility-tree-based interaction mode.
+4. **No form-filling shorthand** — Cursor has `browser_fill_form` for batch form filling. CDMCP requires individual calls.
+5. **Demo error reporting is opaque** — When `--mcp-demo --single` fails, the message "Demo had failures: check steps" gives no actionable detail. Should log specific step failures.
+
+## CDMCP vs Cursor IDE Built-in Browser (2026-03-17)
+
+| Feature | CDMCP | Cursor Browser | Gap |
+|---------|-------|----------------|-----|
+| Navigation | `--mcp-navigate URL` | `browser_navigate` | Equivalent |
+| Click | `--mcp-click` (CSS selector) | `browser_click` (accessibility ref) | CDMCP: selector-based only; Cursor: ref-based (more robust) |
+| Type | `mcp_type()` with char delay | `browser_type` | Equivalent, CDMCP has visual feedback |
+| Fill | `mcp_fill()` | `browser_fill` | Equivalent |
+| Snapshot | `--mcp-scan` (element scan) | `browser_snapshot` (accessibility tree) | CDMCP scan is slower and less structured |
+| Screenshot | `--mcp-screenshot` | `browser_take_screenshot` | Equivalent, but default tab targeting differs |
+| Lock/Unlock | Visual overlay lock | `browser_lock`/`browser_unlock` | CDMCP: visual; Cursor: tab-level |
+| Scroll | `--mcp-scroll` | `browser_scroll` | Equivalent |
+| Session Mgmt | Full session system | Per-tab viewId | CDMCP: richer session model |
+| Visual Effects | Badge, focus, highlight, cursor | None | CDMCP advantage |
+| Dialog Handling | `mcp_handle_dialog` | `browser_handle_dialog` | Equivalent |
+| Network Monitor | `mcp_network_requests` | `browser_network_requests` | Equivalent |
+| Console Logs | `mcp_console_messages` | `browser_console_messages` | Equivalent |
+| Auth Integration | Google auth flow | None | CDMCP advantage |
+| Page Search | `mcp_search` | `browser_search` | Equivalent |
+| Robustness | Manual Chrome lifecycle | IDE-managed browser | Cursor: more stable |

@@ -59,7 +59,7 @@ class KnowledgeManager:
 
     Directory layout mirrors the project hierarchy::
 
-        runtime/experience/
+        runtime/_/eco/experience/
         ├── lessons.jsonl              # Global lessons
         ├── discoveries.jsonl          # Global discoveries
         └── tool/
@@ -73,7 +73,7 @@ class KnowledgeManager:
 
     def __init__(self, project_root: str | Path):
         self.root = Path(project_root)
-        self.experience_dir = self.root / "runtime" / "experience"
+        self.experience_dir = self.root / "runtime" / "_" / "eco" / "experience"
 
     # ------------------------------------------------------------------
     # Unified search
@@ -344,7 +344,7 @@ class KnowledgeManager:
     def _index_docs(self, idx: SemanticIndex):
         """Index root-level and shared logic documentation.
 
-        Covers: AGENT.md, README.md, AGENT_REFLECTION.md at project root,
+        Covers: AGENT.md, README.md at project root,
         plus logic/*/README.md, logic/*/AGENT.md, interface/AGENT.md.
         """
         from logic._.search.tools import _read_text, _split_sections
@@ -352,7 +352,6 @@ class KnowledgeManager:
         root_docs = [
             ("AGENT.md", self.root / "AGENT.md"),
             ("README.md", self.root / "README.md"),
-            ("AGENT_REFLECTION.md", self.root / "AGENT_REFLECTION.md"),
         ]
 
         for name, path in root_docs:

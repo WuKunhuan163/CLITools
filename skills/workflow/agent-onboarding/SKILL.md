@@ -18,11 +18,11 @@ Use this skill when:
 
 ```bash
 # Does the brain have state from a previous session?
-cat runtime/brain/context.md
-cat runtime/brain/tasks.md
+cat runtime/_/eco/brain/context.md
+cat runtime/_/eco/brain/tasks.md
 
-# Read the reflection protocol (system improvement guide)
-cat AGENT_REFLECTION.md
+# Check system gaps and improvement tasks
+BRAIN reflect
 ```
 
 If `context.md` has content, a previous agent left you a handoff. Read it carefully — it tells you:
@@ -85,7 +85,7 @@ Before your session ends (or when calling USERINPUT):
 An agent session flows through named phases. Always know which phase you're in:
 
 ```
-BOOTSTRAP   → Read brain/context.md, AGENT_REFLECTION.md, run TOOL --search all
+BOOTSTRAP   → Read brain/context.md, run BRAIN reflect, run TOOL --search all
 EXECUTE     → Implement the user's task (code, fix, investigate)
 VERIFY      → Self-test: run the code, check edge cases, write tmp/ tests
 CAPTURE     → BRAIN log "activity", SKILLS learn, BRAIN done <id>, update docs
@@ -101,7 +101,7 @@ HANDOFF     → BRAIN snapshot "summary" (before session end)
 - **Audit** — run `TOOL --audit code`, `TOOL --lang audit`
 - **Refactor** — clean up code, reorganize structure
 - **Harden** — raise quality of working-but-imperfect infrastructure (fix latent bugs, generalize, align with conventions)
-- **Improve** — fix ecosystem gaps from AGENT_REFLECTION.md
+- **Improve** — fix ecosystem gaps from `BRAIN reflect` and `runtime/_/eco/brain/tasks.md`
 
 **Phase awareness matters.** When executing a user task, focus on their goal. When doing meta activities, focus on ecosystem quality and future agent experience. When capturing, focus on what future agents need to know. Don't mix phases — finish one before starting another.
 
@@ -125,9 +125,9 @@ BRAIN reflect           # Self-check protocol + system gaps (proactive self-impr
 
 | Path | Purpose |
 |------|---------|
-| `runtime/brain/context.md` | Current session state (handoff document) |
-| `runtime/brain/tasks.md` | Task list with priorities |
-| `runtime/experience/lessons.jsonl` | Accumulated lessons |
+| `runtime/_/eco/brain/context.md` | Current session state (handoff document) |
+| `runtime/_/eco/brain/tasks.md` | Task list with priorities |
+| `runtime/_/eco/experience/lessons.jsonl` | Accumulated lessons |
 | `skills/core/` | Core skills (read with `SKILLS show`) |
 | `tool/<NAME>/AGENT.md` | Tool-specific agent documentation |
 | `AGENT.md` (root) | Full architecture guide |
@@ -139,5 +139,5 @@ BRAIN reflect           # Self-check protocol + system gaps (proactive self-impr
 - Ignoring `brain/context.md` when it has content
 - Ending a session without updating the brain
 - Making changes without recording non-obvious findings as lessons
-- Not reading `AGENT_REFLECTION.md` at session start (misses known gaps and improvement protocol)
+- Not running `BRAIN reflect` at session start (misses known gaps and improvement tasks)
 - Not self-testing code after writing it

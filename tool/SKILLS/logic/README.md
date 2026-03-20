@@ -11,7 +11,7 @@ Agent skill management — evolution system and marketplace. Provides the self-i
 
 ## Data Storage
 
-Brain data is stored in `runtime/experience/`:
+Brain data is stored in `runtime/_/eco/experience/`:
 - `lessons.jsonl` — recorded lessons
 - `suggestions.jsonl` — generated improvement suggestions
 - `evolution.jsonl` — applied evolution history

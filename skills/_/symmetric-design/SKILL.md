@@ -72,9 +72,7 @@ Every directory has three potential documentation layers:
 |------|----------|---------|
 | `README.md` | Humans | What this is, how to use it |
 | `AGENT.md` | Agents | How to work with it, what to watch for |
-| `AGENT_REFLECTION.md` | Self-improvement | Known gaps, improvement opportunities |
-
-Not every directory needs all three. But when they exist, their role is predictable.
+Not every directory needs both. But when they exist, their role is predictable. Self-improvement gaps are tracked centrally in `runtime/_/eco/brain/tasks.md`.
 
 ### 5. Skills Symmetry
 

@@ -16,7 +16,7 @@ External scripts that Cursor IDE calls at specific lifecycle events during agent
 
 ## Brain Integration
 
-Hooks read from and interact with `runtime/brain/`:
+Hooks read from and interact with `runtime/_/eco/brain/`:
 - `sessionStart` → injects `tasks.md` + `context.md` as additional_context
 - `postToolUse` → every 10 calls, reminds agent to check brain and plan USERINPUT
 - `afterShellExecution` (USERINPUT matcher) → flags that USERINPUT was called

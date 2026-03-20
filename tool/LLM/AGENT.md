@@ -199,6 +199,19 @@ The frontend shows:
 - `logic/session/usage.py` — Per-provider SQLite usage tracking
 - `logic/session/brain.py` — Long-term memory management
 
+## Known Gaps
+
+- **Token counter not wired into streaming pipeline**: `token_counter.py` supports tiktoken but isn't called automatically during streaming for real-time cost tracking.
+- **Baidu rate limits are estimates**: Official per-model RPM/TPM for Qianfan V2 are undocumented. Current values (200-300 RPM) are conservative. Monitor 429 responses.
+- **Stale key state recovery**: When a provider's auth method changes, old `key_states` in `config.json` may have stale failure counts requiring manual reset.
+
+## Design Notes
+
+- All Baidu ERNIE models use `OpenAICompatProvider` with `MAX_TOKENS_PARAM = "max_completion_tokens"`. The Qianfan V2 API is fully OpenAI-compatible.
+- Gemini free/paid is at the GCP project level, not per-request. Cannot programmatically tag "free" vs "paid" calls.
+- `model.json` prices are per 1M tokens (not 1K). The frontend reads `input_per_1m` / `output_per_1m` directly.
+- ERNIE-5.0 (reasoning model) consumes thinking tokens within the max_tokens budget. Use >= 100 max_tokens for testing.
+
 ## Dependencies
 
 - PYTHON (managed Python runtime)

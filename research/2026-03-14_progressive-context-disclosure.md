@@ -109,7 +109,7 @@ viking://skills/code_review/
 **Approach**:
 - Organize agent knowledge as structured directories:
   ```
-  runtime/brain/
+  runtime/_/eco/brain/
     memory.md          # L0: always loaded
     tasks.json         # L0: active tasks
     lessons/           # L1: loaded on demand
