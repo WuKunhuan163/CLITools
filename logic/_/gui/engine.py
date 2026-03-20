@@ -126,6 +126,8 @@ def play_notification_bell(project_root: Path):
     import subprocess
     import threading
     bell_path = project_root / "logic" / "_" / "utils" / "asset" / "audio" / "bell.mp3"
+    if not bell_path.exists():
+        bell_path = project_root / "assets" / "audio" / "bell.mp3"
     
     def run_play():
         try:
