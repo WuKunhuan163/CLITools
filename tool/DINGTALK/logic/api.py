@@ -47,6 +47,82 @@ def _save_config(cfg: dict):
     _CONFIG_FILE.write_text(json.dumps(cfg, indent=2, ensure_ascii=False))
 
 
+def migrate_config(phone: Optional[str] = None) -> dict:
+    """Migrate flat config to phone-keyed hierarchy.
+
+    If phone is provided, uses it as the account key.
+    Otherwise uses "default" as placeholder.
+    Returns the migrated config.
+    """
+    cfg = _load_config()
+    if "accounts" in cfg:
+        return cfg
+
+    if not cfg.get("app_key"):
+        return cfg
+
+    account_phone = phone or cfg.get("phone", "default")
+    account = {}
+    for k in ("app_key", "app_secret", "agent_id", "operator_id",
+              "webhook_url", "webhook_secret",
+              "new_token", "new_token_expiry", "old_token", "old_token_expiry"):
+        if k in cfg:
+            account[k] = cfg[k]
+
+    cfg["accounts"] = {account_phone: account}
+    cfg["active_phone"] = account_phone
+    _save_config(cfg)
+    return cfg
+
+
+def _get_active_account(cfg: dict) -> dict:
+    """Resolve the active account from hierarchical config.
+
+    Supports both legacy flat config and new phone-keyed accounts.
+    Returns the account dict with app_key, app_secret, etc.
+    """
+    accounts = cfg.get("accounts", {})
+    active_phone = cfg.get("active_phone", "")
+
+    if accounts and active_phone and active_phone in accounts:
+        return accounts[active_phone]
+
+    if accounts:
+        return next(iter(accounts.values()))
+
+    return cfg
+
+
+def get_active_phone() -> Optional[str]:
+    """Return the active phone number, or None."""
+    cfg = _load_config()
+    return cfg.get("active_phone")
+
+
+def list_accounts() -> Dict[str, Any]:
+    """Return all configured accounts: {phone: {app_key, ...}}."""
+    cfg = _load_config()
+    return cfg.get("accounts", {})
+
+
+def switch_account(phone: str) -> Dict[str, Any]:
+    """Switch the active account to a different phone number."""
+    phone = phone.lstrip("+").lstrip("86")
+    cfg = _load_config()
+    accounts = cfg.get("accounts", {})
+
+    if phone not in accounts:
+        available = list(accounts.keys())
+        return {"ok": False, "error": f"No account for {phone}. Available: {available}"}
+
+    cfg["active_phone"] = phone
+    acct = accounts[phone]
+    cfg["app_key"] = acct.get("app_key", "")
+    cfg["app_secret"] = acct.get("app_secret", "")
+    _save_config(cfg)
+    return {"ok": True, "phone": phone, "app_key": acct.get("app_key", "")}
+
+
 def _require_requests():
     if requests is None:
         raise RuntimeError("requests library required. Run: pip install requests")
@@ -56,8 +132,9 @@ def _get_new_token(app_key: str, app_secret: str) -> str:
     """Get new-style access token (api.dingtalk.com)."""
     _require_requests()
     cfg = _load_config()
-    cached = cfg.get("new_token")
-    expiry = cfg.get("new_token_expiry", 0)
+    acct = _get_active_account(cfg)
+    cached = acct.get("new_token")
+    expiry = acct.get("new_token_expiry", 0)
     if cached and time.time() < expiry:
         return cached
 
@@ -71,8 +148,8 @@ def _get_new_token(app_key: str, app_secret: str) -> str:
     if not token:
         raise RuntimeError(f"Failed to get new token: {data}")
 
-    cfg["new_token"] = token
-    cfg["new_token_expiry"] = time.time() + 7000
+    acct["new_token"] = token
+    acct["new_token_expiry"] = time.time() + 7000
     _save_config(cfg)
     return token
 
@@ -81,8 +158,9 @@ def _get_old_token(app_key: str, app_secret: str) -> str:
     """Get old-style access token (oapi.dingtalk.com)."""
     _require_requests()
     cfg = _load_config()
-    cached = cfg.get("old_token")
-    expiry = cfg.get("old_token_expiry", 0)
+    acct = _get_active_account(cfg)
+    cached = acct.get("old_token")
+    expiry = acct.get("old_token_expiry", 0)
     if cached and time.time() < expiry:
         return cached
 
@@ -96,21 +174,22 @@ def _get_old_token(app_key: str, app_secret: str) -> str:
     if not token:
         raise RuntimeError(f"Failed to get old token: {data}")
 
-    cfg["old_token"] = token
-    cfg["old_token_expiry"] = time.time() + 7000
+    acct["old_token"] = token
+    acct["old_token_expiry"] = time.time() + 7000
     _save_config(cfg)
     return token
 
 
 def _get_credentials() -> tuple:
-    """Return (app_key, app_secret) from config."""
+    """Return (app_key, app_secret) from the active account."""
     cfg = _load_config()
-    key = cfg.get("app_key") or cfg.get("DINGTALK_APP_KEY")
-    secret = cfg.get("app_secret") or cfg.get("DINGTALK_APP_SECRET")
+    acct = _get_active_account(cfg)
+    key = acct.get("app_key") or cfg.get("app_key") or cfg.get("DINGTALK_APP_KEY")
+    secret = acct.get("app_secret") or cfg.get("app_secret") or cfg.get("DINGTALK_APP_SECRET")
     if not key or not secret:
         raise RuntimeError(
             "DingTalk credentials not configured. "
-            "Run: DINGTALK config app_key <KEY> && DINGTALK config app_secret <SECRET>"
+            "Run: DINGTALK --tutorial setup"
         )
     return key, secret
 

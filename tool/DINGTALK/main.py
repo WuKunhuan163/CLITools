@@ -168,20 +168,28 @@ def main():
         sys.exit(_run_tutorial(tutorial_name, tool))
 
     if cmd == "status":
-        from tool.DINGTALK.logic.api import _load_config
+        from tool.DINGTALK.logic.api import _load_config, _get_active_account, get_active_phone, list_accounts
         cfg = _load_config()
-        has_key = bool(cfg.get("app_key"))
-        has_secret = bool(cfg.get("app_secret"))
-        has_agent = bool(cfg.get("agent_id"))
-        has_operator = bool(cfg.get("operator_id"))
+        acct = _get_active_account(cfg)
+        active_phone = get_active_phone()
+        accounts = list_accounts()
+        has_key = bool(acct.get("app_key"))
+        has_secret = bool(acct.get("app_secret"))
+        has_agent = bool(acct.get("agent_id"))
+        has_operator = bool(acct.get("operator_id"))
 
         print(f"\n  {BOLD}DINGTALK{RESET} tool status")
         print(f"  {DIM}API: DingTalk Open Platform (official REST API){RESET}")
         print()
+        if active_phone:
+            print(f"  {BOLD}Active account:{RESET} {active_phone}")
+        if len(accounts) > 1:
+            others = [p for p in accounts if p != active_phone]
+            print(f"  {DIM}Other accounts: {', '.join(others)}{RESET}")
         print(f"  app_key:     {'configured' if has_key else 'not set'}")
         print(f"  app_secret:  {'configured' if has_secret else 'not set'}")
-        print(f"  agent_id:    {cfg.get('agent_id', 'not set')}")
-        print(f"  operator_id: {cfg.get('operator_id', 'not set')}")
+        print(f"  agent_id:    {acct.get('agent_id', 'not set')}")
+        print(f"  operator_id: {acct.get('operator_id', 'not set')}")
         print()
         print(f"  {BOLD}Capabilities{RESET}")
         print(f"  {DIM}send         Send robot 1:1 message by userId or phone{RESET}")
@@ -190,6 +198,8 @@ def main():
         print(f"  {DIM}notify       Send work notification{RESET}")
         print(f"  {DIM}contact      Look up user by phone or search{RESET}")
         print(f"  {DIM}todo         Create todo task{RESET}")
+        print(f"  {DIM}switch       Switch active account by phone{RESET}")
+        print(f"  {DIM}accounts     List all configured accounts{RESET}")
         print()
         return 0
 
@@ -322,6 +332,35 @@ def main():
             print(f"  {BOLD}{RED}Failed.{RESET} {result.get('error', 'Unknown error')}")
         return 0 if result.get("ok") else 1
 
+    if cmd == "switch":
+        from tool.DINGTALK.logic.api import switch_account
+        phone = args.args[0] if args.args else None
+        if not phone:
+            print(f"  {BOLD}{RED}Missing phone.{RESET} Usage: DINGTALK switch <phone>")
+            return 1
+        result = switch_account(phone)
+        if result.get("ok"):
+            print(f"  {BOLD}{GREEN}Switched.{RESET} {DIM}Active: {result['phone']} ({result['app_key']}){RESET}")
+        else:
+            print(f"  {BOLD}{RED}Failed.{RESET} {result.get('error', '')}")
+        return 0 if result.get("ok") else 1
+
+    if cmd == "accounts":
+        from tool.DINGTALK.logic.api import list_accounts, get_active_phone
+        accounts = list_accounts()
+        active = get_active_phone()
+        if not accounts:
+            print(f"  {DIM}No accounts configured. Run: DINGTALK --tutorial setup{RESET}")
+            return 0
+        print(f"\n  {BOLD}Configured accounts{RESET}")
+        for phone, acct in accounts.items():
+            marker = " *" if phone == active else ""
+            key = acct.get("app_key", "?")
+            print(f"  {phone}{marker}  {DIM}{key}{RESET}")
+        print(f"\n  {DIM}* = active account{RESET}")
+        print()
+        return 0
+
     parser.print_help()
     print(f"\n  {BOLD}Commands{RESET}")
     print(f"  {DIM}status    Show configuration and capabilities{RESET}")
@@ -331,6 +370,8 @@ def main():
     print(f"  {DIM}notify    Send work notification{RESET}")
     print(f"  {DIM}contact   Look up user by phone or name{RESET}")
     print(f"  {DIM}todo      Create todo task{RESET}")
+    print(f"  {DIM}switch    Switch active account by phone{RESET}")
+    print(f"  {DIM}accounts  List all configured accounts{RESET}")
     print()
     print(f"  {BOLD}Tutorials{RESET}  (--tutorial <name>)")
     print(f"  {DIM}setup     Initial app creation and credentials{RESET}")

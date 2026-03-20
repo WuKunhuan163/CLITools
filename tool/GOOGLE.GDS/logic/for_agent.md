@@ -58,7 +58,7 @@ def execute(tool, args, state_mgr, load_logic, **kwargs):
 | linter | `linter.py` | Lint remote files locally |
 | remount_cmd | `remount_cmd.py` | Drive remount via GUI |
 | gui_queue | `gui_queue.py` | FIFO queue for GUI interaction windows |
-| tutorial_cmd | `tutorial_cmd.py` | Setup wizard launcher |
+| tutorial_cmd | `tutorial_cmd.py` | Redirect → `tutorial/src/tutorial_cmd.py` |
 
 ## MCP Module (`mcp/`) — DISABLED (ToS Risk)
 CDP-based automation for Colab notebooks. **All functionality disabled** due to
