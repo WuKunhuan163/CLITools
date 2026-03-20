@@ -149,20 +149,7 @@ def main():
     parts.extend(_load_ecosystem(project_dir))
     parts.extend(_load_reflection(project_dir))
 
-    cursor_userinput_rule = (
-        "\n\n## CRITICAL: USERINPUT\n"
-        "You MUST call `USERINPUT` before ending your turn. No exceptions.\n"
-        "USERINPUT is NOT Cursor Chat. It performs git auto-save, history maintenance, "
-        "remote backup, and ecosystem feedback collection. Cursor Chat does none of this. "
-        "**USERINPUT is never redundant, never replaceable, never skippable.**\n\n"
-        "**NEVER kill, cancel, or interrupt USERINPUT** — even if it blocks for minutes. "
-        "The user is typing. That is expected. That is the ecosystem's feedback channel.\n\n"
-        "After each task: run `BRAIN reflect` (self-check + gap review), "
-        "then `USERINPUT --hint \"summary\"` (report to user). This is your core loop.\n"
-        "Cursor may auto-disconnect during USERINPUT's long wait. "
-        "If you see 'Launching input GUI...' or waiting messages, the user is still writing. "
-        "Keep `sleep`-ing. If all attempts fail, `sleep 30` then `cat <fallback_path>`."
-    )
+    cursor_userinput_rule = ""
 
     try:
         sys.path.insert(0, str(project_dir))

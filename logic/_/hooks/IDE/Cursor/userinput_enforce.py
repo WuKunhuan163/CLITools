@@ -1,72 +1,26 @@
 #!/usr/bin/env python3
-"""stop hook: Enforce USERINPUT execution before agent stops.
+"""DISABLED: stop hook for USERINPUT enforcement.
 
-Fires when the agent loop ends. Checks if USERINPUT completed successfully
-during this conversation (via flag file from userinput_flag.py). If not,
-returns a followup_message that auto-submits, forcing the agent to continue.
+This hook was disabled in Phase 15 because it auto-injected followup_message
+into the Cursor dialog every time the assistant stopped, creating a toxic
+infinite loop that burned 35.9M tokens.
 
-The flag is only set when USERINPUT exits with code 0. Killing USERINPUT
-clears the flag. This prevents agents from circumventing the feedback loop.
+USERINPUT enforcement is now handled by:
+- Brain reflex arc: userinput_after_task strategy
+- .mdc rules: Cursor rules that guide the AI
+- Evaluator: Compliance tracking in brain/src/evaluator.py
 
-loop_limit in hooks.json caps retries (recommended: 2).
+The Cursor dialog injection mechanism is strictly prohibited.
 """
 import json
 import sys
-import traceback
-from pathlib import Path
-from datetime import datetime
-
-LOG_FILE = Path("/tmp/cursor-hooks.log")
-
-
-def _log(msg: str):
-    try:
-        with open(LOG_FILE, "a") as f:
-            f.write(f"[{datetime.now().isoformat()}] userinput_enforce: {msg}\n")
-    except Exception:
-        pass
 
 
 def main():
-    try:
-        raw = sys.stdin.read()
-        payload = json.loads(raw) if raw.strip() else {}
-    except Exception as e:
-        _log(f"ERROR parsing stdin: {e}")
-        print(json.dumps({}))
-        return
-
-    status = payload.get("status", "completed")
-    loop_count = payload.get("loop_count", 0)
-    conversation_id = payload.get("conversation_id", "unknown")
-    _log(f"status={status} loop={loop_count} conv={conversation_id[:12]}")
-
-    output = {}
-
-    if status == "completed" and loop_count < 2:
-        flag_file = Path(f"/tmp/cursor-userinput-done-{conversation_id}")
-        if not flag_file.exists():
-            _log("USERINPUT NOT completed — injecting followup_message")
-            output["followup_message"] = (
-                "You have NOT successfully completed USERINPUT. "
-                "USERINPUT is NOT replaceable by Cursor Chat — it performs "
-                "git auto-save, history maintenance, and ecosystem feedback. "
-                "Run this NOW with block_until_ms: 310000:\n"
-                "python3 tool/USERINPUT/main.py --hint \"completed task\""
-            )
-        else:
-            _log("USERINPUT completed successfully — no action needed")
-    else:
-        _log(f"skip: status={status}, loop={loop_count}")
-
-    result = json.dumps(output)
-    _log(f"output={result[:200]}")
-    print(result)
+    # Read stdin (required by hook protocol) but return empty output
+    sys.stdin.read()
+    print(json.dumps({}))
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception:
-        _log(f"UNCAUGHT: {traceback.format_exc()}")
-        print(json.dumps({}))
+    main()
