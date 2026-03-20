@@ -230,19 +230,31 @@ function handleSSEEvent(evt) {
 
     case 'settings_changed':
       fetchUsageData().then(() => { if (settingsTab) renderSettingsTab(); });
-      fetch('/api/scope').then(r => r.json()).then(d => {
-        if (d.ok && d.scope_name) {
-          document.title = d.scope_name + ' Assistant';
-          const st = document.getElementById('sidebar-title');
-          if (st) st.textContent = d.scope_name + ' Assistant';
-          const sf = document.getElementById('sidebar-footer');
-          if (sf) sf.textContent = d.scope_name + ' Assistant';
+      if (evt.scope_name) {
+        document.title = evt.scope_name + ' Assistant';
+        const _st = document.getElementById('sidebar-title');
+        if (_st) _st.textContent = evt.scope_name + ' Assistant';
+        const _sf = document.getElementById('sidebar-footer');
+        if (_sf) _sf.textContent = evt.scope_name + ' Assistant';
+        if (evt.workspace_path) {
+          currentWorkspace = evt.workspace_path;
+          _updateWorkspaceIndicator(evt.workspace_path);
         }
-        if (d.ok && d.workspace_path) {
-          currentWorkspace = d.workspace_path;
-          _updateWorkspaceIndicator(d.workspace_path);
-        }
-      }).catch(() => {});
+      } else {
+        fetch('/api/scope').then(r => r.json()).then(d => {
+          if (d.ok && d.scope_name) {
+            document.title = d.scope_name + ' Assistant';
+            const st = document.getElementById('sidebar-title');
+            if (st) st.textContent = d.scope_name + ' Assistant';
+            const sf = document.getElementById('sidebar-footer');
+            if (sf) sf.textContent = d.scope_name + ' Assistant';
+          }
+          if (d.ok && d.workspace_path) {
+            currentWorkspace = d.workspace_path;
+            _updateWorkspaceIndicator(d.workspace_path);
+          }
+        }).catch(() => {});
+      }
       break;
 
     case 'session_status':

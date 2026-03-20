@@ -1,8 +1,11 @@
 """Model listing, metadata, state, and icon resolution."""
 from __future__ import annotations
+import logging
 from pathlib import Path
 
 from tool.LLM.logic.naming import model_key_to_dir
+
+_log = logging.getLogger(__name__)
 
 _dir = Path(__file__).parent.parent
 _root = _dir.parent.parent.parent
@@ -120,26 +123,53 @@ class ModelsMixin:
         }
 
     def _get_configured_models(self) -> dict:
-        """Return models that have at least one configured+available provider.
+        """Return all models with status labels for the dropdown.
 
-        Inactive models are excluded from the dropdown list (but still
-        appear in the settings panel with a locked indicator).
+        Each model has a ``status`` field:
+          - "available"    : active + has configured key
+          - "unconfigured" : active but no API key set
+          - "stale"        : key exists but all keys are stale
+          - "locked"       : model.json active=false
         """
         try:
-            from tool.LLM.logic.registry import list_models, list_providers as list_reg_providers, _MODELS_DIR
+            import json as _json
+            from tool.LLM.logic.registry import (
+                list_models, list_providers as list_reg_providers, _MODELS_DIR,
+            )
+
             available_providers = set()
+            stale_vendors = set()
             for p in list_reg_providers():
+                pname = p.get("name", "")
                 if p.get("available"):
-                    available_providers.add(p.get("name", ""))
+                    available_providers.add(pname)
+
+            try:
+                from tool.LLM.logic.rate.key_state import get_selector
+                from tool.LLM.logic.config import get_api_keys
+                vendor_seen = set()
+                for p in list_reg_providers():
+                    vendor = p.get("name", "").split("-")[0]
+                    if vendor in vendor_seen:
+                        continue
+                    vendor_seen.add(vendor)
+                    keys = get_api_keys(vendor)
+                    if keys:
+                        sel = get_selector(vendor)
+                        if not sel.has_usable_keys():
+                            stale_vendors.add(vendor)
+            except Exception:
+                pass
 
             meta_resp = self._api_models_metadata()
             model_meta = meta_resp.get("models", {}) if meta_resp.get("ok") else {}
 
-            configured = [{"value": "auto", "label": "Auto"}]
+            models = [{"value": "auto", "label": "Auto", "status": "available"}]
             for m in list_models():
                 mid = m["model"]
                 provs = m.get("providers", [])
                 has_key = any(p in available_providers for p in provs)
+                vendor = provs[0].split("-")[0] if provs else ""
 
                 model_dir = model_key_to_dir(mid)
                 model_json_path = _MODELS_DIR / model_dir / "model.json"
@@ -147,7 +177,6 @@ class ModelsMixin:
                 lock_reason = ""
                 if model_json_path.exists():
                     try:
-                        import json as _json
                         mj = _json.loads(model_json_path.read_text())
                         active = mj.get("active", True)
                         lock_reason = mj.get("lock_reason", "")
@@ -155,22 +184,31 @@ class ModelsMixin:
                         pass
 
                 if not active:
-                    continue
+                    status = "locked"
+                elif has_key and vendor in stale_vendors:
+                    status = "stale"
+                elif has_key:
+                    status = "available"
+                else:
+                    status = "unconfigured"
 
-                if has_key:
-                    cost = m.get("cost", {})
-                    mm = model_meta.get(mid, {})
-                    configured.append({
-                        "value": mid,
-                        "label": mm.get("display_name") or m.get("display_name", mid),
-                        "logo": mm.get("icon"),
-                        "vendor": mm.get("vendor", ""),
-                        "free_tier": cost.get("free_tier", False),
-                        "input_price_per_1m": cost.get("input_per_1m", 0) or 0,
-                        "output_price_per_1m": cost.get("output_per_1m", 0) or 0,
-                        "currency": cost.get("currency", "USD"),
-                    })
-            return {"ok": True, "models": configured}
+                cost = m.get("cost", {})
+                mm = model_meta.get(mid, {})
+                entry = {
+                    "value": mid,
+                    "label": mm.get("display_name") or m.get("display_name", mid),
+                    "logo": mm.get("icon"),
+                    "vendor": mm.get("vendor", "") or vendor,
+                    "status": status,
+                    "free_tier": cost.get("free_tier", False),
+                    "input_price_per_1m": cost.get("input_per_1m", 0) or 0,
+                    "output_price_per_1m": cost.get("output_per_1m", 0) or 0,
+                    "currency": cost.get("currency", "USD"),
+                }
+                if lock_reason:
+                    entry["lock_reason"] = lock_reason
+                models.append(entry)
+            return {"ok": True, "models": models}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 

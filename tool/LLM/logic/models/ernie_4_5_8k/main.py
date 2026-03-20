@@ -16,7 +16,7 @@ class BaiduERNIE45Provider(OpenAICompatProvider):
     CONFIG_KEY_ENV = vendor.CONFIG_KEY_ENV
     DEFAULT_RPM = 300
     DEFAULT_MAX_CONTEXT = 8192
-    DEFAULT_MAX_OUTPUT = 4096
+    DEFAULT_MAX_OUTPUT = 2048
     MAX_TOKENS_PARAM = "max_completion_tokens"
     STRICT_ALTERNATION = True
 

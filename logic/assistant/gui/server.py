@@ -42,6 +42,7 @@ RESTful API:
     POST /api/key/delete                          Delete API key
     POST /api/key/states                          Get key states
     POST /api/key/reverify                        Reverify a key
+    POST /api/key/reset_stale                     Reset all stale keys
 
   System:
     GET  /api/state                               Full system state
@@ -301,6 +302,8 @@ class AgentServer(
             return self._api_key_states(body)
         if path in ("/api/key/reverify", "/api/reverify-key"):
             return self._api_reverify_key(body)
+        if path in ("/api/key/reset_stale", "/api/key/reset-stale"):
+            return self._api_key_reset_stale(body)
         if path == "/api/provider/status":
             return self._api_provider_status(body)
         if path == "/api/model/resolve":
@@ -327,7 +330,12 @@ class AgentServer(
                     self._mgr._default_codebase = new_codebase
                     from logic.assistant.sandbox import set_tool_sandbox_dir
                     set_tool_sandbox_dir(new_codebase)
-                self._push_sse({"type": "settings_changed"})
+                sse_data = {"type": "settings_changed",
+                            "action": "scope_changed",
+                            "scope_name": self.scope_name}
+                if new_codebase:
+                    sse_data["workspace_path"] = new_codebase
+                self._push_sse(sse_data)
                 resp = {"ok": True, "scope_name": self.scope_name}
                 if new_codebase:
                     resp["workspace_path"] = new_codebase

@@ -54,9 +54,9 @@ function _refreshPillLabels() {
   }
   if (typeof modelPill !== 'undefined' && modelPill) {
     modelPill.setOptions(MODEL_OPTIONS.map(o => {
-      if (o.value === 'auto') return { value: 'auto', label: _('Auto'), icon: 'bx-bot' };
+      if (o.value === 'auto') return { value: 'auto', label: _('Auto'), icon: 'bx-bot', status: 'available' };
       const logo = o.logo || MODEL_LOGOS[o.value] || resolveModelLogo(o.value);
-      return { value: o.value, label: _(o.label), ...(logo ? { logo } : { icon: 'bx-bot' }) };
+      return { value: o.value, label: _(o.label), status: o.status || 'available', ...(logo ? { logo } : { icon: 'bx-bot' }) };
     }));
   }
   if (turnLimitPill) turnLimitPill.render();

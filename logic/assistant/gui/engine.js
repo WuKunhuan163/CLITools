@@ -1600,15 +1600,13 @@ class AgentGUIEngine {
 
     const sep = () => { const s = document.createElement('span'); s.textContent = '\u00b7'; s.className = 'model-sep'; return s; };
     const fmtT = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
-    const tkUnit = (n) => n === 1 ? 'token' : 'tokens';
 
     latencyEl.innerHTML = '';
     const isSelfOperate = this._selfOperate;
 
     latencyEl.appendChild(sep());
-    const totalEst = inputTokens + estOutputTokens;
     const tokenSpan = document.createElement('span');
-    tokenSpan.textContent = fmtT(inputTokens) + ',' + fmtT(estOutputTokens) + ' ' + tkUnit(totalEst);
+    tokenSpan.textContent = fmtT(inputTokens) + ',' + fmtT(estOutputTokens) + ' tokens';
     latencyEl.appendChild(tokenSpan);
 
     latencyEl.appendChild(sep());
@@ -1664,7 +1662,7 @@ class AgentGUIEngine {
 
       const usage = evt.usage || {};
       const outTokens = usage.completion_tokens || 0;
-      const ctxTokens = usage.prompt_tokens || 0;
+      const ctxTokens = usage.prompt_tokens || this._streamingInputTokens || 0;
       const totalTokens = usage.total_tokens || (ctxTokens + outTokens);
 
       const roundData = {
@@ -1686,21 +1684,35 @@ class AgentGUIEngine {
 
       const ridx = this._roundHistory.length - 1;
       const isSelfOperate = this._selfOperate;
-      const elapsed = evt.latency_s || ((Date.now() - (this._llmRoundStartTime || Date.now())) / 1000).toFixed(1);
+      const elapsed = evt.latency_s
+        ? (typeof evt.latency_s === 'number' ? evt.latency_s.toFixed(1) : evt.latency_s)
+        : ((Date.now() - (this._llmRoundStartTime || Date.now())) / 1000).toFixed(1);
       const latLabel = elapsed ? elapsed + 's' : '';
 
       const fmtTk = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
-      const tkUnit = (n) => n === 1 ? 'token' : 'tokens';
-      const tokenTotal = ctxTokens + outTokens;
-      const tokenLabel = fmtTk(tokenTotal) + ' ' + tkUnit(tokenTotal);
-      const costLabel = isSelfOperate ? ''
-        : (usage.cost != null ? (this._costCurrency || '$') + usage.cost.toFixed(4) : '$0.00');
+      const tokenLabel = fmtTk(ctxTokens) + ',' + fmtTk(outTokens) + ' tokens';
+
+      let costLabel = '';
+      if (!isSelfOperate) {
+        if (usage.cost != null && usage.cost > 0) {
+          costLabel = (this._costCurrency || '$') + usage.cost.toFixed(4);
+        } else {
+          const pricing = this._getModelPricing(this._currentProvider);
+          if (pricing && !pricing.free_tier) {
+            const cost = (ctxTokens * pricing.input_per_1m / 1e6)
+              + (outTokens * pricing.output_per_1m / 1e6);
+            const sym = pricing.currency === 'CNY' ? '\u00a5' : (this._costCurrency || '$');
+            costLabel = sym + cost.toFixed(4);
+          }
+        }
+      }
+
       let ctxLabel = '';
       if (!isSelfOperate && ctxTokens > 0) {
         const ctxStr = fmtTk(ctxTokens);
         if (this._maxContextTokens && this._maxContextTokens > 0) {
           const pct = ((ctxTokens / this._maxContextTokens) * 100).toFixed(1);
-          ctxLabel = ctxStr + ' (' + pct + '%) ctx';
+          ctxLabel = ctxStr + ' (' + pct + '%)';
         } else {
           ctxLabel = ctxStr + ' ctx';
         }

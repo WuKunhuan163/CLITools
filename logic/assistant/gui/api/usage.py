@@ -1,5 +1,7 @@
 """Usage data and currency endpoints."""
 from __future__ import annotations
+import json
+import os
 from pathlib import Path
 
 _dir = Path(__file__).parent.parent

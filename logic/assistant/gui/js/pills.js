@@ -1,6 +1,12 @@
 function buildPillSelect(container, options, currentValue, onChange, opts = {}) {
   let searchable = opts.searchable !== false && options.length > 5;
 
+  const STATUS_BADGES = {
+    stale: '<span class="pill-status-badge stale">Stale</span>',
+    locked: '<span class="pill-status-badge locked"><i class="bx bx-lock-alt"></i></span>',
+    unconfigured: '<span class="pill-status-badge unconfigured">No Key</span>',
+  };
+
   function _buildItemsHtml(filter) {
     const filtered = filter
       ? options.filter(o => o.label.toLowerCase().includes(filter.toLowerCase()))
@@ -15,7 +21,11 @@ function buildPillSelect(container, options, currentValue, onChange, opts = {}) 
       }
       else if (o.icon) oIcon = `<i class="bx ${o.icon}"></i>`;
       else oIcon = '';
-      return `<div class="pill-option${o.value === currentValue ? ' active' : ''}" data-value="${esc(o.value)}">${oIcon} ${esc(o.label)}</div>`;
+      const st = o.status || 'available';
+      const disabled = st !== 'available';
+      const badge = STATUS_BADGES[st] || '';
+      const cls = `pill-option${o.value === currentValue ? ' active' : ''}${disabled ? ' pill-disabled' : ''}`;
+      return `<div class="${cls}" data-value="${esc(o.value)}" data-status="${st}">${oIcon} ${esc(o.label)}${badge}</div>`;
     }).join('');
   }
 
@@ -23,6 +33,7 @@ function buildPillSelect(container, options, currentValue, onChange, opts = {}) 
     container.querySelectorAll('.pill-option').forEach(opt => {
       opt.onclick = (e) => {
         e.stopPropagation();
+        if (opt.classList.contains('pill-disabled')) return;
         currentValue = opt.dataset.value;
         container.querySelector('.pill-menu').classList.remove('open');
         onChange(currentValue);

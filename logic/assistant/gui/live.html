@@ -858,8 +858,14 @@ body.debug-mode .debug-block { display: block; }
 .pill-option { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: background 0.1s; }
 .pill-option:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 .pill-option.active { color: var(--accent); }
+.pill-option.pill-disabled { opacity: 0.4; cursor: not-allowed; }
+.pill-option.pill-disabled:hover { background: transparent; color: var(--text-3); }
 .pill-option img { width: 14px; height: 14px; border-radius: 3px; opacity: 1 !important; }
 .pill-option i.bx { font-size: 15px; }
+.pill-status-badge { font-size: 9px; padding: 1px 5px; border-radius: 3px; margin-left: auto; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0; }
+.pill-status-badge.stale { background: var(--orange-dim, rgba(251,191,36,0.15)); color: var(--orange, #fbbf24); }
+.pill-status-badge.locked { background: var(--surface-3, rgba(255,255,255,0.06)); color: var(--text-3); }
+.pill-status-badge.unconfigured { background: var(--surface-3, rgba(255,255,255,0.06)); color: var(--text-3); }
 .pill-custom-input { width: 60px; background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 6px; color: var(--text); font-size: 12px; font-family: var(--font); outline: none; -moz-appearance: textfield; }
 .pill-custom-input::-webkit-inner-spin-button, .pill-custom-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 

@@ -512,7 +512,7 @@ function renderModelsView() {
   const calls = usageData.calls || [];
   const modelNames = Object.keys(models);
   if (!modelNames.length) {
-    return `<div class="settings-section-title">${_('Models')}</div><div class="settings-empty">No model data yet. Start a conversation to see usage statistics.</div>`;
+    return `<div class="settings-section-title">${_('Models')}</div><div class="settings-empty" style="color:var(--status-error);"><i class="bx bx-error-circle" style="vertical-align:middle;margin-right:4px;"></i>${_('No models found. Check LLM provider configuration.')}</div>`;
   }
   let html = `<div class="settings-section-title" style="display:flex;align-items:center;gap:10px;">${_('Models')}<input type="text" id="settings-model-search" placeholder="Filter..." oninput="renderSettingsTab()" style="margin-left:auto;width:120px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--text);font-family:var(--font);outline:none;"></div>`;
   const modelSearch = (document.getElementById('settings-model-search')?.value || '').toLowerCase();
@@ -984,9 +984,11 @@ function renderProvidersView() {
   const calls = usageData.calls || [];
   const provNames = Object.keys(providers);
   if (!provNames.length) {
-    return `<div class="settings-section-title">${_('Providers')}</div><div class="settings-empty">No provider data yet. Start a conversation to see usage statistics.</div>`;
+    return `<div class="settings-section-title">${_('Providers')}</div><div class="settings-empty" style="color:var(--status-error);"><i class="bx bx-error-circle" style="vertical-align:middle;margin-right:4px;"></i>${_('No providers found. Check LLM registry configuration.')}</div>`;
   }
-  let html = `<div class="settings-section-title" style="display:flex;align-items:center;gap:10px;">${_('Providers')}<input type="text" id="settings-prov-search" placeholder="Filter..." oninput="renderSettingsTab()" style="margin-left:auto;width:120px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--text);font-family:var(--font);outline:none;"></div>`;
+  const hasStale = provNames.some(n => (providers[n].api_keys || []).some(k => k.state === 'stale'));
+  const resetBtn = hasStale ? `<button onclick="resetAllStaleKeys(this)" style="font-size:10px;padding:3px 10px;background:var(--orange-dim);color:var(--orange);border:none;border-radius:4px;cursor:pointer;font-weight:600;white-space:nowrap;" title="Reset all stale keys to active"><i class='bx bx-refresh' style='font-size:11px;vertical-align:middle;'></i> ${_('Reset Stale')}</button>` : '';
+  let html = `<div class="settings-section-title" style="display:flex;align-items:center;gap:10px;">${_('Providers')}${resetBtn}<input type="text" id="settings-prov-search" placeholder="Filter..." oninput="renderSettingsTab()" style="margin-left:auto;width:120px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--text);font-family:var(--font);outline:none;"></div>`;
   const provSearch = (document.getElementById('settings-prov-search')?.value || '').toLowerCase();
   for (const name of provNames) {
     const p = providers[name];
@@ -1330,6 +1332,24 @@ async function deleteApiKey(vendor, btn) {
       fetchUsageData().then(() => renderSettingsTab());
     }
   } catch (e) { console.warn('Delete key failed:', e); }
+}
+
+async function resetAllStaleKeys(btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bx bx-loader-alt bx-spin" style="font-size:11px;vertical-align:middle;"></i> Resetting...';
+  try {
+    const res = await fetch('/api/key/reset_stale', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({vendor: '*'}) });
+    const data = await res.json();
+    if (data.ok) {
+      fetchUsageData().then(() => renderSettingsTab());
+    } else {
+      btn.innerHTML = `<i class='bx bx-x' style='font-size:11px;vertical-align:middle;'></i> ${esc(data.error || 'Failed')}`;
+      setTimeout(() => { btn.innerHTML = '<i class="bx bx-refresh" style="font-size:11px;vertical-align:middle;"></i> Reset Stale'; btn.disabled = false; }, 2000);
+    }
+  } catch (e) {
+    btn.innerHTML = '<i class="bx bx-x" style="font-size:11px;vertical-align:middle;"></i> Error';
+    setTimeout(() => { btn.innerHTML = '<i class="bx bx-refresh" style="font-size:11px;vertical-align:middle;"></i> Reset Stale'; btn.disabled = false; }, 2000);
+  }
 }
 
 async function reverifyKey(vendor, keyId, btn) {

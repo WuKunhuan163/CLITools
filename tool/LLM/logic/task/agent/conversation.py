@@ -1878,7 +1878,8 @@ class ConversationManager:
                                 first_chunk = False
                                 _tl_confirmed = getattr(self._thread_local, 'auto_confirmed', False)
                                 if not (is_auto and not _tl_confirmed):
-                                    self._emit({"type": "llm_response_start", "round": round_num})
+                                    est_input = sum(len(str(m.get("content", ""))) for m in api_messages) // 3
+                                    self._emit({"type": "llm_response_start", "round": round_num, "prompt_tokens": est_input})
 
                             if chunk.get("ok"):
                                 has_content = bool(chunk.get("text") or chunk.get("reasoning") or chunk.get("tool_calls"))
@@ -1890,7 +1891,8 @@ class ConversationManager:
                                         "type": "model_confirmed",
                                         "provider": current_model,
                                     })
-                                    self._emit({"type": "llm_response_start", "round": round_num})
+                                    est_input = sum(len(str(m.get("content", ""))) for m in api_messages) // 3
+                                    self._emit({"type": "llm_response_start", "round": round_num, "prompt_tokens": est_input})
                                 r = chunk.get("reasoning", "")
                                 if r:
                                     self._emit({"type": "thinking", "tokens": r})
@@ -1936,7 +1938,8 @@ class ConversationManager:
                                         self._thread_local.auto_confirmed = True
                                         self._auto_confirmed = True
                                         self._emit({"type": "model_confirmed", "provider": current_model})
-                                        self._emit({"type": "llm_response_start", "round": round_num})
+                                        est_input = sum(len(str(m.get("content", ""))) for m in api_messages) // 3
+                                        self._emit({"type": "llm_response_start", "round": round_num, "prompt_tokens": est_input})
                                     for sidx in _streaming_tc_map:
                                         self._emit({"type": "tool_stream_end",
                                                     "index": sidx, "round": round_num})
@@ -1973,7 +1976,8 @@ class ConversationManager:
                                 _llm_error = chunk
                                 break
                     else:
-                        self._emit({"type": "llm_response_start", "round": round_num})
+                        est_input = sum(len(str(m.get("content", ""))) for m in api_messages) // 3
+                        self._emit({"type": "llm_response_start", "round": round_num, "prompt_tokens": est_input})
                         import time as _time
                         t0 = _time.time()
                         result = provider.send(

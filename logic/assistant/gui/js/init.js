@@ -81,8 +81,8 @@ async function init() {
         const cfgResp = await fetch('/api/model/list');
         const cfgData = await cfgResp.json();
         if (cfgData.ok && cfgData.models && cfgData.models.length > 1) {
-          MODEL_OPTIONS = cfgData.models.map(m => ({ value: m.value, label: m.label, logo: m.logo || null }));
-          window._configuredModels = cfgData.models.filter(m => m.value !== 'auto').map(m => ({id: m.value, display: m.label}));
+          MODEL_OPTIONS = cfgData.models.map(m => ({ value: m.value, label: m.label, logo: m.logo || null, status: m.status || 'available' }));
+          window._configuredModels = cfgData.models.filter(m => m.value !== 'auto' && m.status === 'available').map(m => ({id: m.value, display: m.label}));
           window._modelPricing = {};
           cfgData.models.forEach(m => {
             if (m.value !== 'auto') {
@@ -95,9 +95,9 @@ async function init() {
             }
           });
           const newOpts = MODEL_OPTIONS.map(m => {
-            if (m.value === 'auto') return { value: 'auto', label: _('Auto'), icon: 'bx-bot' };
+            if (m.value === 'auto') return { value: 'auto', label: _('Auto'), icon: 'bx-bot', status: 'available' };
             const logo = m.logo || MODEL_LOGOS[m.value] || resolveModelLogo(m.value);
-            return { value: m.value, label: m.label, ...(logo ? { logo } : { icon: 'bx-bot' }) };
+            return { value: m.value, label: m.label, status: m.status || 'available', ...(logo ? { logo } : { icon: 'bx-bot' }) };
           });
           modelPill.setOptions(newOpts);
           if (_queuedTasks.length) _renderQueueContainer();

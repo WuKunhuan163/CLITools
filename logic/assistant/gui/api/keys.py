@@ -70,6 +70,54 @@ class KeysMixin:
                             "key_id": key_id})
         return result
 
+    def _api_key_reset_stale(self, body: dict) -> dict:
+        """Reset all stale keys for a vendor back to active.
+
+        If vendor is omitted or "*", resets all vendors.
+        Also clears the in-memory selector cache to force reload.
+        """
+        vendor = (body or {}).get("vendor", "").strip()
+        try:
+            from tool.LLM.logic.rate.key_state import get_selector, _selectors, _sel_lock
+            from tool.LLM.logic.registry import list_providers as list_reg_providers
+            _ensure = lambda: None
+            try:
+                from tool.LLM.logic.registry import _ensure_builtins
+                _ensure = _ensure_builtins
+            except ImportError:
+                pass
+
+            _ensure()
+            vendors_to_reset = []
+            if not vendor or vendor == "*":
+                seen = set()
+                for p in list_reg_providers():
+                    v = p.get("name", "").split("-")[0]
+                    if v and v not in seen:
+                        seen.add(v)
+                        vendors_to_reset.append(v)
+            else:
+                vendors_to_reset = [vendor]
+
+            reset_count = 0
+            for v in vendors_to_reset:
+                sel = get_selector(v)
+                for kid, state in sel._states.items():
+                    if state.status == "stale":
+                        state.reactivate()
+                        reset_count += 1
+                sel._save()
+
+            with _sel_lock:
+                _selectors.clear()
+
+            self._push_sse({"type": "settings_changed",
+                            "action": "keys_reset", "count": reset_count})
+            return {"ok": True, "reset_count": reset_count,
+                    "vendors": vendors_to_reset}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def _api_provider_status(self, body: dict) -> dict:
         """Return unified provider status from ProviderManager.
 
