@@ -13,18 +13,12 @@ if str(ROOT_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT_PROJECT_ROOT))
 
 # Import colors and shared utils via interface
-from interface.config import get_color, get_setting, get_global_config
+from interface.config import get_color, get_global_config
 from interface.lang import get_translation
 from interface.utils import get_logic_dir, set_rtl_mode
 
-RESET = get_color("RESET", "\033[0m")
-GREEN = get_color("GREEN", "\033[32m")
 BOLD = get_color("BOLD", "\033[1m")
-DIM = get_color("DIM", "\033[2m")
-BLUE = get_color("BLUE", "\033[34m")
-YELLOW = get_color("YELLOW", "\033[33m")
-RED = get_color("RED", "\033[31m")
-WHITE = get_color("WHITE", "\033[37m")
+RESET = get_color("RESET", "\033[0m")
 
 SHARED_LOGIC_DIR = get_logic_dir(ROOT_PROJECT_ROOT)
 
@@ -43,14 +37,12 @@ def _eco_cmd(name, args):
             "uninstall": ("logic._.uninstall", "UninstallCommand"),
             "list": ("logic._.list", "ListCommand"),
             "status": ("logic._.status", "StatusCommand"),
-            "rule": ("logic._.rule", "RuleCommand"),
             "skills": ("logic._.skills", "SkillsCommand"),
             "migrate": ("logic._.migrate", "MigrateCommand"),
             "dev": ("logic._.dev.command", "DevCommand"),
             "test": ("logic._.test.command", "TestCommand"),
             "config": ("logic._.config.command", "ConfigCommand"),
             "audit": ("logic._.audit.command", "AuditCommand"),
-            "lang": ("logic._.lang.command", "LangCommand"),
             "search": ("logic._.search.command", "SearchCommand"),
             "eco": ("logic._.eco.command", "EcoNavCommand"),
         }
@@ -73,118 +65,16 @@ def _eco_cmd(name, args):
 from interface.tool import ToolBase as _ToolBase
 _root_tool = _ToolBase("TOOL", is_root=True)
 
-def _workspace_handler(action: str, args: list):
-    """Handle TOOL --create-workspace, --open-workspace, --close-workspace, --delete-workspace, --list-workspaces, --workspace."""
-    from interface.workspace import get_workspace_manager
-    from interface.status import fmt_status, fmt_detail, fmt_info
-
-    wm = get_workspace_manager(ROOT_PROJECT_ROOT)
-
-    if action == "create":
-        target_path = args[0] if args else None
-        bp_type = None
-        name = None
-        i = 1
-        while i < len(args):
-            if args[i] == "--type" and i + 1 < len(args):
-                bp_type = args[i + 1]
-                i += 2
-            elif args[i] == "--name" and i + 1 < len(args):
-                name = args[i + 1]
-                i += 2
-            else:
-                i += 1
-
-        if not target_path:
-            try:
-                from tool.FILEDIALOG.interface.main import select_directory
-                target_path = select_directory(title="Select workspace directory")
-                if not target_path:
-                    print(fmt_status("Cancelled.", style="error"))
-                    return
-            except ImportError:
-                print(fmt_status("No path provided.", style="error"))
-                print(fmt_detail("Usage: TOOL --create-workspace <path> [--type <blueprint>] [--name <name>]"))
-                return
-
-        try:
-            info = wm.create_workspace(target_path, name=name, blueprint_type=bp_type)
-            print(fmt_status("Workspace created."))
-            print(fmt_detail(f"ID: {info['id']}"))
-            print(fmt_detail(f"Path: {info['path']}"))
-            print(fmt_detail(f"Blueprint: {info['blueprint_type']}"))
-            print(fmt_info(f"Open: TOOL --open-workspace {info['id']}"))
-        except FileExistsError as e:
-            print(fmt_status("Already exists.", style="error"))
-            print(fmt_detail(str(e)))
-        except FileNotFoundError as e:
-            print(fmt_status("Not found.", style="error"))
-            print(fmt_detail(str(e)))
-
-    elif action == "open":
-        ws_id = args[0] if args else None
-        if not ws_id:
-            print(fmt_status("No workspace ID.", style="error"))
-            print(fmt_detail("Usage: TOOL --open-workspace <workspace_id>"))
-            return
-        try:
-            info = wm.open_workspace(ws_id)
-            print(fmt_status("Workspace opened."))
-            print(fmt_detail(f"Name: {info['name']}"))
-            print(fmt_detail(f"Path: {info['path']}"))
-        except FileNotFoundError as e:
-            print(fmt_status("Not found.", style="error"))
-            print(fmt_detail(str(e)))
-
-    elif action == "close":
-        info = wm.close_workspace()
-        if info:
-            print(fmt_status("Workspace closed."))
-            print(fmt_detail(f"Name: {info['name']}"))
-        else:
-            print(fmt_status("No active workspace."))
-
-    elif action == "delete":
-        ws_id = args[0] if args else None
-        if not ws_id:
-            print(fmt_status("No workspace ID.", style="error"))
-            print(fmt_detail("Usage: TOOL --delete-workspace <workspace_id>"))
-            return
-        try:
-            wm.delete_workspace(ws_id)
-            print(fmt_status("Workspace deleted."))
-            print(fmt_detail(f"ID: {ws_id}"))
-        except FileNotFoundError as e:
-            print(fmt_status("Not found.", style="error"))
-            print(fmt_detail(str(e)))
-
-    elif action == "list":
-        workspaces = wm.list_workspaces()
-        if not workspaces:
-            print(fmt_status("No workspaces."))
-            print(fmt_detail("Create one: TOOL --create-workspace <path>"))
-            return
-        print(f"{BOLD}Workspaces ({len(workspaces)}){RESET}\n")
-        for ws in workspaces:
-            marker = f" {GREEN}(active){RESET}" if ws.get("active") else ""
-            status = ws.get("status", "closed")
-            print(f"  {BOLD}{ws['name']}{RESET}{marker}  {DIM}[{status}]{RESET}")
-            print(f"    {DIM}ID: {ws['id']}  Path: {ws['path']}{RESET}")
-            print(f"    {DIM}Blueprint: {ws.get('blueprint_type', 'default')}{RESET}")
-        print()
-
-    elif action == "status":
-        info = wm.active_workspace_info()
-        if info:
-            print(f"{BOLD}Active Workspace{RESET}")
-            print(fmt_detail(f"Name: {info['name']}"))
-            print(fmt_detail(f"ID: {info['id']}"))
-            print(fmt_detail(f"Path: {info['path']}"))
-            print(fmt_detail(f"Blueprint: {info.get('blueprint_type', 'default')}"))
-            print(fmt_detail(f"Status: {info.get('status', 'unknown')}"))
-        else:
-            print(fmt_status("No active workspace."))
-            print(fmt_detail("Using default scope (AITerminalTools root)."))
+def _workspace_cmd(action, args):
+    """Delegate workspace commands to WorkspaceCommand."""
+    if "workspace" not in _ECO_CMD_REGISTRY:
+        from logic._.workspace.command import WorkspaceCommand
+        _ECO_CMD_REGISTRY["workspace"] = WorkspaceCommand(
+            project_root=ROOT_PROJECT_ROOT,
+            tool_name="TOOL",
+            translation_func=_,
+        )
+    return _ECO_CMD_REGISTRY["workspace"].handle(args, action=action)
 
 # Maps --flag to handler function
 _TOOL_FLAG_HANDLERS = {
@@ -197,8 +87,6 @@ _TOOL_FLAG_HANDLERS = {
     "--list": lambda args: _eco_cmd("list", args),
     "--status": lambda args: _eco_cmd("status", args),
     "--audit": lambda args: _eco_cmd("audit", args),
-    "--lang": lambda args: _eco_cmd("lang", args),
-    "--rule": lambda args: _eco_cmd("rule", args),
     "--search": lambda args: _eco_cmd("search", args),
     "--eco": lambda args: _eco_cmd("eco", args),
     "--hooks": lambda args: _root_tool._handle_hooks_command(args),
@@ -207,12 +95,12 @@ _TOOL_FLAG_HANDLERS = {
     "--setup": lambda args: _root_tool.run_setup(),
     "--skills": lambda args: _eco_cmd("skills", args),
     "--migrate": lambda args: _eco_cmd("migrate", args),
-    "--create-workspace": lambda args: _workspace_handler("create", args),
-    "--delete-workspace": lambda args: _workspace_handler("delete", args),
-    "--open-workspace": lambda args: _workspace_handler("open", args),
-    "--close-workspace": lambda args: _workspace_handler("close", args),
-    "--list-workspaces": lambda args: _workspace_handler("list", args),
-    "--workspace": lambda args: _workspace_handler("status", args),
+    "--create-workspace": lambda args: _workspace_cmd("create", args),
+    "--delete-workspace": lambda args: _workspace_cmd("delete", args),
+    "--open-workspace": lambda args: _workspace_cmd("open", args),
+    "--close-workspace": lambda args: _workspace_cmd("close", args),
+    "--list-workspaces": lambda args: _workspace_cmd("list", args),
+    "--workspace": lambda args: _workspace_cmd("status", args),
 }
 
 # Shorthand: --agent/--ask/--plan as top-level commands (omit --assistant).
@@ -242,17 +130,15 @@ def _print_tool_help():
     print(f"    --install <name>           Install a tool")
     print(f"    --reinstall <name>         Reinstall a tool")
     print(f"    --uninstall <name> [-y]    Uninstall a tool")
-    print(f"    --list [--force]           List all available tools")
+    print(f"    --list [--force] [lang]     List all available tools (or languages)")
     print(f"    --status                   Show installed tools and their status")
     print(f"\n  {BOLD}Quality & Search{RESET}")
-    print(f"    --audit <sub>              Code quality audits (imports, quality, code)")
+    print(f"    --audit <sub>              Code quality audits (imports, quality, code, --lang)")
     print(f"    --search <sub> <query>     Semantic search (tools, skills, lessons, docs, all)")
-    print(f"    --lang <sub>               Language management (audit, list)")
     print(f"\n  {BOLD}Development{RESET}")
-    print(f"    --dev <sub>                Developer commands (create, sync, sanity-check)")
+    print(f"    --dev <sub>                Developer commands (create, sync, create-rule)")
     print(f"    --test <sub>               Run tests")
     print(f"    --config <sub>             Manage global configuration")
-    print(f"    --rule <sub>               AI rule management")
     print(f"    --migrate --<level> <domain>  Migration framework (tool, infrastructure, skills)")
     print(f"\n  {BOLD}Assistant{RESET}")
     print(f"    --agent <prompt>           Agent mode")

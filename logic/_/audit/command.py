@@ -1,6 +1,7 @@
-"""TOOL --audit {imports,quality,code}
+"""TOOL --audit {imports,quality,code,--lang}
 
-Code quality audits: import rules, hooks/interfaces validation, dead code detection.
+Code quality audits: import rules, hooks/interfaces validation, dead code detection,
+and language/localization audits.
 """
 
 from pathlib import Path
@@ -10,9 +11,12 @@ from logic._._ import EcoCommand
 
 class AuditCommand(EcoCommand):
     name = "audit"
-    usage = "TOOL --audit {imports|quality|code} [options]"
+    usage = "TOOL --audit {imports|quality|code} [--lang <code>] [options]"
 
     def handle(self, args):
+        if "--lang" in args:
+            return self._handle_lang(args)
+
         parser = self.create_parser("Code quality audits")
         sub = parser.add_subparsers(dest="audit_command")
 
@@ -43,6 +47,26 @@ class AuditCommand(EcoCommand):
             return self._code(parsed)
         else:
             parser.print_help()
+        return 0
+
+    def _handle_lang(self, args):
+        """Handle --audit --lang <code> [list|--force|--turing]."""
+        lang_idx = args.index("--lang")
+        rest = args[lang_idx + 1:]
+
+        if not rest or rest[0] == "list":
+            from interface.lang import list_languages
+            list_languages(self.project_root, translation_func=self._)
+            return 0
+
+        lang_code = rest[0]
+        force = "--force" in rest
+        turing = "--turing" in rest
+
+        from interface.lang import audit_lang
+        audit_lang(lang_code, self.project_root,
+                   force=force, turing=turing,
+                   translation_func=self._)
         return 0
 
     def _imports(self, parsed, root):

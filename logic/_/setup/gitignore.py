@@ -1,5 +1,13 @@
+"""GitIgnore management for AITerminalTools.
+
+Auto-generates .gitignore from base patterns + tool.json git_ignore entries.
+Previously lived in logic/git/manager.py; moved here because it's exclusively
+consumed by the setup flow (ToolEngine.install, TOOL --setup).
+"""
+
 import json
 from pathlib import Path
+
 
 class GitIgnoreManager:
     """
@@ -75,12 +83,10 @@ class GitIgnoreManager:
 
         for tool_json_path in all_json_paths:
             tool_path = tool_json_path.parent
-            # Get relative path from project root to tool directory
-            # e.g. "tool/iCloud/tool/iCloudPD"
             try:
                 rel_tool_path = tool_path.relative_to(self.project_root)
                 tool_rel_root = "/" + "/".join(rel_tool_path.parts)
-                tool_display_name = " / ".join(rel_tool_path.parts[1:]) # e.g. "iCloud / iCloudPD"
+                tool_display_name = " / ".join(rel_tool_path.parts[1:])
             except ValueError:
                 continue
 
@@ -92,7 +98,6 @@ class GitIgnoreManager:
                         processed = []
                         for p in rel_patterns:
                             if p.startswith("root:"):
-                                # Root-level pattern: "root:!/for_agent_reflection.md" → "!/for_agent_reflection.md"
                                 processed.append(p[5:])
                             elif p == "!":
                                 processed.append(f"!{tool_rel_root}/")
@@ -115,14 +120,14 @@ class GitIgnoreManager:
         """
         content = self.base_patterns.copy()
         tool_rules = self.get_tool_rules()
-        
+
         if tool_rules:
             content.append("# --- Tool Specific Rules ---")
             for tool_name, patterns in sorted(tool_rules.items()):
                 content.append(f"# {tool_name}")
                 content.extend(patterns)
                 content.append("")
-        
+
         return "\n".join(content)
 
     def rewrite(self):
@@ -133,6 +138,7 @@ class GitIgnoreManager:
         with open(self.gitignore_path, 'w', encoding='utf-8') as f:
             f.write(content)
         return True
+
 
 def initialize_git_state(project_root):
     """

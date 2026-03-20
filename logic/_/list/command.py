@@ -1,6 +1,7 @@
-"""TOOL --list [--force]
+"""TOOL --list [--force] [lang]
 
-List all available tools and their installation status.
+List all available tools and their installation status,
+or list supported languages.
 """
 
 import json
@@ -10,9 +11,14 @@ from logic._._ import EcoCommand
 
 class ListCommand(EcoCommand):
     name = "list"
-    usage = "TOOL --list [--force]"
+    usage = "TOOL --list [--force] [lang]"
 
     def handle(self, args):
+        if args and args[0] == "lang":
+            from interface.lang import list_languages
+            list_languages(self.project_root, translation_func=self._)
+            return 0
+
         force = "--force" in args
         cache_path = self.project_root / "data" / "tools.json"
 

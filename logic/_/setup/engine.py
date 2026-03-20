@@ -103,7 +103,7 @@ class ToolEngine:
         # 2. Check if already installed
         if self.is_installed():
             try:
-                from logic.git.manager import GitIgnoreManager
+                from logic._.setup.gitignore import GitIgnoreManager
                 gm = GitIgnoreManager(str(self.project_root))
                 gm.rewrite()
             except Exception:
@@ -236,7 +236,7 @@ class ToolEngine:
         # Dependencies just return success/failure
         if tm.run(ephemeral=True, final_msg="", final_newline=False):
             try:
-                from logic.git.manager import GitIgnoreManager
+                from logic._.setup.gitignore import GitIgnoreManager
                 gm = GitIgnoreManager(str(self.project_root))
                 gm.rewrite()
             except Exception:

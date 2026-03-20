@@ -16,7 +16,7 @@ from logic.utils import print_success_status
 
 def setup():
     tool_name = "IDE"
-    engine = ToolEngine(tool_name, project_root)
+    engine = ToolEngine(tool_name, _r)
     
     # 1. Standard installation (dependencies + shortcut)
     return engine.install()

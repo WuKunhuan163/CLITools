@@ -20,6 +20,9 @@ class DevCommand(EcoCommand):
             "reset": self._reset,
             "enter": lambda: self._enter(rest),
             "create": lambda: self._create(rest),
+            "create-rule": lambda: self._create_rule(rest),
+            "show-rule": lambda: self._show_rule(rest),
+            "inject-rule": self._inject_rule,
             "sanity-check": lambda: self._sanity_check(rest),
             "audit-test": lambda: self._audit_test(rest),
             "audit-bin": lambda: self._audit_bin(rest),
@@ -146,6 +149,54 @@ class DevCommand(EcoCommand):
         path = create_report(scope, topic, content)
         self.success("Created", f"{self.DIM}{path}{self.RESET}")
 
+    def _create_rule(self, rest):
+        if not rest:
+            print(f"Usage: {self.tool_name} --dev create-rule <name> --description <desc> [--globs <patterns>] [--always-apply]")
+            return
+        name = rest[0]
+        desc = ""
+        globs = None
+        always_apply = False
+        i = 1
+        while i < len(rest):
+            if rest[i] == "--description" and i + 1 < len(rest):
+                desc = rest[i + 1]; i += 2
+            elif rest[i] == "--globs" and i + 1 < len(rest):
+                globs = rest[i + 1]; i += 2
+            elif rest[i] == "--always-apply":
+                always_apply = True; i += 1
+            else:
+                i += 1
+        if not desc:
+            self.error("Missing --description.")
+            return
+
+        rules_dir = self.project_root / ".cursor" / "rules"
+        rules_dir.mkdir(parents=True, exist_ok=True)
+        rule_path = rules_dir / f"{name}.mdc"
+        globs_line = globs or ""
+        content = f"""---
+description: {desc}
+globs: {globs_line}
+alwaysApply: {"true" if always_apply else "false"}
+---
+
+# {name}
+
+(Fill in rule content here)
+"""
+        rule_path.write_text(content, encoding="utf-8")
+        self.success("Created", f"{self.DIM}{rule_path}{self.RESET}")
+
+    def _show_rule(self, rest):
+        target = rest[0] if rest else None
+        from interface.config import generate_ai_rule
+        generate_ai_rule(self.project_root, target_tool=target, translation_func=self._)
+
+    def _inject_rule(self):
+        from interface.config import inject_rule
+        inject_rule(self.project_root, translation_func=self._)
+
     def _print_help(self):
         print(f"Usage: {self.tool_name} --dev <command>")
         print(f"\n{self.BOLD}Available commands:{self.RESET}")
@@ -154,6 +205,9 @@ class DevCommand(EcoCommand):
             ("reset", "Reset main/test branches"),
             ("enter <main|test> [-f]", "Switch to branch"),
             ("create <name>", "Create a new tool template"),
+            ("create-rule <name> --description ..", "Create a Cursor rule (.mdc)"),
+            ("show-rule [tool]", "Show the AI agent rule set"),
+            ("inject-rule", "Inject rule into .cursor/rules/"),
             ("sanity-check <name> [--fix]", "Check tool structure"),
             ("audit-test <name> [--fix]", "Audit unit test naming"),
             ("audit-bin [--fix]", "Audit bin/ shortcuts"),
