@@ -15,12 +15,12 @@ from tool.LLM.logic.registry import (  # noqa: F401
     _ALIASES as provider_aliases,
 )
 from tool.LLM.logic.pipeline import ContextPipeline  # noqa: F401
-from tool.LLM.logic.models.glm_4_7.providers.nvidia.interface import (  # noqa: F401
+from tool.LLM.logic.models.glm_4_7.nvidia import (  # noqa: F401
     NvidiaGLM47Provider,
     get_api_key as get_nvidia_api_key,
     save_api_key as save_nvidia_api_key,
 )
-from tool.LLM.logic.models.glm_4_flash.providers.zhipu.interface import (  # noqa: F401
+from tool.LLM.logic.models.glm_4_flash.main import (  # noqa: F401
     ZhipuGLM4Provider,
     get_api_key as get_zhipu_api_key,
     save_api_key as save_zhipu_api_key,

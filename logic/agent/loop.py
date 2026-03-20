@@ -140,7 +140,11 @@ class AgentLoop:
                     provider, api_messages, api_tools, round_num, t0)
 
                 if full_text is None:
-                    break
+                    self._emit({"type": "complete", "reason": "error"})
+                    self._session.status = "error"
+                    self._emit({"type": "session_status",
+                                "id": self._session.id, "status": "error"})
+                    return ""
 
                 if full_text or tool_calls_accum:
                     consecutive_empty = 0

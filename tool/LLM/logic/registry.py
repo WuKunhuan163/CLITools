@@ -1,7 +1,7 @@
 """LLM provider registry.
 
 Central point for discovering, configuring, and instantiating LLM providers.
-Structure: models/<model>/providers/<vendor>/ with model.json at model level.
+Structure: models/<model>/main.py with model.json at model level.
 
 Registry names follow the pattern: <vendor>-<model> (e.g. "zhipu-glm-4-flash").
 Model-level resolution: "glm-4-flash" resolves to the preferred provider.
@@ -184,86 +184,86 @@ def _ensure_builtins():
         return
     _builtins_loaded = True
 
-    from tool.LLM.logic.models.glm_4_flash.providers.zhipu.interface import ZhipuGLM4Provider
-    from tool.LLM.logic.models.glm_4_flash.providers.zhipu.pipeline.context import ZhipuContextPipeline
+    from tool.LLM.logic.models.glm_4_flash.main import ZhipuGLM4Provider
+    from tool.LLM.logic.models.glm_4_flash.pipeline import ZhipuContextPipeline
     register("zhipu-glm-4-flash", ZhipuGLM4Provider, ZhipuContextPipeline(), model="glm-4-flash")
 
-    from tool.LLM.logic.models.glm_4_7.providers.nvidia.interface import NvidiaGLM47Provider
-    from tool.LLM.logic.models.glm_4_7.providers.nvidia.pipeline import NvidiaContextPipeline
+    from tool.LLM.logic.models.glm_4_7.nvidia import NvidiaGLM47Provider
+    from tool.LLM.logic.models.glm_4_7.nvidia import NvidiaContextPipeline
     register("nvidia-glm-4-7b", NvidiaGLM47Provider, NvidiaContextPipeline(), model="glm-4.7")
 
-    from tool.LLM.logic.models.glm_4_7.providers.zhipu.interface import ZhipuGLM47Provider
-    from tool.LLM.logic.models.glm_4_7.providers.zhipu.pipeline import ZhipuGLM47Pipeline
+    from tool.LLM.logic.models.glm_4_7.main import ZhipuGLM47Provider
+    from tool.LLM.logic.models.glm_4_7.main import ZhipuGLM47Pipeline
     register("zhipu-glm-4.7", ZhipuGLM47Provider, ZhipuGLM47Pipeline(), model="glm-4.7")
 
-    from tool.LLM.logic.models.glm_4_7_flash.providers.zhipu.interface import ZhipuGLM47FlashProvider
-    from tool.LLM.logic.models.glm_4_7_flash.providers.zhipu.pipeline import ZhipuGLM47FlashPipeline
+    from tool.LLM.logic.models.glm_4_7_flash.main import ZhipuGLM47FlashProvider
+    from tool.LLM.logic.models.glm_4_7_flash.pipeline import ZhipuGLM47FlashPipeline
     register("zhipu-glm-4.7-flash", ZhipuGLM47FlashProvider, ZhipuGLM47FlashPipeline(), model="glm-4.7-flash")
 
-    from tool.LLM.logic.models.gemini_2_5_flash.providers.google.interface import GoogleGemini25FlashProvider
+    from tool.LLM.logic.models.gemini_2_5_flash.main import GoogleGemini25FlashProvider
     register("google-gemini-2.5-flash", GoogleGemini25FlashProvider, model="gemini-2.5-flash")
 
-    from tool.LLM.logic.models.gemini_2_5_flash_lite.providers.google.interface import GoogleGemini25FlashLiteProvider
+    from tool.LLM.logic.models.gemini_2_5_flash_lite.main import GoogleGemini25FlashLiteProvider
     register("google-gemini-2.5-flash-lite", GoogleGemini25FlashLiteProvider, model="gemini-2.5-flash-lite")
 
-    from tool.LLM.logic.models.gemini_2_5_pro.providers.google.interface import GoogleGemini25ProProvider
+    from tool.LLM.logic.models.gemini_2_5_pro.main import GoogleGemini25ProProvider
     register("google-gemini-2.5-pro", GoogleGemini25ProProvider, model="gemini-2.5-pro")
 
-    from tool.LLM.logic.models.gemini_3_flash.providers.google.interface import GoogleGemini3FlashProvider
+    from tool.LLM.logic.models.gemini_3_flash.main import GoogleGemini3FlashProvider
     register("google-gemini-3-flash", GoogleGemini3FlashProvider, model="gemini-3-flash")
 
-    from tool.LLM.logic.models.gemini_3_1_flash_lite.providers.google.interface import GoogleGemini31FlashLiteProvider
+    from tool.LLM.logic.models.gemini_3_1_flash_lite.main import GoogleGemini31FlashLiteProvider
     register("google-gemini-3.1-flash-lite", GoogleGemini31FlashLiteProvider, model="gemini-3.1-flash-lite")
 
-    from tool.LLM.logic.models.gemini_3_1_pro.providers.google.interface import GoogleGemini31ProProvider
+    from tool.LLM.logic.models.gemini_3_1_pro.main import GoogleGemini31ProProvider
     register("google-gemini-3.1-pro", GoogleGemini31ProProvider, model="gemini-3.1-pro")
 
-    from tool.LLM.logic.models.ernie_speed_8k.providers.baidu.interface import BaiduERNIESpeedProvider
+    from tool.LLM.logic.models.ernie_speed_8k.main import BaiduERNIESpeedProvider
     register("baidu-ernie-speed-8k", BaiduERNIESpeedProvider, model="ernie-speed-8k")
 
-    from tool.LLM.logic.models.ernie_4_5_turbo_128k.providers.baidu.interface import BaiduERNIE45TurboProvider
+    from tool.LLM.logic.models.ernie_4_5_turbo_128k.main import BaiduERNIE45TurboProvider
     register("baidu-ernie-4.5-turbo-128k", BaiduERNIE45TurboProvider, model="ernie-4.5-turbo-128k")
 
-    from tool.LLM.logic.models.ernie_5_0.providers.baidu.interface import BaiduERNIE50Provider
+    from tool.LLM.logic.models.ernie_5_0.main import BaiduERNIE50Provider
     register("baidu-ernie-5.0", BaiduERNIE50Provider, model="ernie-5.0")
 
-    from tool.LLM.logic.models.ernie_4_5_8k.providers.baidu.interface import BaiduERNIE45Provider
+    from tool.LLM.logic.models.ernie_4_5_8k.main import BaiduERNIE45Provider
     register("baidu-ernie-4.5-8k", BaiduERNIE45Provider, model="ernie-4.5-8k-preview")
 
-    from tool.LLM.logic.models.ernie_x1_turbo_32k.providers.baidu.interface import BaiduERNIEX1TurboProvider
+    from tool.LLM.logic.models.ernie_x1_turbo_32k.main import BaiduERNIEX1TurboProvider
     register("baidu-ernie-x1-turbo-32k", BaiduERNIEX1TurboProvider, model="ernie-x1-turbo-32k")
 
-    from tool.LLM.logic.models.ernie_x1_1.providers.baidu.interface import BaiduERNIEX11Provider
+    from tool.LLM.logic.models.ernie_x1_1.main import BaiduERNIEX11Provider
     register("baidu-ernie-x1.1", BaiduERNIEX11Provider, model="ernie-x1.1")
 
-    from tool.LLM.logic.models.ernie_4_0_turbo_8k.providers.baidu.interface import BaiduERNIE40TurboProvider
+    from tool.LLM.logic.models.ernie_4_0_turbo_8k.main import BaiduERNIE40TurboProvider
     register("baidu-ernie-4.0-turbo-8k", BaiduERNIE40TurboProvider, model="ernie-4.0-turbo-8k")
 
-    from tool.LLM.logic.models.ernie_4_5_turbo_32k.providers.baidu.interface import BaiduERNIE45Turbo32KProvider
+    from tool.LLM.logic.models.ernie_4_5_turbo_32k.main import BaiduERNIE45Turbo32KProvider
     register("baidu-ernie-4.5-turbo-32k", BaiduERNIE45Turbo32KProvider, model="ernie-4.5-turbo-32k")
 
-    from tool.LLM.logic.models.hunyuan_lite.providers.tencent.interface import TencentHunyuanLiteProvider
+    from tool.LLM.logic.models.hunyuan_lite.main import TencentHunyuanLiteProvider
     register("tencent-hunyuan-lite", TencentHunyuanLiteProvider, model="hunyuan-lite")
 
-    from tool.LLM.logic.models.qwen25_7b.providers.siliconflow.interface import SiliconFlowQwenProvider
+    from tool.LLM.logic.models.qwen25_7b.main import SiliconFlowQwenProvider
     register("siliconflow-qwen2.5-7b", SiliconFlowQwenProvider, model="qwen2.5-7b")
 
-    from tool.LLM.logic.models.claude_sonnet_4_6.providers.anthropic.interface import AnthropicClaudeSonnetProvider
+    from tool.LLM.logic.models.claude_sonnet_4_6.main import AnthropicClaudeSonnetProvider
     register("anthropic-claude-sonnet-4.6", AnthropicClaudeSonnetProvider, model="claude-sonnet-4.6")
 
-    from tool.LLM.logic.models.claude_haiku_4_5.providers.anthropic.interface import AnthropicClaudeHaikuProvider
+    from tool.LLM.logic.models.claude_haiku_4_5.main import AnthropicClaudeHaikuProvider
     register("anthropic-claude-haiku-4.5", AnthropicClaudeHaikuProvider, model="claude-haiku-4.5")
 
-    from tool.LLM.logic.models.gpt_4o.providers.openai.interface import OpenAIGPT4oProvider
+    from tool.LLM.logic.models.gpt_4o.main import OpenAIGPT4oProvider
     register("openai-gpt-4o", OpenAIGPT4oProvider, model="gpt-4o")
 
-    from tool.LLM.logic.models.gpt_4o_mini.providers.openai.interface import OpenAIGPT4oMiniProvider
+    from tool.LLM.logic.models.gpt_4o_mini.main import OpenAIGPT4oMiniProvider
     register("openai-gpt-4o-mini", OpenAIGPT4oMiniProvider, model="gpt-4o-mini")
 
-    from tool.LLM.logic.models.deepseek_chat.providers.deepseek.interface import DeepSeekChatProvider
+    from tool.LLM.logic.models.deepseek_chat.main import DeepSeekChatProvider
     register("deepseek-chat", DeepSeekChatProvider, model="deepseek-chat")
 
-    from tool.LLM.logic.models.deepseek_reasoner.providers.deepseek.interface import DeepSeekReasonerProvider
+    from tool.LLM.logic.models.deepseek_reasoner.main import DeepSeekReasonerProvider
     register("deepseek-reasoner", DeepSeekReasonerProvider, model="deepseek-reasoner")
 
     from tool.LLM.logic.base.auto import AutoProvider

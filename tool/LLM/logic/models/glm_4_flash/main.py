@@ -100,7 +100,7 @@ class ZhipuGLM4Provider(LLMProvider):
     @staticmethod
     def _load_model_json() -> Optional[dict]:
         try:
-            p = os.path.join(os.path.dirname(__file__), "..", "..", "..", "model.json")
+            p = os.path.join(os.path.dirname(__file__), "model.json")
             p = os.path.normpath(p)
             with open(p) as f:
                 return json.load(f)

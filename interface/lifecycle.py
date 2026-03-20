@@ -2,7 +2,7 @@
 
 Provides tool lifecycle operations: list, install, uninstall, sync.
 """
-from logic.lifecycle import (
+from logic.tool.lifecycle import (
     list_tools,
     install_tool,
     reinstall_tool,

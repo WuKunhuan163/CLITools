@@ -13,7 +13,7 @@ budget, so this pipeline:
 """
 from typing import Any, Dict, List, Optional
 
-from tool.LLM.logic.models.glm_4_flash.providers.zhipu.pipeline.context import ZhipuContextPipeline
+from tool.LLM.logic.models.glm_4_flash.pipeline import ZhipuContextPipeline
 
 TOOL_RESULT_MAX_CHARS = 1500
 

@@ -4,8 +4,8 @@ Each API key has its own health state, success/failure history,
 and selection weight. The AdaptiveKeySelector chooses keys
 probabilistically based on their track record.
 
-State persistence: key states are stored alongside keys in
-config.json under providers.<vendor>.key_states.<key_id>.
+State persistence: key states are stored per-provider in
+providers/<vendor>/data/keys.json under key_states.<key_id>.
 
 Key lifecycle:
     active   — normal operation
@@ -289,7 +289,7 @@ class AdaptiveKeySelector:
         self._load()
 
     def _load(self):
-        """Load key states from config."""
+        """Load key states from per-provider data."""
         from tool.LLM.logic.config import get_provider_config, get_api_keys
         keys = get_api_keys(self._provider)
         pcfg = get_provider_config(self._provider)
@@ -303,12 +303,11 @@ class AdaptiveKeySelector:
                 self._states[kid] = KeyState(key_id=kid, provider=self._provider)
 
     def _save(self):
-        """Persist key states to config."""
-        from tool.LLM.logic.config import load_config, save_config
-        cfg = load_config()
-        pcfg = cfg.setdefault("providers", {}).setdefault(self._provider, {})
+        """Persist key states to per-provider data."""
+        from tool.LLM.logic.config import _load_provider_keys, _save_provider_keys
+        pcfg = _load_provider_keys(self._provider)
         pcfg["key_states"] = {kid: st.to_dict() for kid, st in self._states.items()}
-        save_config(cfg)
+        _save_provider_keys(self._provider, pcfg)
 
     def select(self) -> Tuple[Optional[str], Optional[str]]:
         """Select the best available key.

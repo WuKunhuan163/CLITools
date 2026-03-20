@@ -67,25 +67,25 @@ PRIMARY_LIST = [
 ]
 
 FALLBACK_LIST = [
-    # Non-thinking free models, sorted by RPM (speed/quota) for fast routing decisions.
-    # Thinking models are excluded — they waste reasoning tokens on simple routing.
-    "baidu-ernie-speed-8k",          # 10000 RPM, most stable
-    "siliconflow-qwen2.5-7b",        # 100 RPM
-    "tencent-hunyuan-lite",           # 60 RPM
-    "zhipu-glm-4-flash",             # 30 RPM
-    "google-gemini-3.1-flash-lite",   # 30 RPM
-    "baidu-ernie-4.5-turbo-128k",    # free, non-thinking
+    # Non-thinking free models sorted by response speed (latency).
+    # Auto decisions are infrequent — speed > RPM for routing.
+    "tencent-hunyuan-lite",           # ~1.7s avg, 60 RPM
+    "google-gemini-3.1-flash-lite",   # ~2.9s avg, 30 RPM
+    "zhipu-glm-4-flash",             # ~3-5s est, 30 RPM
+    "baidu-ernie-speed-8k",          # ~7.3s avg, 10000 RPM
+    "baidu-ernie-4.5-turbo-128k",    # ~7s est, free
+    "siliconflow-qwen2.5-7b",        # ~28s avg, often exceeds 10s timeout
 ]
 
 TITLE_LIST = [
     # Non-thinking free models for generating short session titles.
-    # max_tokens kept very low (16) — thinking models are excluded.
-    "baidu-ernie-speed-8k",
-    "siliconflow-qwen2.5-7b",
+    # Sorted by response speed — max_tokens=16 keeps output fast.
     "tencent-hunyuan-lite",
-    "zhipu-glm-4-flash",
     "google-gemini-3.1-flash-lite",
+    "zhipu-glm-4-flash",
+    "baidu-ernie-speed-8k",
     "baidu-ernie-4.5-turbo-128k",
+    "siliconflow-qwen2.5-7b",
 ]
 
 
@@ -133,14 +133,11 @@ def _compute_timed_recovery(provider_name: str) -> float:
             mj = d / "model.json"
             if not mj.exists():
                 continue
-            prov_dir = d / "providers"
-            if prov_dir.is_dir():
-                for pd in prov_dir.iterdir():
-                    if pd.is_dir() and pd.name == vendor:
-                        meta = json.loads(mj.read_text())
-                        rpm = meta.get("rate_limits", {}).get("free", {}).get("rpm", 0)
-                        if rpm > 0:
-                            return max(60.0 / rpm * 3, 30.0)
+            meta = json.loads(mj.read_text())
+            if meta.get("vendor") == vendor:
+                rpm = meta.get("rate_limits", {}).get("free", {}).get("rpm", 0)
+                if rpm > 0:
+                    return max(60.0 / rpm * 3, 30.0)
     except Exception:
         pass
     return 120.0

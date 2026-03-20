@@ -43,7 +43,7 @@ def cmd_setup(args):
         print(f"  Get your free API key from: https://build.nvidia.com/z-ai/glm4_7")
         print()
 
-        from tool.LLM.logic.models.glm_4_7.providers.nvidia.interface import get_api_key, save_api_key
+        from tool.LLM.logic.models.glm_4_7.nvidia import get_api_key, save_api_key
 
         current = get_api_key()
         if current:

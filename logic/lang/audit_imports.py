@@ -2,7 +2,7 @@
 
 Statically analyzes Python source code to enforce:
 1. Cross-tool imports MUST go through tool.<NAME>.interface.main
-2. CDMCP access MUST use logic/cdmcp_loader (not hardcoded paths)
+2. CDMCP access MUST use logic/chrome/loader (not hardcoded paths)
 3. Raw CDP tab operations (find_tab/open_tab/list_tabs) should use
    CDMCP session.require_tab() instead
 4. MCP-enabled tools should use MCPToolBase, not ToolBase

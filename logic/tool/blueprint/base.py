@@ -1442,14 +1442,14 @@ class ToolBase:
     def _save_active_session_id(self, session_id: str):
         """Persist the active session ID for this tool."""
         import json
-        config_path = self.get_data_dir() / "active_session.json"
+        config_path = self.get_data_dir() / "session.json"
         config_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_text(json.dumps({"session_id": session_id}))
 
     def _get_active_session_id(self) -> str:
         """Read the active session ID for this tool, or empty string."""
         import json
-        config_path = self.get_data_dir() / "active_session.json"
+        config_path = self.get_data_dir() / "session.json"
         if config_path.exists():
             try:
                 return json.loads(config_path.read_text()).get("session_id", "")

@@ -220,9 +220,14 @@ class ProviderManager:
         """Build a concise state summary for the Auto decision prompt.
 
         Returns markdown-formatted lines describing each provider's current
-        health, so the decision model can factor in real-time availability.
+        health with UTC timestamps, recovery ETA, and 429 labels.
         """
-        lines = []
+        import datetime
+        now = time.time()
+        utc_now = datetime.datetime.utcfromtimestamp(now).strftime("%Y-%m-%dT%H:%M:%SZ")
+        lines = [f"Current time (UTC): {utc_now}"]
+
+        has_issues = False
         for name in model_list:
             status = self.get_provider_status(name)
             if status["status"] == ProviderStatus.UNCONFIGURED:
@@ -232,21 +237,38 @@ class ProviderManager:
             wait = status["estimated_wait_s"]
             ks = status["key_summary"]
             errs = status["health_errors_5m"]
+            eta = status["recovery_eta_s"]
 
-            parts = [f"  State: {state_tag}"]
+            if state_tag == "AVAILABLE" and wait <= 0 and errs == 0:
+                continue
+
+            has_issues = True
+            parts = [f"State: {state_tag}"]
+
+            if state_tag == "RATE_LIMITED":
+                parts.append("429")
             if wait > 0:
-                parts.append(f"Est. wait: {wait}s")
+                if wait < now:
+                    parts.append("Expected OK (recovery time passed)")
+                else:
+                    parts.append(f"Est. wait: {wait}s")
+            if eta and eta > 0:
+                if eta > 3600:
+                    h = eta / 3600
+                    parts.append(f"Recovery in: ~{h:.1f}h")
+                else:
+                    parts.append(f"Recovery in: ~{int(eta)}s")
             if ks["rate_limited"] > 0:
                 parts.append(f"Keys: {ks['active']}/{ks['total']} active, "
                              f"{ks['rate_limited']} rate-limited")
             if errs > 0:
-                parts.append(f"Recent errors: {errs}")
-            eta = status["recovery_eta_s"]
-            if eta and eta > 0:
-                parts.append(f"Recovery in: ~{int(eta)}s")
+                parts.append(f"Errors (5min): {errs}")
 
             lines.append(f"- **{name}**: " + " | ".join(parts))
-        return "\n".join(lines) if lines else "All providers healthy."
+
+        if not has_issues:
+            lines.append("All providers healthy.")
+        return "\n".join(lines)
 
     # ── Internal helpers ──────────────────────────────────────────────
 

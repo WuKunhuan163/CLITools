@@ -1507,6 +1507,7 @@ engine.onSessionChange((action, session) => {
     }
     activeSessionId = session.id;
     $('main-title').textContent = session.title;
+    _updateWorkspaceIndicator();
 
     const isSelfOp = !!session.selfOperate;
     engine._selfOperate = isSelfOp;
@@ -1806,6 +1807,7 @@ async function sendMessage() {
   input.placeholder = _('Type a message. Ctrl+Enter to send.');
   setStopMode(true);
   engine._localUserPending = true;
+  engine._taskStartTime = Date.now();
   engine.enqueueEvent({ type: 'user', prompt: text });
 
   engine.showPendingModelBanner(selectedModel);
@@ -1869,9 +1871,13 @@ function _updateWorkspaceIndicator(overridePath) {
 
   const titleIndicator = document.getElementById('workspace-indicator');
   if (titleIndicator) {
-    if (wsPath) {
-      titleIndicator.textContent = 'workspace: ' + wsPath;
-      titleIndicator.title = wsPath;
+    const sid = activeSessionId ? activeSessionId.substring(0, 8) : '';
+    if (wsPath || sid) {
+      const parts = [];
+      if (sid) parts.push('session: ' + sid);
+      if (wsPath) parts.push('workspace: ' + wsPath);
+      titleIndicator.textContent = parts.join(', ');
+      titleIndicator.title = (activeSessionId || '') + (wsPath ? '\n' + wsPath : '');
       titleIndicator.style.display = '';
     } else {
       titleIndicator.style.display = 'none';

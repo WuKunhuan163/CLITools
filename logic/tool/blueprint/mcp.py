@@ -27,7 +27,7 @@ class MCPToolBase(ToolBase):
         """Lazily load CDMCP modules."""
         if self._overlay is None:
             try:
-                from logic.cdmcp_loader import (
+                from logic.chrome.loader import (
                     load_cdmcp_overlay,
                     load_cdmcp_interact,
                     load_cdmcp_sessions,
@@ -178,7 +178,7 @@ class MCPToolBase(ToolBase):
         elif subcmd == "boot":
             self._load_cdmcp()
             if self.session_mgr:
-                from logic.cdmcp_loader import load_cdmcp_server
+                from logic.chrome.loader import load_cdmcp_server
                 server = load_cdmcp_server()
                 server_url, _ = server.start_server()
 

@@ -117,7 +117,7 @@ PROTECTED_PATTERNS: List[str] = [
     "tool/GOOGLE.CDMCP",
     "tool/GOOGLE/logic/chrome",
     "logic/chrome",
-    "logic/cdmcp_loader.py",
+    "logic/chrome/loader.py",
     ".cursor",
     ".git",
     "data/run",

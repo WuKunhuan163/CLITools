@@ -7,7 +7,7 @@ in tool.json and use this loader.
 
 Usage::
 
-    from logic.cdmcp_loader import load_cdmcp
+    from logic.chrome.loader import load_cdmcp
     cdmcp = load_cdmcp()  # returns the interface module
     overlay = load_cdmcp_overlay()
     sessions = load_cdmcp_sessions()
