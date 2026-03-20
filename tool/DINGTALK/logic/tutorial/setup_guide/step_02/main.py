@@ -101,7 +101,7 @@ def build_step(frame, win):
             _CONFIG_FILE.write_text(json.dumps(cfg, indent=2, ensure_ascii=False))
 
             masked = s[:4] + "****" + s[-4:] if len(s) > 8 else "****"
-            win._dt_status_var.set(_("tutorial_step2_saved", "Saved: {key} / {secret}", key=k, secret=masked))
+            win._dt_status_var.set(f"Saved: {k} / {masked}")
             status_label.config(fg="green")
             win.set_step_validated(True)
         except Exception as e:

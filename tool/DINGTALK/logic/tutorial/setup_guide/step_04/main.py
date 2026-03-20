@@ -61,11 +61,7 @@ def build_step(frame, win):
         return
 
     info_block = win.add_block(frame, pady=(5, 5))
-    win.setup_label(info_block, _(
-        "tutorial_step4_checking",
-        "Checking credentials for: **{key}**",
-        key=app_key
-    ))
+    win.setup_label(info_block, f"Checking credentials for: **{app_key}**")
 
     result_block = win.add_block(frame, pady=(10, 10))
     result = _validate_credentials(app_key, app_secret)

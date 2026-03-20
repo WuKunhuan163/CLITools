@@ -55,6 +55,80 @@ class DINGTALKTool(ToolBase):
             json.dump(config, f, indent=2, ensure_ascii=False)
 
 
+_TUTORIAL_MAP = {
+    "setup":      "setup_guide",
+    "contacts":   "perm_contacts",
+    "messaging":  "perm_messaging",
+    "todo":       "perm_todo",
+    "calendar":   "perm_calendar",
+}
+
+
+def _run_tutorial(name, tool):
+    """Dispatch to the appropriate tutorial module."""
+    if name == "list":
+        print(f"\n  {BOLD}Available tutorials{RESET}")
+        print(f"  {DIM}setup       Initial app creation and credentials{RESET}")
+        print(f"  {DIM}contacts    Enable contact/address-book permissions{RESET}")
+        print(f"  {DIM}messaging   Enable messaging & notification permissions{RESET}")
+        print(f"  {DIM}todo        Enable Todo API permissions{RESET}")
+        print(f"  {DIM}calendar    Enable Calendar API permissions{RESET}")
+        print()
+        return 0
+
+    if name not in _TUTORIAL_MAP:
+        print(f"  {BOLD}{RED}Unknown tutorial.{RESET} {DIM}{name}{RESET}")
+        print(f"  Available: {', '.join(_TUTORIAL_MAP.keys())}, list")
+        return 1
+
+    if name == "setup":
+        import importlib.util
+        tutorial_mod = Path(__file__).resolve().parent / "logic" / "command" / "tutorial_cmd.py"
+        spec = importlib.util.spec_from_file_location("dingtalk_tutorial_cmd", str(tutorial_mod))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.execute(tool)
+
+    check = _check_setup_prereq()
+    if not check["ok"]:
+        print(f"  {BOLD}{RED}Setup required.{RESET} {check['error']}")
+        print(f"  Run: DINGTALK --tutorial setup")
+        return 1
+
+    module_name = _TUTORIAL_MAP[name]
+    import importlib
+    mod = importlib.import_module(f"tool.DINGTALK.logic.tutorial.{module_name}.main")
+
+    from tool.DINGTALK.logic.command.tutorial_cmd import _make_step_callback
+    result = mod.run(on_step_change=_make_step_callback())
+
+    import sys as _sys
+    _sys.stdout.write("\r\033[K")
+    _sys.stdout.flush()
+
+    if result and result.get("status") == "success":
+        print(f"  {BOLD}{GREEN}Completed.{RESET} {DIM}{name} permissions tutorial{RESET}")
+        return 0
+    else:
+        reason = (result or {}).get("reason") or (result or {}).get("status") or "Exited"
+        print(f"  {BOLD}{RED}Tutorial exited.{RESET} {reason}")
+        return 1
+
+
+def _check_setup_prereq():
+    """Quick check if setup tutorial has been completed."""
+    config_file = Path(__file__).resolve().parent / "data" / "config.json"
+    if not config_file.exists():
+        return {"ok": False, "error": "No configuration found. Run: DINGTALK --tutorial setup"}
+    try:
+        cfg = json.loads(config_file.read_text())
+    except Exception:
+        return {"ok": False, "error": "Configuration file is corrupted."}
+    if not cfg.get("app_key") or not cfg.get("app_secret"):
+        return {"ok": False, "error": "Credentials not configured."}
+    return {"ok": True}
+
+
 def _print_json(data):
     print(json.dumps(data, indent=2, ensure_ascii=False))
 
@@ -74,8 +148,11 @@ def main():
     parser.add_argument("--phone", default=None, help="Phone number for contact lookup or messaging")
     parser.add_argument("--userid", default=None, help="DingTalk userId")
     parser.add_argument("--webhook", default=None, help="Webhook URL for group messages")
+    parser.add_argument("--tutorial", nargs="?", const="setup", default=None,
+                        metavar="NAME",
+                        help="Run interactive tutorial (setup, contacts, messaging, todo, calendar)")
     parser.add_argument("--setup-tutorial", action="store_true", dest="setup_tutorial",
-                        help="Run interactive setup tutorial")
+                        help=argparse.SUPPRESS)
 
     if tool.handle_command_line(parser):
         return
@@ -83,13 +160,12 @@ def main():
     args, unknown = parser.parse_known_args()
     cmd = args.command
 
+    tutorial_name = getattr(args, 'tutorial', None)
     if getattr(args, 'setup_tutorial', False):
-        import importlib.util
-        tutorial_mod = Path(__file__).resolve().parent / "logic" / "command" / "tutorial_cmd.py"
-        spec = importlib.util.spec_from_file_location("dingtalk_tutorial_cmd", str(tutorial_mod))
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        sys.exit(module.execute(tool))
+        tutorial_name = "setup"
+
+    if tutorial_name is not None:
+        sys.exit(_run_tutorial(tutorial_name, tool))
 
     if cmd == "status":
         from tool.DINGTALK.logic.api import _load_config
@@ -255,6 +331,13 @@ def main():
     print(f"  {DIM}notify    Send work notification{RESET}")
     print(f"  {DIM}contact   Look up user by phone or name{RESET}")
     print(f"  {DIM}todo      Create todo task{RESET}")
+    print()
+    print(f"  {BOLD}Tutorials{RESET}  (--tutorial <name>)")
+    print(f"  {DIM}setup     Initial app creation and credentials{RESET}")
+    print(f"  {DIM}contacts  Enable contact/address-book permissions{RESET}")
+    print(f"  {DIM}messaging Enable messaging & notification permissions{RESET}")
+    print(f"  {DIM}todo      Enable Todo API permissions{RESET}")
+    print(f"  {DIM}calendar  Enable Calendar API permissions{RESET}")
     print()
     return 0
 
