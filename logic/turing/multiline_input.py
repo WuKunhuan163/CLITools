@@ -32,7 +32,7 @@ import unicodedata
 import select as _select
 from typing import Callable, Optional
 
-from logic.config import get_color
+from logic._.config import get_color
 
 try:
     import termios

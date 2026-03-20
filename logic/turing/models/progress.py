@@ -5,9 +5,9 @@ import inspect
 from typing import List, Optional
 from pathlib import Path
 from logic.turing.logic import TuringStage
-from logic.config import get_color
+from logic._.config import get_color
 from logic.turing.terminal.keyboard import get_global_suppressor
-from logic.lang.utils import get_translation
+from logic._.lang.utils import get_translation
 from logic.utils import get_logic_dir, find_project_root
 
 # Global manager for synchronization across components

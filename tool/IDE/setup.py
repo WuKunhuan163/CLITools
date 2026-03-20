@@ -11,7 +11,7 @@ sys.path.insert(0, str(_r))
 from logic.resolve import setup_paths
 setup_paths(__file__)
 
-from logic.setup.engine import ToolEngine
+from logic._.setup.engine import ToolEngine
 from logic.utils import print_success_status
 
 def setup():

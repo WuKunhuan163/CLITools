@@ -19,7 +19,7 @@ from logic.resolve import setup_paths
 setup_paths(__file__)
 
 from logic.tool.blueprint.base import ToolBase
-from logic.config import get_color
+from logic._.config import get_color
 
 BOLD = get_color("BOLD")
 GREEN = get_color("GREEN")

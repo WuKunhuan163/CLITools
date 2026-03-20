@@ -1148,6 +1148,7 @@ def _tool_migrate_handler(args):
         print(f"\n  {BOLD}Sub-commands{RESET}")
         print(f"    --list                    List all migration domains")
         print(f"    --scan <domain>           Discover available items in a domain")
+        print(f"    --namespace <N>           Scope to a specific sub-source")
         print(f"\n  {BOLD}Domains{RESET}")
         for d in list_domains():
             name = d.get("domain", "?")
@@ -1158,10 +1159,11 @@ def _tool_migrate_handler(args):
                 print(f"    {DIM}{desc}{RESET}")
         print(f"\n  {BOLD}Examples{RESET}")
         print(f"    TOOL --migrate --list")
-        print(f"    TOOL --migrate --scan CLI-Anything")
-        print(f"    TOOL --migrate --draft-tool CLI-Anything blender")
+        print(f"    TOOL --migrate --scan CLIANYTHING")
+        print(f"    TOOL --migrate --scan CLIANYTHING --namespace blender")
+        print(f"    TOOL --migrate --draft-tool CLIANYTHING blender")
         print(f"    TOOL --migrate --infrastructure astral-sh --version 3.12 --platform macos-arm64")
-        print(f"    TOOL --migrate --draft-tool CLI-Anything --all")
+        print(f"    TOOL --migrate --draft-tool CLIANYTHING --all")
         return
 
     if args[0] == "--list":
@@ -1188,9 +1190,14 @@ def _tool_migrate_handler(args):
     if args[0] == "--scan":
         domain = args[1] if len(args) > 1 else None
         if not domain:
-            print(f"  {BOLD}{RED}Missing domain.{RESET} Usage: TOOL --migrate --scan <domain>")
+            print(f"  {BOLD}{RED}Missing domain.{RESET} Usage: TOOL --migrate --scan <domain> [--namespace <N>]")
             return
-        result = scan_domain(domain)
+        ns = None
+        if "--namespace" in args:
+            ns_idx = args.index("--namespace")
+            if ns_idx + 1 < len(args):
+                ns = args[ns_idx + 1]
+        result = scan_domain(domain, namespace=ns)
         if "error" in result:
             print(f"  {BOLD}{RED}Scan failed.{RESET} {result['error']}")
             return
@@ -1212,6 +1219,7 @@ def _tool_migrate_handler(args):
 
     level = None
     domain = None
+    namespace = None
     remaining = []
 
     i = 0
@@ -1219,11 +1227,17 @@ def _tool_migrate_handler(args):
         arg = args[i]
         if arg.startswith("--") and arg[2:] in MIGRATION_LEVELS:
             level = arg[2:]
+        elif arg == "--namespace" and i + 1 < len(args):
+            namespace = args[i + 1]
+            i += 1
         elif domain is None and not arg.startswith("-"):
             domain = arg
         else:
             remaining.append(arg)
         i += 1
+
+    if namespace:
+        remaining.extend(["--namespace", namespace])
 
     if not level:
         print(f"  {BOLD}{RED}Missing level.{RESET} Use --<level> (e.g. --draft-tool, --infrastructure)")
@@ -1275,7 +1289,7 @@ _TOOL_FLAG_HANDLERS = {
 # Shorthand: --agent/--ask/--plan as top-level commands (omit --assistant).
 # Controlled by ALLOW_ASSISTANT_SHORTHAND in logic.agent.command.
 try:
-    from logic.agent.command import ALLOW_ASSISTANT_SHORTHAND
+    from logic._.agent.command import ALLOW_ASSISTANT_SHORTHAND
     if ALLOW_ASSISTANT_SHORTHAND:
         _TOOL_FLAG_HANDLERS["--agent"] = lambda args: _root_tool._handle_agent(args)
         _TOOL_FLAG_HANDLERS["--ask"] = lambda args: _root_tool._handle_agent(args, mode="ask")

@@ -53,7 +53,7 @@ def print_missing_tool_error(tool_name, dep_name, script_dir, translation_func=N
     """Unified error reporting for missing tool dependency."""
     _ = translation_func or (lambda k, d: d)
     
-    from logic.config import get_color
+    from logic._.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
     RED = get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
@@ -72,7 +72,7 @@ def print_python_not_found_error(tool_name, version, script_dir, translation_fun
     """Unified error reporting for missing Python version."""
     _ = translation_func or (lambda k, d: d)
     
-    from logic.config import get_color
+    from logic._.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
     RED = get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
@@ -125,7 +125,7 @@ def check_and_reexecute_with_python(tool_name, version=None):
         return
 
     if version is None:
-        from logic.config import get_setting
+        from logic._.config import get_setting
         version = get_setting("default_python_version", "3.11.14")
         
     project_root = Path(__file__).resolve().parent.parent.parent

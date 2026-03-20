@@ -46,7 +46,7 @@ def filter_tkinter_noise(stderr_content: str) -> str:
 
 try:
     from logic.gui.tkinter.style import get_label_style, get_button_style, get_status_style, get_gui_colors, get_secondary_label_style
-    from logic.lang.utils import get_translation
+    from logic._.lang.utils import get_translation
 except ImportError:
     # Fallbacks for standalone execution
     def get_label_style(): return ("Arial", 10)

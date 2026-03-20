@@ -304,7 +304,7 @@ def cmd_agent(args):
     no_open = getattr(args, "no_open", False)
     enable_tools = not getattr(args, "no_tools", False)
 
-    from logic.assistant.gui.server import start_server
+    from logic._.assistant.gui.server import start_server
     from tool.LLM.logic.config import get_config_value
 
     lang = get_config_value("lang", "en")
@@ -366,7 +366,7 @@ def cmd_keys(args):
         return
 
     try:
-        from logic.assistant.gui.backend.key import KeyManagerWindow
+        from logic._.assistant.gui.backend.key import KeyManagerWindow
         import tkinter as tk
         root = tk.Tk()
         KeyManagerWindow(root, provider=provider)

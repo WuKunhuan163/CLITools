@@ -6,7 +6,7 @@ def get_translation(tool_logic_dir, key, default_text, lang_code=None, **kwargs)
     lang = lang_code or os.environ.get("TOOL_LANGUAGE")
     
     if not lang:
-        from logic.config import get_global_config
+        from logic._.config import get_global_config
         lang = get_global_config("language")
 
     if not lang:

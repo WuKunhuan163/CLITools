@@ -2,8 +2,8 @@
 
 Provides access to the translation helper and language management commands.
 """
-from logic.lang.utils import get_translation
-from logic.lang.commands import audit_lang, list_languages
+from logic._.lang.utils import get_translation
+from logic._.lang.commands import audit_lang, list_languages
 
 __all__ = [
     "get_translation",

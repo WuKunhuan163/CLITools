@@ -16,7 +16,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 
 def get_workspace_manager(root: Optional[Path] = None):
     """Get the workspace manager instance."""
-    from logic.workspace.manager import WorkspaceManager
+    from logic._.workspace.manager import WorkspaceManager
     return WorkspaceManager(root or _ROOT)
 
 

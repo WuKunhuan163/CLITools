@@ -292,7 +292,7 @@ def auto_push_if_needed(remote="origin", branch=None, interval=3, cwd=None):
 
 def push_with_progress(remote="origin", branch=None, cwd=None, silent_success=False):
     """Pushes to remote with blue erasable status and bold results."""
-    from logic.config import get_color
+    from logic._.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
     BLUE = get_color("BLUE", "\033[34m")
     get_color("GREEN", "\033[32m")
@@ -317,7 +317,7 @@ def push_with_progress(remote="origin", branch=None, cwd=None, silent_success=Fa
             # Use localized labels if available
             project_root = Path(__file__).resolve().parent.parent
             sys.path.append(str(project_root))
-            from logic.lang.utils import get_translation
+            from logic._.lang.utils import get_translation
             from logic.utils import get_logic_dir, print_success_status
             _ = lambda k, d, **kwargs: get_translation(str(get_logic_dir(project_root)), k, d).format(**kwargs)
             
@@ -330,7 +330,7 @@ def push_with_progress(remote="origin", branch=None, cwd=None, silent_success=Fa
         # Error reporting remains the same
         project_root = Path(__file__).resolve().parent.parent
         sys.path.append(str(project_root))
-        from logic.lang.utils import get_translation
+        from logic._.lang.utils import get_translation
         from logic.utils import get_logic_dir
         _ = lambda k, d, **kwargs: get_translation(str(get_logic_dir(project_root)), k, d).format(**kwargs)
         

@@ -15,7 +15,7 @@ if __name__ == "__main__":
     from logic.tool.blueprint.base import ToolBase
     from logic.turing.models.progress import ProgressTuringMachine
     from logic.turing.logic import TuringStage
-    from logic.config import get_color
+    from logic._.config import get_color
     import subprocess
     import os
 

@@ -209,7 +209,7 @@ def start_server(selected_model="auto", port=0,
 
     Returns an ``AgentServer`` instance with the server already running.
     """
-    from logic.assistant.gui.server import start_server as _start
+    from logic._.assistant.gui.server import start_server as _start
     return _start(
         selected_model=selected_model,
         port=port,

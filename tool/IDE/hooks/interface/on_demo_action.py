@@ -6,7 +6,7 @@ kwargs:
     tool: ToolBase instance
     countdown: int (current countdown value)
 """
-from logic.hooks.engine import HookInterface
+from logic._.hooks.engine import HookInterface
 
 
 class OnDemoAction(HookInterface):

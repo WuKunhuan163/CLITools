@@ -81,7 +81,7 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     Ensures NO raw output from the command leaks to the terminal.
     Returns: (success, error_message)
     """
-    from logic.config import get_setting
+    from logic._.config import get_setting
     from logic.turing.display.manager import _get_configured_width
     
     decimal_places = get_setting("progress_decimal_places", 0)

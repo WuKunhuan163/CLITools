@@ -74,7 +74,7 @@ def _load_ecosystem(project_dir: Path) -> list:
     parts = []
     sys.path.insert(0, str(project_dir))
     try:
-        from logic.agent.ecosystem import build_ecosystem_info
+        from logic._.agent.ecosystem import build_ecosystem_info
         eco = build_ecosystem_info(str(project_dir))
 
         if eco.get("guidelines"):
@@ -162,7 +162,7 @@ def main():
 
     try:
         sys.path.insert(0, str(project_dir))
-        from logic.setup.ide_detect import detect_all
+        from logic._.setup.ide_detect import detect_all
         detected_ides = detect_all(project_dir)
     except Exception:
         detected_ides = ["cursor"]

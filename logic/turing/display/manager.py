@@ -6,7 +6,7 @@ import time
 import json
 from typing import Optional, Callable
 from logic.utils import get_display_width as get_visible_len, truncate_to_display_width, get_rtl_mode
-from logic.config import get_global_config, PROJECT_ROOT
+from logic._.config import get_global_config, PROJECT_ROOT
 
 def truncate_to_width(text, max_width):
     """Truncate string to visible width, adding ellipsis and resetting color.
@@ -23,7 +23,7 @@ def truncate_to_width(text, max_width):
         return text
     # Reset color BEFORE the ellipsis to ensure ellipsis is default color
     # and to stop any active styles from the truncated text.
-    from logic.config import get_color
+    from logic._.config import get_color
     RESET = get_color("RESET", "\033[0m")
     # Use horizontal ellipsis (…) which is common in modern terminals
     return truncate_to_display_width(text, safe_width - 2) + f"{RESET}…"

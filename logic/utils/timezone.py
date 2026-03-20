@@ -14,7 +14,7 @@ def get_current_timezone():
     except:
         pass
     
-    from logic.config import get_global_config
+    from logic._.config import get_global_config
     return get_global_config("timezone", "UTC")
 
 def resolve_timezone(tz_input=None):

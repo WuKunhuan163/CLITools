@@ -2,8 +2,8 @@ import sys
 import json
 from pathlib import Path
 
-from logic.config import get_color
-from logic.setup.engine import ToolEngine
+from logic._.config import get_color
+from logic._.setup.engine import ToolEngine
 
 def install_tool(tool_name: str, project_root: Path) -> bool:
     engine = ToolEngine(tool_name, project_root)

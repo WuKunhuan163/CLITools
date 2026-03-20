@@ -12,9 +12,9 @@ from typing import Optional
 
 def generate_ai_rule(project_root: Path, target_tool: Optional[str] = None, translation_func=None):
     """Generate and display the AI agent rule set."""
-    from logic.config import get_color
+    from logic._.config import get_color
     from logic.utils import get_logic_dir
-    from logic.lang.utils import get_translation
+    from logic._.lang.utils import get_translation
 
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))
     BOLD = get_color("BOLD", "\033[1m")
@@ -118,7 +118,7 @@ def generate_ai_rule(project_root: Path, target_tool: Optional[str] = None, tran
 
 def inject_rule(project_root: Path, translation_func=None):
     """Inject TOOL rule into the project's .cursor/rules/ directory as an always-apply rule."""
-    from logic.config import get_color
+    from logic._.config import get_color
 
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs) if kwargs else d)
     BOLD = get_color("BOLD", "\033[1m")

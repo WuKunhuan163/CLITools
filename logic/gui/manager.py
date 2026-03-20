@@ -16,7 +16,7 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
     """
     Unified handler for remote GUI commands (stop, submit, cancel, add_time).
     """
-    from logic.config import get_color
+    from logic._.config import get_color
     BOLD, RED, _YELLOW, RESET = get_color("BOLD", "\033[1m"), get_color("RED", "\033[31m"), get_color("YELLOW", "\033[33m"), get_color("RESET", "\033[0m")
     
     parser = argparse.ArgumentParser(add_help=False)
@@ -93,7 +93,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     Unified launcher for GUI subprocesses with signal redirection and result capture.
     Used by parent processes (e.g. tool/NAME/main.py).
     """
-    from logic.config import get_color
+    from logic._.config import get_color
     BOLD, BLUE, RESET = get_color("BOLD", "\033[1m"), get_color("BLUE", "\033[34m"), get_color("RESET", "\033[0m")
     
     # 1. Start subprocess in new session to decouple from parent's process group
@@ -146,7 +146,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
             sys.stdout.flush()
 
     # Hide debug prints unless specifically enabled
-    from logic.config import get_setting
+    from logic._.config import get_setting
     debug_on = os.environ.get("GDS_GUI_DEBUG") == "1" or get_setting("gui_manager_debug", False)
 
     stdout_content = []
@@ -280,7 +280,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
                 RST = "\033[0m"
                 try:
                     from logic.utils import find_project_root, get_logic_dir
-                    from logic.lang.utils import get_translation
+                    from logic._.lang.utils import get_translation
                     root = find_project_root(Path(__file__))
                     logic_dir = str(get_logic_dir(root))
                     cancelled_label = get_translation(logic_dir, "msg_operation_cancelled", "Operation cancelled")
@@ -325,7 +325,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
         filtered_stderr = filter_tkinter_noise(stderr)
 
     # Hide debug prints unless specifically enabled
-    from logic.config import get_setting
+    from logic._.config import get_setting
     # Use environment variable or setting, default to False but allow override
     if os.environ.get("GDS_GUI_DEBUG") == "1" or get_setting("gui_manager_debug", False):
         sys.stderr.write(f"DEBUG: GUI process {proc.pid} exited with code {proc.returncode}\n")
@@ -345,7 +345,7 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     Core logic for text-file based GUI fallback in sandboxed environments.
     Returns the content of the file if modified, or None if timeout/interrupted.
     """
-    from logic.config import get_color
+    from logic._.config import get_color
     from logic.gui.engine import get_sandbox_type
     from logic.utils import cleanup_old_files
     
@@ -413,7 +413,7 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     # Try to get focus interval from config
     fi = 90
     try:
-        from logic.config import get_global_config
+        from logic._.config import get_global_config
         fi = get_global_config().get("focus_interval", 90)
     except: pass
     if fi > 0 and fi < 90: fi = 90

@@ -6,11 +6,11 @@ import inspect
 from typing import List, Dict, Optional, Any, Set, Callable, Tuple
 from concurrent.futures import ThreadPoolExecutor
 from logic.turing.display.manager import truncate_to_width, _get_configured_width
-from logic.config import get_color
+from logic._.config import get_color
 from logic.turing.terminal.keyboard import get_global_suppressor
 from logic.turing.logic import TuringStage
 from logic.turing.utils import log_turing_error
-from logic.lang.utils import get_translation
+from logic._.lang.utils import get_translation
 from logic.utils import get_logic_dir, find_project_root
 
 class DynamicStatusBar:
@@ -252,7 +252,7 @@ class ParallelWorkerPool:
                         success_callback(task_id, res)
                     
                     # Print failure above status bar with reason if available
-                    from logic.config import get_color
+                    from logic._.config import get_color
                     RED = get_color("RED", "\033[31m")
                     BOLD = get_color("BOLD", "\033[1m")
                     RESET = get_color("RESET", "\033[0m")
@@ -284,7 +284,7 @@ class ParallelWorkerPool:
                     success_callback(task_id, error_data)
                 
                 # Print failure above status bar with reason if available
-                from logic.config import get_color
+                from logic._.config import get_color
                 RED = get_color("RED", "\033[31m")
                 BOLD = get_color("BOLD", "\033[1m")
                 RESET = get_color("RESET", "\033[0m")

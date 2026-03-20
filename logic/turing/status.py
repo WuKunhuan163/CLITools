@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import shutil
 
-from logic.config import get_color, get_global_config
+from logic._.config import get_color, get_global_config
 
 BOLD = get_color("BOLD", "\033[1m")
 DIM = get_color("DIM", "\033[2m")

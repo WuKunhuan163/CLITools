@@ -2,7 +2,7 @@
 
 Provides tool development workflow commands.
 """
-from logic.dev.commands import (
+from logic._.dev.commands import (
     dev_sync,
     dev_reset,
     dev_enter,
@@ -13,7 +13,7 @@ from logic.dev.commands import (
     dev_migrate_bin,
     dev_audit_archived,
 )
-from logic.dev.report import (
+from logic._.dev.report import (
     list_docs,
     list_reports,
     view_file,

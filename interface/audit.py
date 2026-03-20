@@ -3,14 +3,14 @@
 Provides programmatic access to the code quality auditing system,
 import quality checking, and hooks/interface quality audits.
 """
-from logic.audit.code_quality import (
+from logic._.audit.code_quality import (
     run_full_audit,
     print_report,
     AuditReport,
     Finding,
 )
-from logic.audit.utils import AuditManager
-from logic.lang.audit_imports import (
+from logic._.audit.utils import AuditManager
+from logic._.lang.audit_imports import (
     audit_all_tools as audit_imports_all,
     audit_tool as audit_imports_tool,
     audit_docs as audit_imports_docs,
@@ -18,7 +18,7 @@ from logic.lang.audit_imports import (
     format_report as format_imports_report,
     to_json as imports_to_json,
 )
-from logic.audit.hooks import (
+from logic._.audit.hooks import (
     audit_all_quality,
     audit_tool_quality,
     audit_skills,

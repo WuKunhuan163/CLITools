@@ -1621,7 +1621,7 @@ class ConversationManager:
         self._thread_local.auto_confirmed = False
         self._emit({"type": "session_status", "id": session_id, "status": "running"})
         try:
-            from logic.assistant.sandbox import get_sandbox
+            from logic._.assistant.sandbox import get_sandbox
             sb = get_sandbox()
             sb.workspace_root = session.codebase_root
             sb.mode = session_mode

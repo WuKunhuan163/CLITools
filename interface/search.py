@@ -12,13 +12,13 @@ Quick start::
     km = KnowledgeManager(project_root)
     results = km.search("rate limiting", scope="all", top_k=5)
 """
-from logic.search.tools import (
+from logic._.search.tools import (
     search_tools,
     search_interfaces,
     search_skills,
     search_tools_deep,
 )
-from logic.search.knowledge import KnowledgeManager
+from logic._.search.knowledge import KnowledgeManager
 
 
 def search_lessons(project_root, query: str, top_k: int = 5, tool: str = None):

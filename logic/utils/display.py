@@ -273,7 +273,7 @@ def print_success_status(action_msg):
     Unified success status reporting.
     Prints green bold 'Successfully' followed by action message.
     """
-    from logic.config import get_color
+    from logic._.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
     GREEN = get_color("GREEN", "\033[32m")
     RESET = get_color("RESET", "\033[0m")

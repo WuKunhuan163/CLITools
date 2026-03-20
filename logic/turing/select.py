@@ -24,8 +24,8 @@ from typing import List, Dict, Any, Optional
 
 from pathlib import Path
 
-from logic.config import get_color
-from logic.lang.utils import get_translation
+from logic._.config import get_color
+from logic._.lang.utils import get_translation
 from logic.turing.terminal.keyboard import get_global_suppressor
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent)

@@ -36,6 +36,8 @@ REPO_URL = "https://github.com/HKUDS/CLI-Anything.git"
 REPO_BASE = "https://api.github.com/repos/HKUDS/CLI-Anything/contents"
 RAW_BASE = "https://raw.githubusercontent.com/HKUDS/CLI-Anything/main"
 
+SOURCE_PREFIX = "CLIAnything"
+
 SPECIAL_NAMES = {
     "obs-studio": "OBS",
 }
@@ -44,12 +46,17 @@ SPECIAL_NAMES = {
 def harness_to_tool_name(harness_name: str) -> str:
     """Derive ecosystem tool name from a CLI-Anything harness name.
 
-    Convention: uppercase, hyphens removed. Override via SPECIAL_NAMES for
-    cases where the default conversion is undesirable (e.g. obs-studio -> OBS).
+    Naming convention: <Source>.<N> where Source is the migration source
+    and N is the uppercased harness name. This avoids collision with
+    tools from other migration sources.
+
+    Examples: CLIAnything.BLENDER, CLIAnything.GIMP, CLIAnything.OBS
     """
     if harness_name in SPECIAL_NAMES:
-        return SPECIAL_NAMES[harness_name]
-    return harness_name.upper().replace("-", "")
+        short = SPECIAL_NAMES[harness_name]
+    else:
+        short = harness_name.upper().replace("-", "")
+    return f"{SOURCE_PREFIX}.{short}"
 
 
 def _ensure_clone():
@@ -307,24 +314,12 @@ def _generate_main_py(tool_name, harness_name, meta, commands, click_tree=None):
         f'        print()',
         f'        return 0',
         f'',
-        f'    upstream = _get_upstream_package()',
-        f'    if not upstream.exists():',
-        f'        print(f"  {{BOLD}}{{RED}}Not installed.{{RESET}} Run: TOOL --migrate --draft-tool CLI-Anything {harness_name}")',
-        f'        return 1',
-        f'',
-        f'    pkg_path = str(upstream)',
-        f'    if pkg_path not in sys.path:',
-        f'        sys.path.insert(0, pkg_path)',
-        f'',
-        f'    try:',
-        f'        from {module_path} import main as cli_main',
-        f'        cli_main()',
-        f'    except ImportError as e:',
-        f'        print(f"  {{BOLD}}{{RED}}Import error.{{RESET}} {{e}}")',
-        f'        print(f"  Try: pip install -e {{upstream}}")',
-        f'        return 1',
-        f'    except SystemExit as e:',
-        f'        return e.code or 0',
+        f'    raise NotImplementedError(',
+        f'        f"{tool_name} is a draft tool migrated from CLI-Anything/{harness_name}. "',
+        f'        f"Post-development required: move logic from data/upstream/ into logic/, "',
+        f'        f"rewrite main.py with argparse, create interface/main.py. "',
+        f'        f"Run TOOL --migrate --scan CLIANYTHING for migration status."',
+        f'    )',
         f'',
         f'',
         f'if __name__ == "__main__":',

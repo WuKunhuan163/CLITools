@@ -65,14 +65,14 @@ class ToolBase:
         """Get the tool's configured CPU limit, falling back to global if not set."""
         if self._cpu_limit is not None:
             return self._cpu_limit
-        from logic.config import get_setting
+        from logic._.config import get_setting
         return get_setting("test_cpu_limit", 80.0) # Default to 80%
 
     def get_cpu_timeout(self):
         """Get the tool's configured CPU timeout, falling back to global if not set."""
         if self._cpu_timeout is not None:
             return self._cpu_timeout
-        from logic.config import get_setting
+        from logic._.config import get_setting
         return get_setting("test_cpu_timeout", 30) # Default to 30 seconds
 
     def check_cpu_load_and_warn(self):
@@ -81,7 +81,7 @@ class ToolBase:
             return
         
         from logic.utils import get_cpu_percent
-        from logic.config import get_color
+        from logic._.config import get_color
         
         current_cpu = get_cpu_percent(interval=0.1)
         cpu_limit = self.get_cpu_limit()
@@ -137,7 +137,7 @@ class ToolBase:
     def get_hooks_engine(self):
         """Return the HooksEngine for this tool, creating it lazily."""
         if self._hooks_engine is None:
-            from logic.hooks.engine import HooksEngine
+            from logic._.hooks.engine import HooksEngine
             self._hooks_engine = HooksEngine(
                 self.tool_dir, tool_name=self.tool_name,
                 project_root=self.project_root,
@@ -173,7 +173,7 @@ class ToolBase:
                 missing.append(dep)
         
         if missing:
-            from logic.config import get_color
+            from logic._.config import get_color
             RED = get_color("RED", "\033[31m")
             BOLD = get_color("BOLD", "\033[1m")
             RESET = get_color("RESET", "\033[0m")
@@ -267,7 +267,7 @@ class ToolBase:
             self._handle_endpoint(endpoint_args)
             return True
 
-        from logic.agent.command import ALLOW_ASSISTANT_SHORTHAND
+        from logic._.agent.command import ALLOW_ASSISTANT_SHORTHAND
         if ALLOW_ASSISTANT_SHORTHAND:
             agent_args = _extract_flag_args("--agent")
             if agent_args is not None:
@@ -400,7 +400,7 @@ class ToolBase:
 
     def _handle_default_dev(self, args):
         """Built-in --dev commands available for every tool."""
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         get_color("GREEN", "\033[32m")
         get_color("BLUE", "\033[34m")
@@ -410,11 +410,11 @@ class ToolBase:
 
         if subcmd == "sanity-check":
             fix = "--fix" in args
-            from logic.dev.commands import dev_sanity_check
+            from logic._.dev.commands import dev_sanity_check
             dev_sanity_check(self.tool_name, self.project_root, fix=fix)
         elif subcmd == "audit-test":
             fix = "--fix" in args
-            from logic.dev.commands import dev_audit_test
+            from logic._.dev.commands import dev_audit_test
             dev_audit_test(self.tool_name, self.project_root, fix=fix)
         elif subcmd == "info":
             print(f"\n{BOLD}{self.tool_name} Developer Info{RESET}")
@@ -439,7 +439,7 @@ class ToolBase:
 
     def _handle_dev_migrate(self, args):
         """Download/sync remote asset resources to local storage."""
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         DIM = get_color("DIM", "\033[2m")
         GREEN = get_color("GREEN", "\033[32m")
@@ -487,7 +487,7 @@ class ToolBase:
         test_args = tp.parse_args(args)
 
         test_args.tool_name = self.tool_name
-        from logic.test.manager import test_tool_with_args
+        from logic._.test.manager import test_tool_with_args
         test_tool_with_args(test_args, self.project_root)
 
     def _handle_tool_config(self, args):
@@ -527,7 +527,7 @@ class ToolBase:
 
         if known_args.show or (not any(v is not None for k, v in vars(known_args).items()
                                        if k != "show")):
-            from logic.config import get_color
+            from logic._.config import get_color
             BOLD, RESET = get_color("BOLD"), get_color("RESET")
             if config:
                 print(f"{BOLD}{self.tool_name} configuration:{RESET}")
@@ -551,7 +551,7 @@ class ToolBase:
             with open(config_path, 'w') as f:
                 json.dump(config, f, indent=2)
 
-            from logic.config import get_color
+            from logic._.config import get_color
             BOLD, GREEN, RESET = get_color("BOLD"), get_color("GREEN"), get_color("RESET")
             print(f"{BOLD}{GREEN}Successfully updated{RESET} {self.tool_name} configuration:")
             for k, v in sorted(config.items()):
@@ -563,7 +563,7 @@ class ToolBase:
         Invoked via ``TOOL --config --assistant [KEY [VALUE]]``.
         Reads/writes the LLM tool's config store.
         """
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         DIM = get_color("DIM", "\033[2m")
         GREEN = get_color("GREEN", "\033[32m")
@@ -663,7 +663,7 @@ class ToolBase:
 
     def _handle_skills_command(self, args):
         """Handle 'TOOLNAME skills [show <name> | list | search <query>]' command."""
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         GREEN = get_color("GREEN", "\033[32m")
         get_color("BLUE", "\033[34m")
@@ -687,7 +687,7 @@ class ToolBase:
             DIM = get_color("DIM", "\033[2m")
             query = " ".join(args[1:])
             try:
-                from logic.search.tools import search_skills
+                from logic._.search.tools import search_skills
                 results = search_skills(
                     self.project_root, query, top_k=10,
                     tool_name=self.tool_name,
@@ -736,7 +736,7 @@ class ToolBase:
         (e.g., LLM --eco), shows tool-level ecosystem info by default.
         All subcommands from TOOL eco are available here, scoped to this tool.
         """
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         GREEN = get_color("GREEN", "\033[32m")
         DIM = get_color("DIM", "\033[2m")
@@ -871,7 +871,7 @@ class ToolBase:
                TOOL_NAME --call-register --off         (disable call-register requirement)
                TOOL_NAME --call-register --on          (enable call-register requirement)
         """
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         DIM = get_color("DIM", "\033[2m")
         GREEN = get_color("GREEN", "\033[32m")
@@ -990,7 +990,7 @@ class ToolBase:
 
     def _handle_hooks_command(self, args):
         """Handle 'TOOLNAME hooks [list|show <name>|enable <name>|disable <name>]'."""
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         GREEN = get_color("GREEN", "\033[32m")
         get_color("BLUE", "\033[34m")
@@ -1115,7 +1115,7 @@ class ToolBase:
 
     def print_rule(self):
         """Print tool-specific rules from tool.json."""
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         get_color("BLUE", "\033[34m")
         RESET = get_color("RESET", "\033[0m")
@@ -1157,7 +1157,7 @@ class ToolBase:
 
     def _handle_agent(self, args, mode="agent"):
         """Dispatch --agent/--ask/--plan subcommands to the agent infrastructure."""
-        from logic.agent.command import handle_agent_command
+        from logic._.agent.command import handle_agent_command
         handle_agent_command(
             args=args,
             tool_name=self.tool_name,
@@ -1177,7 +1177,7 @@ class ToolBase:
         and the symmetric interface contract.
         """
         from interface.endpoint import EndpointNotImplemented
-        from logic.config import get_color
+        from logic._.config import get_color
         DIM = get_color("DIM", "\033[2m")
         RESET = get_color("RESET", "\033[0m")
         print(f"  {DIM}{self.tool_name} does not implement --endpoint. "
@@ -1215,7 +1215,7 @@ class ToolBase:
         rest = filtered[1:]
 
         if subcmd == "--endpoint" or subcmd == "endpoint":
-            from logic.agent.command import handle_assistant_endpoint
+            from logic._.agent.command import handle_assistant_endpoint
             handle_assistant_endpoint(rest, self.tool_name)
             return
 
@@ -1223,7 +1223,7 @@ class ToolBase:
                         "edits", "accept", "revert", "accept-all",
                         "revert-all", "new", "delete", "clear", "cancel"}
         if subcmd in gui_api_cmds:
-            from logic.agent.command import handle_assistant_command
+            from logic._.agent.command import handle_assistant_command
             handle_assistant_command(filtered, self.tool_name)
         elif subcmd in ("agent", "ask", "plan"):
             self._handle_agent(rest, mode=subcmd)
@@ -1250,13 +1250,13 @@ class ToolBase:
 
     def _handle_assistant_create_and_info(self):
         """Create a new session and print ID + GUI port."""
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         DIM = get_color("DIM", "\033[2m")
         GREEN = get_color("GREEN", "\033[32m")
         RESET = get_color("RESET", "\033[0m")
 
-        from logic.agent.state import AgentSession, save_session
+        from logic._.agent.state import AgentSession, save_session
         project_root = str(self.project_root)
 
         session = AgentSession(
@@ -1267,7 +1267,7 @@ class ToolBase:
         save_session(session, project_root, tool_dir=str(self.tool_dir))
         self._save_active_session_id(session.id)
 
-        from logic.agent.command import _find_running_gui_port
+        from logic._.agent.command import _find_running_gui_port
         port = _find_running_gui_port()
 
         print(f"  {BOLD}{GREEN}Created.{RESET} {DIM}Session: {session.id}{RESET}")
@@ -1279,12 +1279,12 @@ class ToolBase:
 
     def _handle_assistant_checkout(self, args):
         """Switch the current tool's active session or create a new one."""
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         DIM = get_color("DIM", "\033[2m")
         RESET = get_color("RESET", "\033[0m")
 
-        from logic.agent.state import (
+        from logic._.agent.state import (
             AgentSession, save_session, load_session, list_sessions,
         )
         project_root = str(self.project_root)
@@ -1317,13 +1317,13 @@ class ToolBase:
             --assistant clean --all              Delete ALL sessions
         """
         import shutil
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         DIM = get_color("DIM", "\033[2m")
         GREEN = get_color("GREEN", "\033[32m")
         RESET = get_color("RESET", "\033[0m")
 
-        from logic.agent.state import get_sessions_dir
+        from logic._.agent.state import get_sessions_dir
         sessions_dir = self.project_root / "runtime" / "sessions"
         tool_sessions_dir = get_sessions_dir(
             str(self.project_root), tool_dir=str(self.tool_dir))
@@ -1331,7 +1331,7 @@ class ToolBase:
         def _notify_gui_delete(sid):
             """Notify running GUI server to delete a session."""
             try:
-                from logic.agent.command import _find_running_gui_port
+                from logic._.agent.command import _find_running_gui_port
                 import json, urllib.request
                 port = _find_running_gui_port()
                 if port:
@@ -1407,13 +1407,13 @@ class ToolBase:
             --assistant queue clear        Clear the queue
         """
         import json
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         DIM = get_color("DIM", "\033[2m")
         RESET = get_color("RESET", "\033[0m")
 
         try:
-            from logic.agent.command import _find_running_gui_port
+            from logic._.agent.command import _find_running_gui_port
             import urllib.request
             port = _find_running_gui_port()
             if not port:
@@ -1468,7 +1468,7 @@ class ToolBase:
         """Execute the tool's setup.py script using ProgressTuringMachine."""
         from logic.turing.models.progress import ProgressTuringMachine
         from logic.turing.logic import TuringStage
-        from logic.config import get_color
+        from logic._.config import get_color
         
         setup_script = self.tool_dir / "setup.py"
         if not setup_script.exists():
@@ -1533,7 +1533,7 @@ class ToolBase:
     def handle_exception(self, e, print_error=True):
         """Unified exception handling and logging.
         Writes the full traceback into the current session log file."""
-        from logic.config import get_color
+        from logic._.config import get_color
         
         if print_error:
             RED = get_color("RED", "\033[31m")
@@ -1551,7 +1551,7 @@ class ToolBase:
 
     def get_translation(self, key, default, **kwargs):
         """Get tool-specific translation with fallback to root."""
-        from logic.lang.utils import get_translation
+        from logic._.lang.utils import get_translation
         from logic.utils import get_logic_dir
         
         tool_internal = get_logic_dir(self.tool_dir)
@@ -1568,7 +1568,7 @@ class ToolBase:
 
     def get_color(self, color_name, default=""):
         """Get color from global config."""
-        from logic.config import get_color
+        from logic._.config import get_color
         return get_color(color_name, default)
 
     def setup_gui(self):
@@ -1622,7 +1622,7 @@ class ToolBase:
 
     def run_subtool_install(self, subtool_name):
         """Standardized sub-tool installation logic."""
-        from logic.setup.engine import ToolEngine
+        from logic._.setup.engine import ToolEngine
         
         # Subtools use the naming convention: PARENT.SUBTOOL
         # and are stored directly in the project root's tool/ directory.
@@ -1639,7 +1639,7 @@ class ToolBase:
         subtool_dir = self.project_root / "tool" / subtool_full_name
         
         if not subtool_dir.exists():
-            from logic.config import get_color
+            from logic._.config import get_color
             RED = get_color("RED", "\033[31m")
             BOLD = get_color("BOLD", "\033[1m")
             RESET = get_color("RESET", "\033[0m")
@@ -1647,7 +1647,7 @@ class ToolBase:
             return False
 
         if not force_yes:
-            from logic.lang.utils import get_translation
+            from logic._.lang.utils import get_translation
             gui_logic_dir = str(self.project_root / "logic")
             confirm_msg = get_translation(gui_logic_dir, "confirm_uninstall", "Are you sure you want to uninstall '{name}'? (y/N): ", name=subtool_full_name)
             
@@ -1660,13 +1660,13 @@ class ToolBase:
                 print(get_translation(gui_logic_dir, "uninstall_cancelled", "Uninstall cancelled."))
                 return False
 
-        from logic.setup.engine import ToolEngine
+        from logic._.setup.engine import ToolEngine
         engine = ToolEngine(subtool_full_name, self.project_root)
         return engine.uninstall()
 
     def print_default_help(self):
         """Print a default help message if no parser is provided."""
-        from logic.config import get_color
+        from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
         RESET = get_color("RESET", "\033[0m")
         

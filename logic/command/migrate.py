@@ -36,7 +36,11 @@ MIGRATION_LEVELS = [
 
 
 def _find_all_migrate_dirs() -> List[Path]:
-    """Find all migrate/ directories: root-level and tool-specific."""
+    """Find all migrate/ directories: root-level and tool-specific.
+
+    Tool-specific migrate/_/ directories use "_" as a self-owned domain
+    (the domain name is derived from the parent tool name).
+    """
     dirs = []
     if MIGRATE_DIR.exists():
         dirs.append(MIGRATE_DIR)
@@ -59,20 +63,25 @@ def list_domains() -> List[Dict[str, Any]]:
 
     for mdir in _find_all_migrate_dirs():
         for d in sorted(mdir.iterdir()):
+            if not d.is_dir():
+                continue
             info_file = d / "info.json"
-            if d.is_dir() and info_file.exists() and d.name not in seen:
-                try:
-                    info = json.loads(info_file.read_text())
-                    info["path"] = str(d)
-                    info["domain"] = d.name
-                    tool_name = info.get("target_tool", "")
-                    if mdir != MIGRATE_DIR:
-                        info["scope"] = mdir.parent.name
-                    domains.append(info)
-                    seen.add(d.name)
-                except Exception:
-                    domains.append({"domain": d.name, "path": str(d), "error": "invalid info.json"})
-                    seen.add(d.name)
+            if not info_file.exists():
+                continue
+            if d.name in seen:
+                continue
+
+            try:
+                info = json.loads(info_file.read_text())
+                info["path"] = str(d)
+                info["domain"] = d.name
+                if mdir != MIGRATE_DIR:
+                    info["scope"] = mdir.parent.name
+                domains.append(info)
+                seen.add(d.name)
+            except Exception:
+                domains.append({"domain": d.name, "path": str(d), "error": "invalid info.json"})
+                seen.add(d.name)
     return domains
 
 
@@ -81,6 +90,7 @@ def _find_domain_dir(domain: str) -> Optional[Path]:
     root_path = MIGRATE_DIR / domain
     if root_path.exists() and (root_path / "info.json").exists():
         return root_path
+
     tool_dir = _PROJECT_ROOT / "tool"
     if tool_dir.exists():
         for td in sorted(tool_dir.iterdir()):
@@ -154,11 +164,15 @@ def check_pending(domain: str) -> Dict[str, Any]:
     return {"pending": [], "up_to_date": True}
 
 
-def scan_domain(domain: str) -> Dict[str, Any]:
+def scan_domain(domain: str, namespace: str = None) -> Dict[str, Any]:
     """Scan a domain to discover available items and their migration status.
 
     The domain module should expose a scan_available() function that returns
     a list of item names, and a harness_to_tool_name(name) function for mapping.
+
+    Args:
+        domain: Migration domain name (e.g. "CLIANYTHING", "astral-sh").
+        namespace: Optional sub-scope to filter results (e.g. a specific harness).
     """
     domain_dir = _find_domain_dir(domain)
     if not domain_dir:
@@ -185,11 +199,19 @@ def scan_domain(domain: str) -> Dict[str, Any]:
     available = scan_fn()
     tool_dir = _PROJECT_ROOT / "tool"
 
+    if namespace:
+        ns_lower = namespace.lower()
+        available = [h for h in available if h.lower() == ns_lower or ns_lower in h.lower()]
+        if not available:
+            return {"error": f"Namespace '{namespace}' not found in domain '{domain}'"}
+
     migrated = []
     pending = []
     for name in available:
         tool_name = name_fn(name)
-        upstream_dir = tool_dir / tool_name / "data" / "upstream" / domain
+        upstream_dir = tool_dir / tool_name / "data" / "upstream" / "CLI-Anything"
+        if not upstream_dir.exists():
+            upstream_dir = tool_dir / tool_name / "data" / "upstream" / domain
         if upstream_dir.exists():
             info_file = upstream_dir / "migration_info.json"
             status = "draft"
