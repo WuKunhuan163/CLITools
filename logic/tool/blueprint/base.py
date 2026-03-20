@@ -244,6 +244,14 @@ class ToolBase:
             for a in sys.argv[1:]
         ]
 
+        # No args → show help
+        if len(sys.argv) <= 1:
+            if parser:
+                parser.print_help()
+            else:
+                self.print_default_help()
+            return True
+
         # ---- Tier 1: Shared eco command dispatch (--- prefix) ----
         eco_tokens = []
         positional_args = []
@@ -282,6 +290,28 @@ class ToolBase:
             )
             if resolved:
                 return True
+
+            # Unresolved eco tokens — show suggestion
+            from logic._.config import get_color
+            _b = get_color("BOLD", "\033[1m")
+            _d = get_color("DIM", "\033[2m")
+            _r = get_color("RESET", "\033[0m")
+
+            user_cmd = f"---{eco_tokens[0]}"
+            shared_dir = self.project_root / "logic" / "_"
+            discovered = []
+            if shared_dir.exists():
+                for d in sorted(shared_dir.iterdir()):
+                    if d.is_dir() and (d / "cli.py").exists():
+                        discovered.append(f"---{d.name}")
+
+            from interface.utils import suggest_commands
+            matches = suggest_commands(user_cmd, discovered, n=3, cutoff=0.4)
+            print(f"{_b}Unknown command:{_r} {user_cmd}")
+            if matches:
+                print(f"  {_d}Did you mean: {', '.join(matches)}?{_r}")
+            print(f"  {_d}Use {self.tool_name} --help for available commands.{_r}")
+            return True
 
         if len(sys.argv) > 1:
             args_to_check = sys.argv[1:]
@@ -1707,21 +1737,32 @@ class ToolBase:
         return engine.uninstall()
 
     def print_default_help(self):
-        """Print a default help message if no parser is provided."""
+        """Print help with discovered eco commands from logic/_/."""
         from logic._.config import get_color
         BOLD = get_color("BOLD", "\033[1m")
+        DIM = get_color("DIM", "\033[2m")
         RESET = get_color("RESET", "\033[0m")
-        
-        print(f"Usage: {self.tool_name} <command> [options]")
-        print(f"\n{BOLD}Built-in commands:{RESET}")
-        print(f"  setup        Run tool installation/setup")
-        print(f"  install      Install a sub-tool")
-        print(f"  uninstall    Uninstall a sub-tool")
-        print(f"  config       Manage tool configuration")
-        print(f"  skills       List and view tool skills")
-        print(f"  hooks        Manage event hooks (list/enable/disable/show)")
-        print(f"  rule         Show AI rules for this tool")
-        print(f"  -h, --help   Show this help message")
+
+        print(f"Usage: {self.tool_name} ---<command> [options]")
+        print(f"\n  Prefix: ---<eco>  --<tool>  -<modifier>\n")
+
+        shared_dir = self.project_root / "logic" / "_"
+        eco_cmds = []
+        if shared_dir.exists():
+            for d in sorted(shared_dir.iterdir()):
+                if d.is_dir() and not d.name.startswith((".", "_")):
+                    if (d / "cli.py").exists():
+                        eco_cmds.append(d.name)
+        if eco_cmds:
+            print(f"  {BOLD}Eco Commands{RESET}")
+            for name in eco_cmds:
+                print(f"    ---{name}")
+
+        print(f"\n  {BOLD}Base Commands{RESET}")
+        for name in ["setup", "rule", "install", "uninstall",
+                      "agent", "ask", "plan"]:
+            print(f"    ---{name}")
+        print(f"\nUse {self.tool_name} ---<command> --help for details.")
 
     def raise_success_status(self, action_msg):
         """Unified success status reporting for tools."""

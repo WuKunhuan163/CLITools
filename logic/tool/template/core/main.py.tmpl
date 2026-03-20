@@ -1,40 +1,17 @@
 #!/usr/bin/env python3
-"""Tool {name} — entry point.
+"""{name} tool — entry point.
 
-Three-tier command structure:
-  ---<eco>   Shared framework commands (dev, test, audit, etc.)
-  --<tool>   Tool-specific hierarchical commands
-  -<mod>     Decorator flags (-no-warning, -tool-quiet)
+Minimal main.py: inherits ToolBase, delegates to stateless argparse router.
+The base discovers commands by traversing logic/_/ (eco) and tool logic/ (hierarchical).
+All application logic lives in logic/**/cli.py endpoints, not here.
 """
 import sys
-import argparse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
 from interface.tool import ToolBase
-from interface.config import get_color
 
-
-def main():
-    tool = ToolBase("{name}")
-
-    parser = argparse.ArgumentParser(
-        prog="{short_name}",
-        description="{name} tool",
-        add_help=False,
-    )
-    parser.add_argument("query", nargs="?", help="Default positional argument")
-
-    if tool.handle_command_line(parser):
-        return
-
-    args = parser.parse_args()
-
-    if args.query:
-        print(f"Received: {{args.query}}")
-    else:
-        parser.print_help()
-
-
-if __name__ == "__main__":
-    main()
+tool = ToolBase("{name}")
+if tool.handle_command_line():
+    sys.exit(0)
