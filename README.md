@@ -211,14 +211,14 @@ TOOL --dev audit-test MY_TOOL     # Audit test conventions
 TOOL --audit imports              # Import quality analysis
 TOOL --audit quality              # Hooks, interface, skills validation
 TOOL --dev push-resource PYTHON   # Push binary assets to remote tool branch
-TOOL --dev archive MY_TOOL        # Archive a tool (move to logic/_/install/archived/)
+TOOL --dev archive MY_TOOL        # Archive a tool (move to logic/_/dev/archived/)
 ```
 
 ### Branch Strategy & Resource Isolation
 
 This project separates **tool code** from **binary resources** (Python builds, fonts, etc.):
 
-- **`dev`** — Active development. Binary resources are gitignored; they live locally under `logic/_/install/resource/` and are never committed.
+- **`dev`** — Active development. Binary resources are gitignored; they live locally under `logic/_/dev/resource/` and are never committed.
 - **`tool`** — Remote-only staging branch. Contains archived tool snapshots and binary resources. This branch is NOT tracked locally — `TOOL --setup` configures git to exclude it from default fetches to avoid bloating `.git`.
 - **`main`** / **`test`** — Framework-only and testing branches respectively.
 

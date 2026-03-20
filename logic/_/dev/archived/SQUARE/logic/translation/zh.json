@@ -1,0 +1,9 @@
+{
+  "tool_description": "通过 Chrome CDP 访问 Square 商业平台",
+  "status": "认证状态",
+  "page": "页面信息",
+  "dashboard": "仪表板概览",
+  "authenticated": "已认证",
+  "not_authenticated": "未认证",
+  "on_login_page": "在登录页面"
+}

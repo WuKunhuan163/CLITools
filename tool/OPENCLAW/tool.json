@@ -1,9 +1,0 @@
-{
-  "name": "OPENCLAW",
-  "version": "2.0.0",
-  "description": "Agent autonomy framework with multi-backend LLM (GLM-4.7 API + Yuanbao Web)",
-  "purpose": "Provide guardrails, skill chaining, bootstrap protocols, and operational infrastructure for agent-level task completion. Supports GLM-4.7 via LLM tool (compliant) and Tencent Yuanbao via CDMCP (legacy).",
-  "dependencies": ["PYTHON", "SKILLS", "LLM", "TODO", "GOOGLE.CDMCP"],
-  "pip_dependencies": ["websocket-client"],
-  "git_ignore": []
-}

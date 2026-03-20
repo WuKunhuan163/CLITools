@@ -26,7 +26,7 @@ Checks: tool_dir exists, shortcut exists (bin/<name>/<name> or legacy bin/<name>
 ## Actions (internal)
 
 - **validate_registry** — tool must be in tool.json "tools" (dict or list). Skipped for subtools (parent_tool_dir != project_root/tool).
-- **fetch_source** — git checkout from dev/tool/origin branches; fallback to logic/_/install/archived/.
+- **fetch_source** — git checkout from dev/tool/origin branches; fallback to logic/_/dev/archived/.
 - **handle_pip_deps** — merges tool.json pip_dependencies and requirements.txt; uses PYTHON tool's python if available.
 - **run_setup** — subprocess.run([sys.executable, setup.py]).
 - **uninstall_action** — rmtree bin dir, remove legacy, rmtree tool_dir.

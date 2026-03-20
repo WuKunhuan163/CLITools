@@ -64,7 +64,7 @@ def dev_reset(project_root: Path, shared_logic_dir: Path, translation_func: Opti
         subprocess.run([_git_bin(), "commit", "-m", "Reset main branch to template state"], cwd=str(project_root), capture_output=True)
         
         subprocess.run([_git_bin(), "clean", "-fd"], cwd=str(project_root), stderr=subprocess.DEVNULL)
-        for d in ["data", "tmp", "tool", "logic/_/install/archived", "logic/_/install/resource", "resource"]:
+        for d in ["data", "tmp", "tool", "logic/_/dev/archived", "logic/_/dev/resource", "resource"]:
             p = project_root / d
             if p.exists() and p.is_dir():
                 shutil.rmtree(p)
@@ -432,7 +432,7 @@ def dev_audit_test(tool_name: str, project_root: Path, fix: bool = False) -> boo
     return False
 
 def dev_audit_archived(project_root: Path) -> bool:
-    """Audit for duplicate tools between tool/ and logic/_/install/archived/."""
+    """Audit for duplicate tools between tool/ and logic/_/dev/archived/."""
     BOLD = get_color("BOLD", "\033[1m")
     GREEN = get_color("GREEN", "\033[32m")
     RED = get_color("RED", "\033[31m")
@@ -455,7 +455,7 @@ def dev_audit_archived(project_root: Path) -> bool:
 
     duplicates = active_tools & archived_tools
     if duplicates:
-        print(f"{BOLD}{RED}Found duplicate tools{RESET} in both tool/ and logic/_/install/archived/:")
+        print(f"{BOLD}{RED}Found duplicate tools{RESET} in both tool/ and logic/_/dev/archived/:")
         for name in sorted(duplicates):
             print(f"  {name}")
         return False
@@ -636,7 +636,7 @@ def dev_migrate_bin(project_root: Path) -> bool:
 
 
 def dev_archive_tool(tool_name: str, project_root: Path):
-    """Archive a tool from tool/ to logic/_/install/archived/."""
+    """Archive a tool from tool/ to logic/_/dev/archived/."""
     BOLD = get_color("BOLD", "\033[1m")
     GREEN = get_color("GREEN", "\033[32m")
     RED = get_color("RED", "\033[31m")
@@ -652,7 +652,7 @@ def dev_archive_tool(tool_name: str, project_root: Path):
 
     if dest.exists():
         print(f"{BOLD}{RED}Already archived{RESET}: {tool_name}")
-        print(f"  Remove logic/_/install/archived/{tool_name}/ first to re-archive.")
+        print(f"  Remove logic/_/dev/archived/{tool_name}/ first to re-archive.")
         return
 
     archived_dir.mkdir(parents=True, exist_ok=True)
@@ -671,11 +671,11 @@ def dev_archive_tool(tool_name: str, project_root: Path):
     if bin_shortcut.exists():
         shutil.rmtree(str(bin_shortcut)) if bin_shortcut.is_dir() else os.remove(str(bin_shortcut))
 
-    print(f"{BOLD}{GREEN}Archived{RESET}: tool/{tool_name} -> logic/_/install/archived/{tool_name}")
+    print(f"{BOLD}{GREEN}Archived{RESET}: tool/{tool_name} -> logic/_/dev/archived/{tool_name}")
 
 
 def dev_unarchive_tool(tool_name: str, project_root: Path):
-    """Restore an archived tool from logic/_/install/archived/ to tool/."""
+    """Restore an archived tool from logic/_/dev/archived/ to tool/."""
     BOLD = get_color("BOLD", "\033[1m")
     GREEN = get_color("GREEN", "\033[32m")
     RED = get_color("RED", "\033[31m")
@@ -683,7 +683,7 @@ def dev_unarchive_tool(tool_name: str, project_root: Path):
 
     archived_dir = project_root / "logic" / "_" / "install" / "archived" / tool_name
     if not archived_dir.exists():
-        print(f"{BOLD}{RED}Not found{RESET}: logic/_/install/archived/{tool_name}")
+        print(f"{BOLD}{RED}Not found{RESET}: logic/_/dev/archived/{tool_name}")
         return
 
     tool_dir = project_root / "tool" / tool_name
@@ -695,12 +695,12 @@ def dev_unarchive_tool(tool_name: str, project_root: Path):
     shutil.copytree(str(archived_dir), str(tool_dir), dirs_exist_ok=True)
     shutil.rmtree(str(archived_dir))
 
-    print(f"{BOLD}{GREEN}Restored{RESET}: logic/_/install/archived/{tool_name} -> tool/{tool_name}")
+    print(f"{BOLD}{GREEN}Restored{RESET}: logic/_/dev/archived/{tool_name} -> tool/{tool_name}")
     print(f"  Run {BOLD}TOOL --install {tool_name}{RESET} to complete setup.")
 
 
 def dev_push_resource(tool_name: str, project_root: Path, version: str = None):
-    """Push binary resources from logic/_/install/resource/<tool>/ to remote tool branch.
+    """Push binary resources from logic/_/dev/resource/<tool>/ to remote tool branch.
 
     Uses a side-index to add resources to the tool branch without checking it out.
     """
@@ -713,19 +713,19 @@ def dev_push_resource(tool_name: str, project_root: Path, version: str = None):
 
     resource_dir = project_root / "logic" / "_" / "install" / "resource" / tool_name
     if not resource_dir.exists():
-        print(f"{BOLD}{RED}Not found{RESET}: logic/_/install/resource/{tool_name}")
+        print(f"{BOLD}{RED}Not found{RESET}: logic/_/dev/resource/{tool_name}")
         return
 
     if version:
         target = resource_dir / version
         if not target.exists():
-            print(f"{BOLD}{RED}Not found{RESET}: logic/_/install/resource/{tool_name}/{version}")
+            print(f"{BOLD}{RED}Not found{RESET}: logic/_/dev/resource/{tool_name}/{version}")
             return
         targets = [target]
     else:
         targets = [d for d in resource_dir.iterdir() if d.is_dir()]
         if not targets:
-            print(f"{BOLD}{RED}No resources{RESET} in logic/_/install/resource/{tool_name}/")
+            print(f"{BOLD}{RED}No resources{RESET} in logic/_/dev/resource/{tool_name}/")
             return
 
     print(f"{BOLD}{BLUE}Pushing{RESET} {len(targets)} resource(s) for {tool_name} to remote tool branch...")

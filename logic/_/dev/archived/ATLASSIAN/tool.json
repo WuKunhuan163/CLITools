@@ -1,0 +1,13 @@
+{
+  "name": "ATLASSIAN",
+  "version": "1.0.0",
+  "description": "Atlassian account management via Chrome DevTools Protocol",
+  "purpose": "Access Atlassian user profile, notifications, and product info via CDP using the authenticated session.",
+  "dependencies": [
+    "PYTHON",
+    "GOOGLE.CDMCP"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
+  ]
+}

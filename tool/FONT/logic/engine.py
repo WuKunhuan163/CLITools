@@ -216,7 +216,7 @@ class FontManager:
 
     def migrate_from_tmp(self):
         """
-        Migrate files/dirs from tmp/fontsgeek/ to logic/_/install/resource/FONT/data/install/.
+        Migrate files/dirs from tmp/fontsgeek/ to logic/_/dev/resource/FONT/data/install/.
         """
         tmp_dir = self.project_root / "tmp" / "fontsgeek"
         json_path = self.project_root / "tmp" / "fontsgeek.json"

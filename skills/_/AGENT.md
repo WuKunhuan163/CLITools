@@ -1,12 +1,15 @@
 # skills/_/ — Agent Guide
 
-This directory contains the ecosystem's foundational principles. There are only three, and they are non-negotiable.
+This directory contains the ecosystem's foundational principles. These are non-negotiable development values.
 
 **When to read these:** Before any architectural decision. Before designing a new tool or subsystem. Before reviewing code. Before proposing a restructuring.
 
 **Navigation:**
-- `modularization/` — The supreme development rule. How to decompose systems, detect monolithic patterns, and maintain healthy codebases.
-- `symmetric-design/` — The architectural principle. How consistent structure reduces entropy and enables discovery.
-- `meta-agent/` — The operational philosophy. How agents improve themselves and the ecosystem simultaneously.
+- `modularization/` — The supreme development rule. Decompose systems, detect monolithic patterns, maintain healthy codebases.
+- `symmetric-design/` — The architectural principle. Consistent structure reduces entropy and enables discovery.
+- `meta-agent/` — The operational philosophy. Agents improve themselves and the ecosystem simultaneously.
+- `interface-design/` — The contract principle. When and how to extract interfaces, facade layers, and cross-tool boundaries.
+- `documentation-guide/` — The navigation system. How to write README.md and AGENT.md at every level for layered discovery.
+- `user-experience/` — The delivery principle. Separate what users see from what developers maintain; always deliver visible results.
 
 **Going up:** `skills/` contains all skill categories. `skills/README.md` explains the hierarchy.

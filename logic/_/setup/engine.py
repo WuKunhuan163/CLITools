@@ -333,7 +333,7 @@ class ToolEngine:
 
         # 3. Fallback: try archived tools from fetched tool branch
         archived_paths = [
-            f"logic/_/install/archived/{self.tool_name}",
+            f"logic/_/dev/archived/{self.tool_name}",
             f"resource/archived/{self.tool_name}",
         ]
         for archived_path in archived_paths:
@@ -616,7 +616,7 @@ def fetch_resource(tool_name: str, project_root, subpath: str = None):
     from pathlib import Path
     project_root = Path(project_root)
 
-    resource_rel = f"logic/_/install/resource/{tool_name}"
+    resource_rel = f"logic/_/dev/resource/{tool_name}"
     if subpath:
         resource_rel = f"{resource_rel}/{subpath}"
 

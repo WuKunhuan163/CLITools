@@ -119,7 +119,7 @@ class DevCommand(EcoCommand):
     def _push_resource(self, rest):
         if not rest:
             print(f"Usage: {self.tool_name} --dev push-resource <tool_name> [<version>]")
-            print(f"  Pushes binary resources from logic/_/install/resource/<tool>/ to remote tool branch.")
+            print(f"  Pushes binary resources from logic/_/dev/resource/<tool>/ to remote tool branch.")
             return
         tool_name = rest[0]
         version = rest[1] if len(rest) > 1 else None
@@ -253,7 +253,7 @@ alwaysApply: {"true" if always_apply else "false"}
             ("audit-test <name> [--fix]", "Audit unit test naming"),
             ("audit-bin [--fix]", "Audit bin/ shortcuts"),
             ("audit-archived", "Check for duplicate tools"),
-            ("archive <name>", "Archive a tool to logic/_/install/archived/"),
+            ("archive <name>", "Archive a tool to logic/_/dev/archived/"),
             ("unarchive <name>", "Restore an archived tool to tool/"),
             ("push-resource <tool> [ver]", "Push binary resources to remote tool branch"),
             ("migrate-bin", "Migrate flat bin/ shortcuts"),

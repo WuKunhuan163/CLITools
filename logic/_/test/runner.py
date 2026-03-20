@@ -26,7 +26,10 @@ class TestRunner:
             self.tool_dir = self.project_root
         else:
             self.tool_dir = self.project_root / "tool" / tool_name
-        self.cache_file = self.tool_dir / "test" / ".tests_cache.json"
+        cache_dir = self.project_root / "data" / "_" / "test"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_name = f"{tool_name}_cache.json" if tool_name != "root" else "root_cache.json"
+        self.cache_file = cache_dir / cache_name
         
         # Import shared utils
         sys.path.append(str(self.project_root))

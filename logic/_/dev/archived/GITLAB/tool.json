@@ -1,0 +1,12 @@
+{
+  "name": "GITLAB",
+  "version": "1.0.0",
+  "description": "GitLab integration via GitLab MCP",
+  "purpose": "Manage repositories, issues, merge requests, and CI/CD through GitLab.",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "npm_dependencies": [
+    "gitlab-mcp"
+  ]
+}

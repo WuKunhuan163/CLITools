@@ -257,7 +257,7 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
                 subprocess.run([_git_bin(), "fetch", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
                 
                 # Check if it already exists on remote with SAME release tag
-                res_rel_path = f"logic/_/install/resource/PYTHON/data/install/{v_tag}"
+                res_rel_path = f"logic/_/dev/resource/PYTHON/data/install/{v_tag}"
                 if not force:
                     check_cmd = [_git_bin(), "ls-tree", "-r", "origin/tool", res_rel_path]
                     res = subprocess.run(check_cmd, cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)

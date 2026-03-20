@@ -134,7 +134,7 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
             # Restore only archived tool code from old tool branch (NOT binary resources)
             if old_tool_sha:
                 subprocess.run(
-                    [_git_bin(), "checkout", old_tool_sha, "--", "logic/_/install/archived/"],
+                    [_git_bin(), "checkout", old_tool_sha, "--", "logic/_/dev/archived/"],
                     cwd=str(project_root), capture_output=True, text=True
                 )
                 # Backward compat: old tool branches may still have resource/archived/
@@ -155,7 +155,7 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
                                 shutil.copy2(item, target)
                     shutil.rmtree(project_root / "resource", ignore_errors=True)
 
-            # Archive all tools from tool/ -> logic/_/install/archived/
+            # Archive all tools from tool/ -> logic/_/dev/archived/
             tool_dir = project_root / "tool"
             archived_dir = project_root / "logic" / "_" / "install" / "archived"
             if tool_dir.exists():
@@ -212,7 +212,7 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
             tool_tree = res.stdout.strip()
             subprocess.run([_git_bin(), "read-tree", tool_tree], cwd=str(project_root), env=env, check=True, capture_output=True)
             
-            restricted = ["tool", "logic/_/install", "resource", "data", "tmp", "bin"]
+            restricted = ["tool", "logic/_/dev", "resource", "data", "tmp", "bin"]
             for folder in restricted:
                 subprocess.run([_git_bin(), "rm", "-rf", "--cached", "--ignore-unmatch", folder], cwd=str(project_root), env=env, capture_output=True)
             

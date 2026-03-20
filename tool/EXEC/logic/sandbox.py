@@ -113,7 +113,6 @@ def list_policies() -> Dict[str, str]:
 # ---------------------------------------------------------------------------
 
 PROTECTED_PATTERNS: List[str] = [
-    "tool/OPENCLAW",
     "tool/GOOGLE.CDMCP",
     "tool/GOOGLE/logic/chrome",
     "logic/chrome",

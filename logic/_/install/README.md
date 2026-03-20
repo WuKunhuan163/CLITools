@@ -1,4 +1,4 @@
-# logic/_/install/ — Install Command Resources
+# logic/_/install/ — Install Command
 
 Binary resources and archived tool snapshots used by the install/setup system.
 
