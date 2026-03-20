@@ -148,7 +148,8 @@ def render_token_page(session_id: str, round_num: int,
     if content is None:
         return _not_found_page(f"No {data_type} data for round {round_num}")
 
-    title = f"{data_type.title()} Tokens - Round {round_num}"
+    count_str = f" ({token_count:,})" if token_count else ""
+    title = f"{data_type.title()} Tokens{count_str}"
     display = content.replace("\\n", "\n").replace("\\t", "\t")
     lines = display.split("\n")
     numbered = []
@@ -160,9 +161,7 @@ def render_token_page(session_id: str, round_num: int,
 
     meta_parts = [f"Session: {_esc(session_id)}",
                   f"Round {round_num}",
-                  data_type.title()]
-    if token_count:
-        meta_parts.append(f"{token_count:,} tokens")
+                  f"{data_type.title()} Tokens{count_str}"]
     if cost:
         meta_parts.append(f"${cost:.6f}")
     meta_line = " &middot; ".join(meta_parts)
@@ -256,35 +255,48 @@ def _not_found_page(msg: str) -> str:
 
 
 def _wrap_page(title: str, session_id: str, body: str) -> str:
+    favicon = ('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 '
+               'width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 '
+               'fill=%22%235b8def%22><path d=%22M21.928 11.607c-.202-.488-.635-.605'
+               '-.928-.633V8c0-1.103-.897-2-2-2h-6V4.61c.305-.274.5-.668.5-1.11a1.5'
+               ' 1.5 0 0 0-3 0c0 .442.195.836.5 1.11V6H5c-1.103 0-2 .897-2 '
+               '2v2.997l-.082.006A1 1 0 0 0 1.99 12v2a1 1 0 0 0 1 1H3v5c0 1.103'
+               '.897 2 2 2h14c1.103 0 2-.897 2-2v-5a1 1 0 0 0 1-1v-1.938a1.006 '
+               '1.006 0 0 0-.072-.455zM5 20V8h14l.001 3.996L19 12v2l.001.005.001 '
+               '5.995H5z%22/><ellipse cx=%228.5%22 cy=%2212%22 rx=%221.5%22 '
+               'ry=%222%22/><ellipse cx=%2215.5%22 cy=%2212%22 rx=%221.5%22 '
+               'ry=%222%22/><path d=%22M8 16h8v2H8z%22/></svg>')
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{_esc(title)}</title>
+<link rel="icon" href="{favicon}">
 <style>
 :root {{ --bg: #1e1e2e; --surface: #272740; --text: #cdd6f4; --text-2: #a6adc8;
          --accent: #89b4fa; --green: #a6e3a1; --red: #f38ba8; --yellow: #f9e2af;
          --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; --border: #45475a; }}
 * {{ margin: 0; padding: 0; box-sizing: border-box; }}
 body {{ background: var(--bg); color: var(--text); font-family: var(--mono);
-        font-size: 12px; line-height: 1.6; padding: 16px; }}
+        font-size: 13px; line-height: 1.65; padding: 16px; }}
 .meta {{ color: var(--text-2); font-size: 11px; margin-bottom: 8px; padding: 8px 12px;
          background: var(--surface); border-radius: 6px; border-left: 3px solid var(--accent); }}
 .filepath {{ color: var(--accent); font-size: 13px; font-weight: 600; margin: 8px 0;
              padding: 6px 12px; background: var(--surface); border-radius: 4px; }}
-.code {{ background: var(--surface); padding: 12px; border-radius: 8px;
+.code {{ background: var(--surface); padding: 12px 0; border-radius: 8px;
          overflow-x: auto; white-space: pre; border: 1px solid var(--border);
-         line-height: 1.5; }}
-.code > span {{ display: block; }}
-.ln {{ color: var(--text-2); opacity: 0.5; display: inline-block; min-width: 5ch;
-       text-align: right; margin-right: 12px; user-select: none; }}
+         line-height: 1.65; font-size: 13px; }}
+.code > span {{ display: block; padding: 0 12px; }}
+.code > span:hover {{ background: rgba(255,255,255,0.03); }}
+.ln {{ color: var(--text-2); opacity: 0.4; display: inline-block; min-width: 4ch;
+       text-align: right; margin-right: 16px; user-select: none; font-size: 12px; }}
 .hl {{ background: rgba(137, 180, 250, 0.08); }}
-.diff .add {{ color: var(--green); display: block; background: rgba(166, 227, 161, 0.08); }}
-.diff .del {{ color: var(--red); display: block; background: rgba(243, 139, 168, 0.08); }}
-.diff .hdr {{ color: var(--text-2); display: block; font-weight: 600; }}
-.diff .hunk {{ color: var(--accent); display: block; }}
-.diff .ctx {{ color: var(--text-2); display: block; }}
+.diff .add {{ color: var(--green); display: block; padding: 0 12px; background: rgba(166, 227, 161, 0.08); }}
+.diff .del {{ color: var(--red); display: block; padding: 0 12px; background: rgba(243, 139, 168, 0.08); }}
+.diff .hdr {{ color: var(--text-2); display: block; padding: 0 12px; font-weight: 600; }}
+.diff .hunk {{ color: var(--accent); display: block; padding: 0 12px; }}
+.diff .ctx {{ color: var(--text-2); display: block; padding: 0 12px; }}
 .trunc {{ color: var(--yellow); font-size: 11px; padding: 8px 12px; margin-top: 8px;
           background: rgba(249, 226, 175, 0.1); border-radius: 4px; }}
 </style>

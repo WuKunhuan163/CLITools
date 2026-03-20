@@ -38,21 +38,54 @@ _MODELS_DIR = Path(__file__).parent / "models"
 # ── Preference Lists ─────────────────────────────────────────────────
 
 PRIMARY_LIST = [
-    "google-gemini-2.0-flash",
-    "zhipu-glm-4.7-flash",
+    # FAST free models (non-thinking, instant response)
+    "google-gemini-3.1-flash-lite",
     "zhipu-glm-4-flash",
-    "siliconflow-qwen2.5-7b",
     "baidu-ernie-speed-8k",
+    "siliconflow-qwen2.5-7b",
+    "baidu-ernie-4.5-turbo-128k",
     "tencent-hunyuan-lite",
-    "nvidia-glm-4-7b",
+    # THINKING free models (15-40s initial delay, for deep reasoning)
+    "google-gemini-2.5-flash",
+    "google-gemini-3-flash",
+    "zhipu-glm-4.7-flash",
+    # FAST paid models
+    "deepseek-chat",
+    "anthropic-claude-haiku-4.5",
+    "openai-gpt-4o-mini",
+    "baidu-ernie-4.0-turbo-8k",
+    # THINKING paid models
+    "google-gemini-3.1-pro",
+    "google-gemini-2.5-pro",
+    "anthropic-claude-sonnet-4.6",
+    "openai-gpt-4o",
+    "deepseek-reasoner",
     "zhipu-glm-4.7",
+    "baidu-ernie-5.0",
+    "baidu-ernie-x1.1",
+    "baidu-ernie-x1-turbo-32k",
 ]
 
 FALLBACK_LIST = [
+    # Non-thinking free models, sorted by RPM (speed/quota) for fast routing decisions.
+    # Thinking models are excluded — they waste reasoning tokens on simple routing.
+    "baidu-ernie-speed-8k",          # 10000 RPM, most stable
+    "siliconflow-qwen2.5-7b",        # 100 RPM
+    "tencent-hunyuan-lite",           # 60 RPM
+    "zhipu-glm-4-flash",             # 30 RPM
+    "google-gemini-3.1-flash-lite",   # 30 RPM
+    "baidu-ernie-4.5-turbo-128k",    # free, non-thinking
+]
+
+TITLE_LIST = [
+    # Non-thinking free models for generating short session titles.
+    # max_tokens kept very low (16) — thinking models are excluded.
     "baidu-ernie-speed-8k",
     "siliconflow-qwen2.5-7b",
+    "tencent-hunyuan-lite",
     "zhipu-glm-4-flash",
-    "zhipu-glm-4.7-flash",
+    "google-gemini-3.1-flash-lite",
+    "baidu-ernie-4.5-turbo-128k",
 ]
 
 
@@ -113,29 +146,32 @@ def _compute_timed_recovery(provider_name: str) -> float:
     return 120.0
 
 
-PROVIDER_RECOVERY_RULES: Dict[str, List[RecoveryCondition]] = {
-    "zhipu-glm-4.7-flash": [
-        TimedRecovery(_compute_timed_recovery("zhipu-glm-4.7-flash")),
-        UserSelectRecovery(),
-    ],
-    "zhipu-glm-4-flash": [
-        TimedRecovery(_compute_timed_recovery("zhipu-glm-4-flash")),
-        UserSelectRecovery(),
-    ],
-    "zhipu-glm-4.7": [
-        TimedRecovery(_compute_timed_recovery("zhipu-glm-4.7")),
-        UserSelectRecovery(),
-    ],
-    "google-gemini-2.0-flash": [
-        TimedRecovery(_compute_timed_recovery("google-gemini-2.0-flash")),
-        UserSelectRecovery(),
-    ],
-    "baidu-ernie-speed-8k": [
-        TimedRecovery(_compute_timed_recovery("baidu-ernie-speed-8k")),
-        UserSelectRecovery(),
-    ],
-    "__default__": [TimedRecovery(120), UserSelectRecovery()],
-}
+def _build_recovery_rules() -> Dict[str, List[RecoveryCondition]]:
+    """Build recovery rules for all known providers."""
+    known = [
+        "zhipu-glm-4.7-flash", "zhipu-glm-4-flash", "zhipu-glm-4.7",
+        "google-gemini-2.5-flash", "google-gemini-2.5-flash-lite",
+        "google-gemini-2.5-pro", "google-gemini-3-flash",
+        "google-gemini-3.1-flash-lite", "google-gemini-3.1-pro",
+        "baidu-ernie-speed-8k", "baidu-ernie-4.5-turbo-128k",
+        "baidu-ernie-5.0", "baidu-ernie-4.5-8k",
+        "baidu-ernie-x1-turbo-32k", "baidu-ernie-x1.1",
+        "baidu-ernie-4.0-turbo-8k", "baidu-ernie-4.5-turbo-32k",
+        "tencent-hunyuan-lite", "siliconflow-qwen2.5-7b",
+        "nvidia-glm-4-7b",
+        "anthropic-claude-sonnet-4.6", "anthropic-claude-haiku-4.5",
+        "openai-gpt-4o", "openai-gpt-4o-mini",
+        "deepseek-chat", "deepseek-reasoner",
+    ]
+    rules: Dict[str, List[RecoveryCondition]] = {}
+    for name in known:
+        wait = _compute_timed_recovery(name)
+        rules[name] = [TimedRecovery(wait), UserSelectRecovery()]
+    rules["__default__"] = [TimedRecovery(120), UserSelectRecovery()]
+    return rules
+
+
+PROVIDER_RECOVERY_RULES: Dict[str, List[RecoveryCondition]] = _build_recovery_rules()
 
 
 # ── Provider Health ──────────────────────────────────────────────────
@@ -219,26 +255,20 @@ def get_health() -> ProviderHealth:
 # ── Model Metadata Helpers ───────────────────────────────────────────
 
 def _load_model_meta(provider_name: str) -> Dict:
-    """Load model.json for a provider, searching by vendor prefix."""
-    from tool.LLM.logic.registry import _REGISTRY, _ensure_builtins
+    """Load model.json for a provider using the registry's model mapping."""
+    from tool.LLM.logic.registry import _MODEL_PROVIDERS, _ensure_builtins, _MODELS_DIR as reg_models_dir
     _ensure_builtins()
 
-    if not _MODELS_DIR.is_dir():
-        return {}
-    for d in _MODELS_DIR.iterdir():
-        if not d.is_dir():
-            continue
-        mj = d / "model.json"
-        if not mj.exists():
-            continue
-        prov_dir = d / "providers"
-        if prov_dir.is_dir():
-            for pd in prov_dir.iterdir():
-                if pd.is_dir() and pd.name in provider_name:
-                    try:
-                        return json.loads(mj.read_text())
-                    except Exception:
-                        return {}
+    for model_id, providers in _MODEL_PROVIDERS.items():
+        if provider_name in providers:
+            dir_name = model_id.replace("-", "_").replace(".", "_")
+            mj = reg_models_dir / dir_name / "model.json"
+            if mj.exists():
+                try:
+                    return json.loads(mj.read_text())
+                except Exception:
+                    return {}
+            break
     return {}
 
 
@@ -285,17 +315,19 @@ def _build_model_descriptions(available: List[str]) -> str:
             cap_tags.append("tools")
         if caps.get("vision"):
             cap_tags.append("vision")
-        if caps.get("reasoning"):
-            cap_tags.append("reasoning")
+        is_reasoning = caps.get("reasoning", False)
+        if is_reasoning:
+            cap_tags.append("reasoning/thinking (SLOW: 15-40s initial delay)")
         if cap_tags:
             parts.append(f"  Capabilities: {', '.join(cap_tags)}")
+        parts.append(f"  Speed: {'SLOW (thinking model)' if is_reasoning else 'FAST'}")
         if cost.get("free_tier"):
             parts.append("  Cost: FREE")
         else:
-            inp = cost.get("input_per_1k", "?")
-            out = cost.get("output_per_1k", "?")
+            inp = cost.get("input_per_1m", cost.get("input_per_1k", "?"))
+            out = cost.get("output_per_1m", cost.get("output_per_1k", "?"))
             cur = cost.get("currency", "USD")
-            parts.append(f"  Cost: {inp}/{out} per 1K tokens ({cur})")
+            parts.append(f"  Cost: {inp}/{out} per 1M tokens ({cur})")
         ctx_k = caps.get("max_context_tokens", 0)
         if ctx_k:
             parts.append(f"  Context: {ctx_k // 1000}K tokens")
@@ -318,17 +350,17 @@ def _build_model_descriptions(available: List[str]) -> str:
 # ── Decision Interface ───────────────────────────────────────────────
 
 _DECISION_PROMPT = """\
-You are a model router. Given the user's task below, pick the BEST model \
-from the available list. Reply with ONLY the model identifier (e.g. \
-"zhipu-glm-4.7-flash"), nothing else.
+You are a model router. Pick the BEST model for the user's task. \
+Reply with ONLY the model identifier, nothing else.
 
-Rules:
-- Prefer free models unless the task clearly needs a paid model's capabilities.
-- If the task involves images, pick a model with vision support.
-- For complex reasoning, prefer models with reasoning capability.
-- For simple tasks, prefer the fastest free model.
-- AVOID models with Health status RATE_LIMITED or DEGRADED when better alternatives exist.
-- Consider estimated wait times: lower wait = faster response for the user.
+Rules (in priority order):
+1. AVOID models with Health RATE_LIMITED or DEGRADED.
+2. If the task involves images, pick a vision-capable model.
+3. Prefer free models unless the task clearly needs paid capabilities.
+4. STRONGLY prefer FAST (non-thinking) models. Thinking/reasoning models have 15-40s initial delay — only use them for tasks that EXPLICITLY require deep multi-step reasoning (e.g. math proofs, complex algorithms).
+5. For simple questions, translations, summaries, basic code, or chat — ALWAYS pick a FAST model.
+6. Among fast models, prefer higher quality (higher ELO, larger context).
+7. The models are listed in quality order — earlier models are generally better.
 
 Available models:
 {model_catalog}
@@ -389,14 +421,35 @@ def auto_decide(
         user_prompt=full_prompt[:2000],
     )
 
+    _DECISION_TIMEOUT = 10
+
     for decider_name in available_b:
         try:
             provider = get_provider(decider_name)
-            result = provider._send_request(
-                [{"role": "user", "content": decision_prompt}],
-                temperature=0.1,
-                max_tokens=64,
-            )
+            result = {"ok": False, "error": "timeout"}
+            call_done = threading.Event()
+            call_result = [None]
+
+            def _call():
+                try:
+                    call_result[0] = provider._send_request(
+                        [{"role": "user", "content": decision_prompt}],
+                        temperature=0.1,
+                        max_tokens=512,
+                    )
+                except Exception as e:
+                    call_result[0] = {"ok": False, "error": str(e)}
+                finally:
+                    call_done.set()
+
+            t = threading.Thread(target=_call, daemon=True)
+            t.start()
+            if call_done.wait(timeout=_DECISION_TIMEOUT):
+                result = call_result[0] or result
+            else:
+                _health.record_error(decider_name, 408)
+                continue
+
             if result.get("ok"):
                 chosen = result.get("text", "").strip()
                 chosen = chosen.strip('"').strip("'").strip("`").strip()
@@ -420,24 +473,47 @@ def auto_decide(
 
 
 def auto_generate_title(user_prompt: str) -> str:
-    """Generate a short session title using a fast model.
+    """Generate a short session title using a fast non-thinking model.
 
-    Uses fallback_list == primary_list to pick the fastest available model,
-    then asks it to generate a 6-word title.
+    Uses TITLE_LIST (non-thinking models only, sorted by RPM) and
+    max_tokens=16 to get the fastest possible title generation.
     """
     from tool.LLM.logic.registry import get_provider
 
-    fast_list = _get_available_models(FALLBACK_LIST)
+    fast_list = _get_available_models(TITLE_LIST)
+    if not fast_list:
+        fast_list = _get_available_models(FALLBACK_LIST)
     prompt = _TITLE_PROMPT.format(user_prompt=user_prompt[:500])
+
+    _TITLE_TIMEOUT = 6
 
     for model_name in fast_list:
         try:
             provider = get_provider(model_name)
-            result = provider._send_request(
-                [{"role": "user", "content": prompt}],
-                temperature=0.3,
-                max_tokens=32,
-            )
+            result = {"ok": False, "error": "timeout"}
+            call_done = threading.Event()
+            call_result = [None]
+
+            def _call():
+                try:
+                    call_result[0] = provider._send_request(
+                        [{"role": "user", "content": prompt}],
+                        temperature=0.3,
+                        max_tokens=16,
+                    )
+                except Exception as e:
+                    call_result[0] = {"ok": False, "error": str(e)}
+                finally:
+                    call_done.set()
+
+            t = threading.Thread(target=_call, daemon=True)
+            t.start()
+            if call_done.wait(timeout=_TITLE_TIMEOUT):
+                result = call_result[0] or result
+            else:
+                _health.record_error(model_name, 408)
+                continue
+
             if result.get("ok"):
                 title = result.get("text", "").strip().strip('"').strip("'")
                 if title and len(title) < 80:

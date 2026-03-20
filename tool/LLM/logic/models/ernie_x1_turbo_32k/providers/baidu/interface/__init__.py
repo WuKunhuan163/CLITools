@@ -18,6 +18,7 @@ class BaiduERNIEX1TurboProvider(OpenAICompatProvider):
     DEFAULT_MAX_CONTEXT = 32768
     DEFAULT_MAX_OUTPUT = 4096
     MAX_TOKENS_PARAM = "max_completion_tokens"
+    STRICT_ALTERNATION = True
 
     name = "baidu-ernie-x1-turbo-32k"
     cost_model = CostModel(free_tier=False)

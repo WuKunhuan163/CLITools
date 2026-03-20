@@ -40,12 +40,29 @@ window._sbCopyCmd = function(btn) {
   const cmdEl = header && header.querySelector('.tool-cmd-inline');
   if (cmdEl) {
     const text = cmdEl.textContent.replace(/^\$\s*/, '');
-    navigator.clipboard.writeText(text).then(() => {
+    const onOk = () => {
       const icon = btn.querySelector('i');
       if (icon) { icon.className = 'bx bx-check'; setTimeout(() => icon.className = 'bx bx-copy', 1200); }
-    });
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(onOk).catch(() => {
+        _fallbackCopy(text); onOk();
+      });
+    } else {
+      _fallbackCopy(text); onOk();
+    }
   }
 };
+
+function _fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) { /* best-effort */ }
+  document.body.removeChild(ta);
+}
 
 window._sbPolicyChange = function(sel) {
   fetch('/api/sandbox/system-policy', {
@@ -1462,6 +1479,14 @@ class AgentGUIEngine {
     if (!this._taskStartTime) this._taskStartTime = Date.now();
     this._llmRoundStartTime = Date.now();
     this._streamingCharCount = 0;
+
+    if (this._modelDecisionEl) {
+      this._pendingAutoLLMRequest = { provider, round, model, opts: this._pendingLLMOpts };
+      this._llmRequestEl = null;
+      this._llmConnected = false;
+      return sleep(100);
+    }
+
     this._llmRequestEl = this._createModelInfoEl(provider, round, model, {
       self_operate: evt.self_operate,
       env: evt.env,
@@ -1477,8 +1502,8 @@ class AgentGUIEngine {
   _renderLLMResponseStart(evt) {
     if (this._llmRequestEl && !this._llmConnected) {
       this._llmConnected = true;
-      this._streamingInputTokens = evt.prompt_tokens || 0;
     }
+    this._streamingInputTokens = evt.prompt_tokens || 0;
     if (this._llmRequestEl) {
       const spinner = this._llmRequestEl.querySelector('.model-spinner');
       if (spinner) spinner.style.display = '';
@@ -1516,7 +1541,7 @@ class AgentGUIEngine {
     const estOutputTokens = Math.round(this._streamingCharCount / 3.5);
     const inputTokens = this._streamingInputTokens || 0;
 
-    const sep = () => { const s = document.createElement('span'); s.textContent = ' \u00b7 '; s.className = 'model-sep'; return s; };
+    const sep = () => { const s = document.createElement('span'); s.textContent = '\u00b7'; s.className = 'model-sep'; return s; };
 
     latencyEl.innerHTML = '';
     const isSelfOperate = this._selfOperate;
@@ -1524,9 +1549,8 @@ class AgentGUIEngine {
     latencyEl.appendChild(sep());
 
     const fmtT = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
-    const tokenStr = inputTokens > 0
-      ? fmtT(inputTokens) + ' + ' + fmtT(estOutputTokens) + ' tokens'
-      : '~' + fmtT(estOutputTokens) + ' tokens';
+    const totalEst = inputTokens + estOutputTokens;
+    const tokenStr = '~' + fmtT(totalEst) + ' tokens';
     const tokenSpan = document.createElement('span');
     tokenSpan.textContent = tokenStr;
     latencyEl.appendChild(tokenSpan);
@@ -1553,7 +1577,7 @@ class AgentGUIEngine {
     const mode = (typeof window !== 'undefined' && window.currentMode) || 'agent';
     const actLabel = document.createElement('span');
     actLabel.className = 'model-activity';
-    actLabel.textContent = mode === 'agent' ? 'Working' : 'Responding';
+    actLabel.textContent = (mode === 'agent' || mode === 'meta-agent') ? 'Working' : 'Responding';
     latencyEl.appendChild(actLabel);
   }
 
@@ -1607,18 +1631,16 @@ class AgentGUIEngine {
       const elapsed = evt.latency_s || ((Date.now() - (this._llmRoundStartTime || Date.now())) / 1000).toFixed(1);
       const latLabel = elapsed ? elapsed + 's' : '';
 
-      const fmtTokens = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
-      const tokenLabel = ctxTokens > 0
-        ? fmtTokens(ctxTokens) + ' + ' + fmtTokens(outTokens) + ' tokens'
-        : fmtTokens(outTokens) + ' tokens';
+      const fmtTk = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+      const tokenLabel = fmtTk(ctxTokens + outTokens) + ' tokens';
       const costLabel = isSelfOperate ? ''
         : (usage.cost != null ? (this._costCurrency || '$') + usage.cost.toFixed(4) : '$0.00');
       let ctxLabel = '';
       if (!isSelfOperate && ctxTokens > 0) {
-        const ctxStr = ctxTokens >= 1000 ? (ctxTokens / 1000).toFixed(1) + 'k' : String(ctxTokens);
+        const ctxStr = fmtTk(ctxTokens);
         if (this._maxContextTokens && this._maxContextTokens > 0) {
           const pct = ((ctxTokens / this._maxContextTokens) * 100).toFixed(1);
-          ctxLabel = ctxStr + '(' + pct + '%) ctx';
+          ctxLabel = ctxStr + ' (' + pct + '%) ctx';
         } else {
           ctxLabel = ctxStr + ' ctx';
         }
@@ -1626,7 +1648,6 @@ class AgentGUIEngine {
 
       const latency = this._llmRequestEl.querySelector('.model-latency');
       if (latency) {
-        latency.innerHTML = '';
         const makeLink = (text, idx) => {
           const a = document.createElement('span');
           a.textContent = text;
@@ -1635,12 +1656,26 @@ class AgentGUIEngine {
           a.addEventListener('click', () => this._showRoundDetail(idx));
           return a;
         };
-        const sep = () => { const s = document.createElement('span'); s.textContent = ' \u00b7 '; s.className = 'model-sep'; return s; };
-        latency.appendChild(sep());
-        latency.appendChild(makeLink(tokenLabel, ridx));
-        if (costLabel) { latency.appendChild(sep()); latency.appendChild(document.createTextNode(costLabel)); }
-        if (latLabel) { latency.appendChild(sep()); latency.appendChild(document.createTextNode(latLabel)); }
-        if (ctxLabel) { latency.appendChild(sep()); latency.appendChild(makeLink(ctxLabel, ridx)); }
+        const parts = [];
+        parts.push(makeLink(tokenLabel, ridx));
+        if (costLabel) parts.push(document.createTextNode(costLabel));
+        if (latLabel) parts.push(document.createTextNode(latLabel));
+        if (ctxLabel) parts.push(makeLink(ctxLabel, ridx));
+
+        latency.innerHTML = '';
+        const leadSep = document.createElement('span');
+        leadSep.className = 'model-sep';
+        leadSep.textContent = '\u00b7';
+        latency.appendChild(leadSep);
+        for (let i = 0; i < parts.length; i++) {
+          if (i > 0) {
+            const s = document.createElement('span');
+            s.className = 'model-sep';
+            s.textContent = '\u00b7';
+            latency.appendChild(s);
+          }
+          latency.appendChild(parts[i]);
+        }
       }
 
       this._lastLLMResponseEnd = evt;
@@ -1668,12 +1703,12 @@ class AgentGUIEngine {
       const name = resolveNameFn ? resolveNameFn(model) : (names[model] || model);
       let html = '';
       if (logo) {
-        html += '<img src="' + logo + '" alt="' + esc(name) + '" class="logo-adaptive" crossorigin="anonymous" onerror="this.style.display=\'none\'">';
+        html += '<img src="' + logo + '" alt="' + esc(name) + '" class="logo-adaptive" crossorigin="anonymous" onerror="this.style.display=\'none\';var i=document.createElement(\'i\');i.className=\'bx bx-bot model-info-icon\';this.parentNode.insertBefore(i,this)">';
       } else {
         html += '<i class="bx bx-bot model-info-icon"></i>';
       }
       html += '<span class="model-name">' + esc(name) + '</span>';
-      html += '<span class="model-latency"><span class="model-sep"> \u00b7 </span><span class="model-waiting">Waiting for the model provider</span></span>';
+      html += '<span class="model-latency"><span class="model-sep">\u00b7</span><span class="model-waiting">Waiting for the model provider</span></span>';
       html += '<div class="spinner spinner-sm model-spinner"></div>';
       div.innerHTML = html;
     }
@@ -1713,6 +1748,10 @@ class AgentGUIEngine {
 
   _renderModelDecisionStart(evt) {
     this._clearPendingModelBanner();
+    if (_replayMode) {
+      this._modelDecisionEl = null;
+      return sleep(0);
+    }
     const div = document.createElement('div');
     div.className = 'model-info model-decision';
     div.innerHTML =
@@ -1729,25 +1768,20 @@ class AgentGUIEngine {
     if (this._modelDecisionEl) {
       const chosen = evt.chosen;
       if (chosen) {
-        const resolveNameFn = typeof resolveDisplayName === 'function' ? resolveDisplayName : null;
-        const names = typeof MODEL_DISPLAY_NAMES !== 'undefined' ? MODEL_DISPLAY_NAMES : {};
-        const displayName = resolveNameFn ? resolveNameFn(chosen) : (names[chosen] || chosen);
-        this._modelDecisionEl.querySelector('.model-name').textContent = displayName;
-        const spinner = this._modelDecisionEl.querySelector('.model-spinner');
-        if (spinner) spinner.style.display = 'none';
         if (this._onAutoModelChosen) this._onAutoModelChosen(chosen);
       } else {
         this._modelDecisionEl.querySelector('.model-name').textContent = 'No model available';
         this._modelDecisionEl.querySelector('.model-name').style.color = 'var(--red)';
         const spinner = this._modelDecisionEl.querySelector('.model-spinner');
         if (spinner) spinner.style.display = 'none';
+        this._modelDecisionEl = null;
       }
-      this._modelDecisionEl = null;
     }
     return sleep(100);
   }
 
   _renderModelDecisionProposed(evt) {
+    if (_replayMode) return sleep(0);
     if (!this._modelDecisionEl) {
       this._renderModelDecisionStart({text: 'Choosing the model provider'});
     }
@@ -1764,13 +1798,42 @@ class AgentGUIEngine {
 
   _renderModelConfirmed(evt) {
     this._clearPendingModelBanner();
+    const provider = evt.provider;
     if (this._modelDecisionEl) {
-      const provider = evt.provider;
-      const el = this._createModelInfoEl(provider);
+      const pending = this._pendingAutoLLMRequest || {};
+      const opts = pending.opts || {};
+      const el = this._createModelInfoEl(provider, pending.round, '', {
+        self_operate: opts.self_operate,
+        env: opts.env,
+        self_name: opts.self_name,
+        waiting: false,
+      });
       this._modelDecisionEl.replaceWith(el);
       this._modelDecisionEl = null;
+      this._llmRequestEl = el;
+      this._llmConnected = true;
+      this._currentProvider = provider;
+      this._pendingAutoLLMRequest = null;
+    } else if (this._llmRequestEl) {
+      this._currentProvider = provider;
+      const resolveNameFn = typeof resolveDisplayName === 'function' ? resolveDisplayName : null;
+      const resolveLogoFn = typeof resolveModelLogo === 'function' ? resolveModelLogo : null;
+      const logos = typeof MODEL_LOGOS !== 'undefined' ? MODEL_LOGOS : {};
+      const names = typeof MODEL_DISPLAY_NAMES !== 'undefined' ? MODEL_DISPLAY_NAMES : {};
+      const name = resolveNameFn ? resolveNameFn(provider) : (names[provider] || provider);
+      const logo = resolveLogoFn ? resolveLogoFn(provider) : (logos[provider] || '');
+      const nameEl = this._llmRequestEl.querySelector('.model-name');
+      if (nameEl) nameEl.textContent = name;
+      const imgEl = this._llmRequestEl.querySelector('img');
+      if (imgEl && logo) { imgEl.src = logo; imgEl.alt = name; }
+    } else {
+      const el = this._createModelInfoEl(provider);
+      this.chatArea.appendChild(el);
+      this._llmRequestEl = el;
+      this._llmConnected = true;
+      this._currentProvider = provider;
     }
-    if (this._onAutoModelChosen) this._onAutoModelChosen(evt.provider);
+    if (this._onAutoModelChosen) this._onAutoModelChosen(provider);
     return sleep(100);
   }
 
@@ -1843,7 +1906,12 @@ class AgentGUIEngine {
         const round = td.dataset.round;
         const sid = this.activeSessionId;
         if (sid && type && round != null) {
-          window.open(`/session/${sid}/${type}/${round}`, '_blank');
+          let tokens = 0;
+          if (type === 'input') tokens = data.context_tokens || 0;
+          else if (type === 'output') tokens = data.output_tokens || 0;
+          else if (type === 'context') tokens = data.total_tokens || 0;
+          const qs = tokens ? `?tokens=${tokens}` : '';
+          window.open(`/session/${sid}/${type}/${round}${qs}`, '_blank');
         }
       });
     });
@@ -1878,14 +1946,14 @@ class AgentGUIEngine {
     div.className = 'model-info';
     let html = '';
     if (logo) {
-      html += '<img src="' + logo + '" alt="' + esc(name) + '" class="logo-adaptive" crossorigin="anonymous" onerror="this.style.display=\'none\'">';
+      html += '<img src="' + logo + '" alt="' + esc(name) + '" class="logo-adaptive" crossorigin="anonymous" onerror="this.style.display=\'none\';var i=document.createElement(\'i\');i.className=\'bx bx-bot model-info-icon\';this.parentNode.insertBefore(i,this)">';
     } else {
       html += '<i class="bx bx-bot model-info-icon"></i>';
     }
     html += '<span class="model-name">' + esc(name) + '</span>';
     html += '<span class="model-latency">';
     if (opts.waiting) {
-      html += '<span class="model-sep"> \u00b7 </span>';
+      html += '<span class="model-sep">\u00b7</span>';
       html += '<span class="model-waiting">Connecting</span>';
     }
     html += '</span>';
@@ -2098,7 +2166,18 @@ class AgentGUIEngine {
             stats.innerHTML = parts.join(' ');
           }
           el.dataset.lazyDiff = output;
-          out.innerHTML = '<div class="diff-view diff-placeholder" style="color:var(--text-3);padding:8px;font-size:12px;">Click to expand diff</div>';
+          out.innerHTML = '<div class="diff-view diff-placeholder" style="color:var(--text-3);padding:8px;font-size:12px;"><div class="spinner spinner-sm" style="display:inline-block;margin-right:6px;vertical-align:middle;"></div>Rendering diff\u2026</div>';
+          const _lazyEl = el;
+          const _renderLazy = () => {
+            if (_lazyEl.dataset.lazyDiff) {
+              const d = renderDiffOutput(_lazyEl.dataset.lazyDiff, true);
+              const o = _lazyEl.querySelector('[data-tc=output]');
+              if (o) o.innerHTML = '<div class="diff-view">' + d.html + '</div>';
+              delete _lazyEl.dataset.lazyDiff;
+            }
+          };
+          if (typeof requestIdleCallback === 'function') { requestIdleCallback(_renderLazy, { timeout: 500 }); }
+          else { setTimeout(_renderLazy, 100); }
           }
         } else if (toolType === 'write') {
           const hasDiffMarkers = /^[+-]/.test(output) || /^@@hide /.test(output);

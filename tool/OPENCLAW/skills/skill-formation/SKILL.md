@@ -26,7 +26,7 @@ TOOL --search skills "the topic"
 |-------|----------|---------|
 | Cross-tool, foundational | `skills/core/<name>/` | `record-cache`, `localization` |
 | Specific to one tool | `tool/<TOOL>/skills/<name>/` | `tool/OPENCLAW/skills/memory-recall` |
-| IDE-specific conventions | `skills/AI-IDE/<IDE>/` | `skills/AI-IDE/Cursor/` |
+| IDE-specific conventions | `skills/IDE/<IDE>/` | `skills/IDE/Cursor/` |
 
 Rule of thumb: If the skill mentions a specific tool more than 3 times,
 it belongs in that tool's skills directory.

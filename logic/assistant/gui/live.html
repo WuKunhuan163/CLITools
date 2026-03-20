@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TOOL Assistant</title>
-<link rel="icon" id="dynamic-favicon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22%236366f1%22><path d=%22M21.928 11.607c-.202-.488-.635-.605-.928-.633V8c0-1.103-.897-2-2-2h-6V4.61c.305-.274.5-.668.5-1.11a1.5 1.5 0 0 0-3 0c0 .442.195.836.5 1.11V6H5c-1.103 0-2 .897-2 2v2.997l-.082.006A1 1 0 0 0 1.99 12v2a1 1 0 0 0 1 1H3v5c0 1.103.897 2 2 2h14c1.103 0 2-.897 2-2v-5a1 1 0 0 0 1-1v-1.938a1.006 1.006 0 0 0-.072-.455zM5 20V8h14l.001 3.996L19 12v2l.001.005.001 5.995H5z%22/><ellipse cx=%228.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><ellipse cx=%2215.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><path d=%22M8 16h8v2H8z%22/></svg>">
+<link rel="icon" id="dynamic-favicon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22%235b8def%22><path d=%22M21.928 11.607c-.202-.488-.635-.605-.928-.633V8c0-1.103-.897-2-2-2h-6V4.61c.305-.274.5-.668.5-1.11a1.5 1.5 0 0 0-3 0c0 .442.195.836.5 1.11V6H5c-1.103 0-2 .897-2 2v2.997l-.082.006A1 1 0 0 0 1.99 12v2a1 1 0 0 0 1 1H3v5c0 1.103.897 2 2 2h14c1.103 0 2-.897 2-2v-5a1 1 0 0 0 1-1v-1.938a1.006 1.006 0 0 0-.072-.455zM5 20V8h14l.001 3.996L19 12v2l.001.005.001 5.995H5z%22/><ellipse cx=%228.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><ellipse cx=%2215.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><path d=%22M8 16h8v2H8z%22/></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
@@ -54,11 +54,11 @@
   --badge-text: var(--text-2);
   --glow-color: transparent;
   --scanline-opacity: 0;
-  --configured-bg: var(--green-dim);
+  --configured-bg: rgba(255,255,255,0.08);
   --configured-text: var(--green);
-  --configured-card-bg: var(--green-card-bg);
-  --configured-card-border: var(--green-card-border);
-  --unconfigured-bg: var(--surface-3);
+  --configured-card-bg: rgba(255,255,255,0.03);
+  --configured-card-border: rgba(255,255,255,0.10);
+  --unconfigured-bg: rgba(0,0,0,0.15);
   --unconfigured-text: var(--text-3);
   --status-ok: var(--green);
   --status-ok-dim: var(--green-dim);
@@ -103,6 +103,12 @@ body.light-mode {
   --red-dim: rgba(220,38,38,0.08);
   --purple: #7c3aed;
   --purple-dim: rgba(124,58,237,0.06);
+  --configured-bg: rgba(0,0,0,0.05);
+  --configured-text: var(--green);
+  --configured-card-bg: rgba(0,0,0,0.02);
+  --configured-card-border: rgba(0,0,0,0.08);
+  --unconfigured-bg: rgba(0,0,0,0.04);
+  --unconfigured-text: var(--text-3);
 }
 body.brilliant-mode, body.brilliant-mode.palette-strawberry {
   --bg: #fef6f0;
@@ -770,11 +776,11 @@ body.debug-mode .debug-block { display: block; }
 .model-info { display: flex; align-items: center; gap: 7px; padding: 4px 0; margin: 8px 0 2px; font-size: 11.5px; color: var(--text-3); animation: fadeIn 0.2s ease; white-space: nowrap; flex-wrap: nowrap; overflow: hidden; }
 .model-info img { width: 16px; height: 16px; border-radius: 3px; opacity: 1 !important; }
 .model-info .model-name { font-weight: 600; color: var(--text-2); }
-.model-info .model-latency { font-family: var(--mono); font-size: 10.5px; display: flex; align-items: center; flex-wrap: nowrap; }
+.model-info .model-latency { font-family: var(--mono); font-size: 10.5px; display: inline; white-space: nowrap; }
 .model-info .model-waiting { font-family: var(--font); font-weight: 400; }
 .model-info .model-activity { font-family: var(--font); font-weight: 400; }
 .model-info .model-round { font-family: var(--mono); font-size: 10px; color: var(--text-3); }
-.model-info .model-sep { color: var(--border-active); }
+.model-info .model-sep { color: var(--border-active); margin: 0 5px; }
 .model-info .model-spinner { display: inline-block; vertical-align: middle; }
 .model-info .model-info-icon { font-size: 16px; color: var(--accent); }
 .debug-link { cursor: pointer; transition: color 0.15s; }
@@ -819,7 +825,7 @@ body.debug-mode .debug-block { display: block; }
 
 /* ── Ask User ── */
 .ask-user-block { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; margin: 6px 0; background: var(--orange-dim); border: 1px solid rgba(251,191,36,0.2); border-radius: var(--radius-lg); max-width: 90%; animation: fadeIn 0.3s ease; }
-.ask-user-icon { width: 24px; height: 24px; border-radius: 50%; background: var(--orange); color: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+.ask-user-icon { width: 18px; height: 18px; border-radius: 50%; background: var(--orange); color: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
 .ask-user-text { font-size: 13px; line-height: 1.55; color: var(--text); }
 
 /* ── Tool icon extras ── */
@@ -997,8 +1003,11 @@ const WINDSURF_LOGO = _ICON_PLAIN('windsurf');
 const PROVIDER_LOGOS = {
   zhipu: _ICON('zhipu'),
   google: _ICON('google'),
+  gemini: GOOGLE_LOGO,
   baidu: _ICON('baidu'),
+  ernie: BAIDU_LOGO,
   tencent: _ICON('tencent'),
+  hunyuan: TENCENT_LOGO,
   siliconflow: _ICON('siliconcloud'),
   nvidia: _ICON('nvidia'),
   alibaba: _ICON('alibaba'),
@@ -1025,13 +1034,29 @@ const MODEL_LOGOS = {
   'google-gemini-3-flash': GOOGLE_LOGO,
   'google-gemini-3.1-flash-lite': GOOGLE_LOGO,
   'google-gemini-3.1-pro': GOOGLE_LOGO,
+  'gemini-2.5-flash': GOOGLE_LOGO,
+  'gemini-2.5-flash-lite': GOOGLE_LOGO,
+  'gemini-2.5-pro': GOOGLE_LOGO,
+  'gemini-3-flash': GOOGLE_LOGO,
+  'gemini-3.1-flash-lite': GOOGLE_LOGO,
+  'gemini-3.1-pro': GOOGLE_LOGO,
   'baidu-ernie-4.5-turbo-128k': BAIDU_LOGO,
   'baidu-ernie-5.0': BAIDU_LOGO,
   'baidu-ernie-x1-turbo-32k': BAIDU_LOGO,
   'baidu-ernie-x1.1': BAIDU_LOGO,
   'baidu-ernie-4.5-8k': BAIDU_LOGO,
+  'baidu-ernie-4.5-8k-preview': BAIDU_LOGO,
   'baidu-ernie-4.0-turbo-8k': BAIDU_LOGO,
   'baidu-ernie-4.5-turbo-32k': BAIDU_LOGO,
+  'baidu-ernie-speed-8k': BAIDU_LOGO,
+  'ernie-4.5-turbo-128k': BAIDU_LOGO,
+  'ernie-5.0': BAIDU_LOGO,
+  'ernie-x1-turbo-32k': BAIDU_LOGO,
+  'ernie-x1.1': BAIDU_LOGO,
+  'ernie-4.5-8k-preview': BAIDU_LOGO,
+  'ernie-4.0-turbo-8k': BAIDU_LOGO,
+  'ernie-4.5-turbo-32k': BAIDU_LOGO,
+  'ernie-speed-8k': BAIDU_LOGO,
   'tencent-hunyuan-lite': TENCENT_LOGO,
   'hunyuan-lite': TENCENT_LOGO,
   'siliconflow-qwen2.5-7b': SILICONFLOW_LOGO,
@@ -1062,13 +1087,29 @@ const MODEL_DISPLAY_NAMES = {
   'google-gemini-3-flash': 'Gemini 3 Flash',
   'google-gemini-3.1-flash-lite': 'Gemini 3.1 Flash-Lite',
   'google-gemini-3.1-pro': 'Gemini 3.1 Pro',
+  'gemini-2.5-flash': 'Gemini 2.5 Flash',
+  'gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite',
+  'gemini-2.5-pro': 'Gemini 2.5 Pro',
+  'gemini-3-flash': 'Gemini 3 Flash',
+  'gemini-3.1-flash-lite': 'Gemini 3.1 Flash-Lite',
+  'gemini-3.1-pro': 'Gemini 3.1 Pro',
   'baidu-ernie-4.5-turbo-128k': 'ERNIE 4.5 Turbo 128K',
   'baidu-ernie-5.0': 'ERNIE 5.0',
   'baidu-ernie-x1-turbo-32k': 'ERNIE X1-Turbo 32K',
   'baidu-ernie-x1.1': 'ERNIE X1.1',
   'baidu-ernie-4.5-8k': 'ERNIE 4.5 8K',
+  'baidu-ernie-4.5-8k-preview': 'ERNIE 4.5 8K',
   'baidu-ernie-4.0-turbo-8k': 'ERNIE 4.0 Turbo 8K',
   'baidu-ernie-4.5-turbo-32k': 'ERNIE 4.5 Turbo 32K',
+  'ernie-4.5-turbo-128k': 'ERNIE 4.5 Turbo 128K',
+  'ernie-5.0': 'ERNIE 5.0',
+  'ernie-x1-turbo-32k': 'ERNIE X1-Turbo 32K',
+  'ernie-x1.1': 'ERNIE X1.1',
+  'ernie-4.5-8k-preview': 'ERNIE 4.5 8K',
+  'ernie-4.0-turbo-8k': 'ERNIE 4.0 Turbo 8K',
+  'ernie-4.5-turbo-32k': 'ERNIE 4.5 Turbo 32K',
+  'baidu-ernie-speed-8k': 'ERNIE Speed 8K',
+  'ernie-speed-8k': 'ERNIE Speed 8K',
   'tencent-hunyuan-lite': 'Hunyuan Lite',
   'hunyuan-lite': 'Hunyuan Lite',
   'siliconflow-qwen2.5-7b': 'Qwen 2.5 7B',
@@ -1107,8 +1148,8 @@ function resolveModelLogo(provider) {
   return null;
 }
 
-const MODE_ICONS = { agent: 'bx-bot', plan: 'bx-edit', ask: 'bx-chat' };
-const MODE_LABELS = { agent: 'Agent', plan: 'Plan', ask: 'Ask' };
+const MODE_ICONS = { 'meta-agent': 'bx-brain', agent: 'bx-bot', plan: 'bx-edit', ask: 'bx-chat' };
+const MODE_LABELS = { 'meta-agent': 'Meta-Agent', agent: 'Agent', plan: 'Plan', ask: 'Ask' };
 
 let MODEL_OPTIONS = [
   { value: 'auto', label: 'Auto' },
@@ -1238,7 +1279,7 @@ const _I18N = {
     'Settings': '设置', 'General': '通用', 'Chat': '对话', 'Models': '模型', 'Providers': '供应商', 'Brain': '大脑',
     'Context Compression': '上下文压缩', 'Compression Trigger': '压缩触发',
     'Debug': '调试', 'Stop': '停止', 'New session': '新会话',
-    'Agent': '代理', 'Plan': '计划', 'Ask': '问答', 'Auto': '自动',
+    'Agent': '代理', 'Meta-Agent': '元认知代理', 'Plan': '计划', 'Ask': '问答', 'Auto': '自动',
     'Color Mode': '颜色模式', 'Language': '语言', 'Currency': '货币', 'Appearance': '外观',
     'Behavior': '行为', 'Default Round Limit': '默认轮次限制', 'History Round Folding': '历史轮次折叠',
     'Data': '数据', 'Session Data': '会话数据', 'Data Retention': '数据保留', 'History Context Rounds': '历史上下文轮数',
@@ -1260,7 +1301,7 @@ const _I18N = {
   ar: {
     'Settings': 'الإعدادات', 'General': 'عام', 'Chat': 'محادثة', 'Models': 'النماذج', 'Providers': 'المزودون',
     'Debug': 'تصحيح', 'Stop': 'إيقاف', 'New session': 'جلسة جديدة',
-    'Agent': 'الوكيل', 'Plan': 'خطة', 'Ask': 'سؤال', 'Auto': 'تلقائي',
+    'Agent': 'الوكيل', 'Meta-Agent': 'وكيل ميتا', 'Plan': 'خطة', 'Ask': 'سؤال', 'Auto': 'تلقائي',
   },
 };
 let _guiLang = localStorage.getItem('guiLang') || 'en';
@@ -1295,9 +1336,9 @@ function _refreshPillLabels() {
 }
 
 const _FAVICON_COLORS = {
-  dark:  '#6366f1',
-  light: '#f59e0b',
-  brilliant: { strawberry: '#e85d75', mango: '#e8a317', blueberry: '#5b7cf5' },
+  dark:  '#5b8def',
+  light: '#3a6fd8',
+  brilliant: { strawberry: '#e85d75', mango: '#e8920b', blueberry: '#5070e0' },
   hacker: '#00ff41',
 };
 const _FAVICON_SVG = (color) => `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22${encodeURIComponent(color)}%22><path d=%22M21.928 11.607c-.202-.488-.635-.605-.928-.633V8c0-1.103-.897-2-2-2h-6V4.61c.305-.274.5-.668.5-1.11a1.5 1.5 0 0 0-3 0c0 .442.195.836.5 1.11V6H5c-1.103 0-2 .897-2 2v2.997l-.082.006A1 1 0 0 0 1.99 12v2a1 1 0 0 0 1 1H3v5c0 1.103.897 2 2 2h14c1.103 0 2-.897 2-2v-5a1 1 0 0 0 1-1v-1.938a1.006 1.006 0 0 0-.072-.455zM5 20V8h14l.001 3.996L19 12v2l.001.005.001 5.995H5z%22/><ellipse cx=%228.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><ellipse cx=%2215.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><path d=%22M8 16h8v2H8z%22/></svg>`;
@@ -1501,6 +1542,12 @@ const modelPill = buildPillSelect(
   currentModel,
   (v) => setModel(v)
 );
+engine.onAutoModelChosen((chosenProvider) => {
+  if (modelPill && modelPill.setValue) {
+    modelPill.setValue(chosenProvider);
+    currentModel = chosenProvider;
+  }
+});
 
 const _sessionDrafts = {};
 
@@ -3460,6 +3507,16 @@ function handleSSEEvent(evt) {
     _clearConnectionWatchdog();
   }
 
+  const _globalEventTypes = new Set([
+    'session_created', 'session_renamed', 'session_deleted',
+    'settings_changed', 'settings_open', 'settings_close',
+    'inject_input', 'model_switched',
+    'queue_updated', 'turn_limit_set', 'queue_task_started',
+  ]);
+  if (!_globalEventTypes.has(evt.type) && evt.session_id && evt.session_id !== activeSessionId) {
+    return;
+  }
+
   switch (evt.type) {
     case 'session_created':
       if (!engine.getSession(evt.id)) {
@@ -3549,30 +3606,17 @@ function handleSSEEvent(evt) {
       break;
     }
 
-    case 'system_notice': {
+    case 'system_notice':
+    case 'model_decision_end':
+    case 'model_decision_proposed':
+    case 'model_decision_start':
       engine.enqueueEvent(evt);
       break;
-    }
-
-    case 'model_decision_end': {
-      engine.enqueueEvent(evt);
-      break;
-    }
-
-    case 'model_decision_proposed': {
-      engine.enqueueEvent(evt);
-      break;
-    }
 
     case 'model_confirmed': {
       if (evt.provider) {
         currentModel = evt.provider;
       }
-      engine.enqueueEvent(evt);
-      break;
-    }
-
-    case 'model_decision_start': {
       engine.enqueueEvent(evt);
       break;
     }
@@ -3629,7 +3673,6 @@ function handleSSEEvent(evt) {
     }
 
     default:
-      if (evt.session_id && evt.session_id !== activeSessionId) break;
       if (evt.type === 'user' && evt.session_id) {
         if (engine._localUserPending) { engine._localUserPending = false; break; }
       }

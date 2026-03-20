@@ -125,6 +125,16 @@ class _SingleFileHandler(SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
+    def end_headers(self):
+        buf = getattr(self, "_headers_buffer", [])
+        has_cache = any(
+            "cache-control" in (item.decode("latin-1") if isinstance(item, bytes) else str(item)).lower()
+            for item in buf
+        )
+        if not has_cache:
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+        super().end_headers()
+
     def do_GET(self):
         path = self.path.split("?")[0]
         if path in ("/", "/index.html"):

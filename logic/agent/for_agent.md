@@ -14,7 +14,7 @@ Shared agent logic for conversation management, brain integration, and command e
 
 ## Usage
 
-These modules are consumed by `tool/LLM/logic/task/agent/conversation.py` (the agent loop) and by `hooks/instance/AI-IDE/Cursor/brain_inject.py` (context injection).
+These modules are consumed by `tool/LLM/logic/task/agent/conversation.py` (the agent loop) and by `hooks/instance/IDE/Cursor/brain_inject.py` (context injection).
 
 ## Interface
 

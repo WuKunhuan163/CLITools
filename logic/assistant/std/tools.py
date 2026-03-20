@@ -67,18 +67,12 @@ def handle_exec(args: dict, ctx: ToolContext) -> dict:
             sb.create_pending(req_id, cmd, ctx.session_id)
             ctx.emit({"type": "sandbox_prompt", "request_id": req_id,
                        "cmd": cmd, "normalized": sb._normalize_cmd(cmd)})
-            wait_start = time.time()
-            while time.time() - wait_start < 120:
+            while True:
                 pending = sb.get_pending(req_id)
                 if pending is None:
                     break
                 time.sleep(0.5)
             resolved = sb.get_resolved(req_id)
-            if resolved is None:
-                sb.resolve_pending(req_id, "deny")
-                ctx.emit({"type": "tool_result", "ok": False,
-                           "output": "[Sandbox] Timed out waiting for approval."})
-                return {"ok": False, "output": "[Sandbox] Timed out waiting for approval."}
             if resolved == "deny":
                 ctx.emit({"type": "tool_result", "ok": False,
                            "output": "[Sandbox] Command denied by user."})
@@ -425,7 +419,16 @@ def _apply_edit_and_emit(path, content, old_lines_text, new_text, start_lineno,
             compile(new_content, path, 'exec')
         except SyntaxError as e:
             _syntax_warning = (f"Edit would cause syntax error: "
-                               f"unexpected indent ({os.path.basename(path)}, line {e.lineno})")
+                               f"{e.msg} ({os.path.basename(path)}, line {e.lineno})")
+
+    if _syntax_warning:
+        ctx.emit({"type": "tool_result", "ok": False,
+                  "output": _syntax_warning,
+                  "name": "edit_file", "_path": path,
+                  "_old_text": old_lines_text, "_new_text": new_text})
+        if ctx.env_obj:
+            ctx.env_obj.record_result(f"edit:{path}", False, _syntax_warning)
+        return {"ok": False, "output": _syntax_warning}
 
     with open(path, "w", encoding="utf-8") as f:
         f.write(new_content)
@@ -433,10 +436,8 @@ def _apply_edit_and_emit(path, content, old_lines_text, new_text, start_lineno,
     new_all = new_content.splitlines()
     diff_preview = _build_diff_preview(all_lines, start_lineno, old_lines,
                                        new_lines, new_all, ctx_n)
-    if _syntax_warning:
-        diff_preview += f"\n\n⚠ {_syntax_warning}"
-    ctx.emit({"type": "tool_result", "ok": not _syntax_warning,
-              "output": diff_preview if not _syntax_warning else _syntax_warning,
+    ctx.emit({"type": "tool_result", "ok": True,
+              "output": diff_preview,
               "name": "edit_file", "_path": path,
               "_old_text": old_lines_text, "_new_text": new_text})
     if ctx.env_obj:
@@ -505,7 +506,17 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
                     compile(new_content, path, 'exec')
                 except SyntaxError as syn_e:
                     _syntax_warning = (f"Edit would cause syntax error: "
-                                       f"unexpected indent ({os.path.basename(path)}, line {syn_e.lineno})")
+                                       f"{syn_e.msg} ({os.path.basename(path)}, line {syn_e.lineno})")
+
+            if _syntax_warning:
+                ctx.emit({"type": "tool_result", "ok": False,
+                          "output": _syntax_warning,
+                          "name": "edit_file", "_path": path,
+                          "_old_text": "\n".join(old_lines_list),
+                          "_new_text": new_text.rstrip("\n")})
+                if ctx.env_obj:
+                    ctx.env_obj.record_result(f"edit:{path}", False, _syntax_warning)
+                return {"ok": False, "output": _syntax_warning}
 
             with open(path, "w", encoding="utf-8") as f:
                 f.write(new_content)
@@ -514,10 +525,8 @@ def handle_edit_file(args: dict, ctx: ToolContext) -> dict:
             diff_preview = _build_diff_preview(
                 all_lines, start_lineno, old_lines_list,
                 new_lines_list, new_all, ctx.context_lines)
-            if _syntax_warning:
-                diff_preview += f"\n\n⚠ {_syntax_warning}"
-            ctx.emit({"type": "tool_result", "ok": not _syntax_warning,
-                      "output": diff_preview if not _syntax_warning else _syntax_warning,
+            ctx.emit({"type": "tool_result", "ok": True,
+                      "output": diff_preview,
                       "name": "edit_file", "_path": path,
                       "_old_text": "\n".join(old_lines_list),
                       "_new_text": new_text.rstrip("\n")})

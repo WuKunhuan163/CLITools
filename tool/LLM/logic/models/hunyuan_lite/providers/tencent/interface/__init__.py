@@ -16,6 +16,7 @@ class TencentHunyuanLiteProvider(OpenAICompatProvider):
     DEFAULT_RPM = 60
     DEFAULT_MAX_CONTEXT = 4096
     DEFAULT_MAX_OUTPUT = 2048
+    STRICT_ALTERNATION = True
 
     name = "tencent-hunyuan-lite"
     cost_model = CostModel(free_tier=True)

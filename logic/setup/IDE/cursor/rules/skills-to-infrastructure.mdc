@@ -80,7 +80,7 @@ A skill is ripe for infrastructure conversion when:
 | `openclaw` | Self-improvement loop guidance |
 | `skills-index` | Index/catalog — reference only |
 
-### AI-IDE Skills (Cursor-specific)
+### IDE Skills (Cursor-specific)
 
 | Skill | Generalizable? | Status |
 |-------|---------------|--------|

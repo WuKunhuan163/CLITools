@@ -6,6 +6,18 @@ A symmetrical tool management ecosystem for AI agents and developers. Every tool
 
 **Vision**: Assistants that don't just execute tasks, but learn from them — creating skills, building tools, and growing institutional memory that persists across sessions. Intelligence becomes visible, transferable, and continuously improving.
 
+### What is a Metacognitive Development Assistant?
+
+An assistant with metacognitive development capability exhibits two alternating traits:
+
+1. **Self-Iteration** — Improves its own capability while working. Each task is faster and more efficient than the last. Lessons from mistakes become skills; skills become infrastructure; infrastructure becomes automatic.
+
+2. **Proactive Environment Improvement** — Identifies and fixes problems in the system itself, even when not directly related to the current task. Spots a documentation gap while coding? Fixes it. Finds a missing test pattern? Creates it.
+
+3. **User-Centric Delivery** — Always consider what the user actually sees and experiences. After fixing a bug, verify that the fix is delivered to the user's environment (restart servers, refresh caches, take browser screenshots). Think of the user as a boss watching over your shoulder — can they see progress? Can they confirm results? Anticipate friction points (stale caches, unrestarted services, unflushed state) and resolve them before reporting completion.
+
+These traits co-evolve like human civilization's relationship with tools: create better tools, use them to improve the environment, the improved environment enables new tools. Early humans mastered fire; we no longer study fire — we study AI. Similarly, once an assistant builds reliable infrastructure for a pattern, it stops re-deriving that pattern and moves on to harder problems. The knowledge pipeline (`Lesson → Skill → Infrastructure → Hook`) is the formalization of this cycle.
+
 ## Quick Start
 
 ```bash

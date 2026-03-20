@@ -209,6 +209,35 @@ class OpenAICompatProvider(LLMProvider):
         except Exception:
             pass
 
+    STRICT_ALTERNATION = False
+
+    @staticmethod
+    def _sanitize_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Ensure strict user/assistant alternation required by some APIs.
+
+        Merges consecutive same-role messages and inserts placeholder
+        assistant messages between consecutive user messages.
+        """
+        if not messages:
+            return messages
+        result: List[Dict[str, Any]] = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            if role == "system" or role == "tool":
+                result.append(msg)
+                continue
+            if result and result[-1].get("role") == role and role in ("user", "assistant"):
+                prev = result[-1]
+                prev_content = prev.get("content", "")
+                cur_content = msg.get("content", "")
+                if isinstance(prev_content, str) and isinstance(cur_content, str):
+                    prev["content"] = prev_content + "\n" + cur_content
+                else:
+                    result.append(msg)
+            else:
+                result.append(msg)
+        return result
+
     def send_streaming(self, messages: List[Dict[str, str]],
                        temperature: float = 0.7,
                        max_tokens: int = 0,
@@ -218,6 +247,9 @@ class OpenAICompatProvider(LLMProvider):
             return
 
         self._rate_limiter.wait()
+
+        if self.STRICT_ALTERNATION:
+            messages = self._sanitize_messages(messages)
 
         effective_max = min(max_tokens, self.DEFAULT_MAX_OUTPUT) if max_tokens else self.DEFAULT_MAX_OUTPUT
         payload: Dict[str, Any] = {

@@ -20,7 +20,7 @@ Skills are structured knowledge documents that AI agents read to follow project 
             SKILL.md
             data/
                 lessons.jsonl
-    AI-IDE/
+    IDE/
         Cursor/                     # Cursor IDE-specific skills
             <topic>/
                 SKILL.md
@@ -53,7 +53,7 @@ SKILLS sync
 ## Naming Convention
 
 - Use kebab-case: `code-quality-review`
-- No prefix needed -- the directory path provides context (`core/` vs `AI-IDE/Cursor/`)
+- No prefix needed -- the directory path provides context (`core/` vs `IDE/Cursor/`)
 - Be descriptive but concise
 
 ## Content Guidelines

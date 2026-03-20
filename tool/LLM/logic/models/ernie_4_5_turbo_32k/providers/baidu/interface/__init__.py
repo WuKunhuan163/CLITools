@@ -18,6 +18,7 @@ class BaiduERNIE45Turbo32KProvider(OpenAICompatProvider):
     DEFAULT_MAX_CONTEXT = 32768
     DEFAULT_MAX_OUTPUT = 4096
     MAX_TOKENS_PARAM = "max_completion_tokens"
+    STRICT_ALTERNATION = True
 
     name = "baidu-ernie-4.5-turbo-32k"
     cost_model = CostModel(free_tier=False)

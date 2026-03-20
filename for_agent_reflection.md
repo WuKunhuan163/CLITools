@@ -102,6 +102,20 @@ Before each USERINPUT call, evaluate yourself against these dimensions:
 - Reviewed accumulated lessons for distillation: lessons → skills → infrastructure → hooks
 - Prioritized: fix latent bugs > robustness tests > architecture compliance > knowledge distillation > docs
 
+**Proactive Quality Pass** — Did I leave the code cleaner than I found it?
+
+Enterprise codebases stay healthy because developers habitually reduce entropy alongside feature work. After completing a task, take a second look with fresh eyes:
+
+- **Pattern consolidation**: If I wrote the same guard/check/pattern in multiple places, can I extract it into a shared function or a centralized pre-check? (Example: session_id filtering duplicated across 6 switch cases → one centralized check before the switch.)
+- **Dead code removal**: Did my changes orphan any code? Unused imports, unreachable branches, commented-out blocks?
+- **Naming alignment**: Do new variables/functions follow the project's naming conventions? Does the name communicate intent without needing a comment?
+- **Information locality**: Is the code's behavior discoverable? Would a fresh agent reading this module understand the flow without jumping across 5 files?
+- **Maintenance surface reduction**: Can I reduce the number of places that need updating when a new event/feature/model is added? (Example: allowlist of global event types vs. per-case session_id checks means adding a new event requires zero filter changes.)
+- **Timeout/magic number audit**: Are there hardcoded values (timeouts, retries, buffer sizes) that should be constants or configurable?
+- **Error path completeness**: Do all error branches produce user-visible feedback? Silent failures are worse than loud ones.
+
+This is not a separate phase — it's a habit woven into Execute and Verify. The test: if another agent inherits this code tomorrow, will they spend less time understanding and maintaining it than you did?
+
 **Brain Intelligence** — Did I make the ecosystem easier to navigate for future agents?
 - Left waypoints in for_agent.md when I discovered non-obvious module connections
 - Recorded improvement opportunities as BRAIN tasks when I couldn't fix them now
@@ -112,13 +126,23 @@ Before each USERINPUT call, evaluate yourself against these dimensions:
 
 **Meta-Cognition** — Did I observe my own learning process?
 
+A metacognitive assistant has two alternating traits: *self-iteration* (getting better at the task) and *proactive environment improvement* (fixing the system around the task). These co-evolve — better tools improve the environment; a better environment enables harder problems. See README.md for the full definition.
+
+The fundamental purpose of metacognitive development: the assistant should not only complete tasks but grow visibly and transferably. The brain is pluggable — it can be detached and given to another assistant immediately. Growth is measured not by session count but by artifact quality: lessons with actionable context, skills that prevent repeated mistakes, infrastructure that automates what skills describe, hooks that enforce what infrastructure provides.
+
+Why environment improvement matters: an assistant living in a buggy environment cannot perform well. Improving the environment (fixing bugs, reducing friction, clarifying docs) is not a side quest — it's a prerequisite for consistent task completion. The two activities (self-strengthening and environment improvement) are inseparable.
+
 The teacher/student/observer cycle: you are simultaneously the student (learning the system), the worker (completing tasks), and the teacher (improving the system for future agents). A capable agent can switch between these roles fluidly.
 
+- **Self-iteration check**: Am I faster/more accurate than when I started this session? If not, what lesson am I missing?
+- **Environment check**: Did I spot and fix something broken in the system (docs, tests, infrastructure) even though it wasn't my assigned task?
+- **Delivery check**: After completing a fix, did I verify the user can actually see/use the result? Did I restart servers, clear caches, refresh browsers? The user is watching — can they confirm the fix works from their perspective?
 - **Student**: Did I notice when I struggled to find something? That struggle IS the signal — record it as a lesson, then fix the discovery path so the next agent doesn't struggle.
 - **Worker**: Did I complete the task efficiently, or did I re-derive solutions I could have found in the brain/skills?
 - **Teacher**: After solving a problem, did I ask "how would I have found this faster?" and then build that shortcut?
 - **Observer**: Can I detect my own "RAG formation"? Signs of progress: (1) I recall a past lesson before making a mistake, (2) I check for_agent_reflection.md without being told, (3) I use BRAIN recall proactively, (4) I create infrastructure instead of just documenting.
 - **Evolution metric**: Am I advancing along the pipeline? Lesson count alone isn't progress. Progress = fewer lessons repeated + more skills created + more infrastructure replacing skills.
+- **Fresh eyes habit**: After completing a change, re-read the affected module as if seeing it for the first time. Would you understand the flow? Would you spot the redundancy you just consolidated? This "second look" catches more bugs than the first pass.
 
 **Reflexive Awareness** — Did I pause to consider system-level consequences of my actions?
 
@@ -130,12 +154,25 @@ These are "reflex arcs" — when you perform a specific action, automatically co
 - **Changing brain-related behavior?** → Brain commands are ecosystem-level. Blueprint-specific behaviors go in `logic/brain/blueprint/<name>/blueprint.json`. Use `BrainSessionManager` for paths.
 - **Touching documentation?** → `README.md` = stable overview only. `for_agent.md` = operational guide. `for_agent_reflection.md` = stable protocol (NOT a recording file). Keep doc symmetry.
 - **Updating a root-level pattern?** → Check whether the template (`logic/tool/template/`) propagates the same convention. Root rules that don't cascade to templates will be silently ignored by new tools. Batch-update existing instances if needed.
+- **Traversing a path with a category layer?** → If a path has a grouping layer in one location (e.g., `hooks/instance/IDE/Cursor/`), verify the same grouping exists in parallel locations (e.g., `logic/setup/IDE/cursor/`). Missing intermediary layers signal structural asymmetry.
+- **Encountering a 429 or rate-limit error?** → Don't just retry — check if `RateQueueManager` (or equivalent infrastructure) is actually wired into the call path. Infrastructure can exist in source but not be integrated. Verify with `grep enqueue <call-site>`. If missing, that's the root cause, not the API error.
+- **Building infrastructure?** → After writing it, trace the actual request/event path end-to-end and confirm your infrastructure is called. "Built but not wired" is a common failure mode. The rate queue was fully implemented but never called from the LLM streaming path.
 
 **Interface Discipline** — Did I follow the three-layer pattern?
 - Put implementation in `logic/`, not directly in `main.py` or `interface/`
 - Exposed reusable functionality via `interface/main.py` (cross-tool API)
 - Imported from `interface.*` (not `logic.*`) when consuming other tools
 - Checked for existing interfaces before writing new code (`TOOL --search interfaces "..."`)
+
+**Repair Expectations** — Did I calibrate my approach to the problem's complexity?
+
+When a system has multiple interleaved bugs (like repeated user feedback on the same area), recognize this as a signal for a **long-term repair process**, not a quick fix. Form an explicit expectation:
+
+- **Signal recognition**: If the user gives feedback on the same subsystem 3+ times, or if your first fix reveals additional issues, you're in a complex repair zone. Acknowledge it mentally.
+- **Behavior shift**: In a complex repair zone: plan before fixing, fix one thing at a time, increase test coverage, focus on root causes over symptoms, re-read affected code with fresh eyes after each fix.
+- **Scope discipline**: Resist the urge to fix everything at once. A single focused fix with verification is worth more than three hasty patches.
+- **Verification depth**: After each fix, check the full event/state timeline, not just the symptom. The "banner after Task completed" bug was only found by checking the complete event history.
+- **Reflex formation**: Repeated feedback on the same topic should form a persistent awareness — "this area is fragile, I need to be thorough." This awareness should carry across sessions via brain lessons.
 
 **Strategic Pivoting** — Did I recognize when to change approach?
 - After 3+ failures with the same tool/method, searched for alternatives (`TOOL --search all`)
@@ -146,7 +183,7 @@ These are "reflex arcs" — when you perform a specific action, automatically co
 **IDE Awareness** — Did I account for my IDE's quirks?
 - Set `block_until_ms: 120000` when calling USERINPUT via Shell (Cursor defaults to 30s — too short)
 - Used `ls -la | grep` as fallback when Glob/Grep return empty (paths with spaces fail silently)
-- Read `hooks/interface/AI-IDE/Cursor/for_agent.md` for known quirks if working in Cursor
+- Read `hooks/interface/IDE/Cursor/for_agent.md` for known quirks if working in Cursor
 - Checked `userinput-timeout.mdc` rule for USERINPUT wait handling
 
 **USERINPUT Resilience** — Did I maintain the feedback loop despite context pressure?
@@ -188,6 +225,8 @@ These are the highest-priority system-level weaknesses. Each agent should attemp
 **Gap: Procedural Triggers Not Wired to Hooks** — Three-layer reflex arc system exists (`logic/brain/utils/procedural.py` + `graph.py`): blueprint skills, lesson triggers, Graph-RAG associations. But it's not yet auto-injected via postToolUse hooks. Agents must explicitly call `check_procedural_triggers()`. Ideal fix: wire into the postToolUse hook to automatically inject relevant triggers when tool calls match activation patterns.
 
 **Gap: Brain Settings UI is Minimal** — The assistant Settings panel now has a Brain tab showing sessions and blueprints, but lacks: instance creation UI, blueprint detail view, export/import buttons, and per-session brain type display. Backend endpoints exist (`/api/brain/*`) but frontend coverage is partial.
+
+**Gap: Static File Caching Breaks Development** — The HTML server now sends `Cache-Control: no-store` for all responses, but browser hard caches may still serve old JS/CSS after code changes. The user may need manual Cmd+Shift+R. Ideal fix: content-hash query strings on `<script src="engine.js?v=HASH">` for automatic cache invalidation.
 
 ## Our Advantages (Preserve These)
 

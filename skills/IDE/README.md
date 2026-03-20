@@ -1,4 +1,4 @@
-# skills/AI-IDE
+# skills/IDE
 
 Skills specific to AI-powered IDEs. Organized by IDE name.
 

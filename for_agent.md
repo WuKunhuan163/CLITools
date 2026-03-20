@@ -4,7 +4,7 @@ Welcome to the `AITerminalTools` ecosystem. This guide is designed to provide yo
 
 ## 0. Agent Bootstrap Protocol (Start Here)
 
-**Fundamental concept: every tool is a CLI command.** Tool names like `TOOL`, `SKILLS`, `USERINPUT`, `BRAIN`, `GIT`, `PYTHON` are executables in `bin/`. Run them directly in the shell — they are not Python functions or imports. Example: `python3 tool/USERINPUT/main.py --hint "hello"` or simply `USERINPUT --hint "hello"` if installed.
+    - **Palindrome Check Function**: `is_palindrome(s: str) -> bool` in `logic/main.py` checks if a string reads the same forwards and backwards.
 
 **Project layout** (symmetric design — root mirrors each tool):
 ```
@@ -797,7 +797,7 @@ Key rules:
 Skills are structured best-practice guides that AI agents can reference during development.
 
 ### Skill Locations
-- **Project-level** (`skills/core/`): Core framework skills. (`skills/AI-IDE/Cursor/`): Cursor-specific skills.
+- **Project-level** (`skills/core/`): Core framework skills. (`skills/IDE/Cursor/`): Cursor-specific skills.
 - **Library** (`tool/SKILLS/logic/library/`): 100 general CS skills (frontend, backend, DevOps, AI/ML, security, etc.). These are NOT synced to Cursor to avoid excessive context; use `SKILLS show <name>` to read them.
 - **Tool-level** (`tool/<NAME>/skills/`): Per-tool skills for specialized patterns.
 

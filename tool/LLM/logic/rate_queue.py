@@ -372,26 +372,36 @@ class RateQueueManager:
 
     @staticmethod
     def _load_limits(provider_name: str) -> RateLimits:
-        """Load rate limits from model.json for a provider."""
+        """Load rate limits from model.json for a provider.
+
+        Matches provider_name (e.g. "zhipu-glm-4-flash") to the model
+        directory by stripping the vendor prefix and comparing against
+        the directory name with hyphens normalized to underscores.
+        """
         models_dir = Path(__file__).parent / "models"
         if not models_dir.is_dir():
             return RateLimits()
 
+        vendor = provider_name.split("-")[0] if "-" in provider_name else ""
+        model_part = provider_name.split("-", 1)[1] if "-" in provider_name else provider_name
+        model_normalized = model_part.replace("-", "_").replace(".", "_")
+
         for model_dir in models_dir.iterdir():
             if not model_dir.is_dir():
                 continue
-            mj = model_dir / "model.json"
-            if not mj.exists():
-                continue
-            try:
-                meta = json.loads(mj.read_text())
-            except Exception:
-                continue
-            providers_dir = model_dir / "providers"
-            if providers_dir.is_dir():
-                for pd in providers_dir.iterdir():
-                    if pd.is_dir() and pd.name in provider_name:
-                        return RateLimits.from_model_json(meta)
+            if model_dir.name == model_normalized:
+                providers_dir = model_dir / "providers"
+                if providers_dir.is_dir():
+                    for pd in providers_dir.iterdir():
+                        if pd.is_dir() and pd.name == vendor:
+                            mj = model_dir / "model.json"
+                            if mj.exists():
+                                try:
+                                    meta = json.loads(mj.read_text())
+                                    return RateLimits.from_model_json(meta)
+                                except Exception:
+                                    pass
+
         return RateLimits()
 
     def estimate_wait(self, provider_name: str) -> WaitEstimate:

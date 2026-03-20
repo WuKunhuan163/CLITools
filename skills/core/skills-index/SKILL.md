@@ -108,7 +108,7 @@ Skills about managing skills.
 
 ## Cursor IDE
 
-Cursor-specific skills (under `AI-IDE/Cursor/`).
+Cursor-specific skills (under `IDE/Cursor/`).
 
 | Skill | Purpose |
 |-------|---------|

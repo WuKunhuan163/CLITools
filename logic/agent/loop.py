@@ -43,7 +43,7 @@ class AgentLoop:
             mode=mode,
         )
 
-        if tier >= 2 and project_root and mode == "agent":
+        if tier >= 2 and project_root and mode in ("agent", "meta-agent"):
             try:
                 from logic.agent.memory import MemoryHandlers, MEMORY_TOOL_DEFS
                 brain_type = getattr(session, "brain_type", "default") or "default"
@@ -146,6 +146,9 @@ class AgentLoop:
                     if full_text:
                         self._context_messages.append(
                             {"role": "assistant", "content": full_text})
+
+                        if self._mode in ("ask", "plan"):
+                            break
 
                         if self._tier >= 2 and round_num <= 6 and should_nudge(full_text):
                             has_read = any(

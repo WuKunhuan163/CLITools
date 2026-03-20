@@ -5,7 +5,7 @@ AI agent skill documents — structured best-practice guides that agents referen
 ## Structure
 
 - `core/` — Core framework skills (tool development, testing, debugging patterns).
-- `AI-IDE/Cursor/` — Cursor IDE-specific skills (rule creation, subagent policies).
+- `IDE/Cursor/` — Cursor IDE-specific skills (rule creation, subagent policies).
 - `marketplace/` — Skills downloaded from external sources (ClawHub, OpenClaw, etc.).
 
 ## Format

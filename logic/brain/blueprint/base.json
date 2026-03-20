@@ -15,15 +15,15 @@
   },
   "hooks": {
     "sessionStart": {
-      "handler": "hooks/instance/AI-IDE/Cursor/brain_inject.py",
+      "handler": "hooks/instance/IDE/Cursor/brain_inject.py",
       "description": "Inject brain + ecosystem context into agent at session start"
     },
     "postToolUse": {
-      "handler": "hooks/instance/AI-IDE/Cursor/brain_remind.py",
+      "handler": "hooks/instance/IDE/Cursor/brain_remind.py",
       "description": "Remind agent of brain commands after tool use"
     },
     "stop": {
-      "handler": "hooks/instance/AI-IDE/Cursor/userinput_enforce.py",
+      "handler": "hooks/instance/IDE/Cursor/userinput_enforce.py",
       "description": "Enforce USERINPUT feedback loop before turn end"
     }
   },

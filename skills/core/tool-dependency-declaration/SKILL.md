@@ -48,7 +48,7 @@ The project root `tool.json` has two separate fields:
 - `tool_dependencies` — tools installed during `setup.py`
 - `tools` — complete registry of available tools
 
-If root-level code (like `hooks/instance/AI-IDE/Cursor/brain_inject.py`) imports from `logic/`, no tool dependency is needed since `logic/` is framework-level. If it imports from `tool/LLM/interface/`, then `LLM` must be added to `tool_dependencies`.
+If root-level code (like `hooks/instance/IDE/Cursor/brain_inject.py`) imports from `logic/`, no tool dependency is needed since `logic/` is framework-level. If it imports from `tool/LLM/interface/`, then `LLM` must be added to `tool_dependencies`.
 
 ## Detection Checklist
 

@@ -232,9 +232,17 @@ class SandboxManager:
     def _is_safe_read(cmd: str) -> bool:
         """Check if a command is a known safe read-only command."""
         stripped = cmd.strip()
+        if ">" in stripped or ">>" in stripped or "| tee " in stripped:
+            return False
         for prefix in SAFE_READ_PREFIXES:
             if stripped.startswith(prefix):
-                return True
+                if "&&" not in stripped and ";" not in stripped and "|" not in stripped:
+                    return True
+                parts = [p.strip() for p in stripped.replace("&&", ";").replace("|", ";").split(";")]
+                return all(
+                    any(p.startswith(pf) for pf in SAFE_READ_PREFIXES)
+                    for p in parts if p
+                )
         return False
 
 

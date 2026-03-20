@@ -470,6 +470,7 @@ class ConversationManager:
         self._sessions: Dict[str, Session] = {}
         self._active_session_id: Optional[str] = None
         self._current_turn_session_id: Optional[str] = None
+        self._thread_local = threading.local()
         self._event_cb: Optional[Callable] = None
         self._load_persisted_sessions()
         self._lock = threading.Lock()
@@ -504,7 +505,7 @@ class ConversationManager:
     def _check_mode_restriction(mode: str, tool_name: str,
                                  args: dict) -> Optional[str]:
         """Return an error message if the tool is blocked in the given mode."""
-        if mode == "agent":
+        if mode in ("agent", "meta-agent"):
             return None
         if tool_name == "edit_file":
             return (f"BLOCKED: {tool_name} is not available in {mode} mode. "
@@ -598,6 +599,11 @@ class ConversationManager:
                 _log.warning("Failed to persist session %s: %s", session_id, e)
 
     def _emit(self, evt: dict):
+        if "session_id" not in evt:
+            tl_sid = getattr(self._thread_local, 'session_id', None)
+            sid = tl_sid or self._current_turn_session_id
+            if sid:
+                evt["session_id"] = sid
         if self._event_cb:
             self._event_cb(evt)
 
@@ -1148,6 +1154,35 @@ class ConversationManager:
         if bootstrap:
             prompt = prompt + "\n\n" + bootstrap
 
+        if mode == "ask":
+            prompt += (
+                "\n\n## MODE: ASK (Read-Only)\n"
+                "You are in Ask mode. Answer the user's question concisely and stop. "
+                "Do NOT use write tools (edit_file, exec with write operations). "
+                "Do NOT ask follow-up questions unless genuinely needed. "
+                "If the user asks a factual question, give the answer and end your turn.\n"
+            )
+        elif mode == "plan":
+            prompt += (
+                "\n\n## MODE: PLAN (Read-Only)\n"
+                "You are in Plan mode. Analyze the task and present a plan. "
+                "Do NOT execute the plan or use write tools. "
+                "Present your plan clearly, then end your turn. "
+                "If the user's request is simple, a brief plan suffices.\n"
+            )
+        elif mode == "meta-agent":
+            prompt += (
+                "\n\n## MODE: META-AGENT\n"
+                "You operate in metacognitive development mode. Beyond completing tasks, you:\n"
+                "1. **Self-Iterate**: Track your efficiency. If you re-derive something "
+                "available in brain/skills, fix the discovery path so it won't happen again.\n"
+                "2. **Improve Environment**: Proactively fix docs, tests, and inconsistencies "
+                "you encounter near the code you're working on.\n"
+                "3. **User-Centric Delivery**: After completing work, verify the user can see "
+                "results (restart servers, refresh browsers). Use screenshots to confirm.\n"
+                "Record proactive improvements via BRAIN log.\n"
+            )
+
         ctx = SessionContext(system_prompt=prompt)
         with self._lock:
             self._sessions[sid] = Session(
@@ -1230,6 +1265,9 @@ class ConversationManager:
             self._emit({"type": "queue_updated",
                         "queue": self._serialize_queue(session_id)})
             return
+
+        if mode and session:
+            session.mode = mode
 
         self._start_turn(session_id, text, blocking, context_feed, turn_limit)
 
@@ -1447,6 +1485,7 @@ class ConversationManager:
         session.message_count += 1
         self._cancel_requested = False
         self._current_turn_session_id = session_id
+        self._thread_local.session_id = session_id
         self._current_round = 0
         self._turn_writes = []
         self._turn_reads: List[str] = []
@@ -1455,6 +1494,7 @@ class ConversationManager:
         self._auto_tried = set()
         self._auto_retry_count = 0
         self._auto_confirmed = False
+        self._thread_local.auto_confirmed = False
         self._emit({"type": "session_status", "id": session_id, "status": "running"})
         self._fire_hook("on_turn_start",
                         session_id=session_id, user_text=text,
@@ -1593,8 +1633,12 @@ class ConversationManager:
                     _was_cancelled = True
                     break
 
-                if round_num > 0 and self._provider_name != actual_provider_name:
-                    new_name = self._provider_name
+                _user_selection = self._provider_name
+                _selection_changed = (round_num > 0
+                                     and _user_selection != actual_provider_name
+                                     and not (is_auto and _user_selection == "auto"))
+                if _selection_changed:
+                    new_name = _user_selection
                     if new_name == "auto":
                         self._emit({"type": "system_notice",
                                     "text": "Switched to Auto. Re-deciding model\u2026",
@@ -1608,6 +1652,7 @@ class ConversationManager:
                                 pipeline = get_pipeline(actual_provider_name)
                                 is_auto = True
                                 self._auto_confirmed = False
+                                self._thread_local.auto_confirmed = False
                             else:
                                 self._emit({"type": "system_notice",
                                             "text": "Auto re-decision failed: no available providers.",
@@ -1698,15 +1743,21 @@ class ConversationManager:
                                 break
                             if first_chunk and chunk.get("ok"):
                                 first_chunk = False
-                                if is_auto and not getattr(self, '_auto_confirmed', False):
+                                _tl_confirmed = getattr(self._thread_local, 'auto_confirmed', False)
+                                if not (is_auto and not _tl_confirmed):
+                                    self._emit({"type": "llm_response_start", "round": round_num})
+
+                            if chunk.get("ok"):
+                                has_content = bool(chunk.get("text") or chunk.get("reasoning") or chunk.get("tool_calls"))
+                                _tl_confirmed = getattr(self._thread_local, 'auto_confirmed', False)
+                                if has_content and is_auto and not _tl_confirmed:
+                                    self._thread_local.auto_confirmed = True
                                     self._auto_confirmed = True
                                     self._emit({
                                         "type": "model_confirmed",
                                         "provider": actual_provider_name,
                                     })
-                                self._emit({"type": "llm_response_start", "round": round_num})
-
-                            if chunk.get("ok"):
+                                    self._emit({"type": "llm_response_start", "round": round_num})
                                 r = chunk.get("reasoning", "")
                                 if r:
                                     self._emit({"type": "thinking", "tokens": r})
@@ -1747,6 +1798,12 @@ class ConversationManager:
                                                                     "index": idx, "content": fn_args})
                                     self._merge_streaming_tool_calls(tool_calls_accum, tc)
                                 if chunk.get("done"):
+                                    _tl_confirmed = getattr(self._thread_local, 'auto_confirmed', False)
+                                    if is_auto and not _tl_confirmed:
+                                        self._thread_local.auto_confirmed = True
+                                        self._auto_confirmed = True
+                                        self._emit({"type": "model_confirmed", "provider": actual_provider_name})
+                                        self._emit({"type": "llm_response_start", "round": round_num})
                                     for sidx in _streaming_tc_map:
                                         self._emit({"type": "tool_stream_end",
                                                     "index": sidx, "round": round_num})
@@ -1840,6 +1897,7 @@ class ConversationManager:
                             if fallback:
                                 self._auto_retry_count = _auto_retries + 1
                                 self._auto_confirmed = False
+                                self._thread_local.auto_confirmed = False
                                 actual_provider_name = fallback
                                 provider = get_provider(actual_provider_name)
                                 pipeline = get_pipeline(actual_provider_name)
@@ -1963,8 +2021,14 @@ class ConversationManager:
                 if not tool_calls_accum:
                     if full_text:
                         session.context.add_assistant(full_text)
+
+                        if session_mode in ("ask", "plan"):
+                            break
+
+                        _has_writes = bool(getattr(self, '_turn_writes', []))
                         if (tools and round_num <= 6
-                                and self._should_nudge(full_text, round_num)):
+                                and not _has_writes
+                                and self._should_nudge(full_text, round_num, text)):
                             has_read = any(
                                 r.get("cmd", "").startswith("read:")
                                 for r in session.environment.last_results)
@@ -2119,6 +2183,18 @@ class ConversationManager:
                         self._emit({"type": "debug",
                                      "text": "Loop detected — nudging synthesis"})
 
+                if session_mode == "meta-agent" and round_num > 0 and round_num % 5 == 0:
+                    session.context.add_user(
+                        "[Meta-Agent Check] Pause and self-evaluate:\n"
+                        "1. Self-Iteration: Are you faster/more accurate than round 1? "
+                        "If you re-derived something already in skills/brain, note the gap.\n"
+                        "2. Environment: Did you spot anything broken near the code you touched "
+                        "(docs, tests, inconsistencies)? Fix it now or note it.\n"
+                        "3. Verify: If you changed frontend code, plan to screenshot-verify.\n"
+                        "Continue working after this self-check.")
+                    self._emit({"type": "debug",
+                                 "text": f"Meta-agent self-check at round {round_num}"})
+
                 if (_is_unlimited
                         and round_num > 0
                         and round_num % ZOMBIE_CHECK_INTERVAL == 0):
@@ -2233,17 +2309,30 @@ class ConversationManager:
     # ── Nudge Detection ──
 
     @staticmethod
-    def _should_nudge(text: str, round_num: int = 0) -> bool:
+    def _should_nudge(text: str, round_num: int = 0,
+                      user_prompt: str = "") -> bool:
         """Detect if the agent described code changes without applying them.
 
         Returns True if the text looks like a description of code changes
         (contains code blocks, file references, or change verbs) rather
         than a final answer to a question.
         """
-        text_lower = text.lower()
+        prompt_lower = user_prompt.lower()
+        non_edit_indicators = [
+            "how many", "what is", "what are", "tell me",
+            "explain", "describe", "list", "count", "analyze",
+            "show me", "compare", "summarize", "find",
+            "which", "why", "where", "when", "who",
+            "write a", "write me", "compose", "draft",
+            "generate a", "come up with", "brainstorm",
+            "translate", "convert", "calculate", "solve",
+            "多少", "什么", "解释", "分析", "列出", "描述",
+            "统计", "查看", "告诉", "写一", "翻译", "计算",
+        ]
+        if any(q in prompt_lower for q in non_edit_indicators):
+            return False
 
-        if round_num <= 1 and len(text) < 100:
-            return True
+        text_lower = text.lower()
 
         code_indicators = ["```", "def ", "class ", "import ",
                            "<html", "function ", "const "]
@@ -2270,11 +2359,12 @@ class ConversationManager:
 
         summary_indicators = [
             "summary", "analysis", "conclusion", "finding",
+            "here are", "the file contains", "there are",
             "总结", "分析", "结论", "发现", "如果", "会怎样",
             "依赖链", "接口", "调用关系", "追踪",
         ]
         is_summary = any(ind in text_lower for ind in summary_indicators)
-        if is_summary and len(text) > 150:
+        if is_summary and len(text) > 100:
             return False
 
         return (has_code or has_action_desc) and not already_applied
