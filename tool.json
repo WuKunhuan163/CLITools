@@ -10,7 +10,8 @@
     "PYTHON",
     "GIT",
     "SKILLS",
-    "FILEDIALOG"
+    "FILEDIALOG",
+    "IDE"
   ],
   "tools": [
     "PYTHON",
@@ -61,6 +62,7 @@
     "CHARTCUBE",
     "YUQUE",
     "OPENCLAW",
-    "QUICKMATH"
+    "QUICKMATH",
+    "IDE"
   ]
 }

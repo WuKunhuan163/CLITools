@@ -1,0 +1,9 @@
+{
+  "name": "IDE",
+  "version": "2.0.0",
+  "description": "AI IDE detection, configuration, and hook management",
+  "purpose": "Manages Cursor/VS Code/Windsurf integration including rules, hooks, and deployment of IDE-specific configuration",
+  "dependencies": ["PYTHON"],
+  "tos_compliant": true,
+  "api": "Local IDE configuration files"
+}

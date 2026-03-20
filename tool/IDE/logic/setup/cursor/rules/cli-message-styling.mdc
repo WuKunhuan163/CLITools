@@ -1,0 +1,98 @@
+---
+description: Minimal-emphasis styling rules for CLI status messages, prompts, and agent output
+alwaysApply: true
+---
+
+# CLI Message Styling: Minimal Emphasis
+
+When writing user-facing CLI messages (status prompts, error messages, confirmations, progress updates), follow these rules to keep emphasis minimal and purposeful.
+
+## Core Principle
+
+Bold and color should highlight **only the minimal core phrase** — the result or status. Everything else (complements, hints, IDs, details) stays in default or dimmed style.
+
+## Standard Formatters (use these!)
+
+Always use the reusable functions from `logic/turing/status.py` instead of hand-assembling ANSI strings:
+
+```python
+from interface.status import fmt_status, fmt_detail, fmt_stage, fmt_warning, fmt_info
+
+print(fmt_status("Saved.", dim="3 policies"))          # bold label + dim detail
+print(fmt_status("Failed.", complement="Try /setup.", style="error"))
+print(fmt_detail("Session be58ac60 is ready."))        # auto-dimmed, 4-space indent
+print(fmt_stage("Starting...", status="active"))       # > indicator with bold label
+print(fmt_warning("Using cached results."))            # Warning: ... (dimmed)
+print(fmt_info("Session ID: be58ac60"))                # dimmed info line
+```
+
+These enforce indent, truncation, and the minimal-emphasis rule automatically.
+
+For Turing machine stages, `ProgressTuringMachine` also provides:
+- `pm.warning("text")` — emit a dimmed warning via the display manager
+- `pm.info("text")` — emit a dimmed info line via the display manager
+
+## Grammatical Structure
+
+Status messages follow one of these patterns:
+
+| Pattern | Bold Part | Default/Dim Part |
+|---------|-----------|-----------------|
+| Verb + Noun | **Saved.** | |
+| Verb + Adjective | **Session not found.** | `be58ac60` |
+| Adverb + Verb | **Successfully saved.** | |
+| Noun + Verb | **Provider not configured.** | Run /setup to configure. |
+
+The bold portion forms the **minimal complete predicate** — the shortest phrase that conveys the outcome. Everything after it is a complement (explanation, hint, ID, path) and should not be bold.
+
+## Examples
+
+```python
+from interface.status import fmt_status, fmt_detail
+
+# CORRECT: use fmt_status — enforces bold label + default/dim rest
+print(fmt_status("Deleted.", dim=session_id))
+print(fmt_status("Session not found.", dim=sid))
+print(fmt_status("Provider not configured.", complement="Run /setup to configure."))
+print(fmt_status("Unknown command.", complement="Type /help.", style="error"))
+
+# ALSO CORRECT: manual ANSI when fmt_status doesn't fit
+print(f"  {BOLD}Deleted.{RESET} {DIM}{session_id}{RESET}")
+
+# WRONG: bolding the entire message including complements
+print(f"  {BOLD}Deleted session {session_id}.{RESET}")
+print(f"  {BOLD}Session not found: {sid}{RESET}")
+print(f"  {BOLD}Provider not configured. Run /setup to configure.{RESET}")
+```
+
+## Color Usage
+
+| Element | Style |
+|---------|-------|
+| Status result (success) | `{BOLD}text{RESET}` or `{GREEN}{BOLD}text{RESET}` |
+| Status result (error) | `{RED}{BOLD}text{RESET}` |
+| Complement / hint | Default style (no formatting) |
+| IDs, paths, details | `{DIM}text{RESET}` |
+| Stage indicator `>` | Colored by state (green=done, red=error, default=active) |
+| Stage label | `{BOLD}label{RESET}` (may include color, e.g. `{GREEN}{BOLD}`) |
+| Stage description | Default style |
+| Detail lines | `{DIM}text{RESET}` (auto-applied by `fmt_detail()`) |
+| Warning notices | `{YELLOW}{DIM}Warning:{RESET} {DIM}text{RESET}` (use `fmt_warning()`) |
+| Info notices | `{DIM}text{RESET}` (use `fmt_info()`) |
+
+## Punctuation
+
+- In-progress messages end with `...` (e.g., "Starting session...")
+- Completed/reference states end with `.` (e.g., "Session started.")
+- Never use `!` in status messages.
+
+## Structured Stage Display
+
+Agent operations use the `> label desc` format:
+
+```
+  > {BOLD}Preparing request{RESET} Sending to zhipu-glm-4-flash (step 1)... [logs/s1.log.md]
+    {DIM}ID: be58ac60-1234-5678-abcd{RESET}
+```
+
+The `>` indicator is colored by state; the label is always bold; the description and details are never bold.
