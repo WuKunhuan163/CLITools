@@ -19,7 +19,7 @@ class TestCommand(EcoCommand):
         tp.add_argument("--max", type=int, default=3, help="Max concurrent tests")
         tp.add_argument("--timeout", type=int, default=60, help="Test timeout")
         tp.add_argument("--list", action="store_true", help="List tests only")
-        tp.add_argument("--no-warning", action="store_true")
+        tp.add_argument("-no-warning", "--no-warning", action="store_true")
         parsed = tp.parse_args(args)
 
         from interface.test import test_tool_with_args

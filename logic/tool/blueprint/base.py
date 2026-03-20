@@ -10,7 +10,7 @@ class ToolBase:
     def __init__(self, tool_name, is_root=False):
         self.tool_name = tool_name
         self.is_root = is_root
-        self.no_warning = "--no-warning" in sys.argv
+        self.no_warning = "-no-warning" in sys.argv or "--no-warning" in sys.argv
 
         import inspect
         caller_file = Path(inspect.stack()[1].filename).resolve()
@@ -225,9 +225,13 @@ class ToolBase:
         """
         self.check_cpu_load_and_warn()
 
-        self.is_quiet = "--tool-quiet" in sys.argv
+        # ---- Tier 3: Strip decorator flags (single-dash) ----
+        self.is_quiet = "-tool-quiet" in sys.argv or "--tool-quiet" in sys.argv
 
-        sys.argv = [sys.argv[0]] + [a for a in sys.argv[1:] if a not in ["--no-warning", "--tool-quiet"]]
+        sys.argv = [sys.argv[0]] + [
+            a for a in sys.argv[1:]
+            if a not in ["-no-warning", "--no-warning", "-tool-quiet", "--tool-quiet"]
+        ]
 
         # ---- Rewrite --mcp-* to bare subcommands for argparse ----
         sys.argv = [sys.argv[0]] + [
@@ -235,60 +239,66 @@ class ToolBase:
             for a in sys.argv[1:]
         ]
 
-        # ---- Framework flag intercepts (--prefixed, before argparse) ----
-        def _extract_flag_args(flag):
-            """Extract arguments after a --flag from sys.argv."""
-            if flag in sys.argv:
-                idx = sys.argv.index(flag)
-                return sys.argv[idx + 1:]
+        # ---- Tier 1: Shared eco command intercepts (---prefixed, before argparse) ----
+        def _extract_eco_args(name):
+            """Extract arguments after a shared eco command.
+            
+            Accepts both ---name (canonical) and --name (migration compat).
+            """
+            triple = f"---{name}"
+            double = f"--{name}"
+            for flag in (triple, double):
+                if flag in sys.argv:
+                    idx = sys.argv.index(flag)
+                    return sys.argv[idx + 1:]
             return None
 
-        dev_args = _extract_flag_args("--dev")
+        dev_args = _extract_eco_args("dev")
         if dev_args is not None:
             (dev_handler or self._handle_default_dev)(dev_args)
             return True
 
-        test_args = _extract_flag_args("--test")
+        test_args = _extract_eco_args("test")
         if test_args is not None:
             (test_handler or self._handle_default_test)(test_args)
             return True
 
-        if _extract_flag_args("--setup") is not None:
+        if _extract_eco_args("setup") is not None:
             self.run_setup()
             return True
 
-        session_args = _extract_flag_args("--assistant")
+        session_args = _extract_eco_args("assistant")
         if session_args is not None:
             self._handle_assistant(session_args)
             return True
 
-        endpoint_args = _extract_flag_args("--endpoint")
+        endpoint_args = _extract_eco_args("endpoint")
         if endpoint_args is not None:
             self._handle_endpoint(endpoint_args)
             return True
 
         from logic._.agent.command import ALLOW_ASSISTANT_SHORTHAND
         if ALLOW_ASSISTANT_SHORTHAND:
-            agent_args = _extract_flag_args("--agent")
+            agent_args = _extract_eco_args("agent")
             if agent_args is not None:
                 self._handle_agent(agent_args)
                 return True
 
-            ask_args = _extract_flag_args("--ask")
+            ask_args = _extract_eco_args("ask")
             if ask_args is not None:
                 self._handle_agent(ask_args, mode="ask")
                 return True
 
-            plan_args = _extract_flag_args("--plan")
+            plan_args = _extract_eco_args("plan")
             if plan_args is not None:
                 self._handle_agent(plan_args, mode="plan")
                 return True
 
-        if _extract_flag_args("--rule") is not None:
+        if _extract_eco_args("rule") is not None:
             self.print_rule()
             return True
 
-        config_args = _extract_flag_args("--config")
+        config_args = _extract_eco_args("config")
         if config_args is not None:
             is_custom_config = False
             if parser:
@@ -300,39 +310,39 @@ class ToolBase:
                 self._handle_tool_config(config_args)
                 return True
 
-        install_args = _extract_flag_args("--install")
+        install_args = _extract_eco_args("install")
         if install_args is not None:
             if install_args:
                 self.run_subtool_install(install_args[0])
             else:
-                print(f"Usage: {self.tool_name} --install <SUBTOOL_NAME>")
+                print(f"Usage: {self.tool_name} ---install <SUBTOOL_NAME>")
             return True
 
-        uninstall_args = _extract_flag_args("--uninstall")
+        uninstall_args = _extract_eco_args("uninstall")
         if uninstall_args is not None:
             if uninstall_args:
                 force_yes = "-y" in uninstall_args or "--yes" in uninstall_args
                 self.run_subtool_uninstall(uninstall_args[0], force_yes=force_yes)
             else:
-                print(f"Usage: {self.tool_name} --uninstall <SUBTOOL_NAME> [-y]")
+                print(f"Usage: {self.tool_name} ---uninstall <SUBTOOL_NAME> [-y]")
             return True
 
-        skills_args = _extract_flag_args("--skills")
+        skills_args = _extract_eco_args("skills")
         if skills_args is not None:
             self._handle_skills_command(skills_args)
             return True
 
-        hooks_args = _extract_flag_args("--hooks")
+        hooks_args = _extract_eco_args("hooks")
         if hooks_args is not None:
             self._handle_hooks_command(hooks_args)
             return True
 
-        eco_args = _extract_flag_args("--eco")
+        eco_args = _extract_eco_args("eco")
         if eco_args is not None:
             self._handle_eco_command(eco_args)
             return True
 
-        call_reg_args = _extract_flag_args("--call-register")
+        call_reg_args = _extract_eco_args("call-register")
         if call_reg_args is not None:
             self._handle_call_register(call_reg_args)
             return True
@@ -483,7 +493,7 @@ class ToolBase:
         tp.add_argument("--max", type=int, default=3, help="Max concurrent tests")
         tp.add_argument("--timeout", type=int, default=60, help="Timeout per test")
         tp.add_argument("--list", action="store_true", help="List tests only")
-        tp.add_argument("--no-warning", action="store_true")
+        tp.add_argument("-no-warning", "--no-warning", action="store_true")
         test_args = tp.parse_args(args)
 
         test_args.tool_name = self.tool_name

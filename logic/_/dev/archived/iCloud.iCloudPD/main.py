@@ -65,7 +65,7 @@ def main():
     parser.add_argument("--formats", type=str, help="Filter by extensions, e.g. '*.png|*.jpg'")
     parser.add_argument("--regex", type=str, help="Regex filter for 'yyyy-mm-dd/filename'")
     parser.add_argument("--only-scan", action="store_true", help="Only scan and cache metadata, do not download")
-    parser.add_argument("--no-warning", action="store_true", help="Suppress warning messages in progress display")
+    parser.add_argument("-no-warning", "--no-warning", action="store_true", help="Suppress warning messages in progress display")
     parser.add_argument("--local-photos", nargs='?', const='default', help="Check local Photos Library before downloading from iCloud. If path is omitted, the default ~/Pictures/Photos Library.photoslibrary is used.")
     parser.add_argument("--prefix", type=str, default="", help="Prefix for the photo filename (supports placeholders: <YYYY>, <MM>, <DD>, <hh>, <mm>, <ss>, <ID>, <FILENAME>)")
     parser.add_argument("--suffix", type=str, default="", help="Suffix for the photo filename (supports placeholders)")

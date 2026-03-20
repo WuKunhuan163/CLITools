@@ -197,7 +197,7 @@ def main():
     parser.add_argument("--limit", type=int, default=3, help="Max assets to download")
     parser.add_argument("--py-ver", dest="version", help="Download a specific version (e.g. 3.10.19)")
     parser.add_argument("--py-platform", dest="platform", help="Filter by platform")
-    parser.add_argument("--tool-quiet", action="store_true", help="Minimize output for tool-to-tool calls")
+    parser.add_argument("-tool-quiet", "--tool-quiet", action="store_true", help="Minimize output for tool-to-tool calls")
     args = parser.parse_args()
 
     # Use the unified cache with filters applied directly

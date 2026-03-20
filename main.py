@@ -79,29 +79,29 @@ def _workspace_dispatch(args):
         return _ECO_CMD_REGISTRY["workspace"].handle(args[1:], action=sub)
     return _ECO_CMD_REGISTRY["workspace"].handle(args, action="status")
 
-# Maps --flag to handler function
+# Shared eco command handlers (Tier 1: ---prefixed, also accepts -- for migration)
 _TOOL_FLAG_HANDLERS = {
-    "--dev": lambda args: _eco_cmd("dev", args),
-    "--test": lambda args: _eco_cmd("test", args),
-    "--config": lambda args: _eco_cmd("config", args),
-    "--install": lambda args: _eco_cmd("install", args),
-    "--reinstall": lambda args: _eco_cmd("reinstall", args),
-    "--uninstall": lambda args: _eco_cmd("uninstall", args),
-    "--list": lambda args: _eco_cmd("list", args),
-    "--status": lambda args: _eco_cmd("status", args),
-    "--audit": lambda args: _eco_cmd("audit", args),
-    "--search": lambda args: _eco_cmd("search", args),
-    "--eco": lambda args: _eco_cmd("eco", args),
-    "--assistant": lambda args: _root_tool._handle_assistant(args),
-    "--setup": lambda args: _root_tool.run_setup(),
-    "--skills": lambda args: (
+    "---dev": lambda args: _eco_cmd("dev", args),
+    "---test": lambda args: _eco_cmd("test", args),
+    "---config": lambda args: _eco_cmd("config", args),
+    "---install": lambda args: _eco_cmd("install", args),
+    "---reinstall": lambda args: _eco_cmd("reinstall", args),
+    "---uninstall": lambda args: _eco_cmd("uninstall", args),
+    "---list": lambda args: _eco_cmd("list", args),
+    "---status": lambda args: _eco_cmd("status", args),
+    "---audit": lambda args: _eco_cmd("audit", args),
+    "---search": lambda args: _eco_cmd("search", args),
+    "---eco": lambda args: _eco_cmd("eco", args),
+    "---assistant": lambda args: _root_tool._handle_assistant(args),
+    "---setup": lambda args: _root_tool.run_setup(),
+    "---skills": lambda args: (
         _eco_cmd("eco", [args[0]] + args[1:]) if args and args[0] in ("nav", "tree")
         else _eco_cmd("eco", ["skills"]) if args and args[0] == "list"
         else _eco_cmd("eco", ["skill"] + args[1:]) if args and args[0] == "show"
         else _eco_cmd("eco", ["skill"] + args if args else ["skills"])
     ),
-    "--migrate": lambda args: _eco_cmd("migrate", args),
-    "--workspace": lambda args: _workspace_dispatch(args),
+    "---migrate": lambda args: _eco_cmd("migrate", args),
+    "---workspace": lambda args: _workspace_dispatch(args),
 }
 
 # Shorthand: --agent/--ask/--plan as top-level commands (omit --assistant).
@@ -109,51 +109,53 @@ _TOOL_FLAG_HANDLERS = {
 try:
     from logic._.agent.command import ALLOW_ASSISTANT_SHORTHAND
     if ALLOW_ASSISTANT_SHORTHAND:
-        _TOOL_FLAG_HANDLERS["--agent"] = lambda args: _root_tool._handle_agent(args)
-        _TOOL_FLAG_HANDLERS["--ask"] = lambda args: _root_tool._handle_agent(args, mode="ask")
-        _TOOL_FLAG_HANDLERS["--plan"] = lambda args: _root_tool._handle_agent(args, mode="plan")
+        _TOOL_FLAG_HANDLERS["---agent"] = lambda args: _root_tool._handle_agent(args)
+        _TOOL_FLAG_HANDLERS["---ask"] = lambda args: _root_tool._handle_agent(args, mode="ask")
+        _TOOL_FLAG_HANDLERS["---plan"] = lambda args: _root_tool._handle_agent(args, mode="plan")
 except ImportError:
     pass
 
 def _print_tool_help():
     """Print unified help for all TOOL commands."""
     print(f"{BOLD}AITerminalTools Manager{RESET}")
-    print(f"\nUsage: TOOL <command> [options]\n")
+    print(f"\nUsage: TOOL <command> [options]")
+    print(f"\n  Prefix convention: ---<eco>  --<tool>  -<modifier>\n")
     print(f"  {BOLD}Ecosystem Navigation (start here){RESET}")
-    print(f"    --eco                      Dashboard — tools, skills, brain overview")
-    print(f"    --eco search <query>       Find anything across the ecosystem")
-    print(f"    --eco tool <name>          Deep-dive into a specific tool")
-    print(f"    --eco skill <name>         Read a development skill/pattern")
-    print(f"    --eco guide                Onboarding guide for new agents")
-    print(f"    --eco map | here | recall  Structure, context, memory search")
-    print(f"    --eco cmds | cmd <name>    Blueprint shortcut commands")
+    print(f"    ---eco                     Dashboard — tools, skills, brain overview")
+    print(f"    ---eco search <query>      Find anything across the ecosystem")
+    print(f"    ---eco tool <name>         Deep-dive into a specific tool")
+    print(f"    ---eco skill <name>        Read a development skill/pattern")
+    print(f"    ---eco guide               Onboarding guide for new agents")
+    print(f"    ---eco map | here | recall Structure, context, memory search")
+    print(f"    ---eco cmds | cmd <name>   Blueprint shortcut commands")
     print(f"\n  {BOLD}Tool Lifecycle{RESET}")
-    print(f"    --install <name>           Install a tool")
-    print(f"    --reinstall <name>         Reinstall a tool")
-    print(f"    --uninstall <name> [-y]    Uninstall a tool")
-    print(f"    --list [--force] [lang]     List all available tools (or languages)")
-    print(f"    --status                   Show installed tools and their status")
+    print(f"    ---install <name>          Install a tool")
+    print(f"    ---reinstall <name>        Reinstall a tool")
+    print(f"    ---uninstall <name> [-y]   Uninstall a tool")
+    print(f"    ---list [--force] [lang]   List all available tools (or languages)")
+    print(f"    ---status                  Show installed tools and their status")
     print(f"\n  {BOLD}Quality & Search{RESET}")
-    print(f"    --audit <sub>              Code quality audits (imports, quality, code, --lang)")
-    print(f"    --search <sub> <query>     Semantic search (tools, skills, lessons, docs, all)")
+    print(f"    ---audit <sub>             Code quality audits (imports, quality, code, --lang)")
+    print(f"    ---search <sub> <query>    Semantic search (tools, skills, lessons, docs, all)")
     print(f"\n  {BOLD}Development{RESET}")
-    print(f"    --dev <sub>                Developer commands (create, sync, create-rule)")
-    print(f"    --test <sub>               Run tests")
-    print(f"    --config <sub>             Manage global configuration")
-    print(f"    --migrate --<level> <domain>  Migration framework (tool, infrastructure, skills)")
+    print(f"    ---dev <sub>               Developer commands (create, sync, create-rule)")
+    print(f"    ---test <sub>              Run tests")
+    print(f"    ---config <sub>            Manage global configuration")
+    print(f"    ---migrate --<level> <domain> Migration framework (tool, infrastructure, skills)")
     print(f"\n  {BOLD}Assistant{RESET}")
-    print(f"    --agent <prompt>           Agent mode")
-    print(f"    --ask <prompt>             Ask mode (read-only)")
-    print(f"    --plan <prompt>            Plan mode")
-    print(f"    --assistant <sub>          Manage sessions")
+    print(f"    ---agent <prompt>          Agent mode")
+    print(f"    ---ask <prompt>            Ask mode (read-only)")
+    print(f"    ---plan <prompt>           Plan mode")
+    print(f"    ---assistant <sub>         Manage sessions")
     print(f"\n  {BOLD}Workspace{RESET}")
-    print(f"    --workspace                Show active workspace")
-    print(f"    --workspace create <path>  Create a new workspace")
-    print(f"    --workspace list           List all workspaces")
+    print(f"    ---workspace               Show active workspace")
+    print(f"    ---workspace create <path> Create a new workspace")
+    print(f"    ---workspace list          List all workspaces")
     print(f"\nUse TOOL <command> --help for details on each command.")
 
 def main():
-    stripped_argv = [a for a in sys.argv[1:] if a not in ["--no-warning", "--tool-quiet"]]
+    stripped_argv = [a for a in sys.argv[1:]
+                     if a not in ["-no-warning", "--no-warning", "-tool-quiet", "--tool-quiet"]]
 
     current_lang = get_global_config("language", "en")
     set_rtl_mode(current_lang in ["ar"])
@@ -167,15 +169,17 @@ def main():
     _d = get_color("DIM", "\033[2m")
     _r = get_color("RESET", "\033[0m")
 
-    # Enforce --eco prefix to avoid tool name collision
+    # Enforce ---eco prefix to avoid tool name collision
     if primary == "eco":
-        print(f"{_b}Use --eco{_r} (with prefix).")
-        print(f"  {_d}TOOL --eco                   Dashboard{_r}")
-        print(f"  {_d}TOOL --eco search \"query\"     Search ecosystem{_r}")
-        print(f"  {_d}TOOL --eco --help             All eco commands{_r}")
+        print(f"{_b}Use ---eco{_r} (with triple-dash prefix).")
+        print(f"  {_d}TOOL ---eco                   Dashboard{_r}")
+        print(f"  {_d}TOOL ---eco search \"query\"     Search ecosystem{_r}")
+        print(f"  {_d}TOOL ---eco --help             All eco commands{_r}")
         return
 
-    canon = primary if primary.startswith("--") else f"--{primary.lstrip('-')}"
+    # Normalize: ---name is canonical, --name accepted for migration
+    name = primary.lstrip("-")
+    canon = f"---{name}"
 
     if canon in _TOOL_FLAG_HANDLERS:
         _TOOL_FLAG_HANDLERS[canon](stripped_argv[1:])
@@ -189,7 +193,7 @@ def main():
     matches = suggest_commands(user_cmd, candidates, n=3, cutoff=0.5)
     normalized = []
     for m in matches:
-        c = f"--{m}" if not m.startswith("-") else m
+        c = f"---{m}" if not m.startswith("-") else m
         if c not in normalized:
             normalized.append(c)
     print(f"{_b}Unknown command:{_r} {user_cmd}")
