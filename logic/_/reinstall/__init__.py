@@ -1,3 +1,3 @@
-from .command import ReinstallCommand
+from .cli import ReinstallCommand
 
 __all__ = ["ReinstallCommand"]

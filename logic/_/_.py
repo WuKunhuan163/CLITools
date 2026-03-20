@@ -109,8 +109,8 @@ class EcoCommand:
         """Create an argparse.ArgumentParser pre-configured with tool/command name."""
         import argparse
         return argparse.ArgumentParser(
-            prog=f"{self.tool_name} --{self.name}",
-            description=description or f"{self.tool_name} --{self.name}",
+            prog=f"{self.tool_name} ---{self.name}",
+            description=description or f"{self.tool_name} ---{self.name}",
             **kwargs,
         )
 

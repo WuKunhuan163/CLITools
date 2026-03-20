@@ -215,13 +215,13 @@ class EcoNavCommand(EcoCommand):
 
     def _skills_nav(self, rest):
         """Delegate to SkillsCommand.nav for dictionary-tree navigation."""
-        from logic._.skills.command import SkillsCommand
+        from logic._.skills.cli import SkillsCommand
         sc = SkillsCommand(project_root=self.project_root, tool_name=self.tool_name)
         sc._nav(" ".join(rest) if rest else "")
 
     def _skills_tree(self):
         """Delegate to SkillsCommand.tree for full tree display."""
-        from logic._.skills.command import SkillsCommand
+        from logic._.skills.cli import SkillsCommand
         sc = SkillsCommand(project_root=self.project_root, tool_name=self.tool_name)
         sc._tree()
 

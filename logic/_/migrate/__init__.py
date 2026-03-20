@@ -1,4 +1,4 @@
-from .command import MigrateCommand
+from .cli import MigrateCommand
 from .core import (
     list_domains,
     get_domain_info,

@@ -281,6 +281,113 @@ def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Ca
     success_status = _("label_success", "Successfully")
     print(f"{BOLD}{GREEN}{success_status}{RESET} " + _("created_tool_template", "created tool template at {name}", name=tool_dir))
 
+def dev_scaffold_entrypoint(tool_name: str, cmd_path: str, project_root: Path,
+                            translation_func: Optional[Callable] = None):
+    """Scaffold an entry point directory within a tool.
+    
+    Creates cli.py, README.md, AGENT.md templates at the specified path.
+    Example: dev_scaffold_entrypoint("LLM", "provider/add", root)
+      → creates tool/LLM/logic/provider/add/{cli.py, README.md, AGENT.md}
+    """
+    _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))
+    BOLD = get_color("BOLD", "\033[1m")
+    GREEN = get_color("GREEN", "\033[32m")
+    RED = get_color("RED", "\033[31m")
+    DIM = get_color("DIM", "\033[2m")
+    RESET = get_color("RESET", "\033[0m")
+
+    tool_dir = project_root / "tool" / tool_name
+    if not tool_dir.exists():
+        print(f"  {BOLD}{RED}Error{RESET}: Tool '{tool_name}' not found.")
+        return
+
+    parts = [p for p in cmd_path.replace("\\", "/").split("/") if p]
+    if not parts:
+        print(f"  {BOLD}{RED}Error{RESET}: Empty command path.")
+        return
+
+    target_dir = tool_dir / "logic"
+    for part in parts:
+        target_dir = target_dir / part
+
+    if target_dir.exists():
+        print(f"  {BOLD}{RED}Error{RESET}: Path already exists: {target_dir.relative_to(project_root)}")
+        return
+
+    target_dir.mkdir(parents=True, exist_ok=True)
+    (target_dir / "__init__.py").write_text("")
+
+    cmd_name = parts[-1]
+    full_cmd = " ".join(parts)
+    short_name = tool_name.split(".")[-1] if "." in tool_name else tool_name
+
+    cli_content = f'''"""Entry point for: {short_name} {full_cmd}"""
+import argparse
+
+
+def handle(args):
+    """Handle the '{cmd_name}' command."""
+    parser = argparse.ArgumentParser(
+        prog="{short_name} {full_cmd}",
+        description="{cmd_name} command for {tool_name}",
+    )
+    parser.add_argument("value", nargs="?", help="Positional argument")
+    parsed = parser.parse_args(args)
+
+    if parsed.value:
+        print(f"{{parsed.value}}")
+    else:
+        parser.print_help()
+'''
+    (target_dir / "cli.py").write_text(cli_content)
+
+    readme_content = f"""# {short_name} {full_cmd}
+
+{cmd_name} command.
+
+## Usage
+
+```bash
+{short_name} {full_cmd} [options]
+```
+"""
+    (target_dir / "README.md").write_text(readme_content)
+
+    agent_content = f"""# {short_name} {full_cmd} — Agent Reference
+
+## Entry Point
+
+`tool/{tool_name}/logic/{'/'.join(parts)}/cli.py`
+
+## Handles
+
+`{short_name} {full_cmd} <value>`
+"""
+    (target_dir / "AGENT.md").write_text(agent_content)
+
+    # Also create intermediate README/AGENT for parent directories
+    current = tool_dir / "logic"
+    for i, part in enumerate(parts[:-1]):
+        current = current / part
+        if not (current / "README.md").exists():
+            sub_path = " ".join(parts[:i+1])
+            (current / "README.md").write_text(f"# {short_name} {sub_path}\n\nCommand group.\n")
+        if not (current / "AGENT.md").exists():
+            sub_path = " ".join(parts[:i+1])
+            (current / "AGENT.md").write_text(
+                f"# {short_name} {sub_path} — Agent Reference\n\n"
+                f"Subcommands under `{sub_path}`.\n"
+            )
+        if not (current / "__init__.py").exists():
+            (current / "__init__.py").write_text("")
+
+    rel = target_dir.relative_to(project_root)
+    print(f"  {BOLD}{GREEN}Scaffolded.{RESET} {DIM}{rel}/{RESET}")
+    print(f"    cli.py      Entry point handler")
+    print(f"    README.md   User documentation")
+    print(f"    AGENT.md    Agent reference")
+
+
 def dev_sanity_check(tool_name: str, project_root: Path, fix: bool = False, translation_func: Optional[Callable] = None) -> bool:
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))
     BOLD = get_color("BOLD", "\033[1m")

@@ -1,3 +1,3 @@
-from .command import UninstallCommand
+from .cli import UninstallCommand
 
 __all__ = ["UninstallCommand"]

@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
+"""TOOL — AITerminalTools root CLI manager.
+
+Three-tier command structure:
+  ---<eco>   Shared eco commands (directory-discovered from logic/_/)
+  --<tool>   Hierarchical tool-specific commands
+  -<mod>     Decorator flags (-no-warning, -tool-quiet)
+"""
 import sys
 from pathlib import Path
 
-# Add project root to sys.path
 _script_path = Path(__file__).resolve()
 if _script_path.parent.name == "bin":
     ROOT_PROJECT_ROOT = _script_path.parent.parent
@@ -12,12 +18,13 @@ else:
 if str(ROOT_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT_PROJECT_ROOT))
 
-# Import colors and shared utils via interface
 from interface.config import get_color, get_global_config
 from interface.lang import get_translation
 from interface.utils import get_logic_dir, set_rtl_mode
+from interface.tool import ToolBase
 
 BOLD = get_color("BOLD", "\033[1m")
+DIM = get_color("DIM", "\033[2m")
 RESET = get_color("RESET", "\033[0m")
 
 SHARED_LOGIC_DIR = get_logic_dir(ROOT_PROJECT_ROOT)
@@ -26,132 +33,35 @@ def _(translation_key, default, **kwargs):
     text = get_translation(str(SHARED_LOGIC_DIR), translation_key, default)
     return text.format(**kwargs)
 
-_ECO_CMD_REGISTRY = {}
+_root_tool = ToolBase("TOOL", is_root=True)
 
-def _eco_cmd(name, args):
-    """Dispatch to an EcoCommand subclass by symmetric command name."""
-    if name not in _ECO_CMD_REGISTRY:
-        _module_map = {
-            "install": ("logic._.install", "InstallCommand"),
-            "reinstall": ("logic._.reinstall", "ReinstallCommand"),
-            "uninstall": ("logic._.uninstall", "UninstallCommand"),
-            "list": ("logic._.list", "ListCommand"),
-            "status": ("logic._.status", "StatusCommand"),
-            "migrate": ("logic._.migrate", "MigrateCommand"),
-            "dev": ("logic._.dev.command", "DevCommand"),
-            "test": ("logic._.test.command", "TestCommand"),
-            "config": ("logic._.config.command", "ConfigCommand"),
-            "audit": ("logic._.audit.command", "AuditCommand"),
-            "search": ("logic._.search.command", "SearchCommand"),
-            "eco": ("logic._.eco.command", "EcoNavCommand"),
-        }
-        entry = _module_map.get(name)
-        if not entry:
-            print(f"  Unknown eco command: {name}")
-            return 1
-        mod_path, cls_name = entry
-        import importlib
-        mod = importlib.import_module(mod_path)
-        cls = getattr(mod, cls_name)
-        _ECO_CMD_REGISTRY[name] = cls(
-            project_root=ROOT_PROJECT_ROOT,
-            tool_name="TOOL",
-            translation_func=_,
-        )
-    return _ECO_CMD_REGISTRY[name].handle(args)
-
-# Root ToolBase instance for hooks, call-register, agent, skills infrastructure
-from interface.tool import ToolBase as _ToolBase
-_root_tool = _ToolBase("TOOL", is_root=True)
-
-def _workspace_dispatch(args):
-    """Delegate workspace commands to WorkspaceCommand."""
-    if "workspace" not in _ECO_CMD_REGISTRY:
-        from logic._.workspace.command import WorkspaceCommand
-        _ECO_CMD_REGISTRY["workspace"] = WorkspaceCommand(
-            project_root=ROOT_PROJECT_ROOT,
-            tool_name="TOOL",
-            translation_func=_,
-        )
-    sub = args[0] if args else "status"
-    valid = {"create", "delete", "open", "close", "list", "status"}
-    if sub in valid:
-        return _ECO_CMD_REGISTRY["workspace"].handle(args[1:], action=sub)
-    return _ECO_CMD_REGISTRY["workspace"].handle(args, action="status")
-
-# Shared eco command handlers (Tier 1: ---prefixed, also accepts -- for migration)
-_TOOL_FLAG_HANDLERS = {
-    "---dev": lambda args: _eco_cmd("dev", args),
-    "---test": lambda args: _eco_cmd("test", args),
-    "---config": lambda args: _eco_cmd("config", args),
-    "---install": lambda args: _eco_cmd("install", args),
-    "---reinstall": lambda args: _eco_cmd("reinstall", args),
-    "---uninstall": lambda args: _eco_cmd("uninstall", args),
-    "---list": lambda args: _eco_cmd("list", args),
-    "---status": lambda args: _eco_cmd("status", args),
-    "---audit": lambda args: _eco_cmd("audit", args),
-    "---search": lambda args: _eco_cmd("search", args),
-    "---eco": lambda args: _eco_cmd("eco", args),
-    "---assistant": lambda args: _root_tool._handle_assistant(args),
-    "---setup": lambda args: _root_tool.run_setup(),
-    "---skills": lambda args: (
-        _eco_cmd("eco", [args[0]] + args[1:]) if args and args[0] in ("nav", "tree")
-        else _eco_cmd("eco", ["skills"]) if args and args[0] == "list"
-        else _eco_cmd("eco", ["skill"] + args[1:]) if args and args[0] == "show"
-        else _eco_cmd("eco", ["skill"] + args if args else ["skills"])
-    ),
-    "---migrate": lambda args: _eco_cmd("migrate", args),
-    "---workspace": lambda args: _workspace_dispatch(args),
-}
-
-# Shorthand: --agent/--ask/--plan as top-level commands (omit --assistant).
-# Controlled by ALLOW_ASSISTANT_SHORTHAND in logic.agent.command.
-try:
-    from logic._.agent.command import ALLOW_ASSISTANT_SHORTHAND
-    if ALLOW_ASSISTANT_SHORTHAND:
-        _TOOL_FLAG_HANDLERS["---agent"] = lambda args: _root_tool._handle_agent(args)
-        _TOOL_FLAG_HANDLERS["---ask"] = lambda args: _root_tool._handle_agent(args, mode="ask")
-        _TOOL_FLAG_HANDLERS["---plan"] = lambda args: _root_tool._handle_agent(args, mode="plan")
-except ImportError:
-    pass
 
 def _print_tool_help():
-    """Print unified help for all TOOL commands."""
+    """Print help listing discovered eco commands from logic/_/."""
     print(f"{BOLD}AITerminalTools Manager{RESET}")
-    print(f"\nUsage: TOOL <command> [options]")
+    print(f"\nUsage: TOOL ---<command> [options]")
     print(f"\n  Prefix convention: ---<eco>  --<tool>  -<modifier>\n")
-    print(f"  {BOLD}Ecosystem Navigation (start here){RESET}")
-    print(f"    ---eco                     Dashboard — tools, skills, brain overview")
-    print(f"    ---eco search <query>      Find anything across the ecosystem")
-    print(f"    ---eco tool <name>         Deep-dive into a specific tool")
-    print(f"    ---eco skill <name>        Read a development skill/pattern")
-    print(f"    ---eco guide               Onboarding guide for new agents")
-    print(f"    ---eco map | here | recall Structure, context, memory search")
-    print(f"    ---eco cmds | cmd <name>   Blueprint shortcut commands")
-    print(f"\n  {BOLD}Tool Lifecycle{RESET}")
-    print(f"    ---install <name>          Install a tool")
-    print(f"    ---reinstall <name>        Reinstall a tool")
-    print(f"    ---uninstall <name> [-y]   Uninstall a tool")
-    print(f"    ---list [--force] [lang]   List all available tools (or languages)")
-    print(f"    ---status                  Show installed tools and their status")
-    print(f"\n  {BOLD}Quality & Search{RESET}")
-    print(f"    ---audit <sub>             Code quality audits (imports, quality, code, --lang)")
-    print(f"    ---search <sub> <query>    Semantic search (tools, skills, lessons, docs, all)")
-    print(f"\n  {BOLD}Development{RESET}")
-    print(f"    ---dev <sub>               Developer commands (create, sync, create-rule)")
-    print(f"    ---test <sub>              Run tests")
-    print(f"    ---config <sub>            Manage global configuration")
-    print(f"    ---migrate --<level> <domain> Migration framework (tool, infrastructure, skills)")
-    print(f"\n  {BOLD}Assistant{RESET}")
-    print(f"    ---agent <prompt>          Agent mode")
-    print(f"    ---ask <prompt>            Ask mode (read-only)")
-    print(f"    ---plan <prompt>           Plan mode")
-    print(f"    ---assistant <sub>         Manage sessions")
-    print(f"\n  {BOLD}Workspace{RESET}")
-    print(f"    ---workspace               Show active workspace")
-    print(f"    ---workspace create <path> Create a new workspace")
-    print(f"    ---workspace list          List all workspaces")
-    print(f"\nUse TOOL <command> --help for details on each command.")
+
+    shared_dir = ROOT_PROJECT_ROOT / "logic" / "_"
+    eco_cmds = []
+    if shared_dir.exists():
+        for d in sorted(shared_dir.iterdir()):
+            if d.is_dir() and not d.name.startswith(".") and not d.name.startswith("_"):
+                cli_path = d / "cli.py"
+                if cli_path.exists():
+                    eco_cmds.append(d.name)
+
+    print(f"  {BOLD}Discovered Eco Commands{RESET}")
+    for name in eco_cmds:
+        print(f"    ---{name:<20s}")
+
+    print(f"\n  {BOLD}Base Commands{RESET}")
+    for name in ["setup", "rule", "install", "uninstall",
+                  "agent", "ask", "plan", "endpoint", "call-register"]:
+        print(f"    ---{name:<20s}")
+
+    print(f"\nUse TOOL ---<command> --help for details.")
+
 
 def main():
     stripped_argv = [a for a in sys.argv[1:]
@@ -164,44 +74,56 @@ def main():
         _print_tool_help()
         return
 
-    _b = get_color("BOLD", "\033[1m")
-    _d = get_color("DIM", "\033[2m")
-    _r = get_color("RESET", "\033[0m")
-
-    # Collect --- eco tokens and positional args (unordered dispatch)
+    # Collect --- eco tokens and positional args
     eco_tokens = []
     positional_args = []
     for arg in stripped_argv:
         if arg.startswith("---") and len(arg) > 3:
-            eco_tokens.append(arg)
+            eco_tokens.append(arg[3:])
         else:
             positional_args.append(arg)
 
     if eco_tokens:
-        # Find which token matches a registered handler
-        primary = None
-        for token in eco_tokens:
-            if token in _TOOL_FLAG_HANDLERS:
-                primary = token
-                break
+        from logic._.agent.cli import ALLOW_ASSISTANT_SHORTHAND
+        base_handlers = {
+            "setup": lambda args: _root_tool.run_setup(),
+            "rule": lambda args: _root_tool.print_rule(),
+            "install": _root_tool._handle_install_dispatch,
+            "uninstall": _root_tool._handle_uninstall_dispatch,
+            "call-register": _root_tool._handle_call_register,
+            "endpoint": _root_tool._handle_endpoint,
+        }
+        if ALLOW_ASSISTANT_SHORTHAND:
+            base_handlers["agent"] = lambda args: _root_tool._handle_agent(args)
+            base_handlers["ask"] = lambda args: _root_tool._handle_agent(args, mode="ask")
+            base_handlers["plan"] = lambda args: _root_tool._handle_agent(args, mode="plan")
 
-        if primary:
-            remaining_eco = [t for t in eco_tokens if t != primary]
-            _TOOL_FLAG_HANDLERS[primary](remaining_eco + positional_args)
+        resolved = _root_tool._resolve_eco_command(
+            eco_tokens, positional_args, parser=None,
+            base_handlers=base_handlers,
+        )
+        if resolved:
             return
 
-        user_cmd = eco_tokens[0]
+        user_cmd = f"---{eco_tokens[0]}"
     else:
         user_cmd = stripped_argv[0]
 
     from interface.utils import suggest_commands
-    flags = list(_TOOL_FLAG_HANDLERS.keys())
-    matches = suggest_commands(user_cmd, flags, n=3, cutoff=0.4)
-    print(f"{_b}Unknown command:{_r} {user_cmd}")
+    shared_dir = ROOT_PROJECT_ROOT / "logic" / "_"
+    discovered = []
+    if shared_dir.exists():
+        for d in sorted(shared_dir.iterdir()):
+            if d.is_dir() and (d / "cli.py").exists():
+                discovered.append(f"---{d.name}")
+
+    matches = suggest_commands(user_cmd, discovered, n=3, cutoff=0.4)
+    print(f"{BOLD}Unknown command:{RESET} {user_cmd}")
     if matches:
         hint = ", ".join(matches)
-        print(f"  {_d}Did you mean: {hint}?{_r}")
-    print(f"  {_d}Use TOOL --help for available commands.{_r}")
+        print(f"  {DIM}Did you mean: {hint}?{RESET}")
+    print(f"  {DIM}Use TOOL --help for available commands.{RESET}")
+
 
 if __name__ == "__main__":
     main()

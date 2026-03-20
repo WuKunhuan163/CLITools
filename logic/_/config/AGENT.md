@@ -19,7 +19,7 @@
 
 ### Rule Management (moved to tool/IDE/logic/rule + logic/_/rule/)
 - `generate_ai_rule()` and `inject_rule()` are now in `tool/IDE/logic/rule`
-- The `--rule` symmetric command is at `logic/_/rule/command.py` (RuleCommand)
+- The `--rule` symmetric command is at `logic/_/rule/cli.py` (RuleCommand)
 - Import via `interface.config` as before
 
 ## Usage Patterns

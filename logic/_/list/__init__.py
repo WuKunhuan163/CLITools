@@ -1,3 +1,3 @@
-from .command import ListCommand
+from .cli import ListCommand
 
 __all__ = ["ListCommand"]

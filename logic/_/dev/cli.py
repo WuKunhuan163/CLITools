@@ -20,6 +20,7 @@ class DevCommand(EcoCommand):
             "reset": self._reset,
             "enter": lambda: self._enter(rest),
             "create": lambda: self._create(rest),
+            "scaffold": lambda: self._scaffold(rest),
             "create-rule": lambda: self._create_rule(rest),
             "show-rule": lambda: self._show_rule(rest),
             "inject-rule": self._inject_rule,
@@ -71,6 +72,23 @@ class DevCommand(EcoCommand):
             return
         from interface.dev import dev_create
         dev_create(name, self.project_root, translation_func=self._)
+
+    def _scaffold(self, rest):
+        """Scaffold entry point directories within a tool.
+        
+        Usage: TOOL ---dev scaffold <tool_name> <command_path>
+        Example: TOOL ---dev scaffold LLM provider/add
+        Creates: tool/LLM/logic/provider/add/cli.py + README.md + AGENT.md
+        """
+        if len(rest) < 2:
+            print(f"Usage: {self.tool_name} ---dev scaffold <tool_name> <command/path>")
+            print(f"  Example: {self.tool_name} ---dev scaffold LLM provider/add")
+            return
+        tool_name = rest[0]
+        cmd_path = rest[1]
+        from interface.dev import dev_scaffold_entrypoint
+        dev_scaffold_entrypoint(tool_name, cmd_path, self.project_root,
+                                translation_func=self._)
 
     def _sanity_check(self, rest):
         name = rest[0] if rest else None

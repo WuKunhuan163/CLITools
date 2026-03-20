@@ -108,7 +108,7 @@ When a file grows too large:
 4. Create `__init__.py` that re-exports the public API
 5. Update **all** callers directly (write a `tmp/batch_*.py` script for bulk updates)
 
-Example: `logic/_/agent/command.py` (500+ lines) should become:
+Example: `logic/_/agent/cli.py` (500+ lines) should become:
 
 ```
 logic/_/agent/

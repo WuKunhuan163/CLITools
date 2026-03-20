@@ -34,7 +34,7 @@ from logic._.agent.tools import (  # noqa: F401
 )
 from logic._.agent.quality import check_write_quality  # noqa: F401
 from logic._.agent.nudge import should_nudge, build_nudge_message  # noqa: F401
-from logic._.agent.command import handle_agent_command  # noqa: F401
+from logic._.agent.cli import handle_agent_command  # noqa: F401
 from logic._.agent.brain import (  # noqa: F401
     inject_bootstrap_context,
     write_memory,

@@ -1,3 +1,3 @@
-from .command import InstallCommand
+from .cli import InstallCommand
 
 __all__ = ["InstallCommand"]

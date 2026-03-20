@@ -65,20 +65,20 @@ Commands follow a **three-tier classification** based on their role in the ecosy
 
 #### Tier 1: Shared Eco Commands (prefix: `---`)
 
-Framework-level commands available to **all tools**. Their implementation lives in `logic/_/<name>/command.py`. They are intercepted in `handle_command_line()` before tool-specific argparse runs.
+Framework-level commands available to **all tools**. Their implementation lives in `logic/_/<name>/cli.py`. They are intercepted in `handle_command_line()` before tool-specific argparse runs.
 
 | Command | Implementation | Purpose |
 |---------|---------------|---------|
-| `---dev` | `logic/_/dev/command.py` | Development utilities |
+| `---dev` | `logic/_/dev/cli.py` | Development utilities |
 | `---test` | `logic/_/test/manager.py` | Test runner |
 | `---setup` | `logic/_/setup/engine.py` | Tool installation |
 | `---config` | `logic/_/config/` | Configuration |
 | `---eco` | `logic/_/eco/navigation.py` | Ecosystem navigation |
-| `---skills` | `logic/_/skills/command.py` | Skill management |
+| `---skills` | `logic/_/skills/cli.py` | Skill management |
 | `---hooks` | `logic/_/hooks/` | Hook management |
-| `---audit` | `logic/_/audit/command.py` | Code quality |
+| `---audit` | `logic/_/audit/cli.py` | Code quality |
 | `---assistant` | `logic/_/assistant/` | Agent sessions |
-| `---agent` / `---ask` / `---plan` | `logic/_/agent/command.py` | Agent modes |
+| `---agent` / `---ask` / `---plan` | `logic/_/agent/cli.py` | Agent modes |
 | `---install` / `---uninstall` | `logic/_/setup/` | Subtool management |
 | `---rule` | `logic/_/setup/` | Rule display |
 

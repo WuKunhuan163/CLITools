@@ -1,3 +1,3 @@
-from .command import StatusCommand
+from .cli import StatusCommand
 
 __all__ = ["StatusCommand"]

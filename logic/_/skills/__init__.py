@@ -1,3 +1,3 @@
-from .command import SkillsCommand
+from .cli import SkillsCommand
 
 __all__ = ["SkillsCommand"]

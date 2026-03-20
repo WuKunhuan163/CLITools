@@ -240,7 +240,6 @@ class ToolBase:
         ]
 
         # ---- Tier 1: Shared eco command dispatch (--- prefix) ----
-        # Collect all ---tokens and positional args from argv
         eco_tokens = []
         positional_args = []
         for arg in sys.argv[1:]:
@@ -250,46 +249,33 @@ class ToolBase:
                 positional_args.append(arg)
 
         if eco_tokens:
-            from logic._.agent.command import ALLOW_ASSISTANT_SHORTHAND
+            # Override handlers: tools can customize dev/test dispatch
+            overrides = {}
+            if dev_handler:
+                overrides["dev"] = dev_handler
+            if test_handler:
+                overrides["test"] = test_handler
 
-            eco_handlers = {
-                "dev": dev_handler or self._handle_default_dev,
-                "test": test_handler or self._handle_default_test,
+            # Built-in base handlers (not directory-based)
+            base_handlers = {
                 "setup": lambda args: self.run_setup(),
-                "assistant": self._handle_assistant,
                 "endpoint": self._handle_endpoint,
                 "rule": lambda args: self.print_rule(),
-                "config": self._handle_tool_config,
                 "install": self._handle_install_dispatch,
                 "uninstall": self._handle_uninstall_dispatch,
-                "skills": self._handle_skills_command,
-                "hooks": self._handle_hooks_command,
-                "eco": self._handle_eco_command,
                 "call-register": self._handle_call_register,
             }
+            from logic._.agent.cli import ALLOW_ASSISTANT_SHORTHAND
             if ALLOW_ASSISTANT_SHORTHAND:
-                eco_handlers["agent"] = lambda args: self._handle_agent(args)
-                eco_handlers["ask"] = lambda args: self._handle_agent(args, mode="ask")
-                eco_handlers["plan"] = lambda args: self._handle_agent(args, mode="plan")
+                base_handlers["agent"] = lambda args: self._handle_agent(args)
+                base_handlers["ask"] = lambda args: self._handle_agent(args, mode="ask")
+                base_handlers["plan"] = lambda args: self._handle_agent(args, mode="plan")
 
-            # Config override: if tool parser has its own 'config' subcommand, skip eco config
-            if "config" in eco_tokens and parser:
-                for action in parser._actions:
-                    if action.dest == 'command' and hasattr(action, 'choices') and 'config' in action.choices:
-                        eco_handlers.pop("config", None)
-                        break
-
-            # Resolve: find which token is a registered handler (unordered)
-            primary = None
-            for token in eco_tokens:
-                if token in eco_handlers:
-                    primary = token
-                    break
-
-            if primary:
-                remaining_eco = [t for t in eco_tokens if t != primary]
-                sub_args = remaining_eco + positional_args
-                eco_handlers[primary](sub_args)
+            resolved = self._resolve_eco_command(
+                eco_tokens, positional_args, parser,
+                overrides=overrides, base_handlers=base_handlers,
+            )
+            if resolved:
                 return True
 
         if len(sys.argv) > 1:
@@ -348,6 +334,85 @@ class ToolBase:
                         return True
                     return True
         return False
+
+    # ------------------------------------------------------------------ #
+    #  Eco command resolution (directory-based discovery)                   #
+    # ------------------------------------------------------------------ #
+
+    def _resolve_eco_command(self, eco_tokens, positional_args, parser,
+                             overrides=None, base_handlers=None):
+        """Resolve --- eco tokens via logic/_/ directory discovery.
+        
+        Resolution order:
+        1. Override handlers (tool-specific, e.g. custom dev/test)
+        2. Directory-based: logic/_/<token>/cli.py with EcoCommand subclass
+        3. Base handlers (setup, rule, install, etc. — no own directory)
+        
+        Returns True if a command was dispatched, False otherwise.
+        """
+        overrides = overrides or {}
+        base_handlers = base_handlers or {}
+        shared_dir = self.project_root / "logic" / "_"
+
+        # Config override: if tool parser defines 'config' subcommand, skip eco config
+        skip_eco = set()
+        if "config" in eco_tokens and parser:
+            for action in parser._actions:
+                if action.dest == 'command' and hasattr(action, 'choices') and 'config' in action.choices:
+                    skip_eco.add("config")
+                    break
+
+        # Find which token matches a handler (unordered dispatch)
+        for token in eco_tokens:
+            if token in skip_eco:
+                continue
+
+            handler = None
+
+            # 1. Check overrides first
+            if token in overrides:
+                handler = overrides[token]
+
+            # 2. Check directory-based discovery: logic/_/<token>/cli.py
+            if handler is None:
+                cli_path = shared_dir / token / "cli.py"
+                if cli_path.exists():
+                    handler = self._load_eco_handler(token)
+
+            # 3. Check base handlers
+            if handler is None and token in base_handlers:
+                handler = base_handlers[token]
+
+            if handler is not None:
+                remaining_eco = [t for t in eco_tokens if t != token]
+                sub_args = remaining_eco + positional_args
+                handler(sub_args)
+                return True
+
+        return False
+
+    def _load_eco_handler(self, name):
+        """Dynamically load an EcoCommand from logic/_/<name>/cli.py."""
+        import importlib
+        try:
+            mod = importlib.import_module(f"logic._.{name}.cli")
+        except ImportError:
+            mod = importlib.import_module(f"logic._.{name}")
+
+        # Find the EcoCommand subclass
+        from logic._._ import EcoCommand
+        for attr_name in dir(mod):
+            obj = getattr(mod, attr_name)
+            if (isinstance(obj, type) and issubclass(obj, EcoCommand)
+                    and obj is not EcoCommand):
+                instance = obj(
+                    project_root=self.project_root,
+                    tool_name=self.tool_name,
+                    translation_func=getattr(self, '_', None),
+                )
+                return instance.handle
+
+        return None
 
     # ------------------------------------------------------------------ #
     #  --dev / --test default handlers                                     #
@@ -1112,7 +1177,7 @@ class ToolBase:
 
     def _handle_agent(self, args, mode="agent"):
         """Dispatch --agent/--ask/--plan subcommands to the agent infrastructure."""
-        from logic._.agent.command import handle_agent_command
+        from logic._.agent.cli import handle_agent_command
         handle_agent_command(
             args=args,
             tool_name=self.tool_name,
@@ -1170,7 +1235,7 @@ class ToolBase:
         rest = filtered[1:]
 
         if subcmd == "--endpoint" or subcmd == "endpoint":
-            from logic._.agent.command import handle_assistant_endpoint
+            from logic._.agent.cli import handle_assistant_endpoint
             handle_assistant_endpoint(rest, self.tool_name)
             return
 
@@ -1178,7 +1243,7 @@ class ToolBase:
                         "edits", "accept", "revert", "accept-all",
                         "revert-all", "new", "delete", "clear", "cancel"}
         if subcmd in gui_api_cmds:
-            from logic._.agent.command import handle_assistant_command
+            from logic._.agent.cli import handle_assistant_command
             handle_assistant_command(filtered, self.tool_name)
         elif subcmd in ("agent", "ask", "plan"):
             self._handle_agent(rest, mode=subcmd)
@@ -1222,7 +1287,7 @@ class ToolBase:
         save_session(session, project_root, tool_dir=str(self.tool_dir))
         self._save_active_session_id(session.id)
 
-        from logic._.agent.command import _find_running_gui_port
+        from logic._.agent.cli import _find_running_gui_port
         port = _find_running_gui_port()
 
         print(f"  {BOLD}{GREEN}Created.{RESET} {DIM}Session: {session.id}{RESET}")
@@ -1286,7 +1351,7 @@ class ToolBase:
         def _notify_gui_delete(sid):
             """Notify running GUI server to delete a session."""
             try:
-                from logic._.agent.command import _find_running_gui_port
+                from logic._.agent.cli import _find_running_gui_port
                 import json, urllib.request
                 port = _find_running_gui_port()
                 if port:
@@ -1368,7 +1433,7 @@ class ToolBase:
         RESET = get_color("RESET", "\033[0m")
 
         try:
-            from logic._.agent.command import _find_running_gui_port
+            from logic._.agent.cli import _find_running_gui_port
             import urllib.request
             port = _find_running_gui_port()
             if not port:
