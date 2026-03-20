@@ -218,9 +218,9 @@ class ModelsMixin:
         Icon resolution order:
           1. Model directory logo.svg  (tool/LLM/logic/models/<dir>/logo.svg)
           2. Provider directory logo.svg (tool/LLM/logic/providers/<vendor>/logo.svg)
-          3. Asset directory SVG fallback (logic/asset/image/models/ or providers/)
+          3. Asset directory SVG fallback (logic/utils/asset/image/models/ or providers/)
         """
-        asset_root = _root / "logic" / "asset" / "image"
+        asset_root = _root / "logic" / "utils" / "asset" / "image"
         llm_models_dir = _root / "tool" / "LLM" / "logic" / "models"
         llm_providers_dir = _root / "tool" / "LLM" / "logic" / "providers"
 

@@ -1,6 +1,6 @@
 """Asset migration: download/sync icons from remote CDNs.
 
-Icons are stored locally in logic/asset/image/{providers,models,filetypes}/
+Icons are stored locally in logic/utils/asset/image/{providers,models,filetypes}/
 so the project works offline and isn't dependent on remote CDN availability.
 
 This module does NOT hardcode any icon lists. Instead it:
@@ -184,7 +184,7 @@ def sync_logos_to_llm() -> int:
     """Copy central provider logos to LLM tool model/provider directories.
 
     Scans each LLM provider directory; if it lacks logo.svg but a central
-    copy exists in logic/asset/image/providers/<vendor>.svg, copies it there.
+    copy exists in logic/utils/asset/image/providers/<vendor>.svg, copies it there.
     Same for model directories using the vendor fallback.
     Returns the number of files copied.
     """
