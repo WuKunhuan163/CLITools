@@ -46,3 +46,4 @@
 {"timestamp": "2026-03-18T17:02:41", "entry": "Phase 6 complete: global bin/ with TOOL alias, ---help DFS tree, Fish Tank Gemini+USERINPUT bridge working"}
 {"timestamp": "2026-03-18T17:10:00", "entry": "Phase 7 complete: blueprint dependencies schema (IMP-009), AI onboarding protocol (---assistant --onboard, 303-line cold-start doc), ZhiPu provider live (glm-4-flash OK), provider router unified"}
 {"timestamp": "2026-03-18T17:18:02", "entry": "Phase 8 complete: IDE cold-start hook (.cursorrules), 3 new tools (LLM/TRANSLATOR/TURING), purify dry-run scanner (0 rogues), meta-cognitive analysis of safe deletion infrastructure"}
+{"timestamp": "2026-03-18T17:26:24", "entry": "Phase 9 complete: TRANSLATOR deleted (i18n via ctx.get_text), TURING demoted to ___/utils/, purify armed with 3 safety catches, assistant topology scaffolded (gui/guidelines/memory with 9 new endpoints)"}
