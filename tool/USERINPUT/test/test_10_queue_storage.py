@@ -1,4 +1,4 @@
-"""Unit tests for the queue storage module (logic/queue.py)."""
+"""Unit tests for the queue storage module (logic/queue/store.py)."""
 import unittest
 import sys
 from pathlib import Path
@@ -9,13 +9,7 @@ SEQUENTIAL = True
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import importlib.util
-_spec = importlib.util.spec_from_file_location(
-    "userinput_queue",
-    str(PROJECT_ROOT / "tool" / "USERINPUT" / "logic" / "queue.py")
-)
-_qmod = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_qmod)
+from tool.USERINPUT.logic.queue import store as _qmod
 
 QUEUE_FILE = _qmod.QUEUE_FILE
 
