@@ -1358,7 +1358,7 @@ def _load_events_from_disk(session_id: str, project_root: str):
 
     Supports both new layout (``<id>/history.json``) and legacy (``<id>.json``).
     """
-    sessions_dir = os.path.join(project_root, "runtime", "sessions")
+    sessions_dir = os.path.join(project_root, "data", "_", "runtime", "sessions")
     if not os.path.isdir(sessions_dir):
         return None
     import glob

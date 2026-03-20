@@ -1,0 +1,3 @@
+{"timestamp": "2026-03-18T01:42:17", "entry": "Completed code decomposition cleanup: removed shims, merged research/ into report/, consolidated duplicates, updated skills, fixed BRAIN import path"}
+{"timestamp": "2026-03-18T01:49:15", "entry": "Major refactoring: Migrated logic/gui/, logic/translation/, logic/utils/ into logic/_/. Updated 384 imports across 146 files. logic/ now only contains _/ (shared infra) and command-named modules (brain/, git/, tool/). Added logic_structure audit phase. Formalized rule in symmetric-design skill."}
+{"timestamp": "2026-03-18T01:59:24", "entry": "Fixed USERINPUT bell sound path (4 files). Verified auto-commit works correctly - no work loss. Commit #0730 captured entire logic/ migration."}
