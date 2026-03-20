@@ -347,6 +347,47 @@ class ToolHandlers:
         import tempfile, threading
         log_dir = os.path.join(self._project_root, "tmp", "bg_exec")
         os.makedirs(log_dir, exist_ok=True)
+        
+        # Cursor IDE specific hook: if the user input times out and drops to background, remind the agent to sleep
+        if "USERINPUT" in cmd and "sleep" not in cmd:
+            try:
+                # To get exponential backoff, try to read the last sleep time
+                counter_file = os.path.join(self._project_root, "tmp", "cursor_ui_sleep_counter.txt")
+                if os.path.exists(counter_file):
+                    try:
+                        with open(counter_file, "r") as f:
+                            counter = int(f.read().strip())
+                    except:
+                        counter = 0
+                else:
+                    counter = 0
+                counter += 1
+                sleep_time = min(counter * 30, 180)
+                with open(counter_file, "w") as f:
+                    f.write(str(counter))
+                
+                hook_msg = f"请sleep {sleep_time}然后再访问结果 (Auto-hook generated)"
+                
+                # Prepend the hook message to the output that gets returned
+                msg = f"{hook_msg}\n[The command did not complete in {self._exec_timeout}s and was sent to the background.]"
+                
+                # We return immediately so the LLM gets the hook instruction
+                # We still launch the background process thread below
+                
+                # Setup thread to run command in background
+                fd, out_path = tempfile.mkstemp(dir=log_dir, prefix="bg_cmd_", suffix=".log")
+                os.close(fd)
+                
+                def _run_bg():
+                    with open(out_path, "w") as f:
+                        subprocess.run(cmd, shell=True, stdout=f, stderr=subprocess.STDOUT, cwd=self._cwd, env=env)
+                
+                t = threading.Thread(target=_run_bg, daemon=True)
+                t.start()
+                
+                return {"ok": True, "output": msg + f"\nLog path: {out_path}"}
+            except Exception:
+                pass
         log_file = os.path.join(log_dir, f"bg_{os.getpid()}_{id(cmd) & 0xFFFF:04x}.log")
 
         proc = subprocess.Popen(
