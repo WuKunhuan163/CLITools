@@ -36,6 +36,8 @@ class AuditCommand(EcoCommand):
         cp.add_argument("--fix", action="store_true", help="Auto-fix safe issues")
         cp.add_argument("--targets", nargs="*", help="Directories to scan")
 
+        sub.add_parser("skills", help="Audit skill hierarchy: README.md, for_agent.md coverage")
+
         parsed = parser.parse_args(args)
         root = self.project_root
 
@@ -45,6 +47,8 @@ class AuditCommand(EcoCommand):
             return self._quality(parsed, root)
         elif parsed.audit_command == "code":
             return self._code(parsed)
+        elif parsed.audit_command == "skills":
+            return self._skills_audit()
         elif not args or parsed.audit_command is None:
             return self._full_flow()
         else:
@@ -154,6 +158,27 @@ class AuditCommand(EcoCommand):
                 stage.success_name = "localization — no hardcoded strings"
             return True
 
+        def _audit_skills_hierarchy(stage):
+            skills_root = root / "skills"
+            issues = 0
+            if skills_root.exists():
+                for dirpath in skills_root.rglob("*"):
+                    if not dirpath.is_dir() or dirpath.name.startswith("."):
+                        continue
+                    has_skill = (dirpath / "SKILL.md").exists()
+                    has_subdirs = any(d.is_dir() and not d.name.startswith(".") for d in dirpath.iterdir())
+                    if has_subdirs and not has_skill:
+                        if not (dirpath / "README.md").exists():
+                            issues += 1
+                        if not (dirpath / "for_agent.md").exists():
+                            issues += 1
+            if issues:
+                stage.success_name = f"skills hierarchy — {issues} missing docs"
+            else:
+                stage.success_name = "skills hierarchy — complete"
+            results["skills_hierarchy_issues"] = issues
+            return True
+
         stages = [
             TuringStage("imports", _audit_imports,
                         active_status="Auditing", success_status="Audited",
@@ -167,6 +192,9 @@ class AuditCommand(EcoCommand):
             TuringStage("localization", _audit_localization,
                         active_status="Scanning", success_status="Scanned",
                         bold_part="Scanning", is_sticky=True),
+            TuringStage("skills_hierarchy", _audit_skills_hierarchy,
+                        active_status="Checking", success_status="Checked",
+                        bold_part="Checking", is_sticky=True),
         ]
 
         pm = ProgressTuringMachine(stages, project_root=str(root))
@@ -214,6 +242,85 @@ class AuditCommand(EcoCommand):
                 if len(findings) > 3:
                     print(f"    \033[2m... and {len(findings) - 3} more\033[0m")
             print(f"\n  \033[2mRun TOOL --audit --lang --detect for full report.\033[0m")
+
+    def _skills_audit(self):
+        """Audit the skills hierarchy for documentation coverage."""
+        root = self.project_root
+        skills_root = root / "skills"
+        if not skills_root.exists():
+            self.error("skills/ directory not found.")
+            return 1
+
+        issues = []
+        total_dirs = 0
+        total_skills = 0
+
+        for dirpath in sorted(skills_root.rglob("*")):
+            if not dirpath.is_dir():
+                continue
+            if dirpath.name.startswith(".") or dirpath.name == "__pycache__":
+                continue
+
+            has_skill = (dirpath / "SKILL.md").exists()
+            has_subdirs = any(
+                d.is_dir() and not d.name.startswith(".")
+                for d in dirpath.iterdir()
+            )
+            is_category = has_subdirs and not has_skill
+
+            if has_skill:
+                total_skills += 1
+
+            if is_category:
+                total_dirs += 1
+                rel = dirpath.relative_to(root)
+                if not (dirpath / "README.md").exists():
+                    issues.append(("error", str(rel), "Missing README.md (category directory)"))
+                if not (dirpath / "for_agent.md").exists():
+                    issues.append(("warning", str(rel), "Missing for_agent.md (category directory)"))
+
+        for td in sorted((root / "tool").iterdir()):
+            sd = td / "skills"
+            if sd.exists() and sd.is_dir() and any(sd.iterdir()):
+                tool_name = td.name
+                rel = sd.relative_to(root)
+                if not (sd / "README.md").exists():
+                    issues.append(("warning", str(rel), f"Tool {tool_name} skills/ missing README.md"))
+                if not (sd / "for_agent.md").exists():
+                    issues.append(("info", str(rel), f"Tool {tool_name} skills/ missing for_agent.md"))
+
+        BOLD = "\033[1m"
+        RED = "\033[31m"
+        YELLOW = "\033[33m"
+        CYAN = "\033[36m"
+        GREEN = "\033[32m"
+        RESET = "\033[0m"
+
+        print(f"\n{BOLD}Skills Hierarchy Audit{RESET}")
+        print("=" * 60)
+        print(f"Category directories: {total_dirs}")
+        print(f"Skill documents: {total_skills}")
+        print(f"Issues: {len(issues)}\n")
+
+        if not issues:
+            print(f"{GREEN}{BOLD}All skill directories have proper documentation.{RESET}")
+        else:
+            errors = [i for i in issues if i[0] == "error"]
+            warnings = [i for i in issues if i[0] == "warning"]
+            infos = [i for i in issues if i[0] == "info"]
+
+            for sev, path, msg in errors:
+                print(f"  {RED}ERROR  {RESET} {path}")
+                print(f"         {msg}")
+            for sev, path, msg in warnings:
+                print(f"  {YELLOW}WARNING{RESET} {path}")
+                print(f"         {msg}")
+            for sev, path, msg in infos:
+                print(f"  {CYAN}INFO   {RESET} {path}")
+                print(f"         {msg}")
+
+        print()
+        return 0
 
     def _imports(self, parsed, root):
         from interface.audit import (

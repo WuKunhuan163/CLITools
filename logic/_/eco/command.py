@@ -181,29 +181,26 @@ class EcoNavCommand(EcoCommand):
 
     def _skills_list(self, rest):
         """List all available skills."""
-        skills_dir = self.project_root / "tool" / "SKILLS" / "data" / "library"
-        if not skills_dir.exists():
-            self.info("No skills library found.")
-            return
+        skills_root = self.project_root / "skills"
+        library = self.project_root / "tool" / "SKILLS" / "data" / "library"
 
-        names = sorted(
-            d.name for d in skills_dir.iterdir()
-            if d.is_dir() and (d / "SKILL.md").exists()
-        )
-        if names:
+        all_skills = {}
+        for search_dir in [skills_root, library]:
+            if not search_dir or not search_dir.exists():
+                continue
+            for sf in search_dir.rglob("SKILL.md"):
+                name = sf.parent.name
+                if name not in all_skills:
+                    all_skills[name] = sf
+
+        if all_skills:
             self.header(f"{self.tool_name} Skills")
-            for name in names:
+            for name in sorted(all_skills):
+                loc = all_skills[name]
                 desc = ""
-                for loc in [
-                    self.project_root / "skills" / "core" / name / "SKILL.md",
-                    self.project_root / "skills" / name / "SKILL.md",
-                    skills_dir / name / "SKILL.md",
-                ]:
-                    if loc.exists():
-                        for line in loc.read_text().splitlines():
-                            if line.startswith("description:"):
-                                desc = line[len("description:"):].strip()
-                                break
+                for line in loc.read_text().splitlines():
+                    if line.startswith("description:"):
+                        desc = line[len("description:"):].strip()
                         break
                 print(f"  {self.BOLD}{name}{self.RESET}")
                 if desc:

@@ -26,13 +26,16 @@ class SkillsCommand(EcoCommand):
 
     def _resolve_skill_path(self, name):
         """Locate a skill file by name across known locations."""
-        from pathlib import Path
-        candidates = [
-            self.project_root / "skills" / "core" / name / "SKILL.md",
-            self.project_root / "skills" / name / "SKILL.md",
-            self.project_root / "tool" / "SKILLS" / "data" / "library" / name / "SKILL.md",
-        ]
-        for p in candidates:
+        skills_root = self.project_root / "skills"
+        if skills_root.exists():
+            for p in skills_root.rglob("SKILL.md"):
+                if p.parent.name == name:
+                    return p
+        library = self.project_root / "tool" / "SKILLS" / "data" / "library" / name / "SKILL.md"
+        if library.exists():
+            return library
+        for td in (self.project_root / "tool").iterdir():
+            p = td / "skills" / name / "SKILL.md"
             if p.exists():
                 return p
         return None

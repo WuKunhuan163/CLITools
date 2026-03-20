@@ -280,11 +280,7 @@ def build_skill_index(project_root: Path, tool_name: Optional[str] = None) -> Se
     if tool_name:
         skill_dirs.append(project_root / "tool" / tool_name / "skills")
 
-    # Always include global skills
-    skill_dirs.extend([
-        project_root / "skills" / "core",
-        project_root / "skills",
-    ])
+    skill_dirs.append(project_root / "skills")
 
     # Also include per-tool skills from all tools
     tool_dir = project_root / "tool"
@@ -298,28 +294,20 @@ def build_skill_index(project_root: Path, tool_name: Optional[str] = None) -> Se
     for sd in skill_dirs:
         if not sd.exists():
             continue
-        for entry in sd.iterdir():
-            skill_file = None
-            if entry.is_dir():
-                skill_file = entry / "SKILL.md"
-                skill_name = entry.name
-            elif entry.suffix == ".md":
-                skill_file = entry
-                skill_name = entry.stem
-            else:
+        for skill_file in sd.rglob("SKILL.md"):
+            skill_name = skill_file.parent.name
+            if skill_name in seen:
                 continue
-
-            if skill_file and skill_file.exists() and skill_name not in seen:
-                seen.add(skill_name)
-                content = _read_text(skill_file, max_chars=4000)
-                parent_tool = ""
-                if "tool/" in str(sd):
-                    parent_tool = sd.parent.name
-                idx.add(skill_name, f"{skill_name} {content}", {
-                    "type": "skill",
-                    "path": str(skill_file),
-                    "tool": parent_tool,
-                })
+            seen.add(skill_name)
+            content = _read_text(skill_file, max_chars=4000)
+            parent_tool = ""
+            if "tool/" in str(sd):
+                parent_tool = sd.parent.name
+            idx.add(skill_name, f"{skill_name} {content}", {
+                "type": "skill",
+                "path": str(skill_file),
+                "tool": parent_tool,
+            })
 
     return idx
 

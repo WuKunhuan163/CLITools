@@ -237,10 +237,10 @@ def _handle_openclaw_status(_parts: list) -> Dict[str, Any]:
     if tool_dir.exists():
         tools = [t for t in os.listdir(tool_dir) if (tool_dir / t / "tool.json").exists()]
         lines.append(f"Tools installed: {len(tools)}")
-    skills_dir = root / "skills" / "core"
+    skills_dir = root / "skills"
     if skills_dir.exists():
-        count = len([s for s in os.listdir(skills_dir) if (skills_dir / s / "SKILL.md").exists()])
-        lines.append(f"Core skills: {count}")
+        count = sum(1 for _ in skills_dir.rglob("SKILL.md"))
+        lines.append(f"Skills: {count}")
     learnings_file = root / "runtime" / "experience" / "lessons.jsonl"
     if learnings_file.exists():
         try:

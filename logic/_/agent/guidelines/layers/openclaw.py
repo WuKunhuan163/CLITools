@@ -29,7 +29,7 @@ def get_guidelines():
             "patterns": [
                 "OpenClaw loop: Error → Lesson → Rule → Skill → Hook enforcement.",
                 "Lesson store: runtime/experience/lessons.jsonl — append-only, severity-classified.",
-                "Skill creation: SKILLS create <name> — generates SKILL.md in skills/core/.",
+                "Skill creation: SKILLS create <name> — generates SKILL.md in skills/.",
                 "Hook enforcement: hooks/instance/ — lifecycle hooks that enforce learned rules.",
             ],
             "discovery": [

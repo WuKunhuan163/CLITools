@@ -86,6 +86,24 @@ Work → Lesson → Skill → Infrastructure → Hook
 
 Each step automates the previous one. Agents are expected to advance along this pipeline, not stay at "lesson."
 
+### Skills as a Dictionary Tree
+
+Skills are organized as a hierarchical tree — like a dictionary you navigate by topic. Each directory level narrows the subject. Category directories contain `README.md` (what's here) and `for_agent.md` (navigation: what's below, what's above). Leaf directories contain `SKILL.md`.
+
+```
+skills/
+├── _/                # Foundational principles (modularization, symmetric design, meta-agent)
+├── development/      # Building tools and commands
+├── quality/          # Code health and auditing
+├── infrastructure/   # Runtime patterns (caching, display, error handling)
+├── workflow/         # Agent operations and self-improvement
+├── browser/          # Browser automation
+├── IDE/              # IDE-specific (Cursor)
+└── clawhub/          # External marketplace skills
+```
+
+The hierarchy itself carries information. An agent searching for "how to write tests" navigates `skills/` → `development/` → `unit-test-conventions/`. The path encodes the topic without reading any file.
+
 ## Architecture
 
 ```
@@ -99,7 +117,7 @@ AITerminalTools/
 ├── interface/       # Stable facade (tools import from here)
 ├── tool/            # All tools (each has logic/, interface/, hooks/)
 ├── bin/             # Executable symlinks for installed tools
-├── skills/          # AI agent skill documents
+├── skills/          # Dictionary-tree of agent skills (hierarchical)
 ├── runtime/         # Git-tracked institutional memory
 │   └── experience/  # Lessons, suggestions, evolution history
 ├── for_agent.md     # Agent bootstrap guide

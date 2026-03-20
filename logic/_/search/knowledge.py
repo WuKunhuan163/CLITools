@@ -67,7 +67,7 @@ class KnowledgeManager:
                 ├── lessons.jsonl      # Tool-scoped lessons
                 └── discoveries.jsonl  # Tool-scoped discoveries
 
-        skills/core/                   # Global skills
+        skills/                        # Global skills (hierarchical)
         tool/<TOOL_NAME>/skills/       # Tool-scoped skills
     """
 
@@ -295,7 +295,7 @@ class KnowledgeManager:
     # ------------------------------------------------------------------
 
     def _skill_dirs(self) -> List[Path]:
-        dirs = [self.root / "skills" / "core", self.root / "skills"]
+        dirs = [self.root / "skills"]
         tool_dir = self.root / "tool"
         if tool_dir.exists():
             for td in tool_dir.iterdir():

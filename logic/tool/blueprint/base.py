@@ -650,13 +650,13 @@ class ToolBase:
 
     def _resolve_skill_path(self, name):
         """Find SKILL.md by name across all skill locations."""
-        # 1. Tool-level skills/
         p = self.tool_dir / "skills" / name / "SKILL.md"
         if p.exists(): return p
-        # 2. Project-level skills/
-        p = self.project_root / "skills" / name / "SKILL.md"
-        if p.exists(): return p
-        # 3. SKILLS tool library
+        skills_root = self.project_root / "skills"
+        if skills_root.exists():
+            for p in skills_root.rglob("SKILL.md"):
+                if p.parent.name == name:
+                    return p
         p = self.project_root / "tool" / "SKILLS" / "data" / "library" / name / "SKILL.md"
         if p.exists(): return p
         return None
