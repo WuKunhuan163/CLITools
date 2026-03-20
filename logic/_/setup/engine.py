@@ -10,7 +10,7 @@ def _git_bin():
         from tool.GIT.interface.main import get_system_git
         return get_system_git()
     except ImportError:
-        return _git_bin()
+        return "git"
 import subprocess
 from logic.utils.turing.models.progress import ProgressTuringMachine
 from logic.utils.turing.logic import TuringStage
@@ -301,39 +301,47 @@ class ToolEngine:
         return True
 
     def fetch_source(self, stage=None):
-        # 0. Check if already exists locally
         if (self.tool_dir / "main.py").exists():
             return True
 
         rel_tool_path = self.tool_dir.relative_to(self.project_root)
-        remote_source_path = rel_tool_path
 
-        # 1. Try checkout tool/ from known branches
-        sources = ["dev", "tool", "origin/tool", "origin/dev"]
-        last_err = "No source found in any branch"
-        for branch in sources:
+        # 1. Try checkout from local branches (dev is always available)
+        for branch in ("dev",):
             try:
-                cmd = [_git_bin(), "checkout", branch, "--", str(remote_source_path)]
+                cmd = [_git_bin(), "checkout", branch, "--", str(rel_tool_path)]
                 res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
                 if res.returncode == 0:
                     return True
-                else:
-                    last_err = res.stderr.strip().splitlines()[-1] if res.stderr.strip() else f"Git checkout from {branch} failed"
-            except Exception as e:
-                last_err = str(e)
+            except Exception:
+                pass
 
-        # 2. Fallback: try archived tools on tool branches
+        # 2. Lazy-fetch origin/tool (not tracked locally by default)
+        subprocess.run(
+            [_git_bin(), "fetch", "origin", "tool", "--depth=1"],
+            cwd=str(self.project_root), capture_output=True
+        )
+
+        for branch in ("FETCH_HEAD", "origin/tool"):
+            try:
+                cmd = [_git_bin(), "checkout", branch, "--", str(rel_tool_path)]
+                res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
+                if res.returncode == 0:
+                    return True
+            except Exception:
+                pass
+
+        # 3. Fallback: try archived tools from fetched tool branch
         archived_paths = [
             f"logic/_/install/archived/{self.tool_name}",
-            f"resource/archived/{self.tool_name}",  # backward compat
+            f"resource/archived/{self.tool_name}",
         ]
         for archived_path in archived_paths:
-            for branch in ["tool", "origin/tool"]:
+            for ref in ("FETCH_HEAD", "origin/tool"):
                 try:
-                    cmd = [_git_bin(), "checkout", branch, "--", archived_path]
+                    cmd = [_git_bin(), "checkout", ref, "--", archived_path]
                     res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
                     if res.returncode == 0:
-                        import shutil
                         src = self.project_root / archived_path
                         if src.exists() and (src / "main.py").exists():
                             shutil.copytree(str(src), str(self.tool_dir), dirs_exist_ok=True)
@@ -342,7 +350,14 @@ class ToolEngine:
                 except Exception:
                     pass
 
-        if stage: stage.error_brief = last_err
+        # 4. Clean up fetched ref
+        subprocess.run(
+            [_git_bin(), "update-ref", "-d", "refs/remotes/origin/tool"],
+            cwd=str(self.project_root), capture_output=True
+        )
+
+        if stage:
+            stage.error_brief = f"No source found for {self.tool_name}"
         return False
 
     def handle_dependencies(self, visited=None):
@@ -583,3 +598,67 @@ except KeyboardInterrupt:
             if self.tool_dir.exists(): shutil.rmtree(self.tool_dir)
             return not (tool_bin_dir.exists() or self.tool_dir.exists())
         except: return False
+
+
+def fetch_resource(tool_name: str, project_root, subpath: str = None):
+    """Lazy-fetch binary resources from the remote tool branch.
+
+    The tool branch is NOT tracked locally. This function does a shallow
+    fetch, checks out the requested path, and cleans up the tracking ref.
+
+    Args:
+        tool_name: Name of the tool (e.g. "PYTHON").
+        project_root: Path to the project root.
+        subpath: Optional subpath within the resource dir (e.g. "data/install/3.11.14-macos-arm64").
+    Returns:
+        Path to the fetched resource directory, or None on failure.
+    """
+    from pathlib import Path
+    project_root = Path(project_root)
+
+    resource_rel = f"logic/_/install/resource/{tool_name}"
+    if subpath:
+        resource_rel = f"{resource_rel}/{subpath}"
+
+    resource_dir = project_root / resource_rel
+    if resource_dir.exists():
+        return resource_dir
+
+    try:
+        subprocess.run(
+            [_git_bin(), "fetch", "origin", "tool", "--depth=1"],
+            cwd=str(project_root), capture_output=True
+        )
+
+        for ref in ("FETCH_HEAD", "origin/tool"):
+            res = subprocess.run(
+                [_git_bin(), "checkout", ref, "--", resource_rel],
+                cwd=str(project_root), capture_output=True, text=True
+            )
+            if res.returncode == 0 and resource_dir.exists():
+                # Backward compat: also try old resource/ path
+                break
+        else:
+            old_rel = f"resource/tool/{tool_name}"
+            if subpath:
+                old_rel = f"{old_rel}/{subpath}"
+            for ref in ("FETCH_HEAD", "origin/tool"):
+                res = subprocess.run(
+                    [_git_bin(), "checkout", ref, "--", old_rel],
+                    cwd=str(project_root), capture_output=True, text=True
+                )
+                old_dir = project_root / old_rel
+                if res.returncode == 0 and old_dir.exists():
+                    resource_dir.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copytree(str(old_dir), str(resource_dir), dirs_exist_ok=True)
+                    shutil.rmtree(project_root / "resource", ignore_errors=True)
+                    break
+
+        subprocess.run(
+            [_git_bin(), "update-ref", "-d", "refs/remotes/origin/tool"],
+            cwd=str(project_root), capture_output=True
+        )
+
+        return resource_dir if resource_dir.exists() else None
+    except Exception:
+        return None

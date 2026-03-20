@@ -243,15 +243,31 @@ All tools inherit from `logic.tool.base.ToolBase`. Key features:
 ## 4. Branch Synchronization & Alignment
 This project uses a linear four-stage branch strategy: `dev -> tool -> main -> test`.
 - **`dev`**: Active development branch. Does NOT contain `logic/_/install/` (gitignored).
-- **`tool`**: Staging branch for tool testing. Contains `logic/_/install/resource/` (binary assets like fonts, Python builds) and `logic/_/install/archived/` (archived tools). The `logic/_/install/` directory is preserved from the previous tool branch during sync.
+- **`tool`**: **Remote-only** staging branch. Contains `logic/_/install/archived/` (archived tool code) and binary resources pushed via `--dev push-resource`. The `tool` branch is never kept locally — it is fetched on demand and cleaned up after use.
 - **`main`**: Production-ready framework only (no `tool/`, `logic/_/install/`, `data/`, `bin/`, `tmp/`).
 - **`test`**: Branch used for automated unit testing (mirrors tool).
+
+### Resource Isolation
+The `tool` branch is **not tracked locally**. During `TOOL --setup`, git is configured to exclude `tool` from the default fetch refspec. This prevents binary resources (Python builds, fonts) from bloating `.git/objects` on the developer's machine.
+
+- **`TOOL --setup`**: Configures `remote.origin.fetch` to only fetch `dev`, `main`, `test`. Deletes any local `tool` branch and prunes orphaned objects.
+- **`TOOL --dev sync`**: Temporarily fetches and creates a local `tool` branch for alignment, then deletes it after push.
+- **`TOOL --install <NAME>`**: Lazy-fetches `origin/tool` (shallow, depth=1) only when the tool source is not found locally.
+- **`TOOL --dev push-resource <NAME>`**: Pushes binary resources to the remote `tool` branch via side-index (no local checkout needed).
+
+### Tool Code vs Tool Resources
+| Concern | Where it lives | Tracked on `dev`? | How it reaches `tool` branch |
+|---|---|---|---|
+| Tool source code | `tool/<NAME>/` | Yes | `TOOL --dev sync` archives to `logic/_/install/archived/` |
+| Binary resources | `logic/_/install/resource/<NAME>/` | No (gitignored) | `TOOL --dev push-resource <NAME>` |
+| Archived tool snapshots | `logic/_/install/archived/<NAME>/` | No (gitignored) | Created during `TOOL --dev sync` alignment |
 
 ### Tool Installation Sources
 `TOOL install <NAME>` searches for tool source in this order:
 1. Local `tool/<NAME>/main.py` (already exists)
-2. Git branches: `dev`, `tool`, `origin/tool`, `origin/dev` → `tool/<NAME>/`
-3. Fallback: `tool`/`origin/tool` → `logic/_/install/archived/<NAME>/` (copied to `tool/<NAME>/`)
+2. Git branch: `dev` → `tool/<NAME>/`
+3. Lazy fetch: `origin/tool` (shallow) → `tool/<NAME>/`
+4. Fallback: `origin/tool` → `logic/_/install/archived/<NAME>/` (copied to `tool/<NAME>/`)
 
 ### Synchronization & Developer Commands
 Both `TOOL dev <command>` (legacy) and `TOOL --dev <command>` (preferred) syntax are supported:
@@ -261,6 +277,9 @@ Both `TOOL dev <command>` (legacy) and `TOOL --dev <command>` (preferred) syntax
 - **`TOOL --dev audit-test <name> [--fix]`**: Audit unit test naming.
 - **`TOOL --dev audit-bin [--fix]`**: Audit bin/ shortcut structure.
 - **`TOOL --dev audit-archived`**: Check for duplicate tools.
+- **`TOOL --dev archive <name>`**: Archive a tool to `logic/_/install/archived/`.
+- **`TOOL --dev unarchive <name>`**: Restore an archived tool.
+- **`TOOL --dev push-resource <name> [version]`**: Push binary resources to remote `tool` branch.
 - **`TOOL audit imports [--tool NAME] [--json]`**: Static analysis for cross-tool import quality (IMP001-IMP004).
 - **`TOOL audit quality [--tool NAME] [--json]`**: Hooks, interface, and skills validation (HOOK001-HOOK006, IFACE001-IFACE005, SKILL001-SKILL003).
 - **`TOOL --dev enter <main|test> [-f]`**: Switch to branch.

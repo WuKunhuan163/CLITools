@@ -110,48 +110,50 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
 
     tm = ProgressTuringMachine(project_root=project_root, tool_name="TOOL")
 
-    # 2. dev -> tool (archive all tools, preserve install resources)
+    # 2. dev -> tool (archive tool code only; binary resources stay local)
+    #    The local tool branch is created temporarily and deleted after push.
     def align_tool(stage: TuringStage):
         try:
-            if not run_git(["checkout", "tool"], project_root, stage): return False
+            # Fetch origin/tool for archived data (may fail if first time)
+            subprocess.run([_git_bin(), "fetch", "origin", "tool"],
+                           cwd=str(project_root), capture_output=True)
 
-            res = subprocess.run([_git_bin(), "rev-parse", "HEAD"],
+            # Resolve old tool tree before overwrite
+            old_tool_sha = None
+            res = subprocess.run([_git_bin(), "rev-parse", "origin/tool"],
                                  cwd=str(project_root), capture_output=True, text=True)
-            old_tool_sha = res.stdout.strip() if res.returncode == 0 else None
+            if res.returncode == 0:
+                old_tool_sha = res.stdout.strip()
 
-            if not run_git(["reset", "--hard", "dev"], project_root, stage): return False
+            # Create/reset local tool branch from dev
+            subprocess.run([_git_bin(), "branch", "-D", "tool"],
+                           cwd=str(project_root), capture_output=True)
+            if not run_git(["checkout", "-b", "tool", "dev"], project_root, stage):
+                return False
 
-            # Restore install resources from old tool branch
+            # Restore only archived tool code from old tool branch (NOT binary resources)
             if old_tool_sha:
                 subprocess.run(
-                    [_git_bin(), "checkout", old_tool_sha, "--", "logic/_/install/"],
+                    [_git_bin(), "checkout", old_tool_sha, "--", "logic/_/install/archived/"],
                     cwd=str(project_root), capture_output=True, text=True
                 )
-                # Backward compat: old tool branches may still have resource/
+                # Backward compat: old tool branches may still have resource/archived/
                 subprocess.run(
-                    [_git_bin(), "checkout", old_tool_sha, "--", "resource/"],
+                    [_git_bin(), "checkout", old_tool_sha, "--", "resource/archived/"],
                     cwd=str(project_root), capture_output=True, text=True
                 )
-                old_resource = project_root / "resource"
-                if old_resource.exists():
-                    new_install = project_root / "logic" / "_" / "install"
-                    old_archived = old_resource / "archived"
-                    old_tool_res = old_resource / "tool"
-                    if old_archived.exists():
-                        dest = new_install / "archived"
-                        dest.mkdir(parents=True, exist_ok=True)
-                        for item in old_archived.iterdir():
-                            target = dest / item.name
-                            if not target.exists():
-                                shutil.copytree(item, target, dirs_exist_ok=True) if item.is_dir() else shutil.copy2(item, target)
-                    if old_tool_res.exists():
-                        dest = new_install / "resource"
-                        dest.mkdir(parents=True, exist_ok=True)
-                        for item in old_tool_res.iterdir():
-                            target = dest / item.name
-                            if not target.exists():
-                                shutil.copytree(item, target, dirs_exist_ok=True) if item.is_dir() else shutil.copy2(item, target)
-                    shutil.rmtree(old_resource)
+                old_archived = project_root / "resource" / "archived"
+                if old_archived.exists():
+                    new_archived = project_root / "logic" / "_" / "install" / "archived"
+                    new_archived.mkdir(parents=True, exist_ok=True)
+                    for item in old_archived.iterdir():
+                        target = new_archived / item.name
+                        if not target.exists():
+                            if item.is_dir():
+                                shutil.copytree(item, target, dirs_exist_ok=True)
+                            else:
+                                shutil.copy2(item, target)
+                    shutil.rmtree(project_root / "resource", ignore_errors=True)
 
             # Archive all tools from tool/ -> logic/_/install/archived/
             tool_dir = project_root / "tool"
@@ -164,26 +166,25 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
                         if dest.exists():
                             shutil.rmtree(dest)
                         shutil.copytree(td, dest, dirs_exist_ok=True)
-                        # Strip data/ from archived copies (untracked, handled by locker)
                         archived_data = dest / "data"
                         if archived_data.exists():
                             shutil.rmtree(archived_data)
 
-                # Remove tool/ directory entirely
                 shutil.rmtree(tool_dir)
 
-            # Stage changes and amend
+            # Commit changes
             subprocess.run([_git_bin(), "add", "-A"],
                            cwd=str(project_root), capture_output=True)
             res = subprocess.run([_git_bin(), "diff", "--cached", "--quiet"],
                                  cwd=str(project_root), capture_output=True)
             if res.returncode != 0:
                 subprocess.run(
-                    [_git_bin(), "commit", "--amend", "--no-edit"],
+                    [_git_bin(), "commit", "-m", "Align 'tool' with 'dev'"],
                     cwd=str(project_root), capture_output=True
                 )
 
-            if not run_git(["push", "origin", "tool", "--force"], project_root, stage): return False
+            if not run_git(["push", "origin", "tool", "--force"], project_root, stage):
+                return False
             return True
         except Exception as e:
             stage.report_error("Align tool failed", str(e))
@@ -266,8 +267,13 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
     ))
 
     success = tm.run(ephemeral=quiet, final_msg="" if quiet else None, final_newline=False)
-    
-    # Return to starting branch
-    subprocess.run([_git_bin(), "checkout", "-f", start_branch], cwd=str(project_root), capture_output=True)
-    
+
+    # Return to starting branch and clean up ephemeral tool branch
+    subprocess.run([_git_bin(), "checkout", "-f", start_branch],
+                   cwd=str(project_root), capture_output=True)
+    subprocess.run([_git_bin(), "branch", "-D", "tool"],
+                   cwd=str(project_root), capture_output=True)
+    subprocess.run([_git_bin(), "update-ref", "-d", "refs/remotes/origin/tool"],
+                   cwd=str(project_root), capture_output=True)
+
     return success

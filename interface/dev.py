@@ -12,6 +12,9 @@ from logic._.dev.commands import (
     dev_audit_bin,
     dev_migrate_bin,
     dev_audit_archived,
+    dev_archive_tool,
+    dev_unarchive_tool,
+    dev_push_resource,
 )
 from logic._.dev.report import (
     list_docs,
@@ -33,6 +36,9 @@ __all__ = [
     "dev_audit_bin",
     "dev_migrate_bin",
     "dev_audit_archived",
+    "dev_archive_tool",
+    "dev_unarchive_tool",
+    "dev_push_resource",
     "list_docs",
     "list_reports",
     "view_file",

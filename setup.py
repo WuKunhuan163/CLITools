@@ -180,6 +180,66 @@ def shell_integration_action(stage=None):
             return False
     return True
 
+def decouple_tool_branch_action(stage=None):
+    """Configure git to not fetch the tool branch by default.
+
+    The tool branch holds archived tools and binary resources. Users should
+    never need it locally — resources are fetched lazily on demand via
+    --install or --dev push-resource.
+    """
+    project_root = Path(__file__).parent.absolute()
+    git_dir = project_root / ".git"
+    if not git_dir.exists():
+        return True
+
+    git = "git"
+    try:
+        from tool.GIT.interface.main import get_system_git
+        git = get_system_git()
+    except Exception:
+        pass
+
+    try:
+        res = subprocess.run(
+            [git, "config", "--get-all", "remote.origin.fetch"],
+            cwd=str(project_root), capture_output=True, text=True
+        )
+        current_refspecs = res.stdout.strip().splitlines() if res.returncode == 0 else []
+
+        wildcard = "+refs/heads/*:refs/remotes/origin/*"
+        if wildcard in current_refspecs:
+            subprocess.run(
+                [git, "config", "--unset-all", "remote.origin.fetch"],
+                cwd=str(project_root), capture_output=True
+            )
+            for branch in ("dev", "main", "test"):
+                subprocess.run(
+                    [git, "config", "--add", "remote.origin.fetch",
+                     f"+refs/heads/{branch}:refs/remotes/origin/{branch}"],
+                    cwd=str(project_root), capture_output=True
+                )
+
+        subprocess.run(
+            [git, "branch", "-D", "tool"],
+            cwd=str(project_root), capture_output=True
+        )
+        subprocess.run(
+            [git, "update-ref", "-d", "refs/remotes/origin/tool"],
+            cwd=str(project_root), capture_output=True
+        )
+
+        subprocess.run(
+            [git, "gc", "--prune=now", "--quiet"],
+            cwd=str(project_root), capture_output=True
+        )
+
+        return True
+    except Exception as e:
+        if stage:
+            stage.error_brief = str(e)
+        return False
+
+
 def setup_cursor_ide_action(stage=None):
     """Deploy AI IDE rules and hooks for all detected IDEs."""
     project_root = Path(__file__).parent.absolute()
@@ -266,6 +326,16 @@ def setup():
         fail_status="Failed to configure",
         success_color="BOLD",
         bold_part="Configuring shell integration"
+    ))
+
+    pm.add_stage(TuringStage(
+        name="git resource isolation",
+        action=decouple_tool_branch_action,
+        active_status="Configuring",
+        success_status="Successfully configured",
+        fail_status="Failed to configure",
+        success_color="BOLD",
+        bold_part="Configuring git resource isolation"
     ))
 
     pm.add_stage(TuringStage(

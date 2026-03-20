@@ -28,6 +28,9 @@ class DevCommand(EcoCommand):
             "audit-bin": lambda: self._audit_bin(rest),
             "audit-archived": self._audit_archived,
             "migrate-bin": self._migrate_bin,
+            "archive": lambda: self._archive(rest),
+            "unarchive": lambda: self._unarchive(rest),
+            "push-resource": lambda: self._push_resource(rest),
             "install-hooks": self._install_hooks,
             "uninstall-hooks": self._uninstall_hooks,
             "hooks": lambda: self._hooks(rest),
@@ -96,6 +99,32 @@ class DevCommand(EcoCommand):
     def _migrate_bin(self):
         from interface.dev import dev_migrate_bin
         dev_migrate_bin(self.project_root)
+
+    def _archive(self, rest):
+        name = rest[0] if rest else None
+        if not name:
+            print(f"Usage: {self.tool_name} --dev archive <tool_name>")
+            return
+        from interface.dev import dev_archive_tool
+        dev_archive_tool(name, self.project_root)
+
+    def _unarchive(self, rest):
+        name = rest[0] if rest else None
+        if not name:
+            print(f"Usage: {self.tool_name} --dev unarchive <tool_name>")
+            return
+        from interface.dev import dev_unarchive_tool
+        dev_unarchive_tool(name, self.project_root)
+
+    def _push_resource(self, rest):
+        if not rest:
+            print(f"Usage: {self.tool_name} --dev push-resource <tool_name> [<version>]")
+            print(f"  Pushes binary resources from logic/_/install/resource/<tool>/ to remote tool branch.")
+            return
+        tool_name = rest[0]
+        version = rest[1] if len(rest) > 1 else None
+        from interface.dev import dev_push_resource
+        dev_push_resource(tool_name, self.project_root, version=version)
 
     def _install_hooks(self):
         from interface.git import install_hooks
@@ -224,6 +253,9 @@ alwaysApply: {"true" if always_apply else "false"}
             ("audit-test <name> [--fix]", "Audit unit test naming"),
             ("audit-bin [--fix]", "Audit bin/ shortcuts"),
             ("audit-archived", "Check for duplicate tools"),
+            ("archive <name>", "Archive a tool to logic/_/install/archived/"),
+            ("unarchive <name>", "Restore an archived tool to tool/"),
+            ("push-resource <tool> [ver]", "Push binary resources to remote tool branch"),
             ("migrate-bin", "Migrate flat bin/ shortcuts"),
             ("install-hooks", "Install git post-checkout hook"),
             ("uninstall-hooks", "Remove git post-checkout hook"),

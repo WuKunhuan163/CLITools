@@ -634,3 +634,166 @@ def dev_migrate_bin(project_root: Path) -> bool:
 
     return True
 
+
+def dev_archive_tool(tool_name: str, project_root: Path):
+    """Archive a tool from tool/ to logic/_/install/archived/."""
+    BOLD = get_color("BOLD", "\033[1m")
+    GREEN = get_color("GREEN", "\033[32m")
+    RED = get_color("RED", "\033[31m")
+    RESET = get_color("RESET", "\033[0m")
+
+    tool_dir = project_root / "tool" / tool_name
+    if not tool_dir.exists():
+        print(f"{BOLD}{RED}Not found{RESET}: tool/{tool_name}")
+        return
+
+    archived_dir = project_root / "logic" / "_" / "install" / "archived"
+    dest = archived_dir / tool_name
+
+    if dest.exists():
+        print(f"{BOLD}{RED}Already archived{RESET}: {tool_name}")
+        print(f"  Remove logic/_/install/archived/{tool_name}/ first to re-archive.")
+        return
+
+    archived_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(str(tool_dir), str(dest), dirs_exist_ok=True)
+
+    data_dir = dest / "data"
+    if data_dir.exists():
+        shutil.rmtree(data_dir)
+    logs_dir = dest / "logs"
+    if logs_dir.exists():
+        shutil.rmtree(logs_dir)
+
+    shutil.rmtree(str(tool_dir))
+
+    bin_shortcut = project_root / "bin" / tool_name
+    if bin_shortcut.exists():
+        shutil.rmtree(str(bin_shortcut)) if bin_shortcut.is_dir() else os.remove(str(bin_shortcut))
+
+    print(f"{BOLD}{GREEN}Archived{RESET}: tool/{tool_name} -> logic/_/install/archived/{tool_name}")
+
+
+def dev_unarchive_tool(tool_name: str, project_root: Path):
+    """Restore an archived tool from logic/_/install/archived/ to tool/."""
+    BOLD = get_color("BOLD", "\033[1m")
+    GREEN = get_color("GREEN", "\033[32m")
+    RED = get_color("RED", "\033[31m")
+    RESET = get_color("RESET", "\033[0m")
+
+    archived_dir = project_root / "logic" / "_" / "install" / "archived" / tool_name
+    if not archived_dir.exists():
+        print(f"{BOLD}{RED}Not found{RESET}: logic/_/install/archived/{tool_name}")
+        return
+
+    tool_dir = project_root / "tool" / tool_name
+    if tool_dir.exists():
+        print(f"{BOLD}{RED}Already exists{RESET}: tool/{tool_name}")
+        print(f"  Remove tool/{tool_name}/ first to restore from archive.")
+        return
+
+    shutil.copytree(str(archived_dir), str(tool_dir), dirs_exist_ok=True)
+    shutil.rmtree(str(archived_dir))
+
+    print(f"{BOLD}{GREEN}Restored{RESET}: logic/_/install/archived/{tool_name} -> tool/{tool_name}")
+    print(f"  Run {BOLD}TOOL --install {tool_name}{RESET} to complete setup.")
+
+
+def dev_push_resource(tool_name: str, project_root: Path, version: str = None):
+    """Push binary resources from logic/_/install/resource/<tool>/ to remote tool branch.
+
+    Uses a side-index to add resources to the tool branch without checking it out.
+    """
+    BOLD = get_color("BOLD", "\033[1m")
+    GREEN = get_color("GREEN", "\033[32m")
+    RED = get_color("RED", "\033[31m")
+    BLUE = get_color("BLUE", "\033[34m")
+    DIM = get_color("DIM", "\033[2m")
+    RESET = get_color("RESET", "\033[0m")
+
+    resource_dir = project_root / "logic" / "_" / "install" / "resource" / tool_name
+    if not resource_dir.exists():
+        print(f"{BOLD}{RED}Not found{RESET}: logic/_/install/resource/{tool_name}")
+        return
+
+    if version:
+        target = resource_dir / version
+        if not target.exists():
+            print(f"{BOLD}{RED}Not found{RESET}: logic/_/install/resource/{tool_name}/{version}")
+            return
+        targets = [target]
+    else:
+        targets = [d for d in resource_dir.iterdir() if d.is_dir()]
+        if not targets:
+            print(f"{BOLD}{RED}No resources{RESET} in logic/_/install/resource/{tool_name}/")
+            return
+
+    print(f"{BOLD}{BLUE}Pushing{RESET} {len(targets)} resource(s) for {tool_name} to remote tool branch...")
+
+    try:
+        subprocess.run([_git_bin(), "fetch", "origin", "tool"],
+                       cwd=str(project_root), capture_output=True)
+
+        env = os.environ.copy()
+        side_index = project_root / ".git" / "index_push_resource"
+        env["GIT_INDEX_FILE"] = str(side_index)
+
+        try:
+            res = subprocess.run([_git_bin(), "rev-parse", "origin/tool^{tree}"],
+                                 cwd=str(project_root), capture_output=True, text=True)
+            if res.returncode != 0:
+                print(f"{BOLD}{RED}Failed{RESET}: Could not resolve origin/tool")
+                return
+            subprocess.run([_git_bin(), "read-tree", res.stdout.strip()],
+                           cwd=str(project_root), env=env, check=True, capture_output=True)
+
+            for t in targets:
+                for fpath in t.rglob("*"):
+                    if fpath.is_file():
+                        file_rel = fpath.relative_to(project_root)
+                        blob_hash = subprocess.check_output(
+                            [_git_bin(), "hash-object", "-w", str(fpath)],
+                            cwd=str(project_root), text=True
+                        ).strip()
+                        subprocess.run(
+                            [_git_bin(), "update-index", "--add", "--cacheinfo",
+                             "100644", blob_hash, str(file_rel)],
+                            cwd=str(project_root), env=env, check=True, capture_output=True
+                        )
+                print(f"  {DIM}Added: {t.relative_to(project_root)}/{RESET}")
+
+            new_tree = subprocess.check_output(
+                [_git_bin(), "write-tree"], cwd=str(project_root), env=env, text=True
+            ).strip()
+
+            parent = subprocess.check_output(
+                [_git_bin(), "rev-parse", "origin/tool"], cwd=str(project_root), text=True
+            ).strip()
+
+            msg = f"Push resources: {tool_name}" + (f" ({version})" if version else "")
+            commit_sha = subprocess.check_output(
+                [_git_bin(), "commit-tree", new_tree, "-p", parent, "-m", msg],
+                cwd=str(project_root), text=True
+            ).strip()
+
+            subprocess.run(
+                [_git_bin(), "update-ref", "refs/heads/tool", commit_sha],
+                cwd=str(project_root), check=True, capture_output=True
+            )
+            subprocess.run(
+                [_git_bin(), "push", "origin", "tool"],
+                cwd=str(project_root), check=True, capture_output=True
+            )
+
+            print(f"{BOLD}{GREEN}Pushed{RESET}: {tool_name} resources to remote tool branch.")
+        finally:
+            if side_index.exists():
+                side_index.unlink()
+            # Clean up tracking ref (tool branch is not kept locally)
+            subprocess.run(
+                [_git_bin(), "update-ref", "-d", "refs/remotes/origin/tool"],
+                cwd=str(project_root), capture_output=True
+            )
+    except Exception as e:
+        print(f"{BOLD}{RED}Error{RESET}: {e}")
+
