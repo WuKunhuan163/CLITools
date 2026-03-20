@@ -54,6 +54,39 @@ Use `auto` as the provider name for automatic model selection with fallback. The
 - Tracks per-provider health in a 10-minute sliding window
 - Implemented in `tool/LLM/logic/auto.py`
 
+### Rate Limit Tuning — Practice is the Sole Criterion for Truth
+
+Provider-documented rate limits are often imprecise. The **actual** rate limit behavior
+can only be determined through empirical observation. When encountering frequent 429 errors:
+
+1. **Inspect current state** via the assistant endpoint:
+   ```
+   POST /api/provider/status  {"provider": "zhipu-glm-4.7-flash"}
+   ```
+   Returns: `consecutive_429s`, `in_flight`, `queue_wait_s`, `rpm_used`, `rpm_limit`, health data.
+
+2. **Query usage history** from `tool/LLM/data/usage.db` (SQLite):
+   ```sql
+   SELECT timestamp, ok, error_code, latency_s
+   FROM usage WHERE provider = 'zhipu-glm-4.7-flash'
+   ORDER BY timestamp DESC LIMIT 50;
+   ```
+
+3. **Adjust hyperparameters** in `logic/models/<model>/model.json` under `rate_limits` and
+   `recommended_settings`. Key parameters:
+   - `rpm`: Requests per minute cap
+   - `max_concurrency`: Simultaneous in-flight requests
+   - `min_interval_s`: Minimum seconds between requests
+   - `jitter_s`: Random delay range added to each request
+   - `context_threshold_tokens` + `large_context_delay_s`: Extra delay for large contexts
+
+4. **Verify the change** by monitoring subsequent calls — if 429s persist, lower the RPM
+   further or increase `min_interval_s`. The goal is zero 429s in normal operation.
+
+The `RateLimiter` (per-provider) and `RateQueueManager` (global) both apply exponential
+backoff on 429s (`2^n` seconds, capped at 60-120s). Streaming errors are also recorded
+in the usage database for analysis.
+
 ## Live Agent GUI
 
 Start the live agent server with:

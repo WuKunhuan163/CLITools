@@ -1165,13 +1165,19 @@ class ToolBase:
     def _handle_endpoint(self, args):
         """Dispatch ``--endpoint`` commands.  Override in subclasses.
 
-        The default implementation prints a not-available message.
-        Tools like CDMCP override this to provide JSON monitoring endpoints.
+        The default implementation raises ``EndpointNotImplemented`` and
+        prints a user-friendly message.  Stateful tools (CDMCP, etc.)
+        override this to expose structured JSON monitoring endpoints.
+
+        See ``interface/endpoint.py`` for the ``EndpointRegistry`` helper
+        and the symmetric interface contract.
         """
+        from interface.endpoint import EndpointNotImplemented
         from logic.config import get_color
         DIM = get_color("DIM", "\033[2m")
         RESET = get_color("RESET", "\033[0m")
-        print(f"  {DIM}No --endpoint commands available for {self.tool_name}.{RESET}")
+        print(f"  {DIM}{self.tool_name} does not implement --endpoint. "
+              f"Override _handle_endpoint() to add monitoring endpoints.{RESET}")
 
     def _handle_assistant(self, args):
         """Dispatch --assistant subcommands.

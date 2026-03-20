@@ -351,7 +351,19 @@ class AgentServer:
             state["scope_name"] = self.scope_name
             return {"ok": True, "state": state}
         if path == "/api/scope":
-            return {"ok": True, "scope_name": self.scope_name}
+            result = {"ok": True, "scope_name": self.scope_name}
+            try:
+                wm = self._get_wm()
+                ws_info = wm.active_workspace_info()
+                if ws_info:
+                    result["workspace_path"] = ws_info.get("path", "")
+                    result["workspace_name"] = ws_info.get("name", "")
+                elif self.default_codebase:
+                    result["workspace_path"] = self.default_codebase
+            except Exception:
+                if self.default_codebase:
+                    result["workspace_path"] = self.default_codebase
+            return result
         if path == "/api/usage":
             return {"ok": True, "usage": self._get_usage_data()}
         if path == "/api/session_config" and method == "GET":
@@ -369,6 +381,10 @@ class AgentServer:
         if path == "/api/settings/close" and method == "POST":
             self._push_sse({"type": "settings_close"})
             return {"ok": True}
+        if path == "/api/debug-mode" and method == "POST":
+            enabled = bool(body.get("enabled", False))
+            self._push_sse({"type": "debug_mode", "enabled": enabled})
+            return {"ok": True, "enabled": enabled}
 
         # ── Brain endpoints ──
         if path == "/api/brain/blueprints" and method == "GET":
@@ -407,6 +423,22 @@ class AgentServer:
             return self._api_sandbox_set_mode_switch_policy(body)
         if path == "/api/sandbox/mode-switch-timeout" and method == "POST":
             return self._api_sandbox_set_mode_switch_timeout(body)
+
+        # ── Workspace endpoints ──
+        if path == "/api/workspace/list" and method == "GET":
+            return self._api_workspace_list()
+        if path == "/api/workspace/active" and method == "GET":
+            return self._api_workspace_active()
+        if path == "/api/workspace/create" and method == "POST":
+            return self._api_workspace_create(body)
+        if path == "/api/workspace/open" and method == "POST":
+            return self._api_workspace_open(body)
+        if path == "/api/workspace/close" and method == "POST":
+            return self._api_workspace_close()
+        if path == "/api/workspace/delete" and method == "POST":
+            return self._api_workspace_delete(body)
+        if path == "/api/workspace/state" and method == "GET":
+            return self._api_workspace_state()
 
         # ── Essential frontend routes (config saves, text-based revert) ──
         if method == "POST":
@@ -488,9 +520,12 @@ class AgentServer:
         session = self._mgr.get_session(sid)
         if not session:
             return {"ok": False, "error": f"Session {sid} not found"}
+        mc = getattr(session, "message_count", 0)
+        if not mc:
+            mc = len(getattr(session, "messages", []))
         return {"ok": True, "id": sid, "title": session.title,
                 "status": session.status,
-                "message_count": len(getattr(session, 'messages', []))}
+                "message_count": mc}
 
     def _api_send(self, sid: str, body: dict) -> dict:
         text = (body.get("text") or body.get("prompt") or "").strip()
@@ -779,6 +814,7 @@ class AgentServer:
 
     def _api_cancel(self, sid: str) -> dict:
         self._mgr.cancel_current()
+        self._push_sse({"type": "cancel_requested", "session_id": sid})
         return {"ok": True}
 
     def _api_provider_guide(self, body: dict) -> dict:
@@ -1084,6 +1120,123 @@ class AgentServer:
         sb.mode_switch_timeout = timeout
         return {"ok": True, "timeout": timeout}
 
+    # ── Workspace endpoints ──
+
+    def _get_wm(self):
+        from interface.workspace import get_workspace_manager
+        return get_workspace_manager()
+
+    def _api_workspace_list(self) -> dict:
+        wm = self._get_wm()
+        return {"ok": True, "workspaces": wm.list_workspaces()}
+
+    def _api_workspace_active(self) -> dict:
+        wm = self._get_wm()
+        info = wm.active_workspace_info()
+        if info:
+            info["brain_path"] = str(wm.get_brain_path(info["id"]))
+            return {"ok": True, "workspace": info}
+        return {"ok": True, "workspace": None}
+
+    def _api_workspace_create(self, body: dict) -> dict:
+        path = body.get("path", "").strip()
+        name = body.get("name", "").strip() or None
+        blueprint = body.get("blueprint", "").strip() or None
+        if not path:
+            return {"ok": False, "error": "Missing 'path'"}
+        wm = self._get_wm()
+        try:
+            info = wm.create_workspace(path, name=name, blueprint_type=blueprint)
+            self._push_sse({"type": "workspace_created", "id": info["id"],
+                            "name": info["name"], "path": info["path"]})
+            return {"ok": True, "workspace": info}
+        except FileExistsError as e:
+            return {"ok": False, "error": str(e)}
+        except FileNotFoundError as e:
+            return {"ok": False, "error": str(e)}
+
+    def _api_workspace_open(self, body: dict) -> dict:
+        ws_id = body.get("id", "").strip()
+        if not ws_id:
+            return {"ok": False, "error": "Missing 'id'"}
+        wm = self._get_wm()
+        try:
+            info = wm.open_workspace(ws_id)
+            info["brain_path"] = str(wm.get_brain_path(ws_id))
+            self._push_sse({"type": "workspace_opened", "id": ws_id,
+                            "name": info["name"], "path": info["path"]})
+            return {"ok": True, "workspace": info}
+        except FileNotFoundError as e:
+            return {"ok": False, "error": str(e)}
+
+    def _api_workspace_close(self) -> dict:
+        wm = self._get_wm()
+        info = wm.close_workspace()
+        if info:
+            self._push_sse({"type": "workspace_closed", "id": info["id"]})
+            return {"ok": True, "workspace": info}
+        return {"ok": False, "error": "No active workspace"}
+
+    def _api_workspace_delete(self, body: dict) -> dict:
+        ws_id = body.get("id", "").strip()
+        if not ws_id:
+            return {"ok": False, "error": "Missing 'id'"}
+        wm = self._get_wm()
+        try:
+            wm.delete_workspace(ws_id)
+            self._push_sse({"type": "workspace_deleted", "id": ws_id})
+            return {"ok": True}
+        except FileNotFoundError as e:
+            return {"ok": False, "error": str(e)}
+
+    def _api_workspace_state(self) -> dict:
+        """Full workspace state: active workspace, brain info, mounted dir contents."""
+        wm = self._get_wm()
+        info = wm.active_workspace_info()
+        if not info:
+            return {"ok": True, "active": False, "workspace": None}
+
+        ws_id = info["id"]
+        brain_path = wm.get_brain_path(ws_id)
+        mounted_path = info.get("path", "")
+
+        brain_files = {}
+        if brain_path.exists():
+            for child in sorted(brain_path.rglob("*")):
+                if child.is_file():
+                    rel = str(child.relative_to(brain_path))
+                    try:
+                        stat = child.stat()
+                        brain_files[rel] = {
+                            "size": stat.st_size,
+                            "mtime": int(stat.st_mtime),
+                        }
+                    except OSError:
+                        pass
+
+        mounted_listing = []
+        try:
+            from pathlib import Path
+            mp = Path(mounted_path)
+            if mp.is_dir():
+                for child in sorted(mp.iterdir()):
+                    mounted_listing.append({
+                        "name": child.name,
+                        "type": "dir" if child.is_dir() else "file",
+                    })
+        except OSError:
+            pass
+
+        return {
+            "ok": True,
+            "active": True,
+            "workspace": info,
+            "brain_path": str(brain_path),
+            "brain_files": brain_files,
+            "mounted_path": mounted_path,
+            "mounted_listing": mounted_listing[:100],
+        }
+
     def _api_queue(self, sid: str, body: dict) -> dict:
         action = body.get("action", "list")
         if not sid:
@@ -1096,7 +1249,7 @@ class AgentServer:
         elif action == "update":
             task_id = body.get("task_id", "")
             updates = {}
-            for k in ("mode", "model", "turn_limit"):
+            for k in ("text", "mode", "model", "turn_limit"):
                 if k in body:
                     updates[k] = body[k]
             if self._mgr.update_queued_task(sid, task_id, updates):
@@ -1125,10 +1278,13 @@ class AgentServer:
         if sid not in self._event_history:
             self._event_history[sid] = []
         self._event_history[sid].append(event)
-        if event.get("type") == "session_status":
-            s = self._mgr.get_session(sid)
-            if s:
+        s = self._mgr.get_session(sid)
+        if s:
+            etype = event.get("type", "")
+            if etype == "session_status":
                 s.status = event.get("status", s.status)
+            elif etype == "user":
+                s.message_count = getattr(s, "message_count", 0) + 1
         self._push_sse(event)
         self._maybe_record_injected_round(sid, event)
         return {"ok": True}
@@ -1141,10 +1297,17 @@ class AgentServer:
             return {"ok": False, "error": "events must be a list"}
         if sid not in self._event_history:
             self._event_history[sid] = []
+        s = self._mgr.get_session(sid)
         for evt in events:
             if isinstance(evt, dict):
                 evt["session_id"] = sid
                 self._event_history[sid].append(evt)
+                if s:
+                    etype = evt.get("type", "")
+                    if etype == "session_status":
+                        s.status = evt.get("status", s.status)
+                    elif etype == "user":
+                        s.message_count = getattr(s, "message_count", 0) + 1
                 self._push_sse(evt)
                 self._maybe_record_injected_round(sid, evt)
         return {"ok": True, "count": len(events)}

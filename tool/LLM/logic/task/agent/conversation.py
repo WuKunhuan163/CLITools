@@ -502,6 +502,7 @@ class ConversationManager:
         self._load_persisted_sessions()
         self._lock = threading.Lock()
         self._cancel_requested = False
+        self._active_provider = None
         self._task_queues: Dict[str, list] = {}  # session_id -> queued tasks
         self._next_task_id = 1
 
@@ -847,6 +848,7 @@ class ConversationManager:
 
     def _mark_session_done(self, session_id: str, reason: str = "done"):
         """Set session status to done with a reason, emit event, and persist."""
+        self._active_provider = None
         session = self._sessions.get(session_id)
         if session:
             session.status = "done"
@@ -949,6 +951,10 @@ class ConversationManager:
         Streaming APIs send tool calls incrementally — the function name and
         arguments arrive across multiple chunks. This method merges them by
         matching on `index` (preferred) or `id`.
+
+        Preserves vendor-specific fields (e.g. Google's ``extra_content``
+        containing ``thought_signature``) which some providers require when
+        echoing tool calls back in subsequent turns.
         """
         for delta in deltas:
             idx = delta.get("index")
@@ -967,14 +973,17 @@ class ConversationManager:
                         break
 
             if matched is None:
-                accumulated.append({
+                new_tc = {
                     "id": did or delta.get("id", ""),
                     "type": "function",
                     "function": {
                         "name": func.get("name") or "",
                         "arguments": func.get("arguments") or "",
                     },
-                })
+                }
+                if delta.get("extra_content"):
+                    new_tc["extra_content"] = delta["extra_content"]
+                accumulated.append(new_tc)
             else:
                 if did and not matched.get("id"):
                     matched["id"] = did
@@ -982,6 +991,8 @@ class ConversationManager:
                     matched["function"]["name"] = func["name"]
                 if func.get("arguments"):
                     matched["function"]["arguments"] += func["arguments"]
+                if delta.get("extra_content"):
+                    matched["extra_content"] = delta["extra_content"]
 
         return accumulated
 
@@ -1263,6 +1274,12 @@ class ConversationManager:
 
     def cancel_current(self):
         self._cancel_requested = True
+        provider = getattr(self, '_active_provider', None)
+        if provider is not None:
+            try:
+                provider.abort_stream()
+            except Exception:
+                pass
 
     def get_session(self, session_id: str) -> Optional[Session]:
         return self._sessions.get(session_id)
@@ -1335,13 +1352,24 @@ class ConversationManager:
 
     def _drain_task_queue(self, session_id: str):
         """Process queued tasks for a session after a turn completes."""
+        if self._cancel_requested:
+            return
         queue = self._task_queues.get(session_id, [])
         while queue:
+            if self._cancel_requested:
+                break
             task = queue.pop(0)
+            task_mode = task.get("mode", "")
+            task_model = task.get("model", "")
+            if task_mode:
+                session = self._sessions.get(session_id)
+                if session:
+                    session.mode = task_mode
             self._emit({"type": "queue_task_started",
                         "task_id": task.get("id", ""),
-                        "mode": task.get("mode", ""),
-                        "model": task.get("model", ""),
+                        "text": task.get("text", "")[:80],
+                        "mode": task_mode,
+                        "model": task_model,
                         "remaining": len(queue)})
             self._emit({"type": "queue_updated",
                         "queue": self._serialize_queue(session_id)})
@@ -1384,11 +1412,11 @@ class ConversationManager:
 
     def update_queued_task(self, session_id: str, task_id: str,
                            updates: dict) -> bool:
-        """Update mode/model/turn_limit for a queued task. Returns True if found."""
+        """Update text/mode/model/turn_limit for a queued task. Returns True if found."""
         queue = self._task_queues.get(session_id, [])
         for task in queue:
             if task.get("id") == task_id:
-                for k in ("mode", "model", "turn_limit"):
+                for k in ("text", "mode", "model", "turn_limit"):
                     if k in updates:
                         task[k] = updates[k]
                 self._emit({"type": "queue_updated",
@@ -1430,6 +1458,9 @@ class ConversationManager:
         Yields chunks from the provider.  If the stream stalls for
         _STREAM_HEARTBEAT_S seconds or a network error occurs, retries
         up to _STREAM_RECONNECT_ATTEMPTS times before raising.
+
+        Checks ``_cancel_requested`` every 0.5s so that user-initiated
+        cancellation takes effect even during the connection phase.
         """
         import queue as _q
 
@@ -1465,12 +1496,26 @@ class ConversationManager:
             t.start()
 
             try:
+                elapsed = 0.0
+                _POLL_INTERVAL = 0.5
                 while True:
-                    try:
-                        chunk = chunk_queue.get(timeout=self._STREAM_HEARTBEAT_S)
-                    except _q.Empty:
+                    if self._cancel_requested:
                         cancel_signal.set()
-                        raise TimeoutError("Stream heartbeat timeout")
+                        self._cancel_requested = False
+                        try:
+                            provider.abort_stream()
+                        except Exception:
+                            pass
+                        raise InterruptedError("Cancelled by user")
+                    try:
+                        chunk = chunk_queue.get(timeout=_POLL_INTERVAL)
+                        elapsed = 0.0
+                    except _q.Empty:
+                        elapsed += _POLL_INTERVAL
+                        if elapsed >= self._STREAM_HEARTBEAT_S:
+                            cancel_signal.set()
+                            raise TimeoutError("Stream heartbeat timeout")
+                        continue
                     if chunk is None:
                         if error_holder:
                             raise error_holder[0]
@@ -1478,6 +1523,9 @@ class ConversationManager:
                     yield chunk
                     if chunk.get("done"):
                         return
+            except InterruptedError:
+                cancel_signal.set()
+                return
             except (TimeoutError, ConnectionError, OSError) as exc:
                 cancel_signal.set()
                 is_last = attempt == self._STREAM_RECONNECT_ATTEMPTS - 1
@@ -1621,6 +1669,7 @@ class ConversationManager:
                 })
 
             provider = get_provider(actual_provider_name)
+            self._active_provider = provider
 
             if not provider.is_available():
                 self._emit({"type": "system_notice", "text": f"Provider {actual_provider_name} is not available.", "level": "error"})
@@ -1954,6 +2003,7 @@ class ConversationManager:
                                     "round": round_num,
                                     "error": True,
                                     "error_code": error_code,
+                                    "error_message": err,
                                     "latency_s": 0,
                                     "has_tool_calls": False,
                                     "provider": failed_name,
@@ -1978,6 +2028,7 @@ class ConversationManager:
                         "round": round_num,
                         "error": True,
                         "error_code": error_code,
+                        "error_message": err,
                         "latency_s": 0,
                         "has_tool_calls": False,
                         "provider": failed_name,

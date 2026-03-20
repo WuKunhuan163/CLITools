@@ -1,7 +1,6 @@
 """CDMCP endpoint handlers — structured JSON output for monitoring.
 
-Provides ``CDMCP --endpoint <path>`` commands that return machine-readable
-JSON, complementing the existing ``--mcp-*`` commands (human-readable).
+Uses ``interface.endpoint.EndpointRegistry`` for route dispatch.
 
 Supported endpoints:
     chrome/status              Chrome CDP availability
@@ -13,90 +12,23 @@ Supported endpoints:
     state                      Full CDMCP state (sessions + tabs + window)
     config                     CDMCP configuration
     window                     Session window status
+    urls                       Localhost URLs for all session pages
+    url/<session>              URL for a specific session's welcome page
 """
 
 import json
 import sys
-from typing import List
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-def handle_cdmcp_endpoint(args: list) -> None:
-    """Dispatch ``CDMCP --endpoint`` commands.
-
-    Args:
-        args: Arguments after ``--endpoint``.  Accepts slash-separated
-              (``chrome/status``), space-separated (``chrome status``),
-              or flag-separated (``--chrome --status``) forms.
-    """
-    segments = _parse_segments(args)
-
-    if not segments:
-        _print_help()
-        return
-
-    root = segments[0]
-
-    STATIC_ROUTES = {
-        ("chrome", "status"): _chrome_status,
-        ("sessions",): _sessions,
-        ("tabs",): _all_tabs,
-        ("managed",): _managed_tabs,
-        ("state",): _full_state,
-        ("config",): _config,
-        ("window",): _window_status,
-    }
-
-    key = tuple(segments)
-    if key in STATIC_ROUTES:
-        STATIC_ROUTES[key]()
-        return
-
-    if root == "session" and len(segments) >= 2:
-        name = segments[1]
-        sub = segments[2] if len(segments) >= 3 else "state"
-        if sub == "state":
-            _session_state(name)
-        elif sub == "tabs":
-            _session_tabs(name)
-        else:
-            _out({"ok": False, "error": f"Unknown session endpoint: {sub}"})
-        return
-
-    _out({"ok": False, "error": f"Unknown endpoint: {'/'.join(segments)}"})
-    _print_help()
-
-
-# ── Segment parser ────────────────────────────────────────────────────
-
-def _parse_segments(args: list) -> List[str]:
-    """Normalize args into flat path segments.
-
-    Accepts:
-        ["chrome/status"]           → ["chrome", "status"]
-        ["chrome", "status"]        → ["chrome", "status"]
-        ["--chrome", "--status"]    → ["chrome", "status"]
-    """
-    segments = []
-    for arg in args:
-        cleaned = arg.lstrip("-") if arg.startswith("--") else arg
-        segments.extend(cleaned.split("/"))
-    return [s for s in segments if s]
-
-
-# ── Helpers ───────────────────────────────────────────────────────────
-
-def _out(data: dict) -> None:
-    def _default(obj):
-        try:
-            return str(obj)
-        except Exception:
-            return f"<{type(obj).__name__}>"
-    print(json.dumps(data, indent=2, ensure_ascii=False, default=_default))
+from interface.endpoint import (
+    EndpointRegistry, parse_endpoint_segments, _print_json,
+)
 
 
 def _load_api():
     import importlib.util
-    from pathlib import Path
     api_path = Path(__file__).resolve().parent / "chrome" / "api.py"
     spec = importlib.util.spec_from_file_location("cdmcp_api", str(api_path))
     mod = importlib.util.module_from_spec(spec)
@@ -104,71 +36,22 @@ def _load_api():
     return mod
 
 
-# ── Endpoint implementations ─────────────────────────────────────────
+# ── Registry setup ────────────────────────────────────────────────────
+
+_registry = EndpointRegistry()
+
 
 def _chrome_status():
-    api = _load_api()
-    _out(api.status())
+    return _load_api().status()
 
 
 def _sessions():
     api = _load_api()
     sessions = api.list_sessions()
-    _out({"ok": True, "count": len(sessions), "sessions": sessions})
-
-
-def _session_state(name: str):
-    api = _load_api()
-    session = api.get_session_by_name(name)
-    if not session:
-        _out({"ok": False, "error": f"Session '{name}' not found"})
-        return
-
-    info = {
-        "ok": True,
-        "name": name,
-        "session_id": getattr(session, "session_id", "?"),
-        "window_id": getattr(session, "window_id", None),
-        "booted": getattr(session, "_booted", False),
-    }
-
-    lifetime_tab = getattr(session, "lifetime_tab_id", None)
-    if lifetime_tab:
-        info["lifetime_tab_id"] = lifetime_tab
-
-    tabs = {}
-    raw_tabs = getattr(session, "_tabs", {})
-    for label, tinfo in raw_tabs.items():
-        if isinstance(tinfo, dict):
-            tabs[label] = {
-                "id": tinfo.get("id", "?"),
-                "url": tinfo.get("url", "?"),
-                "alive": tinfo.get("alive", False),
-            }
-        else:
-            tabs[label] = {"id": str(tinfo)}
-    info["tabs"] = tabs
-
-    _out(info)
-
-
-def _session_tabs(name: str):
-    api = _load_api()
-    sessions = api.list_sessions()
-    found = next((s for s in sessions if s["name"] == name), None)
-    if not found:
-        _out({"ok": False, "error": f"Session '{name}' not found"})
-        return
-    _out({
-        "ok": True,
-        "session": name,
-        "session_id": found.get("session_id", "?"),
-        "tabs": found.get("tabs", []),
-    })
+    return {"ok": True, "count": len(sessions), "sessions": sessions}
 
 
 def _all_tabs():
-    api = _load_api()
     from interface.chrome import list_tabs as chrome_list_tabs
     tabs = chrome_list_tabs()
     page_tabs = [
@@ -176,23 +59,14 @@ def _all_tabs():
          "type": t.get("type", "")}
         for t in tabs if t.get("type") == "page"
     ]
-    _out({"ok": True, "count": len(page_tabs), "tabs": page_tabs})
+    return {"ok": True, "count": len(page_tabs), "tabs": page_tabs}
 
 
 def _managed_tabs():
     api = _load_api()
     raw = api.list_managed()
-    tabs = []
-    for t in raw:
-        entry = {}
-        for k, v in t.items():
-            try:
-                json.dumps(v)
-                entry[k] = v
-            except (TypeError, ValueError):
-                entry[k] = str(v)
-        tabs.append(entry)
-    _out({"ok": True, "count": len(tabs), "tabs": tabs})
+    tabs = _safe_serialize_list(raw)
+    return {"ok": True, "count": len(tabs), "tabs": tabs}
 
 
 def _full_state():
@@ -200,20 +74,9 @@ def _full_state():
     from interface.chrome import list_tabs as chrome_list_tabs
 
     sessions = api.list_sessions()
-    managed_raw = api.list_managed()
+    managed = _safe_serialize_list(api.list_managed())
     chrome_tabs = chrome_list_tabs()
     page_tabs = [t for t in chrome_tabs if t.get("type") == "page"]
-
-    managed = []
-    for t in managed_raw:
-        entry = {}
-        for k, v in t.items():
-            try:
-                json.dumps(v)
-                entry[k] = v
-            except (TypeError, ValueError):
-                entry[k] = str(v)
-        managed.append(entry)
 
     sm = api._get_session_mgr()
     active_name = None
@@ -227,7 +90,7 @@ def _full_state():
     if raw_win.get("error"):
         win["error"] = raw_win["error"]
 
-    _out({
+    return {
         "ok": True,
         "active_session": active_name,
         "session_count": len(sessions),
@@ -236,13 +99,11 @@ def _full_state():
         "managed_tabs": managed,
         "chrome_page_tabs": len(page_tabs),
         "window": win,
-    })
+    }
 
 
 def _config():
-    api = _load_api()
-    cfg = api.get_config()
-    _out({"ok": True, "config": cfg})
+    return {"ok": True, "config": _load_api().get_config()}
 
 
 def _window_status():
@@ -256,34 +117,145 @@ def _window_status():
     if session and hasattr(session, "window_id"):
         clean["window_id"] = session.window_id
         clean["session_name"] = getattr(session, "_name", None) or getattr(session, "name", "?")
-    elif isinstance(session, dict):
-        clean["session"] = session
     if win.get("error"):
         clean["error"] = win["error"]
-    _out(clean)
+    return clean
 
 
-# ── Help ──────────────────────────────────────────────────────────────
+def _urls():
+    """Return localhost URLs for all session welcome pages."""
+    api = _load_api()
+    sessions = api.list_sessions()
+    urls = []
+    for s in sessions:
+        sid = s.get("session_id", "?")
+        port = s.get("http_port")
+        if port:
+            url = f"http://127.0.0.1:{port}/welcome?session_id={sid}"
+        else:
+            url = s.get("lifetime_tab_url", "")
+        urls.append({
+            "session": s.get("name", "?"),
+            "session_id": sid,
+            "welcome_url": url,
+            "http_port": port,
+        })
+    return {"ok": True, "urls": urls}
 
-def _print_help():
-    print("""
-CDMCP Endpoint Monitor (JSON output)
 
-Usage: CDMCP --endpoint <path>
+def _session_handler(*segments):
+    """Dynamic handler for session/<name>/..."""
+    if not segments:
+        return {"ok": False, "error": "Missing session name"}
 
-Endpoints:
-  chrome/status              Chrome CDP availability and summary
-  sessions                   List all CDMCP sessions
-  session/<name>/state       Session detail (window, tabs, age)
-  session/<name>/tabs        Tabs in a session
-  tabs                       All Chrome page tabs
-  managed                    Managed CDMCP tabs with focus/lock state
-  state                      Full CDMCP state (sessions + tabs + window)
-  config                     CDMCP configuration values
-  window                     Session window status
+    name = segments[0]
+    sub = segments[1] if len(segments) >= 2 else "state"
 
-Path formats (all equivalent):
-  CDMCP --endpoint chrome/status
-  CDMCP --endpoint chrome status
-  CDMCP --endpoint --chrome --status
-""".rstrip())
+    api = _load_api()
+
+    if sub == "state":
+        session = api.get_session_by_name(name)
+        if not session:
+            return {"ok": False, "error": f"Session '{name}' not found"}
+        info = {
+            "ok": True,
+            "name": name,
+            "session_id": getattr(session, "session_id", "?"),
+            "window_id": getattr(session, "window_id", None),
+            "booted": getattr(session, "_booted", False),
+        }
+        lt = getattr(session, "lifetime_tab_id", None)
+        if lt:
+            info["lifetime_tab_id"] = lt
+        tabs = {}
+        for label, tinfo in getattr(session, "_tabs", {}).items():
+            if isinstance(tinfo, dict):
+                tabs[label] = {
+                    "id": tinfo.get("id", "?"),
+                    "url": tinfo.get("url", "?"),
+                    "alive": tinfo.get("alive", False),
+                }
+            else:
+                tabs[label] = {"id": str(tinfo)}
+        info["tabs"] = tabs
+        port = getattr(session, "_http_port", None)
+        if port:
+            info["welcome_url"] = f"http://127.0.0.1:{port}/welcome?session_id={info['session_id']}"
+        return info
+
+    elif sub == "tabs":
+        sessions = api.list_sessions()
+        found = next((s for s in sessions if s["name"] == name), None)
+        if not found:
+            return {"ok": False, "error": f"Session '{name}' not found"}
+        return {
+            "ok": True,
+            "session": name,
+            "session_id": found.get("session_id", "?"),
+            "tabs": found.get("tabs", []),
+        }
+
+    elif sub == "url":
+        session = api.get_session_by_name(name)
+        if not session:
+            return {"ok": False, "error": f"Session '{name}' not found"}
+        port = getattr(session, "_http_port", None)
+        sid = getattr(session, "session_id", "?")
+        if port:
+            url = f"http://127.0.0.1:{port}/welcome?session_id={sid}"
+        else:
+            url = getattr(session, "lifetime_tab_url", "")
+        return {"ok": True, "session": name, "url": url}
+
+    return {"ok": False, "error": f"Unknown session endpoint: {sub}"}
+
+
+def _url_handler(*segments):
+    """Dynamic handler for url/<session_name>."""
+    if not segments:
+        return _urls()
+    return _session_handler(segments[0], "url")
+
+
+# Register all routes
+_registry.register("chrome/status", _chrome_status, doc="Chrome CDP availability")
+_registry.register("sessions", _sessions, doc="List all CDMCP sessions")
+_registry.register("tabs", _all_tabs, doc="All Chrome page tabs")
+_registry.register("managed", _managed_tabs, doc="Managed CDMCP tabs (focus/lock)")
+_registry.register("state", _full_state, doc="Full CDMCP state")
+_registry.register("config", _config, doc="CDMCP configuration")
+_registry.register("window", _window_status, doc="Session window status")
+_registry.register("urls", _urls, doc="Localhost URLs for session pages")
+_registry.register_dynamic("session", _session_handler, doc="Session detail/tabs/url")
+_registry.register_dynamic("url", _url_handler, doc="URL for session welcome page")
+
+
+# ── Helpers ───────────────────────────────────────────────────────────
+
+def _safe_serialize_list(items):
+    result = []
+    for t in items:
+        entry = {}
+        for k, v in t.items():
+            try:
+                json.dumps(v)
+                entry[k] = v
+            except (TypeError, ValueError):
+                entry[k] = str(v)
+        result.append(entry)
+    return result
+
+
+# ── Public entry point ────────────────────────────────────────────────
+
+def handle_cdmcp_endpoint(args: list) -> None:
+    """Dispatch ``CDMCP --endpoint`` commands."""
+    segments = parse_endpoint_segments(args)
+
+    if not segments:
+        print(_registry.help_text("CDMCP"))
+        return
+
+    if not _registry.dispatch(segments):
+        _print_json({"ok": False, "error": f"Unknown endpoint: {'/'.join(segments)}"})
+        print(_registry.help_text("CDMCP"))

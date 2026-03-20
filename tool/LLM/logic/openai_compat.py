@@ -295,6 +295,7 @@ class OpenAICompatProvider(LLMProvider):
             yield result
             return
 
+        self._active_response = resp
         resp_headers = {k.lower(): v for k, v in resp.getheaders()}
         last_usage = {}
         stream_ok = True
@@ -330,6 +331,7 @@ class OpenAICompatProvider(LLMProvider):
         except Exception:
             stream_ok = False
         finally:
+            self._active_response = None
             resp.close()
             self._rate_limiter.release()
             if stream_ok:

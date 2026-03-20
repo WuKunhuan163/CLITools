@@ -91,7 +91,7 @@ If USERINPUT times out or returns empty:
 ### Output Format
 
 The output starts with the auto-save progress indicators (shown as Turing machine
-stages), followed by the user's response:
+stages), followed by the user's response, then system prompt and feedback directive:
 
 ```
 正在保存进度...
@@ -101,9 +101,23 @@ Pruning LFS objects...
 Launching input GUI...
 正在通过 GUI 等待 USERINPUT 反馈 (PID: 12345)(30s)...
 成功接收: <user's response here>
+
+系统提示 / System Prompt
+0. <system prompt rule 0>
+1. <system prompt rule 1>
+...
+
+关键指令：USERINPUT 反馈闭环 / Critical Directive: USERINPUT Feedback Loop
+<feedback loop directive text>
 ```
 
 The actual user content follows `成功接收:` or `Successfully received:`.
+
+**IMPORTANT:** The last ~10-20 lines are system prompts and the feedback directive,
+NOT the user's response. The user's response is between the `成功接收:` / `Successfully
+received:` line and the `系统提示` / `System Prompt` section. Never assume the last
+few lines are the user's message — they are almost certainly the appended system
+instructions.
 
 ## Queue Behavior
 
@@ -165,14 +179,47 @@ The message is appended to the auto-generated commit message (existing format an
 tags are preserved). Use this to leave meaningful commit history that describes
 what was accomplished before each feedback checkpoint.
 
+## NEVER Filter USERINPUT Output
+
+USERINPUT output contains critical content: auto-save progress, then the user's
+full response after `成功接收:` / `Successfully received:`. Filtering destroys this.
+
+**ABSOLUTELY FORBIDDEN — piping or truncating USERINPUT output in ANY way:**
+
+```bash
+# ALL OF THESE ARE STRICTLY FORBIDDEN:
+python3 tool/USERINPUT/main.py 2>&1 | tail -5
+python3 tool/USERINPUT/main.py 2>&1 | head -20
+python3 tool/USERINPUT/main.py 2>&1 | grep "成功"
+python3 tool/USERINPUT/main.py | tail -n 5
+python3 tool/USERINPUT/main.py | awk '...'
+python3 tool/USERINPUT/main.py | sed '...'
+USERINPUT --hint "..." 2>&1 | tail -5
+```
+
+**CORRECT — always capture full unfiltered output:**
+
+```bash
+# CORRECT: no pipe, no filter
+python3 tool/USERINPUT/main.py --hint "summary"
+
+# CORRECT: redirect stderr to stdout (no pipe after)
+python3 tool/USERINPUT/main.py --hint "summary" 2>&1
+```
+
+The user's response can be arbitrarily long and may span many lines. Using `tail`,
+`head`, `grep`, `awk`, `sed`, or ANY pipe will silently discard the user's message.
+This is a critical violation — the user types their response and you throw it away.
+
 ## Important Rules
 
 1. USERINPUT is a **CLI tool** — invoke it directly from the terminal command line.
 2. USERINPUT is a **blocking** command. NEVER use `block_until_ms: 0` or `&`.
 3. Set `block_until_ms: 310000` minimum (310 seconds).
-4. Execute USERINPUT at every workflow boundary.
-5. Use `--hint` to explain why you are requesting feedback.
-6. Use `--enquiry` when you need the user's real-time response, not a queued task.
-7. Use `--auto-commit-message` to include development progress in auto-commits.
-8. The git auto-save takes 30-120 seconds — do NOT assume failure if output is slow.
-9. If you see "Launching input GUI" or "等待 USERINPUT 反馈", keep waiting — the user is typing.
+4. **NEVER pipe USERINPUT output** through `tail`, `head`, `grep`, `awk`, `sed`, or any filter.
+5. Execute USERINPUT at every workflow boundary.
+6. Use `--hint` to explain why you are requesting feedback.
+7. Use `--enquiry` when you need the user's real-time response, not a queued task.
+8. Use `--auto-commit-message` to include development progress in auto-commits.
+9. The git auto-save takes 30-120 seconds — do NOT assume failure if output is slow.
+10. If you see "Launching input GUI" or "等待 USERINPUT 反馈", keep waiting — the user is typing.

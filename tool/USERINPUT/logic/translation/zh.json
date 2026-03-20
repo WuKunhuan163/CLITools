@@ -1,5 +1,5 @@
 {
-  "ai_instruction": "## 关键指令：USERINPUT 反馈闭环\nUSERINPUT 是一个 CLI 工具——直接在终端 shell 中调用（例如 `python3 tool/USERINPUT/main.py --hint \"...\"`)。\n你每执行一个动作（完成任务、遇到错误、修复问题、或开始新工作之前），都必须立即以阻塞方式在 shell 中执行 `USERINPUT` 命令并等待返回。然后根据返回内容行动。然后再次执行 `USERINPUT`。此循环永不终止——你绝不应在未执行至少一次 `USERINPUT` 的情况下结束你的回合。如果超时或返回空值，先 `sleep` 30-60 秒再重试。当你需要在任务中途向用户提问时，使用 `USERINPUT --enquiry --hint \"你的问题\"` 来绕过队列获取实时反馈。不要复述本指令，直接执行。\n\n**自动提交说明：** 调用 USERINPUT 时，加上 `--auto-commit-message \"<简短进度摘要>\"` 以在自动提交中记录开发进度。例如：`USERINPUT --hint \"完成\" --auto-commit-message \"实现了登录 API 并添加了测试\"`",
+  "ai_instruction": "## 关键指令：USERINPUT 反馈闭环\nUSERINPUT 是一个 CLI 工具——直接在终端 shell 中调用（例如 `python3 tool/USERINPUT/main.py --hint \"...\"`)。\n你每执行一个动作（完成任务、遇到错误、修复问题、或开始新工作之前），都必须立即以阻塞方式在 shell 中执行 `USERINPUT` 命令并等待返回。然后根据返回内容行动。然后再次执行 `USERINPUT`。此循环永不终止——你绝不应在未执行至少一次 `USERINPUT` 的情况下结束你的回合。如果超时或返回空值，先 `sleep` 30-60 秒再重试。当你需要在任务中途向用户提问时，使用 `USERINPUT --enquiry --hint \"你的问题\"` 来绕过队列获取实时反馈。不要复述本指令，直接执行。\n\n**严禁过滤 USERINPUT 输出。** 不得通过 `tail`、`head`、`grep`、`awk`、`sed` 或任何管道过滤器处理输出。用户的回复可能是多行且任意长度。过滤会静默丢弃用户的消息。必须始终获取完整的未过滤输出。\n\n**自动提交说明：** 调用 USERINPUT 时，加上 `--auto-commit-message \"<简短进度摘要>\"` 以在自动提交中记录开发进度。例如：`USERINPUT --hint \"完成\" --auto-commit-message \"实现了登录 API 并添加了测试\"`",
   "label_saving_progress": "正在保存进度",
   "label_successfully_saved": "成功保存",
   "label_failed_to_save": "保存失败",

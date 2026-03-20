@@ -101,11 +101,27 @@ USERINPUT --hint "Review changes" --auto-commit-message "refactor: extract auth 
 The message is appended after the auto-generated commit tag. Useful for agents to
 leave meaningful commit history describing development progress.
 
+## Auto-Commit Message
+
+Append a custom message to the auto-commit that runs before collecting feedback:
+
+```bash
+USERINPUT --auto-commit-message "feat: add login validation"
+USERINPUT --hint "Review changes" --auto-commit-message "refactor: extract auth module"
+```
+
+## Output Structure
+
+USERINPUT output has three sections in order:
+1. **Auto-save progress** — Turing machine stages (saving, history, backup, LFS, GUI launch)
+2. **User response** — after `成功接收:` / `Successfully received:`
+3. **System prompts + feedback directive** — appended automatically (last ~10-20 lines)
+
+The last lines are NOT the user's response — they are system instructions. Never
+use `tail`, `head`, `grep`, or any filter to read USERINPUT output.
+
 ## Remote Control
 
 - **Stop All**: `USERINPUT --gui-stop`
 - **Stop Specific**: `USERINPUT --gui-stop <PID>`
 
-## Implementation
-
-This tool inherits from the unified [GUI Architecture](../../report/gui_architecture.md) blueprint. Queue management uses the `editable_list` blueprint which inherits from the `bottom_bar` blueprint.

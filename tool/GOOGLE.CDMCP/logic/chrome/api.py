@@ -126,6 +126,27 @@ def _log(action: str, detail: str = ""):
         pass
 
 
+def _push_event(event_type: str, **data):
+    """Push an SSE event to connected CDMCP frontends (best-effort)."""
+    sm = _get_session_mgr()
+    if not sm:
+        return
+    active = sm.get_any_active_session()
+    port = getattr(active, "_http_port", None) if active else None
+    if not port:
+        return
+    try:
+        import urllib.request
+        payload = json.dumps({"type": event_type, **data}).encode()
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/event",
+            data=payload, method="POST",
+            headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=2)
+    except Exception:
+        pass
+
+
 # ---------------------------------------------------------------------------
 # Session management (delegated)
 # ---------------------------------------------------------------------------
@@ -291,6 +312,7 @@ def navigate(url: str, port: int = CDP_PORT) -> Dict[str, Any]:
                 tid = tab.get("id", "")
                 _managed_tabs[tid] = tab
                 _focused_tab_id = tid
+                _push_event("navigated", tab_id=tid, url=url, action="reused")
                 return {"ok": True, "action": "reused", "tabId": tid, "url": url}
             finally:
                 session.close()
@@ -312,6 +334,7 @@ def navigate(url: str, port: int = CDP_PORT) -> Dict[str, Any]:
                     tid = tab.get("id", "")
                     _managed_tabs[tid] = tab
                     _focused_tab_id = tid
+                    _push_event("navigated", tab_id=tid, url=url, action="created")
                     return {"ok": True, "action": "created", "tabId": tid, "url": url}
                 finally:
                     session.close()
@@ -359,6 +382,8 @@ def lock_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
                        base_opacity=cfg.get("overlay_opacity", 0.08),
                        flash_opacity=cfg.get("overlay_lock_flash_opacity", 0.25))
         _locked_tab_id = tab.get("id", "")
+        _push_event("tab_locked", tab_id=_locked_tab_id,
+                     url=tab.get("url", ""))
         return {"ok": True, "locked": True, "tabId": _locked_tab_id}
     finally:
         session.close()
@@ -378,6 +403,8 @@ def unlock_tab(url_pattern: str, port: int = CDP_PORT) -> Dict[str, Any]:
     try:
         ov.remove_lock(session)
         _locked_tab_id = None
+        _push_event("tab_unlocked", tab_id=tab.get("id", ""),
+                     url=tab.get("url", ""))
         return {"ok": True, "locked": False, "tabId": tab.get("id")}
     finally:
         session.close()

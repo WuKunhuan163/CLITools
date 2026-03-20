@@ -69,6 +69,21 @@ class LLMProvider(ABC):
     name: str = "base"
     cost_model: CostModel = CostModel()
     capabilities: ModelCapabilities = ModelCapabilities()
+    _active_response = None
+
+    def abort_stream(self):
+        """Abort the current streaming response by closing the HTTP connection.
+
+        This allows immediate cancellation without waiting for the next chunk.
+        Safe to call from any thread.
+        """
+        resp = self._active_response
+        if resp is not None:
+            try:
+                resp.close()
+            except Exception:
+                pass
+            self._active_response = None
 
     @classmethod
     def icon_path(cls) -> Optional[str]:
@@ -172,7 +187,13 @@ class LLMProvider(ABC):
         for chunk in self.send_streaming(messages, temperature, max_tokens,
                                          tools=tools):
             if not chunk.get("ok"):
-                chunk.get("error", "Stream error")
+                try:
+                    from tool.LLM.logic.usage import record_usage
+                    model = getattr(self, "_model", self.name)
+                    api_key = getattr(self, "_api_key", "")
+                    record_usage(self.name, model, chunk, 0, api_key=api_key)
+                except Exception:
+                    pass
                 yield chunk
                 return
 

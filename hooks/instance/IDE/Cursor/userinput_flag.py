@@ -21,6 +21,15 @@ def _log(msg: str):
         pass
 
 
+PIPE_FILTERS = ["| tail", "| head", "| grep", "| awk", "| sed", "| cut", "| sort", "|tail", "|head", "|grep", "|awk", "|sed", "|cut", "|sort"]
+
+
+def _has_pipe_filter(cmd: str) -> bool:
+    """Check if a USERINPUT command is piped through a filter."""
+    lower = cmd.lower()
+    return any(f in lower for f in PIPE_FILTERS)
+
+
 def main():
     try:
         raw = sys.stdin.read()
@@ -34,12 +43,23 @@ def main():
     command = payload.get("command", "")
     _log(f"command={command[:80]} conv={conversation_id[:12]}")
 
+    output = {}
+
     if "USERINPUT" in command:
         flag_file = Path(f"/tmp/cursor-userinput-done-{conversation_id}")
         flag_file.write_text(command[:200])
         _log(f"FLAG SET at {flag_file}")
 
-    print(json.dumps({}))
+        if _has_pipe_filter(command):
+            _log(f"VIOLATION: USERINPUT output piped through filter: {command[:120]}")
+            output["message"] = (
+                "CRITICAL VIOLATION: You piped USERINPUT output through a filter "
+                "(tail/head/grep/awk/sed). This silently discards the user's response. "
+                "NEVER filter USERINPUT output. Re-run USERINPUT without any pipe: "
+                "python3 tool/USERINPUT/main.py --hint \"...\" 2>&1"
+            )
+
+    print(json.dumps(output))
 
 
 if __name__ == "__main__":

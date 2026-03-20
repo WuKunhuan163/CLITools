@@ -525,24 +525,11 @@ class CDMCPSession:
         except Exception:
             _srv_url = None
 
-        created_ts = int(self.created_at)
-        idle_sec = getattr(self, "timeout_sec", 3600)
-        last_act = int(self.last_activity)
         if _srv_url:
-            welcome_url = (
-                f"{_srv_url}/welcome?session_id={self.session_id}"
-                f"&port={self.port}&timeout_sec={self.timeout_sec}"
-                f"&created_at={created_ts}"
-                f"&idle_timeout_sec={idle_sec}&last_activity={last_act}"
-            )
+            welcome_url = f"{_srv_url}/welcome?session_id={self.session_id}"
         else:
             welcome_html = _TOOL_DIR / "data" / "welcome.html"
-            welcome_url = (
-                f"file://{welcome_html}?session_id={self.session_id}"
-                f"&port={self.port}&timeout_sec={self.timeout_sec}"
-                f"&created_at={created_ts}"
-                f"&idle_timeout_sec={idle_sec}&last_activity={last_act}"
-            )
+            welcome_url = f"file://{welcome_html}?session_id={self.session_id}"
         self.lifetime_tab_url = welcome_url
 
         # 2. Open new window with welcome page
@@ -1611,12 +1598,7 @@ def boot_tool_session(
                 )
                 if needs_refresh:
                     sid_short = existing.session_id[:8]
-                    created_ts = int(existing.created_at)
-                    new_welcome = (
-                        f"{server_url}/welcome?session_id={sid_short}"
-                        f"&port={port}&timeout_sec={existing.timeout_sec}"
-                        f"&created_at={created_ts}"
-                    )
+                    new_welcome = f"{server_url}/welcome?session_id={sid_short}"
                     existing.lifetime_tab_url = new_welcome
                     # Navigate the welcome tab to the new URL
                     try:
@@ -1703,11 +1685,7 @@ def boot_tool_session(
         return {"ok": False, "error": f"Server start failed: {e}"}
 
     sid_short = session.session_id[:8]
-    created_ts = int(session.created_at)
-    welcome_url = (
-        f"{server_url}/welcome?session_id={sid_short}"
-        f"&port={port}&timeout_sec={timeout_sec}&created_at={created_ts}"
-    )
+    welcome_url = f"{server_url}/welcome?session_id={sid_short}"
 
     boot_result = session.boot(welcome_url, new_window=True)
     if not boot_result.get("ok"):

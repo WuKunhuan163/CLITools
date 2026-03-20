@@ -328,7 +328,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 /* ── Main ── */
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
 .main-header { padding: 12px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; min-height: 48px; flex-shrink: 0; }
-.main-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+.main-title-group { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 1px; }
+.main-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.workspace-indicator { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); letter-spacing: -0.2px; }
 
 /* ── Settings Button ── */
 .btn-settings { display: flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text-2); cursor: pointer; font-size: 12px; font-family: var(--font); font-weight: 500; transition: all var(--transition); flex-shrink: 0; }
@@ -617,7 +619,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .queue-item-grip:active { cursor: grabbing; }
 .queue-item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .queue-item select { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 11px; color: var(--text); font-family: var(--font); cursor: pointer; }
-.queue-item-remove { border: none; background: none; color: var(--text-3); font-size: 13px; cursor: pointer; padding: 2px; border-radius: 4px; line-height: 1; }
+.queue-item-action { border: none; background: none; color: var(--text-3); font-size: 13px; cursor: pointer; padding: 2px; border-radius: 4px; line-height: 1; flex-shrink: 0; }
+.queue-item-action:hover { color: var(--accent); background: rgba(255,255,255,0.06); }
+.queue-item-remove { border: none; background: none; color: var(--text-3); font-size: 13px; cursor: pointer; padding: 2px; border-radius: 4px; line-height: 1; flex-shrink: 0; }
 .queue-item-remove:hover { color: var(--red); background: var(--red-dim); }
 .queue-item.dragging { opacity: 0.4; }
 .queue-item.drag-over { border-top: 2px solid var(--accent); }
@@ -766,6 +770,12 @@ body.debug-mode .debug-block { display: block; }
 .center-notice-inner strong { color: var(--text-2); font-weight: 600; }
 .center-notice-inner i { font-size: 14px; }
 
+/* ── System Error/Warning Notice ── */
+.system-error-notice { padding: 6px 0; animation: fadeIn 0.3s ease; max-width: 90%; }
+.system-error-notice-inner { display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; font-size: 12px; color: var(--text-2); border-radius: var(--radius); border-left: 3px solid var(--red); background: var(--red-dim); word-break: break-word; line-height: 1.5; }
+.system-error-notice-inner i { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+.system-error-notice-inner span { flex: 1; min-width: 0; }
+
 /* ── LLM Status (model info line) ── */
 .llm-status { margin: 4px 0; max-width: 90%; animation: fadeIn 0.2s ease; }
 .llm-status-inner { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 11.5px; color: var(--text-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--mono); }
@@ -897,7 +907,10 @@ body.debug-mode .debug-block { display: block; }
 
 <main class="main">
   <div class="main-header">
-    <div class="main-title" id="main-title">New Task</div>
+    <div class="main-title-group">
+      <div class="main-title" id="main-title">New Task</div>
+      <div class="workspace-indicator" id="workspace-indicator" style="display:none;"></div>
+    </div>
     <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
       <div class="debug-toggle" id="theme-toggle" onclick="cycleTheme()" title="Cycle color mode">
         <i class="bx bx-moon" id="theme-icon" style="font-size:14px;"></i>
@@ -1259,6 +1272,14 @@ function toggleDebug() {
   document.body.classList.toggle('debug-mode', debugMode);
   $('debug-toggle').classList.toggle('active', debugMode);
   engine.setDebugMode(debugMode, createDebugBlock);
+  try { localStorage.setItem('debug_mode', debugMode ? '1' : '0'); } catch(e) {}
+}
+function setDebugModeTo(on) {
+  debugMode = !!on;
+  document.body.classList.toggle('debug-mode', debugMode);
+  $('debug-toggle').classList.toggle('active', debugMode);
+  engine.setDebugMode(debugMode, createDebugBlock);
+  try { localStorage.setItem('debug_mode', debugMode ? '1' : '0'); } catch(e) {}
 }
 
 const THEMES = {
@@ -1677,8 +1698,10 @@ function _renderQueueContainer() {
     return `<div class="queue-item" draggable="true" data-task-id="${t.id}" data-idx="${i}"
       ondragstart="_qDragStart(event)" ondragover="_qDragOver(event)" ondragleave="_qDragLeave(event)" ondrop="_qDrop(event)">
       <span class="queue-item-grip"><i class="bx bx-grip-vertical"></i></span>
-      <span class="queue-item-text" title="${esc(t.text)}">${esc(t.text)}</span>
+      <span class="queue-item-text" title="${esc(t.text)}" ondblclick="_queueEditTaskText(this,'${t.id}')">${esc(t.text)}</span>
       ${modeSelect}${modelSelect}
+      <button class="queue-item-action" onclick="_queueEditTaskText(this.parentElement.querySelector('.queue-item-text'),'${t.id}')" title="Edit"><i class="bx bx-edit-alt"></i></button>
+      <button class="queue-item-action" onclick="_queueSendNow('${t.id}')" title="Send now"><i class="bx bx-right-arrow-alt"></i></button>
       <button class="queue-item-remove" onclick="_queueRemoveTask('${t.id}')" title="Remove"><i class="bx bx-x"></i></button>
     </div>`;
   }).join('');
@@ -1735,6 +1758,43 @@ async function _queueClearAll() {
       body: JSON.stringify({action:'clear'})
     });
   } catch(e) { console.warn('Queue clear failed:', e); }
+}
+
+function _queueEditTaskText(spanEl, taskId) {
+  if (spanEl.querySelector('input')) return;
+  const oldText = spanEl.textContent;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = oldText;
+  input.className = 'queue-edit-input';
+  input.style.cssText = 'width:100%;background:var(--bg);border:1px solid var(--accent);border-radius:4px;color:var(--text);font-size:12px;padding:2px 6px;font-family:var(--font);outline:none;';
+  spanEl.textContent = '';
+  spanEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  const commit = async () => {
+    const newText = input.value.trim();
+    spanEl.textContent = newText || oldText;
+    if (newText && newText !== oldText) {
+      await _queueUpdateTask(taskId, {text: newText});
+    }
+  };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { spanEl.textContent = oldText; }
+  });
+}
+
+async function _queueSendNow(taskId) {
+  if (!activeSessionId) return;
+  try {
+    await fetch(`/api/session/${activeSessionId}/queue`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action:'reorder', task_id: taskId, index: 0})
+    });
+  } catch(e) { console.warn('Queue send-now failed:', e); }
 }
 
 let _qDragId = null;
@@ -1851,9 +1911,26 @@ function setWorkspace(path) {
   _updateWorkspaceIndicator();
 }
 
-function _updateWorkspaceIndicator() {
+function _updateWorkspaceIndicator(overridePath) {
+  const wsPath = overridePath || currentWorkspace;
+  if (overridePath && !currentWorkspace) {
+    currentWorkspace = overridePath;
+  }
+
+  const titleIndicator = document.getElementById('workspace-indicator');
+  if (titleIndicator) {
+    if (wsPath) {
+      titleIndicator.textContent = 'workspace: ' + wsPath;
+      titleIndicator.title = wsPath;
+      titleIndicator.style.display = '';
+    } else {
+      titleIndicator.style.display = 'none';
+      titleIndicator.textContent = '';
+    }
+  }
+
   let badge = document.getElementById('workspace-badge');
-  if (currentWorkspace) {
+  if (wsPath) {
     if (!badge) {
       badge = document.createElement('div');
       badge.id = 'workspace-badge';
@@ -1866,7 +1943,7 @@ function _updateWorkspaceIndicator() {
       const footer = document.getElementById('sidebar-footer');
       if (footer) footer.parentElement.insertBefore(badge, footer);
     }
-    const short = currentWorkspace.length > 30 ? '...' + currentWorkspace.slice(-27) : currentWorkspace;
+    const short = wsPath.length > 30 ? '...' + wsPath.slice(-27) : wsPath;
     badge.innerHTML = '<i class="bx bx-folder" style="font-size:11px;vertical-align:-1px;"></i> ' + short;
   } else if (badge) {
     badge.remove();
@@ -3675,6 +3752,7 @@ function handleSSEEvent(evt) {
     'settings_changed', 'settings_open', 'settings_close',
     'inject_input', 'model_switched', 'mode_switch_resolved',
     'queue_updated', 'turn_limit_set', 'queue_task_started',
+    'workspace_created', 'workspace_opened', 'workspace_closed',
   ]);
   if (!_globalEventTypes.has(evt.type) && evt.session_id && evt.session_id !== activeSessionId) {
     return;
@@ -3801,6 +3879,26 @@ function handleSSEEvent(evt) {
       closeSettings();
       break;
     }
+    case 'debug_mode': {
+      setDebugModeTo(!!evt.enabled);
+      break;
+    }
+
+    case 'workspace_created':
+    case 'workspace_opened': {
+      if (evt.path) {
+        currentWorkspace = evt.path;
+        localStorage.setItem('workspace_path', evt.path);
+        _updateWorkspaceIndicator(evt.path);
+      }
+      break;
+    }
+    case 'workspace_closed': {
+      currentWorkspace = '';
+      localStorage.removeItem('workspace_path');
+      _updateWorkspaceIndicator();
+      break;
+    }
 
     case 'queue_updated': {
       _queuedTasks = evt.queue || [];
@@ -3825,9 +3923,10 @@ function handleSSEEvent(evt) {
         currentModel = evt.model;
         modelPill.setValue(evt.model);
       }
+      const taskPreview = evt.text ? `: ${evt.text}` : '';
       engine.enqueueEvent({type: 'notice', level: 'info',
         icon: 'bx-play-circle',
-        message: `Starting queued task (${evt.remaining || 0} remaining).`});
+        message: `Starting queued task${taskPreview} (${evt.remaining || 0} remaining)`});
       break;
     }
 
@@ -3874,6 +3973,12 @@ function handleSSEEvent(evt) {
 /* ── Init ── */
 async function init() {
   try {
+    if (localStorage.getItem('debug_mode') === '1') {
+      setDebugModeTo(true);
+    }
+  } catch(e) {}
+
+  try {
     const scopeResp = await fetch('/api/scope');
     const scopeData = await scopeResp.json();
     if (scopeData.ok && scopeData.scope_name) {
@@ -3884,23 +3989,55 @@ async function init() {
       const sf = document.getElementById('sidebar-footer');
       if (sf) sf.textContent = sn + ' Assistant';
     }
+    if (scopeData.ok && scopeData.workspace_path) {
+      if (!currentWorkspace) {
+        currentWorkspace = scopeData.workspace_path;
+      }
+      _updateWorkspaceIndicator(currentWorkspace || scopeData.workspace_path);
+    } else if (currentWorkspace) {
+      _updateWorkspaceIndicator();
+    }
   } catch (e) { /* keep defaults */ }
 
+  if (!currentWorkspace) {
+    try {
+      const wsResp = await fetch('/api/workspace/active');
+      const wsData = await wsResp.json();
+      if (wsData.ok && wsData.workspace && wsData.workspace.path) {
+        currentWorkspace = wsData.workspace.path;
+        localStorage.setItem('workspace_path', currentWorkspace);
+        _updateWorkspaceIndicator(currentWorkspace);
+      }
+    } catch (e) {}
+  }
+
   let initialSessionId = null;
+  const _hashMatch = location.hash.match(/session=([a-f0-9]+)/);
+  const _qpMatch = new URLSearchParams(location.search).get('activate');
+  const _requestedSid = _hashMatch ? _hashMatch[1] : (_qpMatch || null);
+
   try {
     const resp = await fetch('/api/sessions');
     const data = await resp.json();
     if (data.ok && data.sessions) {
       window._allSessions = data.sessions;
       let runningId = null;
+      const sessionIds = new Set();
       data.sessions.forEach(s => {
+        sessionIds.add(s.id);
         const ts = s.created_at ? s.created_at * 1000 : Date.now();
         engine.addSession(s.id, s.title, s.status, s.mode || 'agent', s.done_reason, ts);
         if (s.status === 'running') runningId = s.id;
         if (!initialSessionId) initialSessionId = s.id;
       });
-      if (runningId) initialSessionId = runningId;
-      const initSession = data.sessions.find(s => s.id === (runningId || initialSessionId));
+      if (_requestedSid && sessionIds.has(_requestedSid)) {
+        initialSessionId = _requestedSid;
+      } else if (_requestedSid) {
+        const prefix = data.sessions.find(s => s.id.startsWith(_requestedSid));
+        if (prefix) initialSessionId = prefix.id;
+      }
+      if (runningId && !_requestedSid) initialSessionId = runningId;
+      const initSession = data.sessions.find(s => s.id === initialSessionId);
       if (initSession && initSession.mode && initSession.mode !== currentMode) {
         currentMode = initSession.mode;
         if (modePill && modePill.setValue) modePill.setValue(initSession.mode);

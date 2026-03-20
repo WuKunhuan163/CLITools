@@ -67,7 +67,8 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
 
     self_name = ""
     env_spec = ""
-    prompt_flag_text = ""
+    prompt_flag_texts = []
+    workspace_path = ""
     filtered_args = []
     i = 0
     skip_flags = {"--gui", "--live", "--dry-run", "--self-operate"}
@@ -79,13 +80,24 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
             env_spec = args[i + 1]
             i += 2
         elif args[i] == "--prompt" and i + 1 < len(args):
-            prompt_flag_text = args[i + 1]
+            i += 1
+            while i < len(args) and not args[i].startswith("--"):
+                prompt_flag_texts.append(args[i])
+                i += 1
+        elif args[i] == "--workspace" and i + 1 < len(args):
+            workspace_path = args[i + 1]
             i += 2
         elif args[i] in skip_flags:
             i += 1
         else:
             filtered_args.append(args[i])
             i += 1
+    prompt_flag_text = prompt_flag_texts[0] if prompt_flag_texts else ""
+
+    if workspace_path:
+        ws_path = os.path.abspath(workspace_path)
+        if os.path.isdir(ws_path):
+            tool_dir = ws_path
 
     self_operate_opts = {
         "self_operate": self_operate,
@@ -100,7 +112,8 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
         prompt_args = [prompt_flag_text] + rest
         if gui_mode or self_operate:
             _handle_prompt_gui(prompt_args, tool_name, project_root, tool_dir,
-                               mode=mode, **self_operate_opts)
+                               mode=mode, extra_prompts=prompt_flag_texts[1:],
+                               **self_operate_opts)
         elif dry_run:
             _handle_prompt(prompt_args, tool_name, project_root, tool_dir,
                            mode=mode, dry_run=True)
@@ -175,6 +188,46 @@ def handle_agent_command(args: list, tool_name: str, project_root: str,
 MODE_LABELS = {"agent": "Agent", "ask": "Ask", "plan": "Plan"}
 
 
+def _ensure_workspace(tool_dir: str, project_root: str, tool_name: str = "") -> dict:
+    """Auto-provision and open a workspace for the given tool directory.
+
+    Returns workspace info dict (with 'id', 'name', 'path', 'brain_path')
+    or None if workspace provisioning fails.
+    """
+    from interface.workspace import get_workspace_manager
+    from pathlib import Path
+
+    wm = get_workspace_manager(Path(project_root))
+    target = tool_dir or project_root
+    if not Path(target).is_dir():
+        return None
+
+    try:
+        target_name = Path(target).name
+        ws_name = target_name if target_name != tool_name else tool_name
+        if not ws_name or ws_name in (".", ""):
+            ws_name = tool_name or "workspace"
+        ws_info = wm.create_workspace(target, name=ws_name)
+    except FileExistsError:
+        from logic.workspace.manager import _hash_path
+        ws_id = _hash_path(str(Path(target).resolve()))
+        ws_info = wm.open_workspace(ws_id)
+    except Exception:
+        return None
+
+    if ws_info and ws_info.get("status") != "open":
+        try:
+            ws_info = wm.open_workspace(ws_info["id"])
+        except Exception:
+            pass
+
+    if ws_info:
+        brain_path = str(wm.get_brain_path(ws_info["id"]))
+        ws_info["brain_path"] = brain_path
+
+    return ws_info
+
+
 def _print_help(tool_name: str, mode: str = "agent"):
     from logic.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
@@ -194,10 +247,11 @@ def _print_help(tool_name: str, mode: str = "agent"):
 Usage:
   {tool_name} {flag} "Your task description"       Start with implicit prompt
   {tool_name} {flag} prompt "Your task description" Start with explicit prompt
-  {tool_name} {flag} --prompt "..."                 Explicit --prompt flag
+  {tool_name} {flag} --prompt "..." ["..." ...]     One or more prompts (queued)
   {tool_name} {flag} --gui "..."                    Open GUI with initial prompt
   {tool_name} {flag} --gui                          Open GUI (no initial prompt)
   {tool_name} {flag} --dry-run "..."                Show prompt without calling LLM
+  {tool_name} {flag} --workspace /path "..."        Mount workspace directory as CWD
   {tool_name} {flag} feed <SESSION_ID> "..."        Follow-up instruction
   {tool_name} {flag} response <SID> <json>          Inject response events
   {tool_name} {flag} history [SESSION_ID] [--limit N]
@@ -224,7 +278,7 @@ def _get_session_config_default(key, fallback):
 def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
                        tool_dir: str, mode: str = "agent",
                        self_operate: bool = False, self_name: str = "",
-                       env: str = ""):
+                       env: str = "", extra_prompts: list = None):
     """Start the HTML GUI server and optionally send an initial prompt.
 
     When self_operate is True, the prompt is displayed in the GUI but NOT
@@ -243,7 +297,13 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
     provider = _get_provider_name()
     default_turn_limit = _get_session_config_default("default_turn_limit", 20)
 
+    codebase = tool_dir or project_root
+    ws_info = _ensure_workspace(codebase, project_root, tool_name)
+
     from interface.status import fmt_status, fmt_info, fmt_stage
+
+    if ws_info:
+        print(fmt_info(f"Workspace: {ws_info.get('name', '?')} [{ws_info.get('id', '?')[:8]}]"), flush=True)
 
     print(fmt_stage("Checking for running server...", status="active"), flush=True)
     existing_port = _find_running_gui_port()
@@ -271,6 +331,8 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
                 print(f"  {BOLD}Sent{RESET} initial prompt.", flush=True)
             except Exception:
                 print(f"  Prompt queued — type it in the browser.", flush=True)
+            if extra_prompts:
+                _queue_extra_prompts(base_url, extra_prompts, default_turn_limit)
         elif prompt and self_operate:
             _inject_self_operate_prompt(base_url, prompt, self_name, env,
                                         default_turn_limit)
@@ -328,6 +390,8 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
                 print(f"  {BOLD}Sent{RESET} initial prompt.", flush=True)
             except Exception:
                 print(f"  Prompt queued — type it in the browser.", flush=True)
+            if extra_prompts:
+                _queue_extra_prompts(agent.url, extra_prompts, default_turn_limit)
 
     if self_operate:
         print(f"  {CYAN}{BOLD}Self-operate mode.{RESET} {DIM}Awaiting --response.{RESET}", flush=True)
@@ -338,6 +402,38 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         agent._server.wait()
     except KeyboardInterrupt:
         agent.stop()
+
+
+def _queue_extra_prompts(base_url: str, prompts: list, turn_limit: int):
+    """Queue additional prompts after the initial prompt has been sent."""
+    from logic.config import get_color
+    BOLD = get_color("BOLD", "\033[1m")
+    DIM = get_color("DIM", "\033[2m")
+    RESET = get_color("RESET", "\033[0m")
+
+    import urllib.request
+    import time as _t
+    _t.sleep(0.3)
+
+    queued = 0
+    for p in prompts:
+        p = p.strip()
+        if not p:
+            continue
+        try:
+            data = json.dumps({"text": p, "turn_limit": turn_limit}).encode()
+            req = urllib.request.Request(
+                f"{base_url}/api/session/default/send",
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=5)
+            queued += 1
+        except Exception:
+            pass
+    if queued:
+        print(f"  {BOLD}Queued{RESET} {DIM}{queued} additional prompt(s).{RESET}", flush=True)
 
 
 def _inject_self_operate_prompt(base_url: str, prompt: str, self_name: str,
@@ -452,7 +548,14 @@ def _get_system_prompt(tool_name: str, mode: str = "agent") -> str:
             f"- Verify your work: read the file after writing to confirm.\n"
             f"- If a task is very complex and you cannot plan it clearly in your head, "
             f"consider using switch_mode to request Plan mode. If denied, use the "
-            f"todo tool to break the task down, or write a plan to tmp/plan.md.\n"
+            f"todo tool to break the task down, or write a plan to tmp/plan.md.\n\n"
+            f"## Stopping Rules\n\n"
+            f"- **STOP immediately** once the task is complete. Output a brief summary.\n"
+            f"- If the task is ambiguous, make a reasonable assumption and act — "
+            f"do NOT keep asking the user for clarification.\n"
+            f"- Do NOT loop endlessly refining. One verification pass is sufficient.\n"
+            f"- If you cannot complete the task (missing permissions, broken tools), "
+            f"state the blocker and STOP.\n"
         )
 
     mode_label = MODE_LABELS.get(mode, mode)
@@ -503,6 +606,8 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
     provider = _get_provider_name()
     codebase = tool_dir or os.path.join(project_root, "tool", tool_name)
 
+    ws_info = _ensure_workspace(codebase, project_root, tool_name)
+
     session = AgentSession(
         tool_name=tool_name,
         codebase_root=codebase,
@@ -511,6 +616,9 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
         mode=mode,
         initial_prompt=prompt[:500],
     )
+    if ws_info:
+        session.workspace_id = ws_info.get("id")
+        session.workspace_brain_path = ws_info.get("brain_path")
 
     from logic.config import get_color
     BOLD = get_color("BOLD", "\033[1m")
@@ -520,15 +628,15 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
 
     label = MODE_LABELS.get(mode, "Agent")
 
-    gui_url = _ensure_gui_and_create_session(
-        session, provider, tool_dir, mode)
-    if gui_url:
-        print(f"  {BOLD}GUI session opened.{RESET} {DIM}{gui_url}{RESET}")
-
     if dry_run:
         _print_dry_run(
             session, prompt, tool_name, project_root, mode, provider)
         return
+
+    gui_url, gui_base, gui_sid = _ensure_gui_and_create_session(
+        session, provider, tool_dir, mode)
+    if gui_url:
+        print(f"  {BOLD}GUI session opened.{RESET} {DIM}{gui_url}{RESET}")
 
     print(f"  {BOLD}{label} session started.{RESET} {DIM}{session.id}{RESET}")
     if mode in ("ask", "plan"):
@@ -536,9 +644,18 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
     print(f"  {DIM}Provider: {provider} | CWD: {codebase}{RESET}")
 
     events = []
+    _gui_injector = (
+        _GuiEventInjector(f"{gui_base}/api/session/{gui_sid}/inject")
+        if gui_base and gui_sid else None
+    )
+
+    _GUI_SKIP_TYPES = {"debug"}
+
     def emit(evt):
         events.append(evt)
         _print_event(evt)
+        if _gui_injector and evt.get("type") not in _GUI_SKIP_TYPES:
+            _gui_injector.push(evt)
 
     system_prompt = _get_system_prompt(tool_name, mode=mode)
     from logic.agent.loop import AgentLoop
@@ -553,6 +670,8 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
     )
 
     result = loop.run_turn(prompt)
+    if _gui_injector:
+        _gui_injector.flush_and_stop()
     save_session(session, project_root)
 
     flag = f"--{mode}"
@@ -584,10 +703,19 @@ def _handle_feed(args: list, tool_name: str, project_root: str,
         return _print_dry_run(
             session, text, tool_name, project_root, session_mode, provider)
 
+    gui_inject_url = _find_gui_inject_url_for_session(session_id)
+    _gui_injector = (
+        _GuiEventInjector(gui_inject_url) if gui_inject_url else None
+    )
+
     events = []
+    _GUI_SKIP_TYPES_FEED = {"debug"}
+
     def emit(evt):
         events.append(evt)
         _print_event(evt)
+        if _gui_injector and evt.get("type") not in _GUI_SKIP_TYPES_FEED:
+            _gui_injector.push(evt)
 
     system_prompt = _get_system_prompt(tool_name, mode=session_mode)
     from logic.agent.loop import AgentLoop
@@ -602,6 +730,8 @@ def _handle_feed(args: list, tool_name: str, project_root: str,
     )
 
     result = loop.run_turn(text)
+    if _gui_injector:
+        _gui_injector.flush_and_stop()
     save_session(session, project_root)
 
     from logic.config import get_color
@@ -866,10 +996,11 @@ def _find_running_gui_port() -> int:
 
 
 def _ensure_gui_and_create_session(session, provider_name: str,
-                                    tool_dir: str, mode: str) -> str:
+                                    tool_dir: str, mode: str) -> tuple:
     """Ensure the GUI server is running and create a session tab.
 
-    Returns the GUI URL for the session, or empty string on failure.
+    Returns (gui_url, gui_base_url, gui_session_id) tuple.
+    All empty strings on failure.
     """
     import urllib.request
 
@@ -889,13 +1020,14 @@ def _ensure_gui_and_create_session(session, provider_name: str,
             )
             port = agent.port
         except Exception:
-            return ""
+            return ("", "", "")
 
     base_url = f"http://localhost:{port}"
     try:
         data = json.dumps({
             "title": getattr(session, 'initial_prompt', 'New Task')[:60],
             "mode": mode,
+            "self_operate": True,
         }).encode()
         req = urllib.request.Request(
             f"{base_url}/api/sessions",
@@ -904,10 +1036,96 @@ def _ensure_gui_and_create_session(session, provider_name: str,
         )
         resp = json.loads(urllib.request.urlopen(req, timeout=5).read())
         if resp.get("ok"):
-            return f"{base_url}/#session={resp['session_id']}"
+            sid = resp["session_id"]
+            return (f"{base_url}/#session={sid}", base_url, sid)
     except Exception:
         pass
-    return base_url
+    return (base_url, "", "")
+
+
+class _GuiEventInjector:
+    """Asynchronous event injector — batches events and POSTs in background."""
+
+    def __init__(self, inject_url: str):
+        import threading
+        import queue as _q
+        self._url = inject_url
+        self._batch_url = inject_url.replace("/inject", "/inject-batch")
+        self._queue: _q.Queue = _q.Queue()
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._worker, daemon=True)
+        self._thread.start()
+
+    def push(self, evt: dict):
+        self._queue.put(evt)
+
+    def flush_and_stop(self):
+        self._stop.set()
+        self._thread.join(timeout=5)
+        self._drain()
+
+    def _worker(self):
+        import time
+        while not self._stop.is_set():
+            time.sleep(0.15)
+            self._drain()
+
+    def _drain(self):
+        import urllib.request
+        batch = []
+        while not self._queue.empty():
+            try:
+                batch.append(self._queue.get_nowait())
+            except Exception:
+                break
+        if not batch:
+            return
+        try:
+            payload = json.dumps(
+                {"events": batch}, ensure_ascii=False).encode()
+            req = urllib.request.Request(
+                self._batch_url,
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=5)
+        except Exception:
+            pass
+
+
+def _gui_inject_event(inject_url: str, evt: dict):
+    """POST a single event to the GUI server for live SSE broadcasting."""
+    import urllib.request
+    try:
+        payload = json.dumps({"event": evt}, ensure_ascii=False).encode()
+        req = urllib.request.Request(
+            inject_url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=2)
+    except Exception:
+        pass
+
+
+def _find_gui_inject_url_for_session(session_id: str) -> str:
+    """Find the GUI inject URL for a session that may already exist on the server."""
+    import urllib.request
+    port = _find_running_gui_port()
+    if not port:
+        return ""
+    base = f"http://localhost:{port}"
+    try:
+        resp = json.loads(
+            urllib.request.urlopen(f"{base}/api/sessions", timeout=3).read())
+        for s in resp.get("sessions", []):
+            if s.get("id", "").startswith(session_id) or session_id.startswith(s.get("id", "")):
+                return f"{base}/api/session/{s['id']}/inject"
+    except Exception:
+        pass
+    return ""
 
 
 def _execute_tool_via_api(base_url: str, session_id: str,
@@ -1348,6 +1566,17 @@ def _print_event(evt: dict):
         files = evt.get("files", [])
         count = len(files)
         print(f"  {DIM}[{count} file{'s' if count != 1 else ''} modified]{RESET}")
+    elif t == "system_notice":
+        text = evt.get("text", "")
+        level = evt.get("level", "info")
+        if level == "error":
+            YELLOW = get_color("YELLOW", "\033[33m")
+            print(f"  {YELLOW}{BOLD}{text}{RESET}")
+        else:
+            print(f"  {DIM}{text}{RESET}")
+    elif t == "debug":
+        text = evt.get("text", "")
+        print(f"  {DIM}[debug] {text}{RESET}")
     elif t == "experience":
         lesson = evt.get("lesson", "")
         print(f"  {DIM}[experience] {lesson[:100]}{RESET}")

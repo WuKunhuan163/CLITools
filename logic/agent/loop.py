@@ -91,8 +91,8 @@ class AgentLoop:
 
             if not provider.is_available():
                 msg = f"Provider {self._provider_name} not available."
-                self._emit({"type": "text", "tokens": msg})
-                self._emit({"type": "complete"})
+                self._emit({"type": "system_notice", "text": msg, "level": "error"})
+                self._emit({"type": "complete", "reason": "error"})
                 self._session.status = "error"
                 return msg
 
@@ -121,8 +121,8 @@ class AgentLoop:
                             from logic.agent.memory import FLUSH_PROMPT_EN
                             self._context_messages.append(
                                 {"role": "user", "content": FLUSH_PROMPT_EN})
-                            self._emit({"type": "text",
-                                        "tokens": "[Memory flush triggered...]\n"})
+                            self._emit({"type": "debug",
+                                        "text": "Memory flush triggered"})
                             flushed_this_turn = True
                     except Exception:
                         pass
@@ -159,27 +159,28 @@ class AgentLoop:
                                 for r in self._session.environment.last_results)
                             nudge = build_nudge_message(has_read)
                             self._context_messages.append({"role": "user", "content": nudge})
-                            self._emit({"type": "text", "tokens": "[Nudging agent...]\n"})
+                            self._emit({"type": "debug", "text": "Nudging agent to apply changes"})
                             continue
 
                         if self._tier >= 2:
                             qw = build_quality_nudge(self._tool_handlers.unfixed_quality_warnings)
                             if qw and round_num <= 12:
                                 self._context_messages.append({"role": "user", "content": qw})
-                                self._emit({"type": "text", "tokens": "[Fixing quality...]\n"})
+                                self._emit({"type": "debug", "text": "Nudging agent to fix quality issues"})
                                 continue
 
                             vn = build_verify_nudge(self._tool_handlers.unverified_writes)
                             if vn and round_num <= 12 and self._session.message_count >= 2:
                                 self._context_messages.append({"role": "user", "content": vn})
-                                self._emit({"type": "text", "tokens": "[Verifying...]\n"})
+                                self._emit({"type": "debug", "text": "Nudging agent to verify written files"})
                                 continue
 
                     elif not full_text and tools:
                         consecutive_empty += 1
                         if consecutive_empty >= MAX_CONSECUTIVE_EMPTY:
-                            self._emit({"type": "text",
-                                        "tokens": f"[{consecutive_empty} consecutive empty responses — stopping.]\n"})
+                            self._emit({"type": "system_notice",
+                                        "text": f"{consecutive_empty} consecutive empty responses — stopping.",
+                                        "level": "warning"})
                             break
                         task_reminder = ""
                         if self._session.initial_prompt:
@@ -193,7 +194,7 @@ class AgentLoop:
                              "Do NOT repeat file reads you already completed. "
                              "Do NOT run ls. Proceed directly with the modifications."
                              + task_reminder})
-                        self._emit({"type": "text", "tokens": "[Empty response, retrying...]\n"})
+                        self._emit({"type": "debug", "text": "Empty response, retrying"})
                         continue
 
                     break
@@ -217,8 +218,8 @@ class AgentLoop:
             self._emit({"type": "complete"})
 
         except Exception as e:
-            self._emit({"type": "text", "tokens": f"Exception: {e}"})
-            self._emit({"type": "complete"})
+            self._emit({"type": "system_notice", "text": f"Exception: {e}", "level": "error"})
+            self._emit({"type": "complete", "reason": "error"})
             full_text = f"Error: {e}"
 
         self._session.status = "done"
@@ -258,7 +259,7 @@ class AgentLoop:
                     for delta in tc_list:
                         idx = delta.get("index", 0)
                         if idx not in tool_calls_by_idx:
-                            tool_calls_by_idx[idx] = {
+                            new_tc = {
                                 "id": delta.get("id", ""),
                                 "type": delta.get("type", "function"),
                                 "function": {
@@ -266,6 +267,9 @@ class AgentLoop:
                                     "arguments": delta.get("function", {}).get("arguments", ""),
                                 },
                             }
+                            if delta.get("extra_content"):
+                                new_tc["extra_content"] = delta["extra_content"]
+                            tool_calls_by_idx[idx] = new_tc
                             fn_name = delta.get("function", {}).get("name", "")
                             if fn_name and fn_name in self._STREAMABLE_TOOLS:
                                 streaming_tools[idx] = fn_name
@@ -297,6 +301,8 @@ class AgentLoop:
                                     self._emit({"type": "tool_stream_delta",
                                                 "index": idx,
                                                 "content": fn_delta["arguments"]})
+                            if delta.get("extra_content"):
+                                existing["extra_content"] = delta["extra_content"]
                     continue
 
                 text = chunk.get("text", "")
@@ -316,7 +322,7 @@ class AgentLoop:
             self._emit({"type": "tool_stream_end", "index": idx, "round": round_num})
 
         if error_text:
-            self._emit({"type": "text", "tokens": f"Error: {error_text}"})
+            self._emit({"type": "system_notice", "text": error_text, "level": "error"})
             return None, [], latency
 
         full_text = "".join(full_text_parts)

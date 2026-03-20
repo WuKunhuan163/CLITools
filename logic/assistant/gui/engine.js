@@ -1626,6 +1626,15 @@ class AgentGUIEngine {
         }
       }
 
+      if (evt.error && evt.error_message) {
+        const errLabel = this._llmRequestEl.querySelector('.model-latency');
+        if (errLabel) {
+          const code = evt.error_code ? ` (${evt.error_code})` : '';
+          errLabel.innerHTML = '<span class="model-sep">\u00b7</span>'
+            + '<span style="color:var(--red);font-size:11px;">Failed' + esc(code) + '</span>';
+        }
+      }
+
       const usage = evt.usage || {};
       const outTokens = usage.completion_tokens || 0;
       const ctxTokens = usage.prompt_tokens || 0;
@@ -2086,6 +2095,17 @@ class AgentGUIEngine {
     const level = evt.level || '';
     const icon = evt.icon ? '<i class="bx ' + evt.icon + '"></i> '
       : (levelIcons[level] ? '<i class="bx ' + levelIcons[level] + '" style="color:' + levelColors[level] + '"></i> ' : '');
+
+    if (level === 'error' || level === 'warning') {
+      const borderColor = level === 'error' ? 'var(--red)' : 'var(--orange)';
+      const bgVar = level === 'error' ? 'var(--red-dim)' : 'var(--orange-dim)';
+      const html = icon + '<span>' + esc(text) + '</span>';
+      const el = this._appendAnimated('div', 'system-error-notice',
+        '<div class="system-error-notice-inner" style="border-color:' + borderColor + ';background:' + bgVar + ';">' + html + '</div>');
+      if (evt.id && el) el.setAttribute('data-notice-id', evt.id);
+      return sleep(200);
+    }
+
     const html = icon + esc(text);
 
     if (evt.replace && evt.id) {
