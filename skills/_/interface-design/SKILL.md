@@ -86,6 +86,30 @@ The audit system enforces interface boundaries:
 
 Run `TOOL --audit imports` before committing cross-tool changes.
 
+## Blueprint-Instance Pattern
+
+For systems that have both a template (source of truth) and a deployed version (runtime instance), use the blueprint-instance pattern with a CLI bridge:
+
+| Concept | Location | Example |
+|---------|----------|---------|
+| **Blueprint** | Deep in `logic/_/` | `logic/_/setup/IDE/cursor/rules/*.mdc`, `logic/_/hooks/IDE/Cursor/` |
+| **Instance** | Shallow, IDE-accessible | `.cursor/rules/*.mdc`, `.cursor/hooks.json` |
+| **CLI bridge** | Deploy command | `TOOL --setup`, `logic/_/setup/IDE/cursor/deploy.py` |
+
+### When to Use This Pattern
+
+- Configuration templates that are deployed to IDE-specific locations
+- Hook scripts that have a source version and a deployed reference
+- GUI blueprints that generate runtime HTML/config
+- Any system where the source of truth should be version-controlled but the runtime needs a different path
+
+### Real Example: Hooks Decomposition (2026-03-18)
+
+Root `hooks/` directory contained Cursor IDE hook scripts. These were moved to `logic/_/hooks/IDE/Cursor/` (blueprint). The `.cursor/hooks.json` (instance) references these scripts by path. The deploy script syncs blueprint → instance.
+
+Before: `hooks/instance/IDE/Cursor/brain_inject.py` (root-level, mixing concerns)
+After: `logic/_/hooks/IDE/Cursor/brain_inject.py` (organized in logic, blueprint is source of truth)
+
 ## Anti-Patterns
 
 | Anti-Pattern | Why It's Wrong | Fix |
@@ -96,3 +120,4 @@ Run `TOOL --audit imports` before committing cross-tool changes.
 | Duplicating a utility in 3 tools | No shared interface | Create `interface/` facade over `logic/utils/` |
 | Interface with no docstrings | Consumers can't discover API | Add type hints, docstrings, AGENT.md |
 | Changing interface without updating consumers | Silent breakage | Run `--audit imports`, update downstream docs |
+| Blueprint and instance diverging | Stale deployments | Always deploy via CLI bridge, never edit instances directly |

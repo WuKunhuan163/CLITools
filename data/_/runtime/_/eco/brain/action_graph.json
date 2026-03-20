@@ -1,0 +1,609 @@
+{
+  "version": "1.0",
+  "description": "Action-consequence association graph for multi-hop reflex arcs",
+  "nodes": [
+    {
+      "id": "act:create_root_file",
+      "type": "action",
+      "label": "create root file",
+      "description": "Creating a new file in the project root directory"
+    },
+    {
+      "id": "act:modify_tool_dir",
+      "type": "action",
+      "label": "modify tool directory",
+      "description": "Creating or modifying directories under a tool"
+    },
+    {
+      "id": "act:cross_tool_import",
+      "type": "action",
+      "label": "cross-tool import",
+      "description": "Writing import statements between tools or logic modules"
+    },
+    {
+      "id": "act:edit_brain",
+      "type": "action",
+      "label": "edit brain paths",
+      "description": "Reading or writing brain instance data"
+    },
+    {
+      "id": "act:edit_documentation",
+      "type": "action",
+      "label": "edit documentation",
+      "description": "Modifying README.md, AGENT.md, or AGENT_REFLECTION.md"
+    },
+    {
+      "id": "act:delete_symlink",
+      "type": "action",
+      "label": "delete symlink",
+      "description": "Removing a symbolic link via rm or unlink"
+    },
+    {
+      "id": "act:install_tool",
+      "type": "action",
+      "label": "install tool",
+      "description": "Running setup.py or TOOL install"
+    },
+    {
+      "id": "act:update_convention",
+      "type": "action",
+      "label": "update convention",
+      "description": "Changing a root-level pattern or standard"
+    },
+    {
+      "id": "sys:gitignore",
+      "type": "system",
+      "label": "gitignore system",
+      "description": "Auto-generated .gitignore with deny-all + whitelist pattern"
+    },
+    {
+      "id": "sys:symmetric_dirs",
+      "type": "system",
+      "label": "symmetric directories",
+      "description": "logic/ interface/ hooks/ data/ test/ pattern"
+    },
+    {
+      "id": "sys:import_rules",
+      "type": "system",
+      "label": "import rules",
+      "description": "Interface facade: import from interface.*, not logic.*"
+    },
+    {
+      "id": "sys:brain_sessions",
+      "type": "system",
+      "label": "brain session management",
+      "description": "BrainSessionManager for instance path resolution"
+    },
+    {
+      "id": "sys:doc_hierarchy",
+      "type": "system",
+      "label": "doc stability hierarchy",
+      "description": "README=stable, for_agent=operational, for_agent_reflection=protocol"
+    },
+    {
+      "id": "sys:template",
+      "type": "system",
+      "label": "tool template",
+      "description": "logic/tool/template/ for new tool scaffolding"
+    },
+    {
+      "id": "file:git_manager",
+      "type": "file",
+      "label": "logic/git/manager.py",
+      "description": "GitIgnoreManager with base_patterns"
+    },
+    {
+      "id": "file:for_agent",
+      "type": "file",
+      "label": "AGENT.md",
+      "description": "Bootstrap guide, Section 9 covers gitignore"
+    },
+    {
+      "id": "file:tool_template",
+      "type": "file",
+      "label": "logic/tool/template/",
+      "description": "Template files for TOOL --dev create"
+    },
+    {
+      "id": "file:brain_loader",
+      "type": "file",
+      "label": "logic/brain/loader.py",
+      "description": "Blueprint loading and session resolution"
+    },
+    {
+      "id": "file:interface_main",
+      "type": "file",
+      "label": "interface/main.py",
+      "description": "Cross-tool facade layer"
+    },
+    {
+      "id": "probe:discovery",
+      "type": "action",
+      "label": "discover tools skills",
+      "description": "Agent exploring what tools, skills, and docs exist"
+    },
+    {
+      "id": "probe:convention",
+      "type": "action",
+      "label": "learn conventions patterns",
+      "description": "Agent learning symmetric dirs, import rules, naming"
+    },
+    {
+      "id": "probe:self_test",
+      "type": "action",
+      "label": "self test iterate",
+      "description": "Agent testing its own code, iterating on failures"
+    },
+    {
+      "id": "probe:environment",
+      "type": "action",
+      "label": "detect environment IDE",
+      "description": "Agent recognizing Cursor, VS Code, or other IDE"
+    },
+    {
+      "id": "probe:feedback_loop",
+      "type": "action",
+      "label": "maintain feedback USERINPUT",
+      "description": "Agent sustaining the USERINPUT feedback loop"
+    },
+    {
+      "id": "probe:knowledge_creation",
+      "type": "action",
+      "label": "create skills lessons",
+      "description": "Agent creating skills, recording lessons, building tools"
+    },
+    {
+      "id": "probe:strategic_pivot",
+      "type": "action",
+      "label": "pivot strategy alternative",
+      "description": "Agent recognizing failure and switching approach"
+    },
+    {
+      "id": "probe:hardening",
+      "type": "action",
+      "label": "harden strengthen infrastructure",
+      "description": "Agent hardening infrastructure: quality, robustness, tests"
+    },
+    {
+      "id": "probe:brain_record",
+      "type": "action",
+      "label": "record brain log reflect",
+      "description": "Agent recording work in the brain, reflecting on progress"
+    },
+    {
+      "id": "probe:interface_expose",
+      "type": "action",
+      "label": "expose interface facade",
+      "description": "Agent exposing functionality via interface/main.py"
+    },
+    {
+      "id": "sys:tool_search",
+      "type": "system",
+      "label": "TOOL --search",
+      "description": "Semantic search across tools, skills, interfaces"
+    },
+    {
+      "id": "sys:skills_list",
+      "type": "system",
+      "label": "SKILLS list",
+      "description": "Skill catalog with descriptions and categories"
+    },
+    {
+      "id": "sys:for_agent_md",
+      "type": "system",
+      "label": "AGENT.md bootstrap",
+      "description": "Section 0 bootstraps agent with ecosystem overview"
+    },
+    {
+      "id": "sys:for_agent_reflection",
+      "type": "system",
+      "label": "AGENT_REFLECTION.md",
+      "description": "Self-check protocol, system gaps, reflexive awareness"
+    },
+    {
+      "id": "sys:brain_commands",
+      "type": "system",
+      "label": "BRAIN commands",
+      "description": "log, reflect, recall, snapshot, digest"
+    },
+    {
+      "id": "sys:userinput",
+      "type": "system",
+      "label": "USERINPUT tool",
+      "description": "Blocking feedback loop with user"
+    },
+    {
+      "id": "sys:hooks",
+      "type": "system",
+      "label": "IDE hooks",
+      "description": "sessionStart, postToolUse, stop — auto-inject context"
+    },
+    {
+      "id": "sys:audit_tools",
+      "type": "system",
+      "label": "audit commands",
+      "description": "TOOL --audit code, --audit imports, --audit quality"
+    },
+    {
+      "id": "sys:knowledge_pipeline",
+      "type": "system",
+      "label": "knowledge pipeline",
+      "description": "lesson → skill → infrastructure → hook progression"
+    },
+    {
+      "id": "sys:ide_detect",
+      "type": "system",
+      "label": "IDE detection",
+      "description": "logic/setup/ide_detect.py — auto-detect and configure IDE"
+    },
+    {
+      "id": "file:for_agent_reflection",
+      "type": "file",
+      "label": "AGENT_REFLECTION.md",
+      "description": "Root-level self-check protocol and gap tracking"
+    },
+    {
+      "id": "file:ide_detect",
+      "type": "file",
+      "label": "logic/setup/ide_detect.py",
+      "description": "IDE auto-detection and hook deployment"
+    },
+    {
+      "id": "file:procedural",
+      "type": "file",
+      "label": "logic/brain/utils/procedural.py",
+      "description": "Three-layer reflex arc matching (skills + lessons + graph)"
+    }
+  ],
+  "edges": [
+    {
+      "source": "act:create_root_file",
+      "target": "sys:gitignore",
+      "relation": "requires_check",
+      "weight": 1.0
+    },
+    {
+      "source": "sys:gitignore",
+      "target": "file:git_manager",
+      "relation": "located_in",
+      "weight": 1.0
+    },
+    {
+      "source": "file:git_manager",
+      "target": "file:for_agent",
+      "relation": "documented_in",
+      "weight": 0.5,
+      "note": "Section 9: Auto-Generated .gitignore"
+    },
+    {
+      "source": "act:modify_tool_dir",
+      "target": "sys:symmetric_dirs",
+      "relation": "requires_check",
+      "weight": 1.0
+    },
+    {
+      "source": "sys:symmetric_dirs",
+      "target": "file:tool_template",
+      "relation": "reference",
+      "weight": 1.0
+    },
+    {
+      "source": "act:cross_tool_import",
+      "target": "sys:import_rules",
+      "relation": "requires_check",
+      "weight": 1.0
+    },
+    {
+      "source": "sys:import_rules",
+      "target": "file:interface_main",
+      "relation": "located_in",
+      "weight": 1.0
+    },
+    {
+      "source": "act:edit_brain",
+      "target": "sys:brain_sessions",
+      "relation": "requires_check",
+      "weight": 1.0
+    },
+    {
+      "source": "sys:brain_sessions",
+      "target": "file:brain_loader",
+      "relation": "located_in",
+      "weight": 1.0
+    },
+    {
+      "source": "act:edit_documentation",
+      "target": "sys:doc_hierarchy",
+      "relation": "requires_check",
+      "weight": 1.0
+    },
+    {
+      "source": "act:delete_symlink",
+      "target": "act:create_root_file",
+      "relation": "may_trigger",
+      "weight": 0.3,
+      "note": "Deleting symlinks can affect tracked files"
+    },
+    {
+      "source": "act:install_tool",
+      "target": "sys:gitignore",
+      "relation": "triggers",
+      "weight": 1.0,
+      "note": "setup.py calls GitIgnoreManager.rewrite() on every install"
+    },
+    {
+      "source": "act:update_convention",
+      "target": "sys:template",
+      "relation": "requires_check",
+      "weight": 1.0,
+      "note": "Root rules must cascade to templates"
+    },
+    {
+      "source": "act:create_root_file",
+      "target": "sys:gitignore",
+      "relation": "requires_check",
+      "weight": 1.0
+    },
+    {
+      "source": "sys:gitignore",
+      "target": "file:git_manager",
+      "relation": "located_in",
+      "weight": 1.0
+    },
+    {
+      "source": "file:git_manager",
+      "target": "file:for_agent",
+      "relation": "documented_in",
+      "weight": 0.5,
+      "note": "Section 9: Auto-Generated .gitignore"
+    },
+    {
+      "source": "act:modify_tool_dir",
+      "target": "sys:symmetric_dirs",
+      "relation": "requires_check",
+      "weight": 1.0
+    },
+    {
+      "source": "sys:symmetric_dirs",
+      "target": "file:tool_template",
+      "relation": "reference",
+      "weight": 1.0
+    },
+    {
+      "source": "act:cross_tool_import",
+      "target": "sys:import_rules",
+      "relation": "requires_check",
+      "weight": 1.0
+    },
+    {
+      "source": "sys:import_rules",
+      "target": "file:interface_main",
+      "relation": "located_in",
+      "weight": 1.0
+    },
+    {
+      "source": "act:edit_brain",
+      "target": "sys:brain_sessions",
+      "relation": "requires_check",
+      "weight": 1.0
+    },
+    {
+      "source": "sys:brain_sessions",
+      "target": "file:brain_loader",
+      "relation": "located_in",
+      "weight": 1.0
+    },
+    {
+      "source": "act:edit_documentation",
+      "target": "sys:doc_hierarchy",
+      "relation": "requires_check",
+      "weight": 1.0
+    },
+    {
+      "source": "act:delete_symlink",
+      "target": "act:create_root_file",
+      "relation": "may_trigger",
+      "weight": 0.3,
+      "note": "Deleting symlinks can affect tracked files"
+    },
+    {
+      "source": "act:install_tool",
+      "target": "sys:gitignore",
+      "relation": "triggers",
+      "weight": 1.0,
+      "note": "setup.py calls GitIgnoreManager.rewrite() on every install"
+    },
+    {
+      "source": "act:update_convention",
+      "target": "sys:template",
+      "relation": "requires_check",
+      "weight": 1.0,
+      "note": "Root rules must cascade to templates"
+    },
+    {
+      "source": "probe:discovery",
+      "target": "sys:tool_search",
+      "relation": "supported_by",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:discovery",
+      "target": "sys:skills_list",
+      "relation": "supported_by",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:discovery",
+      "target": "sys:for_agent_md",
+      "relation": "bootstrapped_by",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:convention",
+      "target": "sys:for_agent_md",
+      "relation": "taught_by",
+      "weight": 1.0,
+      "note": "Symmetric dirs, import rules in AGENT.md"
+    },
+    {
+      "source": "probe:convention",
+      "target": "sys:symmetric_dirs",
+      "relation": "requires_check",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:convention",
+      "target": "sys:import_rules",
+      "relation": "requires_check",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:self_test",
+      "target": "sys:audit_tools",
+      "relation": "supported_by",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:self_test",
+      "target": "sys:for_agent_reflection",
+      "relation": "guided_by",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:environment",
+      "target": "sys:ide_detect",
+      "relation": "supported_by",
+      "weight": 1.0
+    },
+    {
+      "source": "sys:ide_detect",
+      "target": "file:ide_detect",
+      "relation": "located_in",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:environment",
+      "target": "sys:hooks",
+      "relation": "enables",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:feedback_loop",
+      "target": "sys:userinput",
+      "relation": "depends_on",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:feedback_loop",
+      "target": "sys:hooks",
+      "relation": "reinforced_by",
+      "weight": 1.0,
+      "note": "postToolUse hook re-injects USERINPUT reminder"
+    },
+    {
+      "source": "probe:knowledge_creation",
+      "target": "sys:knowledge_pipeline",
+      "relation": "follows",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:knowledge_creation",
+      "target": "sys:brain_commands",
+      "relation": "uses",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:knowledge_creation",
+      "target": "sys:for_agent_reflection",
+      "relation": "guided_by",
+      "weight": 1.0,
+      "note": "Knowledge Creation self-check section"
+    },
+    {
+      "source": "probe:strategic_pivot",
+      "target": "sys:tool_search",
+      "relation": "uses",
+      "weight": 1.0,
+      "note": "Search for alternative tools/approaches"
+    },
+    {
+      "source": "probe:strategic_pivot",
+      "target": "sys:for_agent_reflection",
+      "relation": "guided_by",
+      "weight": 1.0,
+      "note": "Strategic Pivoting self-check section"
+    },
+    {
+      "source": "probe:hardening",
+      "target": "sys:audit_tools",
+      "relation": "uses",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:hardening",
+      "target": "sys:knowledge_pipeline",
+      "relation": "advances",
+      "weight": 1.0,
+      "note": "Harden = advance lessons→skills→infra→hooks"
+    },
+    {
+      "source": "probe:hardening",
+      "target": "sys:for_agent_reflection",
+      "relation": "guided_by",
+      "weight": 1.0,
+      "note": "Hardening Awareness self-check section"
+    },
+    {
+      "source": "probe:brain_record",
+      "target": "sys:brain_commands",
+      "relation": "uses",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:brain_record",
+      "target": "sys:for_agent_reflection",
+      "relation": "guided_by",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:interface_expose",
+      "target": "sys:import_rules",
+      "relation": "follows",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:interface_expose",
+      "target": "file:interface_main",
+      "relation": "target",
+      "weight": 1.0
+    },
+    {
+      "source": "probe:self_test",
+      "target": "probe:strategic_pivot",
+      "relation": "escalates_to",
+      "weight": 1.0,
+      "note": "3+ failures → pivot approach"
+    },
+    {
+      "source": "probe:strategic_pivot",
+      "target": "probe:knowledge_creation",
+      "relation": "produces",
+      "weight": 1.0,
+      "note": "Pivots generate lessons worth recording"
+    },
+    {
+      "source": "probe:knowledge_creation",
+      "target": "probe:hardening",
+      "relation": "matures_into",
+      "weight": 1.0,
+      "note": "3+ lessons on same topic → skill → infrastructure"
+    },
+    {
+      "source": "probe:feedback_loop",
+      "target": "probe:brain_record",
+      "relation": "triggers",
+      "weight": 1.0,
+      "note": "USERINPUT milestone → BRAIN log"
+    }
+  ]
+}

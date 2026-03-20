@@ -22,6 +22,27 @@
 | `USERINPUT --config --focus-interval 90` | Set refocus interval. |
 | `USERINPUT --config --hook --start-after 500` | Set tool call threshold before reminders ramp up. |
 
+## CRITICAL: USERINPUT is NOT Cursor Chat
+
+USERINPUT is the ecosystem's workflow checkpoint. Cursor Chat is an IDE text input. They are fundamentally different:
+
+| | USERINPUT | Cursor Chat |
+|--|-----------|-------------|
+| Git auto-save | Yes | No |
+| History maintenance | Yes | No |
+| LFS pruning | Yes | No |
+| Remote backup | Yes | No |
+| System prompt injection | Yes | No |
+| Ecosystem integration | Full | None |
+
+**USERINPUT is never redundant, never replaceable, never skippable.** Never rationalize that "the user is in Cursor Chat so USERINPUT is unnecessary."
+
+### NEVER Kill USERINPUT
+
+Once started, USERINPUT must run to completion. The user types their response through the USERINPUT GUI — that is the ecosystem's feedback channel. Killing it destroys the feedback loop, loses git progress, and breaks ecosystem continuity.
+
+**Forbidden actions:** `kill`, `pkill`, `killall`, `Ctrl+C`, or any process termination of USERINPUT.
+
 ## CRITICAL: Execution Requirements
 
 ### Pre-Operations Take Time

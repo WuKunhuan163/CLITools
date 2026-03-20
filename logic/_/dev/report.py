@@ -9,24 +9,29 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
-_ROOT = Path(__file__).resolve().parent.parent.parent
+_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def _resolve_target(scope: str) -> Path:
     """Resolve a scope string to a directory path.
 
     Scope examples:
-      'root'                  -> /logic/
-      'tool/LLM'              -> /tool/LLM/
-      'tool/LLM/logic'        -> /tool/LLM/logic/
-      'provider/zhipu'        -> (searches for zhipu provider dir)
+      'root'                  -> <project_root>/report/
+      'openclaw'              -> <project_root>/report/openclaw/
+      'tool/LLM'              -> <project_root>/tool/LLM/
       '/absolute/path'        -> as-is
     """
     if scope == "root":
-        return _ROOT / "logic"
+        return _ROOT / "report"
     if scope.startswith("/"):
         return Path(scope)
-    return _ROOT / scope
+    candidate = _ROOT / scope
+    if candidate.exists():
+        return candidate
+    report_candidate = _ROOT / "report" / scope
+    if report_candidate.exists():
+        return report_candidate
+    return candidate
 
 
 def _ensure_report_dir(target: Path) -> Path:
@@ -35,12 +40,29 @@ def _ensure_report_dir(target: Path) -> Path:
     return report_dir
 
 
+def _resolve_report_dir(target: Path) -> Path:
+    """Determine report dir: if target is inside report/ hierarchy, use it directly."""
+    report_root = _ROOT / "report"
+    try:
+        target.relative_to(report_root)
+        return target
+    except ValueError:
+        pass
+    if target.name == "report":
+        return target
+    sub = target / "report"
+    return sub if sub.exists() else target
+
+
 def list_reports(scope: str = "root") -> list:
     target = _resolve_target(scope)
-    report_dir = target / "report" if target.name != "report" else target
+    report_dir = _resolve_report_dir(target)
     if not report_dir.exists():
         return []
-    files = sorted(report_dir.glob("*.md"), reverse=True)
+    files = sorted(
+        (f for f in report_dir.glob("*.md") if f.name != "README.md"),
+        reverse=True,
+    )
     return [{"name": f.stem, "path": str(f), "size": f.stat().st_size} for f in files]
 
 

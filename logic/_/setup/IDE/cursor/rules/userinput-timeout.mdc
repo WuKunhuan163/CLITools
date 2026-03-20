@@ -1,14 +1,22 @@
 # USERINPUT Long Wait Handling
 
-USERINPUT is a blocking CLI command that waits for user input via a GUI popup. The user may take minutes to type a response.
+USERINPUT is the ecosystem's feedback loop — a blocking CLI command that auto-saves git progress, then waits for user input via a dedicated GUI. The user may take minutes to type.
+
+## USERINPUT is NOT Cursor Chat
+
+USERINPUT performs git auto-commit, history maintenance, LFS pruning, remote backup, and GUI feedback collection. Cursor Chat does none of this. **USERINPUT is never redundant, never replaceable, never skippable.**
+
+## NEVER Kill USERINPUT
+
+Once started, let it run to completion. Even if blocking for minutes — that's normal. The user is typing. **Never kill, cancel, pkill, or interrupt USERINPUT for any reason.** Never reason that "the user is already in Cursor Chat."
 
 ## Critical: Set block_until_ms High
 
-When calling USERINPUT via the Shell tool, **always set `block_until_ms` to at least 120000** (120 seconds). The default 30s is too short — USERINPUT will be moved to background and you'll miss the user's response.
+**Always set `block_until_ms` to at least 310000** (310 seconds).
 
 ```bash
 # CORRECT: high timeout
-Shell(command="python3 tool/USERINPUT/main.py --hint 'summary'", block_until_ms=120000)
+Shell(command="python3 tool/USERINPUT/main.py --hint 'summary'", block_until_ms=310000)
 
 # WRONG: default timeout (30s) — USERINPUT gets backgrounded
 Shell(command="python3 tool/USERINPUT/main.py --hint 'summary'")
@@ -20,9 +28,10 @@ Output like `正在通过 GUI 等待 USERINPUT 反馈 (PID: XXXXX)(NNNs)...` mea
 
 ## Rules
 
-1. **Set block_until_ms: 120000** (or higher) when calling USERINPUT via Shell. This is the most common mistake.
-2. **Do NOT give up.** If the command moves to background, `sleep 30` and read the terminal file for the response.
-3. **Retry on timeout.** If USERINPUT exits with a timeout, `sleep 30-60` seconds and retry.
-4. **Retry on empty.** If the return value is empty, `sleep 30` and retry.
-5. **Fallback file.** If three consecutive attempts fail, the tool outputs a fallback file path. Read that file after `sleep 30`.
-6. **Never end without USERINPUT.** This is the feedback loop. See `core-loop.mdc`.
+1. **Set block_until_ms: 310000** when calling USERINPUT via Shell.
+2. **NEVER kill USERINPUT.** Not for any reason.
+3. **Do NOT give up.** If backgrounded, `sleep 30` and read the terminal file.
+4. **Retry on timeout.** `sleep 30-60` seconds and retry.
+5. **Retry on empty.** `sleep 30` and retry.
+6. **Fallback file.** After three failures, read the fallback file path after `sleep 30`.
+7. **Never end without USERINPUT.** See `core-loop.mdc`.

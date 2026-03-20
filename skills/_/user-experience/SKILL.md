@@ -77,6 +77,41 @@ Internal directories (`logic/_/`, `data/_/`, `hooks/instance/`) should be invisi
 
 When every tool has the same structure (`main.py`, `logic/`, `interface/`, `test/`), a contributor who understands one tool understands all of them. This is the user-experience benefit of symmetric design — predictability reduces cognitive load.
 
+## Blueprint-Instance Bridge and CLI Accessibility
+
+When blueprints live deep in `logic/_/` and instances live at shallow paths, CLI commands bridge the gap. This is a UX pattern — developers don't navigate `logic/_/hooks/IDE/Cursor/` to manage hooks; they run `TOOL --setup` or `TOOL --hooks deploy`.
+
+### The CLI Bridge Pattern
+
+| Layer | What | Where |
+|-------|------|-------|
+| Blueprint (deep) | Source of truth, version-controlled | `logic/_/setup/IDE/cursor/`, `logic/_/hooks/IDE/` |
+| Instance (shallow) | Runtime/deployed version | `.cursor/rules/`, `.cursor/hooks.json` |
+| CLI bridge | Sync blueprint → instance | `TOOL --setup`, symmetric commands |
+
+### Real Example: Hooks Directory (2026-03-18)
+
+The root `hooks/` directory was moved into `logic/_/hooks/IDE/Cursor/` because it's infrastructure, not user-facing content. But the user still needs to manage hooks — so CLI commands (`TOOL --hooks deploy/list/enable/disable`) provide the accessible bridge.
+
+This applies broadly: whenever internal organization would hide something useful from developers, create a CLI command that provides the access without exposing the internal structure.
+
+## User Delivery vs Development Completion
+
+Development completion means the code works. User delivery means the user experiences it. These are different:
+
+| Stage | What Happens | Who Confirms |
+|-------|-------------|-------------|
+| Development | Code compiles, tests pass | Automated tests |
+| Delivery | User sees the feature, can interact with it | The user (via USERINPUT feedback) |
+
+### Agent Delivery Awareness
+
+When an agent builds a frontend, CLI feature, or configuration wizard:
+1. **Launch it** — start the server, open the browser, run the command
+2. **Show the user** — provide the URL, the command, the access path
+3. **Verify it works** — check the output, screenshot, or debug endpoint
+4. **Report via USERINPUT** — tell the user what was built and how to access it
+
 ## Anti-Patterns
 
 | Anti-Pattern | Why It's Bad | Fix |
@@ -87,3 +122,5 @@ When every tool has the same structure (`main.py`, `logic/`, `interface/`, `test
 | Complex root-level directory structure | Intimidating to contributors | Keep root clean, push internals down |
 | Mixing user content with machine content | Hard to gitignore correctly | Separate data/ from user-editable content |
 | Building frontend without debug endpoints | Impossible to diagnose issues | Add `/debug/status` alongside new UIs |
+| Deep-burying user-facing config | Developers can't find it | CLI bridge over deep logic paths |
+| Declaring "done" without user seeing it | Silent delivery failure | Always verify delivery via USERINPUT |

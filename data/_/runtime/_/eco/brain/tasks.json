@@ -1,0 +1,298 @@
+[
+  {
+    "id": 1,
+    "content": "Fix Cursor hook: output visible text when reminding USERINPUT, so user can verify hook works",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:00:00",
+    "notes": "Added explicit 'Say [Hook: reminder received]' instruction to postToolUse. Increased frequency to every 3 calls. Strengthened stop hook message."
+  },
+  {
+    "id": 2,
+    "content": "Reflect on why USERINPUT not executed; check if hook reminders were seen",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:00:00",
+    "notes": "Root cause: additional_context is injected silently into context, not as visible message. Hooks were firing but blended into system context. Fix: explicit output instruction + increased frequency."
+  },
+  {
+    "id": 3,
+    "content": "USERINPUT Cursor-specific prompt still at end of tool output, not system prompt - FIX",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:00:00",
+    "notes": "Removed Cursor paragraph from zh.json ai_instruction. Added to brain_inject.py sessionStart hook as system context."
+  },
+  {
+    "id": 4,
+    "content": "Develop logic/utils IDE environment detection (Cursor, other IDEs)",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:00:00",
+    "notes": "Added detect_ide(), is_cursor_ide(), is_vscode() to logic/utils/system.py. Tested: correctly detects Cursor IDE."
+  },
+  {
+    "id": 5,
+    "content": "Extract mature USERINPUT system prompts into logic/setup; inject on USERINPUT setup",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:15:00",
+    "notes": "Cursor-specific parts use IDE detection. Temporary user additions stay out of setup."
+  },
+  {
+    "id": 6,
+    "content": "Consolidate logic/setup: migrate setup-only code from various tool logic dirs",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:15:00",
+    "notes": ""
+  },
+  {
+    "id": 7,
+    "content": "Fix localhost:8100 404 bug (wrong html_path in server.py)",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:15:00",
+    "notes": "html_path pointed to non-existent logic/assistant/gui/live.html. Fixed to _dir/demo.html."
+  },
+  {
+    "id": 8,
+    "content": "Background CLI mode: start server with & , unified CLI UI using OpenClaw design",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:20:54",
+    "notes": "Indicators: user=square, agent round=circle, tool=block box. Blinking indicators. Debug mode gray logs."
+  },
+  {
+    "id": 9,
+    "content": "HTML GUI error handling: spinner becomes red X on app errors; stop retrying",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:30:00",
+    "notes": ""
+  },
+  {
+    "id": 10,
+    "content": "HTML GUI settings: sort models, search box, no logo alpha, add Auto at top",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:30:00",
+    "notes": ""
+  },
+  {
+    "id": 11,
+    "content": "Add new free providers: Baidu ERNIE, Tencent Hunyuan, SiliconFlow, Google Gemini",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:26:46",
+    "notes": "API key validation before save in settings"
+  },
+  {
+    "id": 12,
+    "content": "Verify/develop Auto model switching mechanism; debug info for fallback decisions",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:28:22",
+    "notes": "Test: 429 triggers fallback; external control resets to primary. Cannot test until user configures keys."
+  },
+  {
+    "id": 13,
+    "content": "HTML GUI: unify font colors (bottom buttons style)",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:08:54",
+    "notes": ""
+  },
+  {
+    "id": 14,
+    "content": "Develop skill: unified HTML GUI + CLI GUI development (shared backend SSE, CLI commands = HTML settings)",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:29:43",
+    "notes": ""
+  },
+  {
+    "id": 15,
+    "content": "HTML GUI: fix token-per-line rendering bug - append tokens to container, not as blocks",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:15:00",
+    "notes": ""
+  },
+  {
+    "id": 16,
+    "content": "HTML GUI: fix input overflow, auto-wrap, highlight block splitting like Cursor",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:30:00",
+    "notes": "Encourage assistant to render paths/options/code as highlighted blocks"
+  },
+  {
+    "id": 17,
+    "content": "HTML GUI: New Task should not render other session's chat; fix block width/scroll",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:30:00",
+    "notes": ""
+  },
+  {
+    "id": 18,
+    "content": "HTML GUI: design bright mode + toggle in settings (quick toggle next to Debug)",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:31:03",
+    "notes": ""
+  },
+  {
+    "id": 19,
+    "content": "HTML GUI: show tool call block before result arrives; shimmer/flow effect like Cursor",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:30:00",
+    "notes": "Nudging messages should be debug-only blocks"
+  },
+  {
+    "id": 20,
+    "content": "Fix: 10 Rounds setting not enforced (Turn limit reached 14/10). Stop feeding at limit.",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:15:00",
+    "notes": ""
+  },
+  {
+    "id": 21,
+    "content": "HTML GUI: system messages style (Switched to model) - centered plain text",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:30:00",
+    "notes": ""
+  },
+  {
+    "id": 22,
+    "content": "Debug: Searched '' empty pattern issue - investigate tool call",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:08:54",
+    "notes": ""
+  },
+  {
+    "id": 23,
+    "content": "Debug mode: clickable tokens/context links showing detail pages; configurable N rounds retained",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:32:59",
+    "notes": "tokens vs context relationship explanation"
+  },
+  {
+    "id": 24,
+    "content": "HTML GUI: vertical scroll only; hide horizontal unless swiping; fix white block in corner",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:30:00",
+    "notes": ""
+  },
+  {
+    "id": 25,
+    "content": "Provider report recording: observations/lessons in provider report dirs + runtime experience",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:35:11",
+    "notes": "Find report naming skill. Develop symmetric commands: create/modify/view README, for_agent, report at any logic level."
+  },
+  {
+    "id": 26,
+    "content": "Verify brain JSON management + quick commands work; update brain skill to instruct agents to copy tasks first",
+    "status": "done",
+    "created": "2026-03-13T16:40:00",
+    "updated": "2026-03-13T17:08:54",
+    "notes": "Also ensure: HTML GUI features always have CLI GUI counterparts (develop skill for this)"
+  },
+  {
+    "id": 27,
+    "content": "Fix USERINPUT hook: visible text output when reminding, test before continuing",
+    "status": "done",
+    "created": "2026-03-13T18:04:42",
+    "updated": "2026-03-13T18:09:34",
+    "notes": ""
+  },
+  {
+    "id": 28,
+    "content": "Create skill: development-after-repeated-failure (test requirement escalation)",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:10:41",
+    "notes": ""
+  },
+  {
+    "id": 29,
+    "content": "Package 按照顺序修复 instruction as USERINPUT skill; determine prompt timing",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:10:41",
+    "notes": ""
+  },
+  {
+    "id": 30,
+    "content": "Design --call-register pre-tool-call hook system with --rounds option",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:13:38",
+    "notes": ""
+  },
+  {
+    "id": 31,
+    "content": "Implement before-tool-call hook in base tool with skills matching",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:13:43",
+    "notes": ""
+  },
+  {
+    "id": 32,
+    "content": "Organize logic/tool/template/ into subdirectories; add report/research/hooks templates",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:15:03",
+    "notes": ""
+  },
+  {
+    "id": 33,
+    "content": "Fix registry aliases: add version numbers (gemini-2.0 not just gemini)",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:15:50",
+    "notes": ""
+  },
+  {
+    "id": 34,
+    "content": "Agent capability testing: 5 progressive tasks with GLM 4.7-flash + Auto fallback",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-13T18:36:41",
+    "notes": ""
+  },
+  {
+    "id": 35,
+    "content": "Verify HTML GUI API key save works live for new providers",
+    "status": "done",
+    "created": "2026-03-13T18:04:43",
+    "updated": "2026-03-14T13:44:23",
+    "notes": ""
+  },
+  {
+    "id": 36,
+    "content": "Rate queue manager: integrate with LLM providers",
+    "status": "pending",
+    "created": "2026-03-15T11:15:30",
+    "updated": "2026-03-15T11:31:41",
+    "notes": "Live test passed: 5/5 tests, parallel calls respect concurrency, 0 rate-limited, key state tracking works"
+  },
+  {
+    "id": 37,
+    "content": "Known limitation: file ops viewer data lost on server restart",
+    "status": "pending",
+    "created": "2026-03-15T14:58:34",
+    "updated": "2026-03-15T14:58:34",
+    "notes": ""
+  }
+]

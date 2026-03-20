@@ -10,7 +10,7 @@
     "Fix problems yourself first. Debug via tmp/ log files. Search for existing code before writing new implementations.",
     "When switching to a new task, first search relevant README.md, AGENT.md, and skill files before implementation.",
     "NEVER use the Task tool to launch subagents.",
-    "Subagent alternatives: For batch file operations, write a tmp/ Python script. For parallel exploration, use multiple direct tool calls in a single message. For complex multi-step tasks, break into sequential inline steps. This project provides its own orchestration via OPENCLAW — Cursor subagents cost 2x credits and lose context."
+    "Subagent alternatives: For batch file operations, write a tmp/ Python script. For parallel exploration, use multiple direct tool calls in a single message. For complex multi-step tasks, break into sequential inline steps. This project provides its own orchestration — Cursor subagents cost 2x credits and lose context."
   ],
   "enquiry_mode": true
 }

@@ -3,31 +3,31 @@
   "hooks": {
     "sessionStart": [
       {
-        "command": "python3 hooks/instance/IDE/Cursor/brain_inject.py"
+        "command": "python3 logic/_/hooks/IDE/Cursor/brain_inject.py"
       }
     ],
     "postToolUse": [
       {
-        "command": "python3 hooks/instance/IDE/Cursor/brain_remind.py"
+        "command": "python3 logic/_/hooks/IDE/Cursor/brain_remind.py"
       },
       {
-        "command": "python3 hooks/instance/IDE/Cursor/file_search_fallback.py"
+        "command": "python3 logic/_/hooks/IDE/Cursor/file_search_fallback.py"
       }
     ],
     "afterFileEdit": [
       {
-        "command": "python3 hooks/instance/IDE/Cursor/brain_remind.py"
+        "command": "python3 logic/_/hooks/IDE/Cursor/brain_remind.py"
       }
     ],
     "afterShellExecution": [
       {
-        "command": "python3 hooks/instance/IDE/Cursor/userinput_flag.py",
+        "command": "python3 logic/_/hooks/IDE/Cursor/userinput_flag.py",
         "matcher": "USERINPUT"
       }
     ],
     "stop": [
       {
-        "command": "python3 hooks/instance/IDE/Cursor/userinput_enforce.py",
+        "command": "python3 logic/_/hooks/IDE/Cursor/userinput_enforce.py",
         "loop_limit": 2
       }
     ]

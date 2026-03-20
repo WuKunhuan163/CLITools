@@ -1,0 +1,15 @@
+{
+  "name": "TEX",
+  "version": "0.1.0",
+  "description": "Report compilation tool. Converts Markdown reports to PDF.",
+  "dependencies": [],
+  "pip_dependencies": [
+    "fpdf2"
+  ],
+  "pip_dependencies_optional": [],
+  "commands": {
+    "compile": "Compile a Markdown report to PDF",
+    "list": "List available reports",
+    "template": "Show report template"
+  }
+}

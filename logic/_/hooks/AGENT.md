@@ -1,5 +1,22 @@
 # Hooks — Agent Reference
 
+## Architecture: Blueprints and Instances
+
+Hooks follow the blueprint-instance pattern:
+- **Blueprints** live in `logic/_/` (deep): hook scripts, templates, configuration
+- **Instances** are deployed to shallow paths that the IDE/runtime can reference
+
+### IDE Hooks (Cursor)
+- **Blueprint**: `logic/_/hooks/IDE/Cursor/` — source scripts + docs
+- **Config blueprint**: `logic/_/setup/IDE/cursor/hooks/hooks.json`
+- **Deployed instance**: `.cursor/hooks.json` (references blueprint paths)
+- **Deploy command**: `TOOL --setup` or `logic/_/setup/IDE/cursor/deploy.py`
+
+### Tool Hooks (internal)
+- **Blueprint interfaces**: `<TOOL>/hooks/interface/` — event definitions
+- **Blueprint instances**: `<TOOL>/hooks/instance/` — handler scripts
+- **Config**: `<TOOL>/hooks/config.json`
+
 ## HookInterface
 
 Base for event definitions. Subclass in `<TOOL>/hooks/interface/<event>.py`.
@@ -33,10 +50,18 @@ For CLI (TOOL hooks list|show|enable|disable).
 ## Directory Layout
 
 ```
+logic/_/hooks/
+├── engine.py          # Shared hook execution engine
+├── base/interface/    # Base hook event definitions (on_tool_start, on_tool_exit)
+├── instance/          # Shared hook instances (skills_scan, tmp_cleanup)
+├── interface/         # Shared hook interfaces (before/after_tool_call)
+└── IDE/
+    └── Cursor/        # Cursor-specific hooks (brain_inject, brain_remind, etc.)
+
 <TOOL>/hooks/
-├── interface/     # HookInterface subclasses
-├── instance/      # HookInstance subclasses
-└── config.json    # {"enabled": [...], "disabled": [...]}
+├── interface/         # Tool-specific event definitions
+├── instance/          # Tool-specific handlers
+└── config.json        # {"enabled": [...], "disabled": [...]}
 ```
 
 ## Usage
@@ -47,4 +72,5 @@ Tool fires via `self.fire_hook("on_tool_start", tool=self, args=args)`. ToolBase
 
 - Modules loaded via importlib.util.spec_from_file_location; load failures are silent (mod returns None).
 - Config: if instance not in enabled or disabled, enabled_by_default determines state.
-- Base interfaces/instances are merged with tool-specific; tool instances override base by name (last loaded wins for same name).
+- Base interfaces/instances are merged with tool-specific; tool instances override base by name.
+- IDE hooks are standalone scripts (not HookInstance subclasses) — they use stdin/stdout JSON protocol per Cursor's hook spec.

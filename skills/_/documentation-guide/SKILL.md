@@ -115,6 +115,32 @@ When you modify an interface function:
 
 This is the documentation equivalent of ripple testing — a change at one level may require updates at every level downstream.
 
+## Real Development Experience as Documentation
+
+Skills and docs should reference real development experiences as concrete examples. This creates a feedback loop:
+
+1. **Development happens** → encounters a problem or pattern
+2. **Lesson is captured** → via `BRAIN log` or experience recording
+3. **Documentation is updated** → with the real example
+4. **Future agents learn** → from the concrete scenario, not abstract rules
+
+### How Documentation and User-Experience Skills Complement Each Other
+
+| documentation-guide | user-experience |
+|---|---|
+| Focuses on how to write README/AGENT.md | Focuses on what users see/experience |
+| Covers the navigation system for agents | Covers the accessibility of features for users |
+| Interface documentation standards | CLI bridge patterns for deep logic |
+| The "what to write" | The "why to write it" |
+
+To avoid duplication between these skills:
+- **documentation-guide** owns the format, structure, and navigation contract
+- **user-experience** owns the UX principle: why documentation placement matters, what users should be able to find
+
+When referencing real development experiences:
+- **documentation-guide** cites the experience as an example of how to document
+- **user-experience** cites the same experience as an example of how to design accessibility
+
 ## Anti-Patterns
 
 | Anti-Pattern | Why It Fails | Fix |
@@ -125,6 +151,7 @@ This is the documentation equivalent of ripple testing — a change at one level
 | Interface without documented error cases | Consumers can't handle failures | Document every exception and edge case |
 | Updating code without updating docs | Docs become lies, agents make mistakes | Update docs in the same commit as code |
 | Monolithic AGENT.md at root | Too much info at one level | Push details down to appropriate levels |
+| Abstract rules without real examples | Agents can't generalize from theory | Always include a concrete scenario |
 
 ## The `TOOL --audit skills` Check
 
