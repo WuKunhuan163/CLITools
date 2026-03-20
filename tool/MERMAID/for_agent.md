@@ -1,15 +1,15 @@
-        # BLENDER — Agent Guide
+        # MERMAID — Agent Guide
 
         ## Source
 
-        Migrated from [CLI-Anything/blender](https://github.com/HKUDS/CLI-Anything/tree/main/blender).
+        Migrated from [CLI-Anything/mermaid](https://github.com/HKUDS/CLI-Anything/tree/main/mermaid).
 
         **Status**: Draft — upstream code in `data/upstream/CLI-Anything/`.
 
         ## Architecture
 
         ```
-        BLENDER/
+        MERMAID/
           main.py              # Ecosystem wrapper (delegates to upstream CLI)
           tool.json            # Tool metadata
           data/upstream/       # Raw CLI-Anything harness code
@@ -21,21 +21,18 @@
 
         | Command | Description |
         |---------|-------------|
-        | animation keyframe | (upstream) |
-| animation remove-keyframe | (upstream) |
-| animation frame-range | (upstream) |
-| animation fps | (upstream) |
-| animation list-keyframes | (upstream) |
-| camera add | (upstream) |
-| camera set | (upstream) |
-| camera set-active | (upstream) |
-| camera list | (upstream) |
-| light add | (upstream) |
-| light set | (upstream) |
-| light list | (upstream) |
-| material create | (upstream) |
-| material assign | (upstream) |
-| material set | (upstream) |
+        | diagram set | (upstream) |
+| diagram show | (upstream) |
+| export render | (upstream) |
+| export share | (upstream) |
+| project new | (upstream) |
+| project open | (upstream) |
+| project save | (upstream) |
+| project info | (upstream) |
+| project samples | (upstream) |
+| session status | (upstream) |
+| session undo | (upstream) |
+| session redo | (upstream) |
 
         ## Post-Processing Required
 

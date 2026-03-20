@@ -1,0 +1,12 @@
+{
+  "name": "MERMAID",
+  "version": "1.0.0-draft",
+  "description": "CLI harness for Mermaid Live Editor state files and renderer URLs",
+  "source": "CLI-Anything",
+  "upstream": "https://github.com/HKUDS/CLI-Anything/tree/main/mermaid",
+  "status": "draft",
+  "dependencies": [
+    "click>=8.0.0",
+    "prompt-toolkit>=3.0.0"
+  ]
+}

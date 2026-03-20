@@ -1,0 +1,13 @@
+{
+  "name": "ANYGEN",
+  "version": "1.0.0-draft",
+  "description": "CLI harness for AnyGen OpenAPI - Generate docs, slides, websites and more via AnyGen cloud API. Requires: ANYGEN_API_KEY",
+  "source": "CLI-Anything",
+  "upstream": "https://github.com/HKUDS/CLI-Anything/tree/main/anygen",
+  "status": "draft",
+  "dependencies": [
+    "click>=8.0.0",
+    "requests>=2.28.0",
+    "prompt-toolkit>=3.0.0"
+  ]
+}

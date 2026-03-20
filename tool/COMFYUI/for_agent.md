@@ -1,15 +1,15 @@
-        # BLENDER — Agent Guide
+        # COMFYUI — Agent Guide
 
         ## Source
 
-        Migrated from [CLI-Anything/blender](https://github.com/HKUDS/CLI-Anything/tree/main/blender).
+        Migrated from [CLI-Anything/comfyui](https://github.com/HKUDS/CLI-Anything/tree/main/comfyui).
 
         **Status**: Draft — upstream code in `data/upstream/CLI-Anything/`.
 
         ## Architecture
 
         ```
-        BLENDER/
+        COMFYUI/
           main.py              # Ecosystem wrapper (delegates to upstream CLI)
           tool.json            # Tool metadata
           data/upstream/       # Raw CLI-Anything harness code
@@ -21,21 +21,21 @@
 
         | Command | Description |
         |---------|-------------|
-        | animation keyframe | (upstream) |
-| animation remove-keyframe | (upstream) |
-| animation frame-range | (upstream) |
-| animation fps | (upstream) |
-| animation list-keyframes | (upstream) |
-| camera add | (upstream) |
-| camera set | (upstream) |
-| camera set-active | (upstream) |
-| camera list | (upstream) |
-| light add | (upstream) |
-| light set | (upstream) |
-| light list | (upstream) |
-| material create | (upstream) |
-| material assign | (upstream) |
-| material set | (upstream) |
+        | images list | (upstream) |
+| images download | (upstream) |
+| images download-all | (upstream) |
+| models checkpoints | (upstream) |
+| models loras | (upstream) |
+| models vaes | (upstream) |
+| models controlnets | (upstream) |
+| models node-info | (upstream) |
+| models list-nodes | (upstream) |
+| queue prompt | (upstream) |
+| queue status | (upstream) |
+| queue clear | (upstream) |
+| queue history | (upstream) |
+| queue interrupt | (upstream) |
+| system stats | (upstream) |
 
         ## Post-Processing Required
 

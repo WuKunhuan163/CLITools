@@ -1,0 +1,12 @@
+{
+  "name": "COMFYUI",
+  "version": "1.0.0-draft",
+  "description": "CLI harness for ComfyUI - AI image generation workflow management via ComfyUI REST API. Requires: ComfyUI running at http://localhost:8188",
+  "source": "CLI-Anything",
+  "upstream": "https://github.com/HKUDS/CLI-Anything/tree/main/comfyui",
+  "status": "draft",
+  "dependencies": [
+    "click>=8.0.0",
+    "requests>=2.28.0"
+  ]
+}

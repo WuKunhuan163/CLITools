@@ -1134,7 +1134,10 @@ def _print_eco_dashboard():
 
 def _tool_migrate_handler(args):
     """Handle TOOL --migrate --<level> <domain> [options]."""
-    from logic.command.migrate import list_domains, execute_migration, MIGRATION_LEVELS, get_domain_info
+    from logic.command.migrate import (
+        list_domains, execute_migration, MIGRATION_LEVELS,
+        get_domain_info, check_pending, scan_domain,
+    )
 
     if not args or args[0] in ["-h", "--help", "help"]:
         print(f"{BOLD}TOOL --migrate{RESET} — Migration framework\n")
@@ -1142,6 +1145,9 @@ def _tool_migrate_handler(args):
         print(f"  {BOLD}Levels{RESET}")
         for lv in MIGRATION_LEVELS:
             print(f"    --{lv}")
+        print(f"\n  {BOLD}Sub-commands{RESET}")
+        print(f"    --list                    List all migration domains")
+        print(f"    --scan <domain>           Discover available items in a domain")
         print(f"\n  {BOLD}Domains{RESET}")
         for d in list_domains():
             name = d.get("domain", "?")
@@ -1151,9 +1157,57 @@ def _tool_migrate_handler(args):
             if desc:
                 print(f"    {DIM}{desc}{RESET}")
         print(f"\n  {BOLD}Examples{RESET}")
+        print(f"    TOOL --migrate --list")
+        print(f"    TOOL --migrate --scan CLI-Anything")
         print(f"    TOOL --migrate --draft-tool CLI-Anything blender")
         print(f"    TOOL --migrate --infrastructure astral-sh --version 3.12 --platform macos-arm64")
         print(f"    TOOL --migrate --draft-tool CLI-Anything --all")
+        return
+
+    if args[0] == "--list":
+        domains = list_domains()
+        if not domains:
+            print(f"  {BOLD}No migration domains found.{RESET}")
+            return
+        print(f"  {BOLD}Migration domains{RESET} ({len(domains)})\n")
+        for d in domains:
+            name = d.get("domain", "?")
+            desc = d.get("description", "")[:70]
+            levels = ", ".join(d.get("levels", []))
+            status = check_pending(name)
+            migrated = status.get("migrated", 0)
+            total = status.get("total", "?")
+            print(f"    {BOLD}{name}{RESET}")
+            if desc:
+                print(f"    {DIM}{desc}{RESET}")
+            print(f"    Levels: {levels}")
+            print(f"    Status: {migrated}/{total} migrated")
+            print()
+        return
+
+    if args[0] == "--scan":
+        domain = args[1] if len(args) > 1 else None
+        if not domain:
+            print(f"  {BOLD}{RED}Missing domain.{RESET} Usage: TOOL --migrate --scan <domain>")
+            return
+        result = scan_domain(domain)
+        if "error" in result:
+            print(f"  {BOLD}{RED}Scan failed.{RESET} {result['error']}")
+            return
+        available = result.get("available", [])
+        migrated = result.get("migrated", [])
+        pending = result.get("pending", [])
+        print(f"  {BOLD}Scan: {domain}{RESET} — {len(available)} items found\n")
+        if migrated:
+            print(f"  {BOLD}Migrated{RESET} ({len(migrated)})")
+            for item in migrated:
+                print(f"    {GREEN}{item['name']:20s}{RESET} -> {item.get('tool', '?'):14s} [{item.get('status', 'draft')}]")
+        if pending:
+            print(f"  {BOLD}Available{RESET} ({len(pending)})")
+            for item in pending:
+                print(f"    {item['name']:20s} -> {item.get('tool', '?')}")
+        if not migrated and not pending:
+            print(f"  {DIM}No items found.{RESET}")
         return
 
     level = None

@@ -1,15 +1,15 @@
-        # BLENDER — Agent Guide
+        # KDENLIVE — Agent Guide
 
         ## Source
 
-        Migrated from [CLI-Anything/blender](https://github.com/HKUDS/CLI-Anything/tree/main/blender).
+        Migrated from [CLI-Anything/kdenlive](https://github.com/HKUDS/CLI-Anything/tree/main/kdenlive).
 
         **Status**: Draft — upstream code in `data/upstream/CLI-Anything/`.
 
         ## Architecture
 
         ```
-        BLENDER/
+        KDENLIVE/
           main.py              # Ecosystem wrapper (delegates to upstream CLI)
           tool.json            # Tool metadata
           data/upstream/       # Raw CLI-Anything harness code
@@ -21,21 +21,21 @@
 
         | Command | Description |
         |---------|-------------|
-        | animation keyframe | (upstream) |
-| animation remove-keyframe | (upstream) |
-| animation frame-range | (upstream) |
-| animation fps | (upstream) |
-| animation list-keyframes | (upstream) |
-| camera add | (upstream) |
-| camera set | (upstream) |
-| camera set-active | (upstream) |
-| camera list | (upstream) |
-| light add | (upstream) |
-| light set | (upstream) |
-| light list | (upstream) |
-| material create | (upstream) |
-| material assign | (upstream) |
-| material set | (upstream) |
+        | export xml | (upstream) |
+| export presets | (upstream) |
+| guide add | (upstream) |
+| guide remove | (upstream) |
+| guide list | (upstream) |
+| project new | (upstream) |
+| project open | (upstream) |
+| project save | (upstream) |
+| project info | (upstream) |
+| project profiles | (upstream) |
+| project json | (upstream) |
+| session status | (upstream) |
+| session undo | (upstream) |
+| session redo | (upstream) |
+| session history | (upstream) |
 
         ## Post-Processing Required
 

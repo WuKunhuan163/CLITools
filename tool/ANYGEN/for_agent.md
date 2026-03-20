@@ -1,15 +1,15 @@
-        # BLENDER — Agent Guide
+        # ANYGEN — Agent Guide
 
         ## Source
 
-        Migrated from [CLI-Anything/blender](https://github.com/HKUDS/CLI-Anything/tree/main/blender).
+        Migrated from [CLI-Anything/anygen](https://github.com/HKUDS/CLI-Anything/tree/main/anygen).
 
         **Status**: Draft — upstream code in `data/upstream/CLI-Anything/`.
 
         ## Architecture
 
         ```
-        BLENDER/
+        ANYGEN/
           main.py              # Ecosystem wrapper (delegates to upstream CLI)
           tool.json            # Tool metadata
           data/upstream/       # Raw CLI-Anything harness code
@@ -21,21 +21,21 @@
 
         | Command | Description |
         |---------|-------------|
-        | animation keyframe | (upstream) |
-| animation remove-keyframe | (upstream) |
-| animation frame-range | (upstream) |
-| animation fps | (upstream) |
-| animation list-keyframes | (upstream) |
-| camera add | (upstream) |
-| camera set | (upstream) |
-| camera set-active | (upstream) |
-| camera list | (upstream) |
-| light add | (upstream) |
-| light set | (upstream) |
-| light list | (upstream) |
-| material create | (upstream) |
-| material assign | (upstream) |
-| material set | (upstream) |
+        | config set | (upstream) |
+| config get | (upstream) |
+| config delete | (upstream) |
+| config path | (upstream) |
+| file upload | (upstream) |
+| session status | (upstream) |
+| session history | (upstream) |
+| session undo | (upstream) |
+| session redo | (upstream) |
+| task create | (upstream) |
+| task status | (upstream) |
+| task poll | (upstream) |
+| task download | (upstream) |
+| task thumbnail | (upstream) |
+| task run | (upstream) |
 
         ## Post-Processing Required
 

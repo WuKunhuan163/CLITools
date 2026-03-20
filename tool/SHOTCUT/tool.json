@@ -1,0 +1,13 @@
+{
+  "name": "SHOTCUT",
+  "version": "1.0.0-draft",
+  "description": "CLI harness for Shotcut - Video editing and rendering via melt/ffmpeg. Requires: melt (apt install melt), ffmpeg (apt install ffmpeg)",
+  "source": "CLI-Anything",
+  "upstream": "https://github.com/HKUDS/CLI-Anything/tree/main/shotcut",
+  "status": "draft",
+  "dependencies": [
+    "click>=8.0.0",
+    "prompt-toolkit>=3.0.0",
+    "lxml>=4.9.0"
+  ]
+}

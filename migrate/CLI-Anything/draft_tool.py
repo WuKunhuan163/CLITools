@@ -18,7 +18,10 @@ CLI-Anything structure (consistent across all harnesses):
 """
 import ast
 import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 import textwrap
 import urllib.request
@@ -27,25 +30,65 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _MIGRATE_DIR = Path(__file__).resolve().parent
 _TOOL_DIR = _PROJECT_ROOT / "tool"
+_CLONE_CACHE = _MIGRATE_DIR / ".cache" / "CLI-Anything"
 
+REPO_URL = "https://github.com/HKUDS/CLI-Anything.git"
 REPO_BASE = "https://api.github.com/repos/HKUDS/CLI-Anything/contents"
 RAW_BASE = "https://raw.githubusercontent.com/HKUDS/CLI-Anything/main"
 
-NAME_MAP = {
-    "audacity": "AUDACITY",
-    "blender": "BLENDER",
-    "comfyui": "COMFYUI",
-    "drawio": "DRAWIO",
-    "gimp": "GIMP.CLI",
-    "inkscape": "INKSCAPE",
-    "kdenlive": "KDENLIVE",
-    "libreoffice": "LIBREOFFICE",
-    "mermaid": "MERMAID",
+SPECIAL_NAMES = {
     "obs-studio": "OBS",
-    "shotcut": "SHOTCUT",
-    "zoom": "ZOOM.CLI",
-    "anygen": "ANYGEN",
 }
+
+
+def harness_to_tool_name(harness_name: str) -> str:
+    """Derive ecosystem tool name from a CLI-Anything harness name.
+
+    Convention: uppercase, hyphens removed. Override via SPECIAL_NAMES for
+    cases where the default conversion is undesirable (e.g. obs-studio -> OBS).
+    """
+    if harness_name in SPECIAL_NAMES:
+        return SPECIAL_NAMES[harness_name]
+    return harness_name.upper().replace("-", "")
+
+
+def _ensure_clone():
+    """Shallow-clone the CLI-Anything repo once, reuse for all harnesses."""
+    try:
+        from tool.GITHUB.interface.main import clone_repo, pull_repo
+        if _CLONE_CACHE.exists() and (_CLONE_CACHE / ".git").exists():
+            pull_repo(str(_CLONE_CACHE))
+            return True
+        _CLONE_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        return clone_repo(REPO_URL, str(_CLONE_CACHE), shallow=True)
+    except ImportError:
+        if _CLONE_CACHE.exists() and (_CLONE_CACHE / ".git").exists():
+            subprocess.run(["git", "pull", "--ff-only"], cwd=_CLONE_CACHE,
+                            capture_output=True, timeout=60)
+            return True
+        _CLONE_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        result = subprocess.run(
+            ["git", "clone", "--depth", "1", REPO_URL, str(_CLONE_CACHE)],
+            capture_output=True, text=True, timeout=120,
+        )
+        return result.returncode == 0
+
+
+def _list_harness_files_local(harness_name):
+    """List files from local clone."""
+    harness_dir = _CLONE_CACHE / harness_name
+    if not harness_dir.exists():
+        return []
+    files = []
+    for p in harness_dir.rglob("*"):
+        if p.is_file() and ".git" not in p.parts:
+            rel = p.relative_to(harness_dir)
+            files.append({
+                "name": str(rel),
+                "local_path": str(p),
+                "size": p.stat().st_size,
+            })
+    return files
 
 
 def _fetch_json(url):
@@ -63,8 +106,8 @@ def _fetch_raw(url):
         return resp.read().decode()
 
 
-def _list_harness_files(harness_name):
-    """Recursively list all files in a CLI-Anything harness."""
+def _list_harness_files_api(harness_name):
+    """Recursively list all files via GitHub API (fallback)."""
     try:
         contents = _fetch_json(f"{REPO_BASE}/{harness_name}")
         files = []
@@ -77,7 +120,7 @@ def _list_harness_files(harness_name):
                     "size": item["size"],
                 })
             elif item["type"] == "dir":
-                sub = _list_harness_files(f"{harness_name}/{item['name']}")
+                sub = _list_harness_files_api(f"{harness_name}/{item['name']}")
                 for sf in sub:
                     sf["name"] = f"{item['name']}/{sf['name']}"
                 files.extend(sub)
@@ -113,29 +156,83 @@ def _parse_setup_py(content: str) -> dict:
 
 
 def _parse_click_commands(cli_content: str) -> list:
-    """Extract Click command/group names from a CLI file."""
-    commands = []
-    for match in re.finditer(r"@(\w+)\.(?:command|group)\(['\"](\w+)['\"]", cli_content):
-        commands.append(match.group(2))
-    for match in re.finditer(r"def (\w+)\(", cli_content):
-        name = match.group(1)
-        if not name.startswith("_") and name not in ("main", "get_session", "output"):
-            commands.append(name)
-    return list(dict.fromkeys(commands))
+    """Extract Click command/group hierarchy from a CLI file.
+
+    Returns a flat list for backward compatibility, but groups are prefixed
+    with their parent group name (e.g. "project new", "project open").
+    Also returns a structured hierarchy accessible via _parse_click_tree().
+    """
+    tree = _parse_click_tree(cli_content)
+    flat = []
+    for group_name, sub_cmds in tree.items():
+        if sub_cmds:
+            for cmd in sub_cmds:
+                flat.append(f"{group_name} {cmd}")
+        else:
+            flat.append(group_name)
+    return flat
 
 
-def _generate_main_py(tool_name, harness_name, meta, commands):
+def _parse_click_tree(cli_content: str) -> dict:
+    """Parse Click CLI file to extract group->commands hierarchy.
+
+    Returns dict of {group_or_cmd: [sub_commands]} where leaf commands
+    have an empty list as value.
+    """
+    tree = {}
+
+    root_group = None
+    root_match = re.search(r"@click\.group\(", cli_content)
+    if root_match:
+        fn_match = re.search(r"def\s+(\w+)\(", cli_content[root_match.end():])
+        if fn_match:
+            root_group = fn_match.group(1)
+
+    groups = {}
+    for match in re.finditer(r"@(\w+)\.group\(\)", cli_content):
+        parent = match.group(1)
+        fn_match = re.search(r"def\s+(\w+)\(", cli_content[match.end():])
+        if fn_match:
+            group_name = fn_match.group(1)
+            groups[group_name] = parent
+
+    for match in re.finditer(r"@(\w+)\.command\(['\"]?([\w-]+)['\"]?\)", cli_content):
+        parent = match.group(1)
+        cmd_name = match.group(2)
+        if parent not in tree:
+            tree[parent] = []
+        tree[parent].append(cmd_name)
+
+    result = {}
+    for group_name in sorted(groups.keys()):
+        cmds = tree.get(group_name, [])
+        result[group_name] = cmds
+
+    for parent, cmds in tree.items():
+        if parent not in groups and parent != root_group:
+            result[parent] = cmds
+
+    if root_group and root_group in tree:
+        for cmd in tree[root_group]:
+            if cmd not in result:
+                result[cmd] = []
+
+    if not result:
+        for match in re.finditer(r"def (\w+)\(", cli_content):
+            name = match.group(1)
+            if not name.startswith("_") and name not in ("main", "get_session", "output", "emit", "cli"):
+                result[name] = []
+
+    return result
+
+
+def _generate_main_py(tool_name, harness_name, meta, commands, click_tree=None):
     """Generate an ecosystem-compatible main.py that wraps the upstream CLI."""
     desc = meta.get("description", f"{tool_name} CLI tool")
     ep = meta.get("entry_point", "")
     module_path = f"cli_anything.{harness_name}.{harness_name}_cli"
     if "=" in ep:
         module_path = ep.split("=")[1].split(":")[0].strip()
-
-    cmd_lines = []
-    for c in commands[:10]:
-        cmd_lines.append(f'    print(f"  {{DIM}}{c:14s} ...{{RESET}}")')
-    cmd_help = "\n".join(cmd_lines)
 
     class_name = tool_name.replace(".", "_")
 
@@ -183,8 +280,25 @@ def _generate_main_py(tool_name, harness_name, meta, commands):
         f'        print()',
         f'        print(f"  {{BOLD}}Commands{{RESET}}")',
     ]
-    for c in commands[:10]:
-        lines.append(f'        print(f"  {{DIM}}{c:14s} ...{{RESET}}")')
+
+    if click_tree:
+        shown = 0
+        for group, sub_cmds in list(click_tree.items())[:8]:
+            if sub_cmds:
+                lines.append(f'        print(f"  {{BOLD}}{group}{{RESET}}")')
+                for sc in sub_cmds[:5]:
+                    lines.append(f'        print(f"    {{DIM}}{sc:12s}{{RESET}}")')
+                if len(sub_cmds) > 5:
+                    lines.append(f'        print(f"    {{DIM}}... +{len(sub_cmds) - 5} more{{RESET}}")')
+            else:
+                lines.append(f'        print(f"  {{DIM}}{group:14s}{{RESET}}")')
+            shown += 1
+        if len(click_tree) > 8:
+            lines.append(f'        print(f"  {{DIM}}... +{len(click_tree) - 8} more groups{{RESET}}")')
+    else:
+        for c in commands[:10]:
+            lines.append(f'        print(f"  {{DIM}}{c:14s}{{RESET}}")')
+
     lines.extend([
         f'        print()',
         f'        print(f"  {{BOLD}}Upstream{{RESET}}")',
@@ -270,16 +384,20 @@ def _generate_for_agent(tool_name, harness_name, meta, commands):
     """)
 
 
-def migrate_one(harness_name, force=False):
+def migrate_one(harness_name, force=False, use_local=True):
     """Migrate a single CLI-Anything harness as a draft tool."""
-    tool_name = NAME_MAP.get(harness_name, harness_name.upper())
+    tool_name = harness_to_tool_name(harness_name)
     tool_path = _TOOL_DIR / tool_name
 
     if tool_path.exists() and not force:
         return {"ok": False, "error": f"Tool {tool_name} already exists. Use --force to overwrite upstream dir."}
 
     print(f"  Fetching {harness_name} from CLI-Anything...")
-    files = _list_harness_files(harness_name)
+
+    if use_local:
+        files = _list_harness_files_local(harness_name)
+    else:
+        files = _list_harness_files_api(harness_name)
     if not files:
         return {"ok": False, "error": f"No files found for {harness_name}"}
 
@@ -297,7 +415,10 @@ def migrate_one(harness_name, force=False):
 
     for f in files:
         try:
-            content = _fetch_raw(f["download_url"])
+            if "local_path" in f:
+                content = Path(f["local_path"]).read_text(errors="replace")
+            else:
+                content = _fetch_raw(f["download_url"])
             target = upstream_dir / f["name"]
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content)
@@ -315,9 +436,10 @@ def migrate_one(harness_name, force=False):
             print(f"    Warning: failed to fetch {f['name']}: {e}")
 
     meta = _parse_setup_py(setup_content) if setup_content else {}
+    click_tree = _parse_click_tree(cli_content) if cli_content else {}
     commands = _parse_click_commands(cli_content) if cli_content else []
 
-    main_py = _generate_main_py(tool_name, harness_name, meta, commands)
+    main_py = _generate_main_py(tool_name, harness_name, meta, commands, click_tree=click_tree)
     (tool_path / "main.py").write_text(main_py)
 
     tool_json = _generate_tool_json(tool_name, harness_name, meta)
@@ -341,6 +463,7 @@ def migrate_one(harness_name, force=False):
         "total_files": len(files),
         "status": "draft",
         "metadata": meta,
+        "click_tree": click_tree,
         "commands_detected": commands,
         "auto_generated": ["main.py", "tool.json", "for_agent.md", "README.md"],
         "post_processing": [
@@ -357,6 +480,21 @@ def migrate_one(harness_name, force=False):
     return {"ok": True, "tool_name": tool_name, "files": downloaded, "commands": commands}
 
 
+def scan_available():
+    """Discover all available harnesses from the upstream repo.
+
+    Returns a list of harness names found in the clone, each with an
+    agent-harness/ subdirectory.
+    """
+    if not _ensure_clone():
+        return []
+    harnesses = []
+    for d in sorted(_CLONE_CACHE.iterdir()):
+        if d.is_dir() and (d / "agent-harness").is_dir():
+            harnesses.append(d.name)
+    return harnesses
+
+
 def execute(args=None):
     """Execute draft-tool migration from CLI-Anything.
 
@@ -367,20 +505,28 @@ def execute(args=None):
     do_all = "--all" in args
     names = [a for a in args if not a.startswith("-")]
 
+    print("  Ensuring local clone...")
+    use_local = _ensure_clone()
+    if not use_local:
+        print("  Warning: git clone failed, falling back to API (may hit rate limits)")
+
+    available = scan_available() if use_local else []
+
     if do_all:
-        names = list(NAME_MAP.keys())
+        names = available if available else names
     elif not names:
         print("  Usage: TOOL --migrate --draft-tool CLI-Anything <harness> [--all] [--force]")
-        print(f"  Available: {', '.join(NAME_MAP.keys())}")
+        if available:
+            print(f"  Available ({len(available)}): {', '.join(available)}")
         return 1
 
     results = []
     for name in names:
         key = name.lower()
-        if key not in NAME_MAP:
-            print(f"  Unknown harness: {name}")
+        if available and key not in available:
+            print(f"  Unknown harness: {name} (not found in upstream)")
             continue
-        r = migrate_one(key, force=force)
+        r = migrate_one(key, force=force, use_local=use_local)
         results.append(r)
 
     ok_count = sum(1 for r in results if r.get("ok"))

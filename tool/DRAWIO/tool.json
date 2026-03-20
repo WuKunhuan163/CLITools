@@ -1,0 +1,12 @@
+{
+  "name": "DRAWIO",
+  "version": "1.0.0-draft",
+  "description": "CLI harness for Draw.io - Diagram creation and export via draw.io CLI. Requires: draw.io desktop app (draw.io --export)",
+  "source": "CLI-Anything",
+  "upstream": "https://github.com/HKUDS/CLI-Anything/tree/main/drawio",
+  "status": "draft",
+  "dependencies": [
+    "click>=8.0.0",
+    "prompt-toolkit>=3.0.0"
+  ]
+}

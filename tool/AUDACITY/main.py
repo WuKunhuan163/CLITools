@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""BLENDER Tool — CLI harness for Blender - run 3D modeling, animation, and rendering via blender --background --python
+"""AUDACITY Tool — CLI harness for Audacity - Audio editing and processing via sox. Requires: sox (apt install sox)
 
-Wraps the CLI-Anything blender harness.
-Upstream: https://github.com/HKUDS/CLI-Anything/tree/main/blender
+Wraps the CLI-Anything audacity harness.
+Upstream: https://github.com/HKUDS/CLI-Anything/tree/main/audacity
 """
 import sys
 import os
@@ -23,9 +23,9 @@ GREEN = get_color("GREEN")
 RED = get_color("RED")
 
 
-class BLENDERTool(ToolBase):
+class AUDACITYTool(ToolBase):
     def __init__(self):
-        super().__init__("BLENDER")
+        super().__init__("AUDACITY")
 
 
 def _get_upstream_package():
@@ -33,60 +33,55 @@ def _get_upstream_package():
 
 
 def main():
-    tool = BLENDERTool()
+    tool = AUDACITYTool()
 
     if len(sys.argv) < 2 or sys.argv[1] in ["-h", "--help", "help"]:
-        print(f"\n  {BOLD}BLENDER{RESET} (via CLI-Anything)")
-        print(f"  {DIM}CLI harness for Blender - run 3D modeling, animation, and rendering via blender --background --python{RESET}")
+        print(f"\n  {BOLD}AUDACITY{RESET} (via CLI-Anything)")
+        print(f"  {DIM}CLI harness for Audacity - Audio editing and processing via sox. Requires: sox (apt install sox){RESET}")
         print()
         print(f"  {BOLD}Commands{RESET}")
-        print(f"  {BOLD}animation{RESET}")
-        print(f"    {DIM}keyframe    {RESET}")
-        print(f"    {DIM}remove-keyframe{RESET}")
-        print(f"    {DIM}frame-range {RESET}")
-        print(f"    {DIM}fps         {RESET}")
-        print(f"    {DIM}list-keyframes{RESET}")
-        print(f"  {BOLD}camera{RESET}")
+        print(f"  {BOLD}clip{RESET}")
+        print(f"    {DIM}import      {RESET}")
         print(f"    {DIM}add         {RESET}")
-        print(f"    {DIM}set         {RESET}")
-        print(f"    {DIM}set-active  {RESET}")
-        print(f"    {DIM}list        {RESET}")
-        print(f"  {BOLD}light{RESET}")
+        print(f"    {DIM}remove      {RESET}")
+        print(f"    {DIM}trim        {RESET}")
+        print(f"    {DIM}split       {RESET}")
+        print(f"    {DIM}... +2 more{RESET}")
+        print(f"  {BOLD}label{RESET}")
         print(f"    {DIM}add         {RESET}")
-        print(f"    {DIM}set         {RESET}")
+        print(f"    {DIM}remove      {RESET}")
         print(f"    {DIM}list        {RESET}")
-        print(f"  {BOLD}material{RESET}")
-        print(f"    {DIM}create      {RESET}")
-        print(f"    {DIM}assign      {RESET}")
-        print(f"    {DIM}set         {RESET}")
-        print(f"    {DIM}list        {RESET}")
-        print(f"    {DIM}get         {RESET}")
-        print(f"  {BOLD}scene{RESET}")
+        print(f"  {BOLD}media{RESET}")
+        print(f"    {DIM}probe       {RESET}")
+        print(f"    {DIM}check       {RESET}")
+        print(f"  {BOLD}project{RESET}")
         print(f"    {DIM}new         {RESET}")
         print(f"    {DIM}open        {RESET}")
         print(f"    {DIM}save        {RESET}")
         print(f"    {DIM}info        {RESET}")
-        print(f"    {DIM}profiles    {RESET}")
+        print(f"    {DIM}settings    {RESET}")
         print(f"    {DIM}... +1 more{RESET}")
-        print(f"  {BOLD}session{RESET}")
-        print(f"    {DIM}status      {RESET}")
-        print(f"    {DIM}undo        {RESET}")
-        print(f"    {DIM}redo        {RESET}")
-        print(f"    {DIM}history     {RESET}")
-        print(f"  {BOLD}object_group{RESET}")
+        print(f"  {BOLD}selection{RESET}")
+        print(f"    {DIM}set         {RESET}")
+        print(f"    {DIM}all         {RESET}")
+        print(f"    {DIM}none        {RESET}")
+        print(f"    {DIM}info        {RESET}")
+        print(f"  {BOLD}track{RESET}")
         print(f"    {DIM}add         {RESET}")
         print(f"    {DIM}remove      {RESET}")
-        print(f"    {DIM}duplicate   {RESET}")
-        print(f"    {DIM}transform   {RESET}")
+        print(f"    {DIM}list        {RESET}")
         print(f"    {DIM}set         {RESET}")
-        print(f"    {DIM}... +2 more{RESET}")
-        print(f"  {BOLD}modifier_group{RESET}")
+        print(f"  {BOLD}effect_group{RESET}")
         print(f"    {DIM}list-available{RESET}")
         print(f"    {DIM}info        {RESET}")
         print(f"    {DIM}add         {RESET}")
         print(f"    {DIM}remove      {RESET}")
         print(f"    {DIM}set         {RESET}")
         print(f"    {DIM}... +1 more{RESET}")
+        print(f"  {BOLD}export_group{RESET}")
+        print(f"    {DIM}presets     {RESET}")
+        print(f"    {DIM}preset-info {RESET}")
+        print(f"    {DIM}render      {RESET}")
         print(f"  {DIM}... +1 more groups{RESET}")
         print()
         print(f"  {BOLD}Upstream{RESET}")
@@ -97,7 +92,7 @@ def main():
 
     upstream = _get_upstream_package()
     if not upstream.exists():
-        print(f"  {BOLD}{RED}Not installed.{RESET} Run: TOOL --migrate --draft-tool CLI-Anything blender")
+        print(f"  {BOLD}{RED}Not installed.{RESET} Run: TOOL --migrate --draft-tool CLI-Anything audacity")
         return 1
 
     pkg_path = str(upstream)
@@ -105,7 +100,7 @@ def main():
         sys.path.insert(0, pkg_path)
 
     try:
-        from cli_anything.blender.blender_cli import main as cli_main
+        from cli_anything.audacity.audacity_cli import main as cli_main
         cli_main()
     except ImportError as e:
         print(f"  {BOLD}{RED}Import error.{RESET} {e}")

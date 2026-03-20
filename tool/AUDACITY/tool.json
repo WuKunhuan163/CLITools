@@ -1,0 +1,13 @@
+{
+  "name": "AUDACITY",
+  "version": "1.0.0-draft",
+  "description": "CLI harness for Audacity - Audio editing and processing via sox. Requires: sox (apt install sox)",
+  "source": "CLI-Anything",
+  "upstream": "https://github.com/HKUDS/CLI-Anything/tree/main/audacity",
+  "status": "draft",
+  "dependencies": [
+    "click>=8.0.0",
+    "prompt-toolkit>=3.0.0",
+    "numpy>=1.24.0"
+  ]
+}

@@ -9,7 +9,8 @@ def _git_bin():
         from tool.GIT.interface.main import get_system_git
         return get_system_git()
     except ImportError:
-        return _git_bin()
+        return "git"
+
 import time
 from pathlib import Path
 from datetime import datetime
@@ -86,17 +87,23 @@ class PythonScanner:
         return None
 
     def get_release_tags(self) -> List[str]:
-        """Fetches release tags from GitHub using git ls-remote."""
-        cmd = [_git_bin(), "ls-remote", "--tags", REPO_URL]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            return []
-        tags = []
-        for line in result.stdout.strip().split("\n"):
-            match = re.search(r"refs/tags/(\d{8}(?:T\d+)?)$", line)
-            if match:
-                tags.append(match.group(1))
-        return sorted(list(set(tags)), reverse=True)
+        """Fetches release tags from GitHub using GITHUB tool interface."""
+        try:
+            from tool.GITHUB.interface.main import list_release_tags
+            all_tags = list_release_tags(PROJECT_OWNER, PROJECT_NAME)
+            tags = [t for t in all_tags if re.match(r"\d{8}(T\d+)?$", t)]
+            return sorted(tags, reverse=True)
+        except ImportError:
+            cmd = [_git_bin(), "ls-remote", "--tags", REPO_URL]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                return []
+            tags = []
+            for line in result.stdout.strip().split("\n"):
+                match = re.search(r"refs/tags/(\d{8}(?:T\d+)?)$", line)
+                if match:
+                    tags.append(match.group(1))
+            return sorted(list(set(tags)), reverse=True)
 
     def fetch_assets_for_tag(self, tag: str) -> List[Dict[str, Any]]:
         """Fetches assets for a specific tag, using cache if available."""
@@ -110,54 +117,53 @@ class PythonScanner:
                     return cache["assets"]
             except: pass
 
-        # Fetch from GitHub API
-        api_url = f"https://api.github.com/repos/{PROJECT_OWNER}/{PROJECT_NAME}/releases/tags/{tag}"
-        cmd = ["curl", "-L", "-s", "-H", "User-Agent: Mozilla/5.0", api_url]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
         assets = []
         try:
-            data = json.loads(result.stdout)
-            if "assets" in data:
-                for item in data["assets"]:
-                    name = item["name"]
-                    if not name.endswith(".tar.zst") or name.endswith(".sha256"): continue
-                    
-                    v_match = re.search(r"(\d+\.\d+\.\d+)", name)
-                    if not v_match: continue
-                    
-                    full_v = v_match.group(1)
-                    platform = self.resolve_platform(name)
-                    if platform:
-                        assets.append({
-                            "name": name,
-                            "url": item["browser_download_url"],
-                            "version": full_v,
-                            "platform": platform,
-                            "tag": tag
-                        })
-            else:
-                raise ValueError("No assets in API response")
-        except:
-            # Fallback to scraping
-            url = f"{PROJECT_URL}/releases/expanded_assets/{tag}"
-            cmd = ["curl", "-L", "-s", "-H", "User-Agent: Mozilla/5.0", url]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            matches = re.findall(r'cpython-([\w\+\-\.]+)\.tar\.zst', result.stdout)
-            for name_core in set(matches):
-                name = f"cpython-{name_core}.tar.zst"
+            from tool.GITHUB.interface.main import get_release_assets
+            raw_assets = get_release_assets(PROJECT_OWNER, PROJECT_NAME, tag)
+            for item in raw_assets:
+                name = item["name"]
+                if not name.endswith(".tar.zst") or name.endswith(".sha256"):
+                    continue
                 v_match = re.search(r"(\d+\.\d+\.\d+)", name)
-                if not v_match: continue
+                if not v_match:
+                    continue
                 full_v = v_match.group(1)
                 platform = self.resolve_platform(name)
                 if platform:
                     assets.append({
                         "name": name,
-                        "url": f"{PROJECT_URL}/releases/download/{tag}/{name}",
+                        "url": item["url"],
                         "version": full_v,
                         "platform": platform,
                         "tag": tag
                     })
+        except (ImportError, Exception):
+            api_url = f"https://api.github.com/repos/{PROJECT_OWNER}/{PROJECT_NAME}/releases/tags/{tag}"
+            cmd = ["curl", "-L", "-s", "-H", "User-Agent: Mozilla/5.0", api_url]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            try:
+                data = json.loads(result.stdout)
+                if "assets" in data:
+                    for item in data["assets"]:
+                        name = item["name"]
+                        if not name.endswith(".tar.zst") or name.endswith(".sha256"):
+                            continue
+                        v_match = re.search(r"(\d+\.\d+\.\d+)", name)
+                        if not v_match:
+                            continue
+                        full_v = v_match.group(1)
+                        platform = self.resolve_platform(name)
+                        if platform:
+                            assets.append({
+                                "name": name,
+                                "url": item["browser_download_url"],
+                                "version": full_v,
+                                "platform": platform,
+                                "tag": tag
+                            })
+            except Exception:
+                pass
             
         # Save to cache
         with open(cache_path, "w") as f:

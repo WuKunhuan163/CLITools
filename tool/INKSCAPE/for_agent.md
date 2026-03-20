@@ -1,15 +1,15 @@
-        # BLENDER — Agent Guide
+        # INKSCAPE — Agent Guide
 
         ## Source
 
-        Migrated from [CLI-Anything/blender](https://github.com/HKUDS/CLI-Anything/tree/main/blender).
+        Migrated from [CLI-Anything/inkscape](https://github.com/HKUDS/CLI-Anything/tree/main/inkscape).
 
         **Status**: Draft — upstream code in `data/upstream/CLI-Anything/`.
 
         ## Architecture
 
         ```
-        BLENDER/
+        INKSCAPE/
           main.py              # Ecosystem wrapper (delegates to upstream CLI)
           tool.json            # Tool metadata
           data/upstream/       # Raw CLI-Anything harness code
@@ -21,21 +21,21 @@
 
         | Command | Description |
         |---------|-------------|
-        | animation keyframe | (upstream) |
-| animation remove-keyframe | (upstream) |
-| animation frame-range | (upstream) |
-| animation fps | (upstream) |
-| animation list-keyframes | (upstream) |
-| camera add | (upstream) |
-| camera set | (upstream) |
-| camera set-active | (upstream) |
-| camera list | (upstream) |
-| light add | (upstream) |
-| light set | (upstream) |
-| light list | (upstream) |
-| material create | (upstream) |
-| material assign | (upstream) |
-| material set | (upstream) |
+        | document new | (upstream) |
+| document open | (upstream) |
+| document save | (upstream) |
+| document info | (upstream) |
+| document profiles | (upstream) |
+| document canvas-size | (upstream) |
+| document units | (upstream) |
+| document json | (upstream) |
+| gradient add-linear | (upstream) |
+| gradient add-radial | (upstream) |
+| gradient apply | (upstream) |
+| gradient list | (upstream) |
+| layer add | (upstream) |
+| layer remove | (upstream) |
+| layer move-object | (upstream) |
 
         ## Post-Processing Required
 

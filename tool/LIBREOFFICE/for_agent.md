@@ -1,15 +1,15 @@
-        # BLENDER — Agent Guide
+        # LIBREOFFICE — Agent Guide
 
         ## Source
 
-        Migrated from [CLI-Anything/blender](https://github.com/HKUDS/CLI-Anything/tree/main/blender).
+        Migrated from [CLI-Anything/libreoffice](https://github.com/HKUDS/CLI-Anything/tree/main/libreoffice).
 
         **Status**: Draft — upstream code in `data/upstream/CLI-Anything/`.
 
         ## Architecture
 
         ```
-        BLENDER/
+        LIBREOFFICE/
           main.py              # Ecosystem wrapper (delegates to upstream CLI)
           tool.json            # Tool metadata
           data/upstream/       # Raw CLI-Anything harness code
@@ -21,21 +21,21 @@
 
         | Command | Description |
         |---------|-------------|
-        | animation keyframe | (upstream) |
-| animation remove-keyframe | (upstream) |
-| animation frame-range | (upstream) |
-| animation fps | (upstream) |
-| animation list-keyframes | (upstream) |
-| camera add | (upstream) |
-| camera set | (upstream) |
-| camera set-active | (upstream) |
-| camera list | (upstream) |
-| light add | (upstream) |
-| light set | (upstream) |
-| light list | (upstream) |
-| material create | (upstream) |
-| material assign | (upstream) |
-| material set | (upstream) |
+        | calc add-sheet | (upstream) |
+| calc remove-sheet | (upstream) |
+| calc rename-sheet | (upstream) |
+| calc set-cell | (upstream) |
+| calc get-cell | (upstream) |
+| calc list-sheets | (upstream) |
+| document new | (upstream) |
+| document open | (upstream) |
+| document save | (upstream) |
+| document info | (upstream) |
+| document profiles | (upstream) |
+| document json | (upstream) |
+| impress add-slide | (upstream) |
+| impress remove-slide | (upstream) |
+| impress set-content | (upstream) |
 
         ## Post-Processing Required
 

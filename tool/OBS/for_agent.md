@@ -1,15 +1,15 @@
-        # BLENDER — Agent Guide
+        # OBS — Agent Guide
 
         ## Source
 
-        Migrated from [CLI-Anything/blender](https://github.com/HKUDS/CLI-Anything/tree/main/blender).
+        Migrated from [CLI-Anything/obs-studio](https://github.com/HKUDS/CLI-Anything/tree/main/obs-studio).
 
         **Status**: Draft — upstream code in `data/upstream/CLI-Anything/`.
 
         ## Architecture
 
         ```
-        BLENDER/
+        OBS/
           main.py              # Ecosystem wrapper (delegates to upstream CLI)
           tool.json            # Tool metadata
           data/upstream/       # Raw CLI-Anything harness code
@@ -21,21 +21,21 @@
 
         | Command | Description |
         |---------|-------------|
-        | animation keyframe | (upstream) |
-| animation remove-keyframe | (upstream) |
-| animation frame-range | (upstream) |
-| animation fps | (upstream) |
-| animation list-keyframes | (upstream) |
-| camera add | (upstream) |
-| camera set | (upstream) |
-| camera set-active | (upstream) |
-| camera list | (upstream) |
-| light add | (upstream) |
-| light set | (upstream) |
-| light list | (upstream) |
-| material create | (upstream) |
-| material assign | (upstream) |
-| material set | (upstream) |
+        | project new | (upstream) |
+| project open | (upstream) |
+| project save | (upstream) |
+| project info | (upstream) |
+| project json | (upstream) |
+| session status | (upstream) |
+| session undo | (upstream) |
+| session redo | (upstream) |
+| session history | (upstream) |
+| scene_group add | (upstream) |
+| scene_group remove | (upstream) |
+| scene_group duplicate | (upstream) |
+| scene_group set-active | (upstream) |
+| scene_group list | (upstream) |
+| source_group add | (upstream) |
 
         ## Post-Processing Required
 

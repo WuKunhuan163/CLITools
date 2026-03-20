@@ -1,15 +1,15 @@
-        # BLENDER — Agent Guide
+        # SHOTCUT — Agent Guide
 
         ## Source
 
-        Migrated from [CLI-Anything/blender](https://github.com/HKUDS/CLI-Anything/tree/main/blender).
+        Migrated from [CLI-Anything/shotcut](https://github.com/HKUDS/CLI-Anything/tree/main/shotcut).
 
         **Status**: Draft — upstream code in `data/upstream/CLI-Anything/`.
 
         ## Architecture
 
         ```
-        BLENDER/
+        SHOTCUT/
           main.py              # Ecosystem wrapper (delegates to upstream CLI)
           tool.json            # Tool metadata
           data/upstream/       # Raw CLI-Anything harness code
@@ -21,21 +21,21 @@
 
         | Command | Description |
         |---------|-------------|
-        | animation keyframe | (upstream) |
-| animation remove-keyframe | (upstream) |
-| animation frame-range | (upstream) |
-| animation fps | (upstream) |
-| animation list-keyframes | (upstream) |
-| camera add | (upstream) |
-| camera set | (upstream) |
-| camera set-active | (upstream) |
-| camera list | (upstream) |
-| light add | (upstream) |
-| light set | (upstream) |
-| light list | (upstream) |
-| material create | (upstream) |
-| material assign | (upstream) |
-| material set | (upstream) |
+        | export presets | (upstream) |
+| export preset-info | (upstream) |
+| export render | (upstream) |
+| media probe | (upstream) |
+| media list | (upstream) |
+| media check | (upstream) |
+| media thumbnail | (upstream) |
+| project new | (upstream) |
+| project open | (upstream) |
+| project save | (upstream) |
+| project info | (upstream) |
+| project profiles | (upstream) |
+| project xml | (upstream) |
+| session status | (upstream) |
+| session undo | (upstream) |
 
         ## Post-Processing Required
 

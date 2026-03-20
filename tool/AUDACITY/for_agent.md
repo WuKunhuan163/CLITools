@@ -1,15 +1,15 @@
-        # BLENDER — Agent Guide
+        # AUDACITY — Agent Guide
 
         ## Source
 
-        Migrated from [CLI-Anything/blender](https://github.com/HKUDS/CLI-Anything/tree/main/blender).
+        Migrated from [CLI-Anything/audacity](https://github.com/HKUDS/CLI-Anything/tree/main/audacity).
 
         **Status**: Draft — upstream code in `data/upstream/CLI-Anything/`.
 
         ## Architecture
 
         ```
-        BLENDER/
+        AUDACITY/
           main.py              # Ecosystem wrapper (delegates to upstream CLI)
           tool.json            # Tool metadata
           data/upstream/       # Raw CLI-Anything harness code
@@ -21,21 +21,21 @@
 
         | Command | Description |
         |---------|-------------|
-        | animation keyframe | (upstream) |
-| animation remove-keyframe | (upstream) |
-| animation frame-range | (upstream) |
-| animation fps | (upstream) |
-| animation list-keyframes | (upstream) |
-| camera add | (upstream) |
-| camera set | (upstream) |
-| camera set-active | (upstream) |
-| camera list | (upstream) |
-| light add | (upstream) |
-| light set | (upstream) |
-| light list | (upstream) |
-| material create | (upstream) |
-| material assign | (upstream) |
-| material set | (upstream) |
+        | clip import | (upstream) |
+| clip add | (upstream) |
+| clip remove | (upstream) |
+| clip trim | (upstream) |
+| clip split | (upstream) |
+| clip move | (upstream) |
+| clip list | (upstream) |
+| label add | (upstream) |
+| label remove | (upstream) |
+| label list | (upstream) |
+| media probe | (upstream) |
+| media check | (upstream) |
+| project new | (upstream) |
+| project open | (upstream) |
+| project save | (upstream) |
 
         ## Post-Processing Required
 

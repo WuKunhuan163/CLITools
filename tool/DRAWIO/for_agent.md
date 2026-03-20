@@ -1,15 +1,15 @@
-        # BLENDER — Agent Guide
+        # DRAWIO — Agent Guide
 
         ## Source
 
-        Migrated from [CLI-Anything/blender](https://github.com/HKUDS/CLI-Anything/tree/main/blender).
+        Migrated from [CLI-Anything/drawio](https://github.com/HKUDS/CLI-Anything/tree/main/drawio).
 
         **Status**: Draft — upstream code in `data/upstream/CLI-Anything/`.
 
         ## Architecture
 
         ```
-        BLENDER/
+        DRAWIO/
           main.py              # Ecosystem wrapper (delegates to upstream CLI)
           tool.json            # Tool metadata
           data/upstream/       # Raw CLI-Anything harness code
@@ -21,21 +21,21 @@
 
         | Command | Description |
         |---------|-------------|
-        | animation keyframe | (upstream) |
-| animation remove-keyframe | (upstream) |
-| animation frame-range | (upstream) |
-| animation fps | (upstream) |
-| animation list-keyframes | (upstream) |
-| camera add | (upstream) |
-| camera set | (upstream) |
-| camera set-active | (upstream) |
-| camera list | (upstream) |
-| light add | (upstream) |
-| light set | (upstream) |
-| light list | (upstream) |
-| material create | (upstream) |
-| material assign | (upstream) |
-| material set | (upstream) |
+        | connect add | (upstream) |
+| connect remove | (upstream) |
+| connect label | (upstream) |
+| connect style | (upstream) |
+| connect list | (upstream) |
+| connect styles | (upstream) |
+| export render | (upstream) |
+| export formats | (upstream) |
+| page add | (upstream) |
+| page remove | (upstream) |
+| page rename | (upstream) |
+| page list | (upstream) |
+| project new | (upstream) |
+| project open | (upstream) |
+| project save | (upstream) |
 
         ## Post-Processing Required
 
