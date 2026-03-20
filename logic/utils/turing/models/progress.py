@@ -4,9 +4,9 @@ import re
 import inspect
 from typing import List, Optional
 from pathlib import Path
-from logic.turing.logic import TuringStage
+from logic.utils.turing.logic import TuringStage
 from logic._.config import get_color
-from logic.turing.terminal.keyboard import get_global_suppressor
+from logic.utils.turing.terminal.keyboard import get_global_suppressor
 from logic._.lang.utils import get_translation
 from logic.utils import get_logic_dir, find_project_root
 
@@ -22,7 +22,7 @@ class ProgressTuringMachine:
                  tool_name: Optional[str] = None, log_dir: Optional[str] = None,
                  no_warning: bool = False, manager: Optional['MultiLineManager'] = None,
                  session_logger=None):
-        from logic.turing.display.manager import MultiLineManager
+        from logic.utils.turing.display.manager import MultiLineManager
         global _GLOBAL_TURING_MANAGER
         self.stages = stages or []
         self.no_warning = no_warning
@@ -38,7 +38,7 @@ class ProgressTuringMachine:
 
     def warning(self, text: str) -> None:
         """Emit a dimmed warning line via the display manager."""
-        from logic.turing.status import fmt_warning
+        from logic.utils.turing.status import fmt_warning
         self.manager.update(
             f"_warn_{id(text)}",
             fmt_warning(text, indent=0),
@@ -46,7 +46,7 @@ class ProgressTuringMachine:
 
     def info(self, text: str) -> None:
         """Emit a dimmed informational line via the display manager."""
-        from logic.turing.status import fmt_info
+        from logic.utils.turing.status import fmt_info
         self.manager.update(
             f"_info_{id(text)}",
             fmt_info(text, indent=0),
@@ -54,7 +54,7 @@ class ProgressTuringMachine:
 
     def _log_error(self, stage: TuringStage, exception: Optional[Exception] = None):
         """Saves full error information to the session log or a standalone file."""
-        from logic.turing.utils import log_turing_error
+        from logic.utils.turing.utils import log_turing_error
         return log_turing_error(stage, self.project_root, self.tool_name, exception,
                                 log_dir=self.log_dir, session_logger=self.session_logger)
 
@@ -248,7 +248,7 @@ class ProgressTuringMachine:
                             
                             return False
                     except Exception as e:
-                        from logic.turing.logic import TuringError
+                        from logic.utils.turing.logic import TuringError
                         if isinstance(e, TuringError):
                             stage.error_brief = e.brief
                             stage.error_full = e.full

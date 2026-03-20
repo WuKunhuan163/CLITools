@@ -5,7 +5,7 @@ import json
 import traceback
 from typing import Optional
 from pathlib import Path
-from logic.turing.logic import TuringStage
+from logic.utils.turing.logic import TuringStage
 
 def log_turing_error(stage: TuringStage, project_root: Optional[Path], 
                      tool_name: Optional[str], exception: Optional[Exception] = None,

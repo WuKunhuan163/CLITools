@@ -12,8 +12,8 @@ def _git_bin():
     except ImportError:
         return _git_bin()
 import subprocess
-from logic.turing.models.progress import ProgressTuringMachine
-from logic.turing.logic import TuringStage
+from logic.utils.turing.models.progress import ProgressTuringMachine
+from logic.utils.turing.logic import TuringStage
 from logic._.config import get_color
 
 class ToolEngine:
@@ -399,7 +399,7 @@ class ToolEngine:
             return True
 
         python_exec = self._resolve_python_exec()
-        from logic.turing.display.manager import _get_configured_width, truncate_to_width
+        from logic.utils.turing.display.manager import _get_configured_width, truncate_to_width
         width = _get_configured_width()
 
         for package in pip_deps:

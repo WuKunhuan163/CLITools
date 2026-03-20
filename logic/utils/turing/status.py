@@ -6,7 +6,7 @@ formatted strings — the caller decides when to print or write them.
 
 Usage::
 
-    from logic.turing.status import fmt_status, fmt_detail, fmt_stage
+    from logic.utils.turing.status import fmt_status, fmt_detail, fmt_stage
 
     print(fmt_status("Saved.", dim="3 policies"))
     print(fmt_detail("Session be58ac60 is ready."))

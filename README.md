@@ -185,6 +185,10 @@ Read `for_agent.md` in this directory. That file is your primary reference. Key 
 - `BRAIN reflect` — Self-check protocol + active reminders
 - `USERINPUT --hint "summary"` — Report to user (blocking feedback loop)
 
+## Roadmap
+
+- **Assistant System**: Design, develop, and test the built-in assistant framework that enables LLM-powered agents to use these tools autonomously. This includes multi-model routing, session management, and the meta-agent workflow that leverages the full ecosystem.
+
 ## Contribution
 
 Active development happens on the `dev` branch. Run `SKILLS show tool-development-workflow` for the full development guide.

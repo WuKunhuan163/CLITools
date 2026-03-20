@@ -30,6 +30,8 @@ class DevCommand(EcoCommand):
             "migrate-bin": self._migrate_bin,
             "install-hooks": self._install_hooks,
             "uninstall-hooks": self._uninstall_hooks,
+            "hooks": lambda: self._hooks(rest),
+            "call-register": lambda: self._call_register(rest),
             "locker": self._locker,
             "docs": lambda: self._docs(rest),
             "report": lambda: self._report(rest),
@@ -108,6 +110,16 @@ class DevCommand(EcoCommand):
             self.success("Removed", "post-checkout hook.")
         else:
             self.warn("Skipped:", "no AITerminalTools hook found.")
+
+    def _hooks(self, rest):
+        from interface.tool import ToolBase as _ToolBase
+        root_tool = _ToolBase("TOOL", is_root=True)
+        root_tool._handle_hooks_command(rest)
+
+    def _call_register(self, rest):
+        from interface.tool import ToolBase as _ToolBase
+        root_tool = _ToolBase("TOOL", is_root=True)
+        root_tool._handle_call_register(rest)
 
     def _locker(self):
         from interface.git import get_persistence_manager
@@ -215,6 +227,8 @@ alwaysApply: {"true" if always_apply else "false"}
             ("migrate-bin", "Migrate flat bin/ shortcuts"),
             ("install-hooks", "Install git post-checkout hook"),
             ("uninstall-hooks", "Remove git post-checkout hook"),
+            ("hooks <sub>", "Manage tool hooks (list, run, etc.)"),
+            ("call-register <sub>", "Manage tool call register"),
             ("locker", "List persistence lockers"),
             ("docs [scope]", "List README/for_agent/reports at scope"),
             ("report <scope> <topic>", "Create a new report"),

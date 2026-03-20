@@ -16,7 +16,7 @@ def _make_step_callback():
     BOLD = get_color("BOLD")
     BLUE = get_color("BLUE")
     RESET = get_color("RESET")
-    from logic.turing.status import get_cli_indent
+    from logic.utils.turing.status import get_cli_indent
 
     def on_step_change(step_idx, total_steps, step_title):
         prefix = " " * get_cli_indent()

@@ -4,7 +4,7 @@ def print_width_check(width, is_auto=False, actual_detected=True, project_root=N
     from logic.utils import print_terminal_width_separator
 
     if is_auto:
-        from logic.turing.display.manager import _get_configured_width
+        from logic.utils.turing.display.manager import _get_configured_width
         detected = _get_configured_width()
         if detected and isinstance(detected, int) and detected > 0:
             status = str(detected)

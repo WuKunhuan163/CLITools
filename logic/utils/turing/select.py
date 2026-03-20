@@ -9,7 +9,7 @@ Reusable blueprints for terminal CLI interactions:
 Uses the shared KeyboardSuppressor for terminal state management.
 
 Usage:
-    from logic.turing.select import select_menu, select_horizontal, read_masked, erase_lines
+    from logic.utils.turing.select import select_menu, select_horizontal, read_masked, erase_lines
 
     choice = select_menu("Select a provider:", [...])
     policy = select_horizontal("Allow?", ["Run Everytime", "Run Once", "Reject"])
@@ -26,7 +26,7 @@ from pathlib import Path
 
 from logic._.config import get_color
 from logic._.lang.utils import get_translation
-from logic.turing.terminal.keyboard import get_global_suppressor
+from logic.utils.turing.terminal.keyboard import get_global_suppressor
 
 _LOGIC_DIR = str(Path(__file__).resolve().parent.parent)
 

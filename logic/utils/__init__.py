@@ -1,5 +1,5 @@
 # Backward-compatible re-exports: `from logic.utils import X` still works.
-# Submodules: cleanup, display, fuzzy, logging, preflight, progress, system, timezone
+# Submodules: cleanup, display, fuzzy, logging, preflight, progress, resolve, system, timezone, turing
 
 from logic.utils.cleanup import cleanup_old_files, cleanup_project_patterns
 from logic.utils.display import (
@@ -11,6 +11,7 @@ from logic.utils.display import (
 )
 from logic.utils.logging import SessionLogger, log_debug
 from logic.utils.progress import retry, calculate_eta, run_with_progress
+from logic.utils.resolve import find_project_root as resolve_project_root, setup_paths, get_tool_module_path as resolve_tool_module_path
 from logic.utils.system import (
     get_system_tag, regularize_version_name, extract_resource,
     print_missing_tool_error, print_python_not_found_error,

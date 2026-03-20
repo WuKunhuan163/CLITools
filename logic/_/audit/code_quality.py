@@ -200,7 +200,7 @@ def run_full_audit(
 
 def print_report(report: AuditReport) -> None:
     """Pretty-print the audit report to stdout."""
-    from logic.turing.status import fmt_status, fmt_detail, fmt_warning, fmt_info
+    from logic.utils.turing.status import fmt_status, fmt_detail, fmt_warning, fmt_info
 
     RESET = "\033[0m"
 

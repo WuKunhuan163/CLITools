@@ -12,7 +12,7 @@ Provides a rich input experience for CLI applications:
 Uses raw terminal mode (termios) for character-by-character processing.
 
 Usage:
-    from logic.turing.multiline_input import multiline_input
+    from logic.utils.turing.multiline_input import multiline_input
 
     text = multiline_input(
         prompt="□ ",

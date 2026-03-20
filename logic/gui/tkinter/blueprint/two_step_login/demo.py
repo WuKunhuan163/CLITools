@@ -13,8 +13,8 @@ from logic.gui.tkinter.blueprint.two_step_login.gui import TwoStepLoginWindow
 if __name__ == "__main__":
     from logic.gui.engine import setup_gui_environment, get_safe_python_for_gui
     from logic.tool.blueprint.base import ToolBase
-    from logic.turing.models.progress import ProgressTuringMachine
-    from logic.turing.logic import TuringStage
+    from logic.utils.turing.models.progress import ProgressTuringMachine
+    from logic.utils.turing.logic import TuringStage
     from logic._.config import get_color
     import subprocess
     import os

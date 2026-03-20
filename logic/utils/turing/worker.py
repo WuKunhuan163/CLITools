@@ -1,5 +1,5 @@
-from logic.turing.logic import WorkerState, TuringTask
-from logic.turing.display.manager import MultiLineManager
+from logic.utils.turing.logic import WorkerState, TuringTask
+from logic.utils.turing.display.manager import MultiLineManager
 
 class TuringWorker:
     def __init__(self, worker_id: str, manager: MultiLineManager):

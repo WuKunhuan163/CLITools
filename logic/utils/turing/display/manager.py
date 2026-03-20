@@ -154,7 +154,7 @@ class MultiLineManager:
         if getattr(self, "_initialized", False):
             return
         self._initialized = True
-        from logic.turing.terminal.keyboard import get_global_suppressor
+        from logic.utils.turing.terminal.keyboard import get_global_suppressor
         self.lock = threading.Lock()
         self.slots = [] # List of Slot objects
         self.worker_to_slot_idx = {} # worker_id -> index in self.slots

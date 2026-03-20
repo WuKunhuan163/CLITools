@@ -77,11 +77,11 @@ def handle_gui_remote_command(tool_name: str, project_root: Path, command: str, 
             print(f"{BOLD}{RED}{label}{RESET}: {msg}")
         else:
             # Simple success message for other commands
-            from logic.turing.status import fmt_info
+            from logic.utils.turing.status import fmt_info
             print(fmt_info(f"Sent '{command}' to {found} {tool_name} instances.", indent=0))
     else:
         if target_pid:
-            from logic.turing.status import fmt_warning
+            from logic.utils.turing.status import fmt_warning
             print(fmt_warning(f"PID {target_pid} not found in active {tool_name} instances.", indent=0))
         else:
             msg = translation_helper('no_instances_found', f'No active {tool_name} GUI instances found.')
@@ -132,12 +132,12 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     display_msg = f"{BOLD}{BLUE}{label_waiting_full}{RESET} (PID: {proc.pid})..."
     
     # Try to use the global turing manager for better line management
-    from logic.turing.models.progress import get_global_turing_manager
+    from logic.utils.turing.models.progress import get_global_turing_manager
     manager = get_global_turing_manager()
     gui_slot_id = f"gui_wait_{proc.pid}"
     
     if not is_quiet:
-            from logic.turing.display.manager import truncate_to_width, _get_configured_width
+            from logic.utils.turing.display.manager import truncate_to_width, _get_configured_width
             width = _get_configured_width()
             if width > 0:
                 display_msg = truncate_to_width(display_msg, width)
@@ -188,7 +188,7 @@ def run_gui_subprocess(tool_instance, python_exe: str, script_path: str, timeout
     added_time_dir.mkdir(parents=True, exist_ok=True)
     
     # Suppress keyboard echo during the waiting loop
-    from logic.turing.terminal.keyboard import get_global_suppressor
+    from logic.utils.turing.terminal.keyboard import get_global_suppressor
     suppressor = get_global_suppressor()
     suppressor.start()
 
@@ -420,7 +420,7 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     
     last_focus = time.time() # Start from now to avoid immediate bell
 
-    from logic.turing.terminal.keyboard import get_global_suppressor
+    from logic.utils.turing.terminal.keyboard import get_global_suppressor
     fb_suppressor = get_global_suppressor()
     fb_suppressor.start()
 

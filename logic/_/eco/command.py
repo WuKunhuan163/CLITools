@@ -27,6 +27,7 @@ class EcoNavCommand(EcoCommand):
             "search": lambda: self._search(rest),
             "tool": lambda: self._tool(rest),
             "skill": lambda: self._skill(rest),
+            "skills": lambda: self._skills_list(rest),
             "map": self._map,
             "here": lambda: self._here(rest),
             "guide": self._guide,
@@ -170,13 +171,46 @@ class EcoNavCommand(EcoCommand):
         from interface.eco import eco_skill
         name = rest[0] if rest else None
         if not name:
-            print(f"Usage: {self.tool_name} --eco skill <skill_name>")
+            self._skills_list(rest)
             return
         content = eco_skill(self.project_root, name)
         if not content:
             self.error("Not found:", name)
             return
         print(content)
+
+    def _skills_list(self, rest):
+        """List all available skills."""
+        skills_dir = self.project_root / "tool" / "SKILLS" / "data" / "library"
+        if not skills_dir.exists():
+            self.info("No skills library found.")
+            return
+
+        names = sorted(
+            d.name for d in skills_dir.iterdir()
+            if d.is_dir() and (d / "SKILL.md").exists()
+        )
+        if names:
+            self.header(f"{self.tool_name} Skills")
+            for name in names:
+                desc = ""
+                for loc in [
+                    self.project_root / "skills" / "core" / name / "SKILL.md",
+                    self.project_root / "skills" / name / "SKILL.md",
+                    skills_dir / name / "SKILL.md",
+                ]:
+                    if loc.exists():
+                        for line in loc.read_text().splitlines():
+                            if line.startswith("description:"):
+                                desc = line[len("description:"):].strip()
+                                break
+                        break
+                print(f"  {self.BOLD}{name}{self.RESET}")
+                if desc:
+                    print(f"    {desc}")
+            print(f"\n  Use '{self.tool_name} --eco skill <name>' to view a skill.")
+        else:
+            self.info("No skills configured.")
 
     def _map(self):
         from interface.eco import eco_map

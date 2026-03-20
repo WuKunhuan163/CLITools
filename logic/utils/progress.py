@@ -82,7 +82,7 @@ def run_with_progress(cmd, prefix, worker_id=None, manager=None, interval=0.5):
     Returns: (success, error_message)
     """
     from logic._.config import get_setting
-    from logic.turing.display.manager import _get_configured_width
+    from logic.utils.turing.display.manager import _get_configured_width
     
     decimal_places = get_setting("progress_decimal_places", 0)
     fmt = f"{{:.{decimal_places}f}}%"

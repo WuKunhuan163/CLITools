@@ -5,11 +5,11 @@ import time
 import inspect
 from typing import List, Dict, Optional, Any, Set, Callable, Tuple
 from concurrent.futures import ThreadPoolExecutor
-from logic.turing.display.manager import truncate_to_width, _get_configured_width
+from logic.utils.turing.display.manager import truncate_to_width, _get_configured_width
 from logic._.config import get_color
-from logic.turing.terminal.keyboard import get_global_suppressor
-from logic.turing.logic import TuringStage
-from logic.turing.utils import log_turing_error
+from logic.utils.turing.terminal.keyboard import get_global_suppressor
+from logic.utils.turing.logic import TuringStage
+from logic.utils.turing.utils import log_turing_error
 from logic._.lang.utils import get_translation
 from logic.utils import get_logic_dir, find_project_root
 
@@ -19,7 +19,7 @@ class DynamicStatusBar:
     Used for parallel tasks where status updates frequently.
     """
     def __init__(self, label: str = "Processing", use_bold_blue: bool = True, manager: Optional['MultiLineManager'] = None):
-        from logic.turing.terminal.keyboard import get_global_suppressor
+        from logic.utils.turing.terminal.keyboard import get_global_suppressor
         self.label = label
         self.active_items: Set[str] = set()
         self.lock = threading.Lock()
@@ -335,7 +335,7 @@ class ParallelWorkerPool:
                             # Shut down executor without waiting for stalled threads
                             executor.shutdown(wait=False)
                             
-                            from logic.turing.logic import TuringError
+                            from logic.utils.turing.logic import TuringError
                             raise TuringError(f"Stalled for {timeout}s", full=f"Stalled for {timeout}s")
                 finally:
                     if not stalled:

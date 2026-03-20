@@ -50,7 +50,7 @@ class AuditCommand(EcoCommand):
         return 0
 
     def _handle_lang(self, args):
-        """Handle --audit --lang <code> [list|--force|--turing]."""
+        """Handle --audit --lang <code> [list|--force|--turing|--detect]."""
         lang_idx = args.index("--lang")
         rest = args[lang_idx + 1:]
 
@@ -58,6 +58,9 @@ class AuditCommand(EcoCommand):
             from interface.lang import list_languages
             list_languages(self.project_root, translation_func=self._)
             return 0
+
+        if rest[0] == "--detect" or "--detect" in rest:
+            return self._detect_hardcoded(rest)
 
         lang_code = rest[0]
         force = "--force" in rest
@@ -67,6 +70,15 @@ class AuditCommand(EcoCommand):
         audit_lang(lang_code, self.project_root,
                    force=force, turing=turing,
                    translation_func=self._)
+        return 0
+
+    def _detect_hardcoded(self, rest):
+        """Detect hardcoded user-facing strings not wrapped in _()."""
+        from logic._.lang.detect import detect_all, format_report
+
+        targets = [r for r in rest if not r.startswith("-") and r != "--detect"]
+        report = detect_all(self.project_root, targets=targets or None)
+        print(format_report(report))
         return 0
 
     def _imports(self, parsed, root):

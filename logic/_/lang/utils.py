@@ -2,6 +2,25 @@ import json
 import os
 from pathlib import Path
 
+_ROOT_LOGIC_CACHE = {}
+
+def _find_root_logic(tool_logic_path: Path) -> Path:
+    """Walk up from a tool's logic dir to find the project root logic/."""
+    key = str(tool_logic_path)
+    if key in _ROOT_LOGIC_CACHE:
+        return _ROOT_LOGIC_CACHE[key]
+    curr = tool_logic_path.resolve()
+    while curr != curr.parent:
+        if ((curr / "bin" / "TOOL").exists() and
+                (curr / "logic" / "translation").is_dir()):
+            result = curr / "logic"
+            _ROOT_LOGIC_CACHE[key] = result
+            return result
+        curr = curr.parent
+    _ROOT_LOGIC_CACHE[key] = None
+    return None
+
+
 def get_translation(tool_logic_dir, key, default_text, lang_code=None, **kwargs):
     """
     Looks up a translation for a given key in translation.json, 
@@ -68,8 +87,24 @@ def get_translation(tool_logic_dir, key, default_text, lang_code=None, **kwargs)
                             found = True
                 except Exception:
                     pass
+
+        # 4. Fallback: root logic/translation/ (for tool descriptions and shared keys)
+        if not found:
+            root_logic = _find_root_logic(tool_logic_path)
+            if root_logic and root_logic != tool_logic_path:
+                root_trans = root_logic / "translation" / f"{lang}.json"
+                if root_trans.exists():
+                    try:
+                        with open(root_trans, 'r', encoding='utf-8') as f:
+                            root_data = json.load(f)
+                            result = root_data.get(key)
+                            if result:
+                                translated_text = result
+                                found = True
+                    except Exception:
+                        pass
     
-    # 4. Handle recursive translation with {{}}
+    # 5. Handle recursive translation with {{}}
     # We find all {{...}} patterns and replace them with their own translations
     if translated_text:
         def replace_recursive(match):
@@ -80,7 +115,7 @@ def get_translation(tool_logic_dir, key, default_text, lang_code=None, **kwargs)
         # Use a regex to find {{key}}
         translated_text = re.sub(r'\{\{([^}]+)\}\}', replace_recursive, translated_text)
     
-    # 5. Handle standard formatting with {} if kwargs are provided
+    # 6. Handle standard formatting with {} if kwargs are provided
     if translated_text and kwargs:
         try:
             return translated_text.format(**kwargs)

@@ -251,9 +251,9 @@ class TestRunner:
 
     def _run_parallel_tests(self, test_files, max_concurrent, timeout=60):
         """Run multiple tests using TuringWorker mechanism for multi-line progress."""
-        from logic.turing.display.manager import MultiLineManager
-        from logic.turing.worker import TuringWorker
-        from logic.turing.logic import TuringTask, StepResult, WorkerState
+        from logic.utils.turing.display.manager import MultiLineManager
+        from logic.utils.turing.worker import TuringWorker
+        from logic.utils.turing.logic import TuringTask, StepResult, WorkerState
         
         # 1. Config
         if max_concurrent == 3:
@@ -450,9 +450,9 @@ class TestRunner:
 
     def _run_sequential_tests(self, test_files, timeout=60):
         """Run tests one by one in order, using single-worker TuringWorker display."""
-        from logic.turing.display.manager import MultiLineManager
-        from logic.turing.worker import TuringWorker
-        from logic.turing.logic import TuringTask, StepResult, WorkerState
+        from logic.utils.turing.display.manager import MultiLineManager
+        from logic.utils.turing.worker import TuringWorker
+        from logic.utils.turing.logic import TuringTask, StepResult, WorkerState
 
         all_success = True
         all_test_pids = set()

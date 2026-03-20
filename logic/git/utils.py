@@ -3,8 +3,8 @@ import subprocess
 import shutil
 from pathlib import Path
 from typing import Optional, Callable
-from logic.turing.models.progress import ProgressTuringMachine
-from logic.turing.logic import TuringStage
+from logic.utils.turing.models.progress import ProgressTuringMachine
+from logic.utils.turing.logic import TuringStage
 
 def _git_bin():
     from tool.GIT.interface.main import get_system_git

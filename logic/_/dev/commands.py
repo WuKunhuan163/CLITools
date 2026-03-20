@@ -478,7 +478,7 @@ def dev_audit_bin(project_root: Path, fix: bool = False) -> bool:
 
     bin_dir = project_root / "bin"
     if not bin_dir.exists():
-        from logic.turing.status import fmt_warning
+        from logic.utils.turing.status import fmt_warning
         print(fmt_warning("bin/ directory not found.", indent=0))
         return True
     
@@ -569,7 +569,7 @@ def dev_migrate_bin(project_root: Path) -> bool:
 
     bin_dir = project_root / "bin"
     if not bin_dir.exists():
-        from logic.turing.status import fmt_warning
+        from logic.utils.turing.status import fmt_warning
         print(fmt_warning("bin/ directory not found.", indent=0))
         return True
 

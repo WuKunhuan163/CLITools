@@ -37,7 +37,6 @@ def _eco_cmd(name, args):
             "uninstall": ("logic._.uninstall", "UninstallCommand"),
             "list": ("logic._.list", "ListCommand"),
             "status": ("logic._.status", "StatusCommand"),
-            "skills": ("logic._.skills", "SkillsCommand"),
             "migrate": ("logic._.migrate", "MigrateCommand"),
             "dev": ("logic._.dev.command", "DevCommand"),
             "test": ("logic._.test.command", "TestCommand"),
@@ -65,7 +64,7 @@ def _eco_cmd(name, args):
 from interface.tool import ToolBase as _ToolBase
 _root_tool = _ToolBase("TOOL", is_root=True)
 
-def _workspace_cmd(action, args):
+def _workspace_dispatch(args):
     """Delegate workspace commands to WorkspaceCommand."""
     if "workspace" not in _ECO_CMD_REGISTRY:
         from logic._.workspace.command import WorkspaceCommand
@@ -74,7 +73,11 @@ def _workspace_cmd(action, args):
             tool_name="TOOL",
             translation_func=_,
         )
-    return _ECO_CMD_REGISTRY["workspace"].handle(args, action=action)
+    sub = args[0] if args else "status"
+    valid = {"create", "delete", "open", "close", "list", "status"}
+    if sub in valid:
+        return _ECO_CMD_REGISTRY["workspace"].handle(args[1:], action=sub)
+    return _ECO_CMD_REGISTRY["workspace"].handle(args, action="status")
 
 # Maps --flag to handler function
 _TOOL_FLAG_HANDLERS = {
@@ -89,18 +92,11 @@ _TOOL_FLAG_HANDLERS = {
     "--audit": lambda args: _eco_cmd("audit", args),
     "--search": lambda args: _eco_cmd("search", args),
     "--eco": lambda args: _eco_cmd("eco", args),
-    "--hooks": lambda args: _root_tool._handle_hooks_command(args),
-    "--call-register": lambda args: _root_tool._handle_call_register(args),
     "--assistant": lambda args: _root_tool._handle_assistant(args),
     "--setup": lambda args: _root_tool.run_setup(),
-    "--skills": lambda args: _eco_cmd("skills", args),
+    "--skills": lambda args: _eco_cmd("eco", ["skill"] + args if args else ["skills"]),
     "--migrate": lambda args: _eco_cmd("migrate", args),
-    "--create-workspace": lambda args: _workspace_cmd("create", args),
-    "--delete-workspace": lambda args: _workspace_cmd("delete", args),
-    "--open-workspace": lambda args: _workspace_cmd("open", args),
-    "--close-workspace": lambda args: _workspace_cmd("close", args),
-    "--list-workspaces": lambda args: _workspace_cmd("list", args),
-    "--workspace": lambda args: _workspace_cmd("status", args),
+    "--workspace": lambda args: _workspace_dispatch(args),
 }
 
 # Shorthand: --agent/--ask/--plan as top-level commands (omit --assistant).
@@ -146,9 +142,9 @@ def _print_tool_help():
     print(f"    --plan <prompt>            Plan mode")
     print(f"    --assistant <sub>          Manage sessions")
     print(f"\n  {BOLD}Workspace{RESET}")
-    print(f"    --create-workspace <path>  Create a new workspace")
-    print(f"    --list-workspaces          List all workspaces")
     print(f"    --workspace                Show active workspace")
+    print(f"    --workspace create <path>  Create a new workspace")
+    print(f"    --workspace list           List all workspaces")
     print(f"\nUse TOOL <command> --help for details on each command.")
 
 def main():

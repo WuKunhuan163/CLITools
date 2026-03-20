@@ -15,7 +15,7 @@ class ToolBase:
         import inspect
         caller_file = Path(inspect.stack()[1].filename).resolve()
 
-        from logic.resolve import setup_paths, get_tool_module_path
+        from logic.utils.resolve import setup_paths, get_tool_module_path
         self.project_root = setup_paths(caller_file)
 
         if is_root:
@@ -118,7 +118,7 @@ class ToolBase:
 
     def create_progress_machine(self, stages=None, manager=None, **kwargs):
         """Create a ProgressTuringMachine pre-configured with this tool's settings."""
-        from logic.turing.models.progress import ProgressTuringMachine
+        from logic.utils.turing.models.progress import ProgressTuringMachine
         return ProgressTuringMachine(
             stages=stages,
             project_root=self.project_root,
@@ -1466,8 +1466,8 @@ class ToolBase:
 
     def run_setup(self):
         """Execute the tool's setup.py script using ProgressTuringMachine."""
-        from logic.turing.models.progress import ProgressTuringMachine
-        from logic.turing.logic import TuringStage
+        from logic.utils.turing.models.progress import ProgressTuringMachine
+        from logic.utils.turing.logic import TuringStage
         from logic._.config import get_color
         
         setup_script = self.tool_dir / "setup.py"

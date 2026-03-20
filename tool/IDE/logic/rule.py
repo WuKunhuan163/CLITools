@@ -10,8 +10,35 @@ from pathlib import Path
 from typing import Optional
 
 
+def _load_tool_info(project_root: Path, name: str) -> dict:
+    tj = project_root / "tool" / name / "tool.json"
+    if tj.exists():
+        try:
+            with open(tj, 'r') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def _get_tool_status(info: dict, project_root: Path, name: str) -> str:
+    """Determine tool status from tool.json 'status' field or heuristics."""
+    explicit = info.get("status")
+    if explicit:
+        return explicit
+    if not (project_root / "tool" / name / "main.py").exists():
+        return "available"
+    return "installed"
+
+
 def generate_ai_rule(project_root: Path, target_tool: Optional[str] = None, translation_func=None):
-    """Generate and display the AI agent rule set."""
+    """Generate and display the AI agent rule set.
+
+    New format:
+    - TOOL_NAME [status]
+      Purpose: ...
+      (additional description)
+    """
     from logic._.config import get_color
     from logic.utils import get_logic_dir
     from logic._.lang.utils import get_translation
@@ -42,15 +69,16 @@ def generate_ai_rule(project_root: Path, target_tool: Optional[str] = None, tran
         desc = get_translation(str(tool_logic_dir), f"tool_{name}_desc", info.get('description'))
         purpose = get_translation(str(tool_logic_dir), f"tool_{name}_purpose", info.get('purpose'))
         usage = info.get("usage", [])
+        status = _get_tool_status(info, project_root, name)
 
-        print(f"--- {BOLD}{name}{RESET} Rule ---")
-        print(f"{BOLD}Description{RESET}: {desc}")
-        print(f"{BOLD}Purpose{RESET}: {purpose}")
+        print(f"- {BOLD}{name}{RESET} [{status}]")
+        print(f"  Purpose: {purpose}")
+        if desc:
+            print(f"  {desc}")
         if usage:
-            print(f"\n{BOLD}Usage{RESET}:")
+            print(f"\n  Usage:")
             for line in usage:
-                print(f"- {line}")
-        print("--------------------------")
+                print(f"  - {line}")
         return
 
     tools_raw = registry.get("tools", [])
@@ -62,50 +90,26 @@ def generate_ai_rule(project_root: Path, target_tool: Optional[str] = None, tran
     installed_tools = [n for n in all_tool_names if (project_root / "tool" / n).exists()]
     available_tools = [n for n in all_tool_names if not (project_root / "tool" / n).exists()]
 
-    def _load_tool_info(name):
-        tj = project_root / "tool" / name / "tool.json"
-        if tj.exists():
-            try:
-                with open(tj, 'r') as f:
-                    return json.load(f)
-            except Exception:
-                pass
-        return {}
-
     lines = []
-    lines.append(_("rule_header_main", "--- AI AGENT TOOL RULES ---"))
-    lines.append(_("rule_critical_note",
-                    "CRITICAL: When developing or performing tasks, always prefer using the following "
-                    "integrated tools instead of writing custom implementations."))
-    lines.append("\n" + _("rule_installed_header", "[INSTALLED TOOLS - Use these directly]"))
+
     for name in installed_tools:
-        info = _load_tool_info(name)
+        info = _load_tool_info(project_root, name)
         tool_logic_dir = get_logic_dir(project_root / "tool" / name)
-        desc = get_translation(str(tool_logic_dir), f"tool_{name}_desc", info.get('description', name))
         purpose = get_translation(str(tool_logic_dir), f"tool_{name}_purpose", info.get('purpose', ''))
-        lines.append(f"- {name}: {desc} (" +
-                      _("rule_purpose_label", "Purpose: {purpose}", purpose=purpose) + ")")
+        desc = get_translation(str(tool_logic_dir), f"tool_{name}_desc", info.get('description', ''))
+        status = _get_tool_status(info, project_root, name)
 
-    lines.append("\n" + _("rule_available_header", "[AVAILABLE TOOLS - Use 'TOOL install <NAME>' before use]"))
-    for name in available_tools:
-        lines.append(f"- {name}")
+        lines.append(f"- {name} [{status}]")
+        lines.append(f"  Purpose: {purpose}")
+        if desc and desc != name:
+            lines.append(f"  {desc}")
+        lines.append("")
 
-    lines.append("\n" + _("rule_guidelines_header", "[LOCALIZATION & DEVELOPMENT GUIDELINES]"))
-    lines.append("- " + _("rule_guideline_1",
-                            "**Multi-language Support**: Tools should support localization via a 'logic/translation/' directory."))
-    lines.append("- " + _("rule_guideline_2",
-                            "**Fallback & Testing**: Always use the `_()` translation helper."))
-    lines.append("- " + _("rule_guideline_3",
-                            "**Shared Logic**: Standardize utilities in root `logic/`."))
-    lines.append("- " + _("rule_guideline_4",
-                            "**Dependency Management**: Define dependencies in 'tool.json'."))
-    lines.append("- " + _("rule_guideline_7",
-                            "**Tool Structure**: main.py, setup.py, tool.json, README.md, logic/."))
-    lines.append("- " + _("rule_guideline_6",
-                            "**Tool Creation**: Use 'TOOL dev create <NAME>'."))
-    lines.append("- " + _("rule_guideline_5",
-                            "**Color & Status Style**: Bold labels, color unified status, Green (success), Blue (progress), "
-                            "Red (error), Yellow (warning)."))
+    if available_tools:
+        lines.append("[Available — run TOOL install <NAME>]")
+        for name in available_tools:
+            lines.append(f"- {name}")
+        lines.append("")
 
     output = "\n".join(lines)
     print(output)
@@ -114,6 +118,39 @@ def generate_ai_rule(project_root: Path, target_tool: Optional[str] = None, tran
             subprocess.run('pbcopy', input=output, text=True, encoding='utf-8', check=True, stderr=subprocess.DEVNULL)
         except Exception:
             pass
+
+
+def generate_cursor_rule(project_root: Path, translation_func=None) -> str:
+    """Generate the Cursor-specific rule content for injection.
+
+    This adds IDE-specific context around the tool listing.
+    """
+    import io
+
+    old_stdout = sys.stdout
+    sys.stdout = buffer = io.StringIO()
+    generate_ai_rule(project_root, translation_func=translation_func)
+    tool_listing = buffer.getvalue()
+    sys.stdout = old_stdout
+
+    rule_text = f"""# CLITools
+An integrated CLI tool ecosystem. Each tool is a standalone command available in your terminal.
+
+## Tools
+
+{tool_listing}
+## Usage
+
+- **Entry point**: `TOOL --help` (or any TOOL_NAME --help)
+- The user expects you to develop using a **meta-agent** workflow: search ecosystem first, then act.
+- After each development round, run `USERINPUT` to collect user feedback.
+
+## Vision
+
+The next phase is assistant system support: design, develop, and test the built-in assistant
+framework that enables LLM-powered agents to use these tools autonomously.
+"""
+    return rule_text
 
 
 def inject_rule(project_root: Path, translation_func=None):
@@ -130,15 +167,10 @@ def inject_rule(project_root: Path, translation_func=None):
     rules_dir.mkdir(parents=True, exist_ok=True)
     rule_path = rules_dir / "AITerminalTools.mdc"
 
-    import io
-    old_stdout = sys.stdout
-    sys.stdout = buffer = io.StringIO()
-    generate_ai_rule(project_root, translation_func=translation_func)
-    rule_content = buffer.getvalue()
-    sys.stdout = old_stdout
+    rule_content = generate_cursor_rule(project_root, translation_func=translation_func)
 
     mdc_content = f"""---
-description: AITerminalTools framework rules for AI agents
+description: CLITools ecosystem — integrated CLI tools for AI agents
 globs: 
 alwaysApply: true
 ---
