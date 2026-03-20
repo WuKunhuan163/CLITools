@@ -1,7 +1,7 @@
 """TOOL --audit {imports,quality,code,--lang}
 
 Code quality audits: import rules, hooks/interfaces validation, dead code detection,
-and language/localization audits.
+and language/localization audits. Run with no args for a full-flow audit.
 """
 
 from pathlib import Path
@@ -11,7 +11,7 @@ from logic._._ import EcoCommand
 
 class AuditCommand(EcoCommand):
     name = "audit"
-    usage = "TOOL --audit {imports|quality|code} [--lang <code>] [options]"
+    usage = "TOOL --audit [imports|quality|code] [--lang <code>] [options]"
 
     def handle(self, args):
         if "--lang" in args:
@@ -45,6 +45,8 @@ class AuditCommand(EcoCommand):
             return self._quality(parsed, root)
         elif parsed.audit_command == "code":
             return self._code(parsed)
+        elif not args or parsed.audit_command is None:
+            return self._full_flow()
         else:
             parser.print_help()
         return 0
@@ -80,6 +82,138 @@ class AuditCommand(EcoCommand):
         report = detect_all(self.project_root, targets=targets or None)
         print(format_report(report))
         return 0
+
+    def _full_flow(self):
+        """Run all audit phases with Turing machine progress display."""
+        from interface.turing import ProgressTuringMachine, TuringStage
+        from interface.audit import (
+            audit_imports_all, audit_all_quality, audit_skills,
+            run_full_audit,
+        )
+        from logic._.lang.detect import detect_all
+        from logic.utils.turing.status import fmt_status, fmt_detail
+
+        root = self.project_root
+        results = {}
+
+        def _audit_imports(stage):
+            r = audit_imports_all(root, exclude=["GOOGLE.CDMCP"])
+            total = sum(len(v) for v in r.values())
+            errors = sum(1 for v in r.values() for i in v if i.severity == "error")
+            warnings = total - errors
+            results["imports"] = r
+            results["imports_summary"] = (len(r), errors, warnings)
+            if errors:
+                stage.success_name = f"imports — {errors} errors, {warnings} warnings ({len(r)} tools)"
+            else:
+                stage.success_name = "imports — no issues"
+            return True
+
+        def _audit_quality(stage):
+            r = audit_all_quality(root, exclude=[])
+            skills = audit_skills(root)
+            all_issues = []
+            for cats in r.values():
+                for issues in cats.values():
+                    all_issues.extend(issues)
+            errors = sum(1 for i in all_issues if i.severity == "error")
+            warnings = sum(1 for i in all_issues if i.severity == "warning")
+            infos = len(all_issues) - errors - warnings
+            results["quality"] = r
+            results["skills"] = skills
+            results["quality_summary"] = (len([t for t, c in r.items()
+                                                if any(c.values())]), errors, warnings, infos)
+            parts = []
+            if errors:
+                parts.append(f"{errors} errors")
+            if warnings:
+                parts.append(f"{warnings} warnings")
+            if infos:
+                parts.append(f"{infos} info")
+            stage.success_name = f"quality — {', '.join(parts)}" if parts else "quality — no issues"
+            return True
+
+        def _audit_code(stage):
+            report = run_full_audit()
+            results["code"] = report
+            total = report.total
+            if total:
+                stage.success_name = f"code — {total} issues"
+            else:
+                stage.success_name = "code — no issues"
+            return True
+
+        def _audit_localization(stage):
+            report = detect_all(root)
+            results["lang"] = report
+            n = report["total_findings"]
+            f = report["files_with_findings"]
+            if n:
+                stage.success_name = f"localization — {n} hardcoded strings ({f} files)"
+            else:
+                stage.success_name = "localization — no hardcoded strings"
+            return True
+
+        stages = [
+            TuringStage("imports", _audit_imports,
+                        active_status="Auditing", success_status="Audited",
+                        bold_part="Auditing", is_sticky=True),
+            TuringStage("quality", _audit_quality,
+                        active_status="Auditing", success_status="Audited",
+                        bold_part="Auditing", is_sticky=True),
+            TuringStage("code", _audit_code,
+                        active_status="Auditing", success_status="Audited",
+                        bold_part="Auditing", is_sticky=True),
+            TuringStage("localization", _audit_localization,
+                        active_status="Scanning", success_status="Scanned",
+                        bold_part="Scanning", is_sticky=True),
+        ]
+
+        pm = ProgressTuringMachine(stages, project_root=str(root))
+        pm.run(final_newline=True)
+
+        self._print_full_report(results)
+        return 0
+
+    def _print_full_report(self, results):
+        """Print unified detail report from all audit phases."""
+        from interface.audit import format_imports_report, format_quality_report
+        from logic._.audit.code_quality import print_report as print_code_report
+        from logic._.lang.detect import format_report as format_detect_report
+        from logic.utils.turing.status import fmt_status
+
+        SEP = "\033[2m" + "─" * 60 + "\033[0m"
+
+        imp = results.get("imports", {})
+        if imp:
+            print(f"\n{SEP}")
+            print(format_imports_report(imp))
+
+        qual = results.get("quality", {})
+        skills = results.get("skills")
+        if qual and any(any(c.values()) for c in qual.values()):
+            print(f"\n{SEP}")
+            print(format_quality_report(qual, skills))
+
+        code_r = results.get("code")
+        if code_r and code_r.total:
+            print(f"\n{SEP}")
+            print_code_report(code_r)
+
+        lang = results.get("lang", {})
+        if lang.get("total_findings", 0):
+            print(f"\n{SEP}")
+            top_files = sorted(lang["findings"].items(),
+                               key=lambda x: len(x[1]), reverse=True)[:5]
+            print(f"\n\033[1mLocalization — Top files with hardcoded strings\033[0m")
+            for fpath, findings in top_files:
+                print(f"  {fpath} ({len(findings)})")
+                for f in findings[:3]:
+                    s = f["string"][:60]
+                    print(f"    \033[2mL{f['line']:4d} \"{s}\"\033[0m")
+                if len(findings) > 3:
+                    print(f"    \033[2m... and {len(findings) - 3} more\033[0m")
+            print(f"\n  \033[2mRun TOOL --audit --lang --detect for full report.\033[0m")
 
     def _imports(self, parsed, root):
         from interface.audit import (
