@@ -159,7 +159,7 @@ class AgentServer:
 
     def __init__(
         self,
-        provider_name: str = "auto",
+        selected_model: str = "auto",
         system_prompt: str = "",
         enable_tools: bool = True,
         port: int = 0,
@@ -168,7 +168,7 @@ class AgentServer:
         brain=None,
         scope_name: str = "TOOL",
     ):
-        self.provider_name = provider_name
+        self.selected_model = selected_model
         self.system_prompt = system_prompt or get_system_prompt(lang)
         self.enable_tools = enable_tools
         self.port = port
@@ -177,7 +177,7 @@ class AgentServer:
         self.scope_name = scope_name
 
         self._mgr = ConversationManager(
-            provider_name=provider_name,
+            selected_model=selected_model,
             system_prompt=self.system_prompt,
             enable_tools=enable_tools,
             default_codebase=default_codebase,
@@ -439,6 +439,8 @@ class AgentServer:
             return self._api_workspace_delete(body)
         if path == "/api/workspace/state" and method == "GET":
             return self._api_workspace_state()
+        if path == "/api/workspace/browse" and method == "POST":
+            return self._api_workspace_browse(body)
 
         # ── Essential frontend routes (config saves, text-based revert) ──
         if method == "POST":
@@ -483,6 +485,12 @@ class AgentServer:
             return self._api_inject_events(sid, body)
         if sub == "queue":
             return self._api_queue(sid, body)
+        if sub == "turn-limit" and method == "POST":
+            tl = int(body.get("turn_limit", 0))
+            self._mgr._selected_turn_limit = tl if tl > 0 else 20
+            self._push_sse({"type": "turn_limit_set", "session_id": sid,
+                            "turn_limit": tl})
+            return {"ok": True, "turn_limit": tl}
         if sub == "data":
             return self._api_session_data(sid)
         if sub == "purge" and method == "POST":
@@ -541,6 +549,11 @@ class AgentServer:
         turn_limit = int(raw_tl) if raw_tl is not None else -1
         mode = body.get("mode", "")
         model = body.get("model", "")
+        if mode:
+            self._mgr._selected_mode = mode
+        if model and model != self._mgr._selected_model:
+            self._mgr._selected_model = model
+            self.selected_model = model
         self._mgr.send_message(sid, text, blocking=False,
                                context_feed=context_feed,
                                turn_limit=turn_limit,
@@ -566,9 +579,9 @@ class AgentServer:
                     return {"ok": False, "error": f"Model {model} is not available"}
             except Exception as e:
                 return {"ok": False, "error": str(e)}
-        old_model = self._mgr._provider_name
-        self._mgr._provider_name = model
-        self.provider_name = model
+        old_model = self._mgr._selected_model
+        self._mgr._selected_model = model
+        self.selected_model = model
         try:
             from tool.LLM.logic.auto import get_health
             get_health().mark_user_selected(model)
@@ -578,24 +591,26 @@ class AgentServer:
         return {"ok": True, "model": model}
 
     def _api_model_state(self) -> dict:
-        """Return the user-selected model and current system model state.
+        """Return the full selected/current state for model, mode, and turn limit.
 
-        user_selection: What the user chose in the dropdown ("auto" or a specific provider).
-        active_model: The currently active provider being used by the system.
-        auto_retry_count: Number of auto retries attempted in the current task.
+        selected_*: What the user chose in the dropdown (takes effect at next boundary).
+        current_*: What's actually running right now.
+        Boundaries: model at round start, mode/turn_limit at task start.
         """
-        user_selection = self._mgr._provider_name
-        active_model = user_selection
-        auto_retries = getattr(self._mgr, '_auto_retry_count', 0)
-        auto_confirmed = getattr(self._mgr, '_auto_confirmed', False)
-        auto_tried = list(getattr(self._mgr, '_auto_tried', set()))
+        mgr = self._mgr
         return {
             "ok": True,
-            "user_selection": user_selection,
-            "active_model": active_model,
-            "auto_confirmed": auto_confirmed,
-            "auto_retry_count": auto_retries,
-            "auto_tried": auto_tried,
+            "selected_model": mgr._selected_model,
+            "current_model": mgr._current_model,
+            "selected_mode": mgr._selected_mode,
+            "current_mode": mgr._current_mode,
+            "selected_turn_limit": mgr._selected_turn_limit,
+            "current_turn_limit": mgr._current_turn_limit,
+            "auto_confirmed": getattr(mgr, '_auto_confirmed', False),
+            "auto_retry_count": getattr(mgr, '_auto_retry_count', 0),
+            "auto_tried": list(getattr(mgr, '_auto_tried', set())),
+            "user_selection": mgr._selected_model,
+            "active_model": mgr._current_model,
         }
 
     def _api_session_data(self, sid: str) -> dict:
@@ -759,8 +774,6 @@ class AgentServer:
         self_operate = body.get("self_operate", False)
         self._push_sse({"type": "session_created", "id": sid, "title": title,
                         "mode": mode, "self_operate": self_operate})
-        for evt in pre_events:
-            self._push_sse(evt)
         return {"ok": True, "session_id": sid}
 
     def _api_rename(self, sid: str, body: dict) -> dict:
@@ -814,6 +827,15 @@ class AgentServer:
 
     def _api_cancel(self, sid: str) -> dict:
         self._mgr.cancel_current()
+        session = self._mgr.get_session(sid)
+        if session and session.status == "running":
+            session.status = "done"
+            session.done_reason = "cancelled"
+            self._push_sse({"type": "complete", "reason": "cancelled",
+                            "session_id": sid})
+            self._push_sse({"type": "session_status", "id": sid,
+                            "status": "done", "reason": "cancelled"})
+            self._mgr._persist_session(sid)
         self._push_sse({"type": "cancel_requested", "session_id": sid})
         return {"ok": True}
 
@@ -1237,6 +1259,47 @@ class AgentServer:
             "mounted_listing": mounted_listing[:100],
         }
 
+    def _api_workspace_browse(self, body: dict) -> dict:
+        """Launch FILEDIALOG to let the user pick a workspace directory."""
+        import subprocess, sys
+        try:
+            from tool.FILEDIALOG.interface.main import get_file_dialog_bin
+            fd_bin = get_file_dialog_bin()
+        except ImportError:
+            return {"ok": False, "error": "FILEDIALOG not available"}
+
+        initial = body.get("dir", "")
+        cmd = [sys.executable, fd_bin, "--directory",
+               "--title", "Select Workspace Directory"]
+        if initial:
+            cmd.extend(["--dir", initial])
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True,
+                                    timeout=120)
+        except subprocess.TimeoutExpired:
+            return {"ok": False, "error": "Dialog timed out"}
+
+        if result.returncode != 0:
+            return {"ok": False, "error": "Cancelled"}
+
+        path = ""
+        for line in result.stdout.strip().splitlines():
+            if line.startswith("Selected: "):
+                path = line[len("Selected: "):].strip()
+                break
+            import re as _re
+            m = _re.match(r"^\s*\d+\.\s*(.*)$", line)
+            if m:
+                path = m.group(1).strip()
+                break
+        if not path:
+            return {"ok": False, "error": "No directory selected"}
+
+        import shlex
+        path = path.strip("'\"")
+        return {"ok": True, "path": path}
+
     def _api_queue(self, sid: str, body: dict) -> dict:
         action = body.get("action", "list")
         if not sid:
@@ -1285,8 +1348,14 @@ class AgentServer:
                 s.status = event.get("status", s.status)
             elif etype == "user":
                 s.message_count = getattr(s, "message_count", 0) + 1
+            elif etype == "complete":
+                s.status = "done"
+                s.done_reason = event.get("reason", "done")
+                self._mgr._persist_session(sid)
         self._push_sse(event)
         self._maybe_record_injected_round(sid, event)
+        if s and event.get("type") == "complete":
+            self._drain_injected_queue(sid)
         return {"ok": True}
 
     def _api_inject_events(self, sid: str, body: dict) -> dict:
@@ -1308,8 +1377,14 @@ class AgentServer:
                         s.status = evt.get("status", s.status)
                     elif etype == "user":
                         s.message_count = getattr(s, "message_count", 0) + 1
+                    elif etype == "complete":
+                        s.status = "done"
+                        s.done_reason = evt.get("reason", "done")
                 self._push_sse(evt)
                 self._maybe_record_injected_round(sid, evt)
+        if s and s.status == "done":
+            self._mgr._persist_session(sid)
+            self._drain_injected_queue(sid)
         return {"ok": True, "count": len(events)}
 
     @staticmethod
@@ -1367,6 +1442,64 @@ class AgentServer:
     def _push_sse(self, evt: dict):
         if self._server:
             self._server.push_event(evt)
+
+    def _drain_injected_queue(self, sid: str):
+        """After an injected complete event, start the next queued task.
+
+        If the session was in self-operate mode (events were injected, not
+        provider-driven), the next task also stays in self-operate mode.
+        """
+        queue = self._mgr._task_queues.get(sid, [])
+        if not queue:
+            return
+        task = queue.pop(0)
+        text = task.get("text", "")
+        turn_limit = task.get("turn_limit", 0)
+        mode = task.get("mode", "")
+        session = self._mgr.get_session(sid)
+        if mode and session:
+            session.mode = mode
+
+        self._push_sse({"type": "queue_task_started",
+                        "task_id": task.get("id", ""),
+                        "text": text[:80],
+                        "mode": mode,
+                        "remaining": len(queue)})
+        self._push_sse({"type": "queue_updated",
+                        "queue": self._mgr._serialize_queue(sid)})
+
+        is_self_operate = bool(
+            self._event_history.get(sid)
+            and any(e.get("type") == "llm_request" and e.get("self_operate")
+                    for e in reversed(self._event_history[sid][-20:]))
+        )
+
+        if is_self_operate:
+            if session:
+                session.status = "running"
+                session.done_reason = None
+            events = [
+                {"type": "user", "prompt": text, "session_id": sid},
+                {"type": "session_status", "id": sid, "status": "running"},
+                {"type": "llm_request", "provider": "Self", "round": 1,
+                 "model": "self", "self_operate": True, "session_id": sid},
+            ]
+            if sid not in self._event_history:
+                self._event_history[sid] = []
+            for evt in events:
+                self._event_history[sid].append(evt)
+                self._push_sse(evt)
+        else:
+            context_feed = task.get("context_feed")
+            import threading
+            def _start():
+                try:
+                    self._mgr._start_turn(sid, text, False, context_feed,
+                                          turn_limit)
+                except Exception:
+                    import traceback, sys as _sys
+                    traceback.print_exc(file=_sys.stderr)
+            threading.Thread(target=_start, daemon=True).start()
 
     def _maybe_record_injected_round(self, sid: str, evt: dict):
         """Record round data in round_store for injected events (self-operate)."""
@@ -1458,32 +1591,35 @@ class AgentServer:
                 usd_rate = 7.25
             self._usage_calls.append({
                 "timestamp": time.time(),
-                "model": evt.get("model", self.provider_name),
-                "provider": evt.get("provider", self.provider_name),
+                "model": evt.get("model", self.selected_model),
+                "provider": evt.get("provider", self.selected_model),
                 "input_tokens": evt.get("usage", {}).get("prompt_tokens", 0),
                 "output_tokens": evt.get("usage", {}).get("completion_tokens", 0),
                 "latency_s": evt.get("latency_s", 0),
                 "ok": not evt.get("error"),
                 "exchange_rate_cny": usd_rate,
             })
-        if evt.get("type") == "sandbox_prompt":
-            req_id = evt.get("request_id", "?")
-            cmd = evt.get("cmd", "")
-            sid = evt.get("session_id", "")
-            mandatory = evt.get("mandatory", False)
-            m_tag = " \033[1;31m[mandatory]\033[0m" if mandatory else ""
-            session_title = self._lookup_session_title(sid)
-            label = f" {session_title}" if session_title else ""
-            print(f"\n \033[1;33m>\033[0m \033[1mSandbox\033[0m Waiting for approval{m_tag}", flush=True)
-            print(f"   \033[2m{sid[:8] if sid else ''}·{label}\033[0m", flush=True)
-            print(f"   Command: {cmd}  [{req_id}]", flush=True)
-        if evt.get("type") == "task_exit":
-            sid = evt.get("session_id", "")
-            reason = evt.get("reason", "completed")
-            session_title = self._lookup_session_title(sid)
-            color = "\033[32m" if reason == "completed" else "\033[31m"
-            print(f"\n {color}>\033[0m \033[1mTask {reason}\033[0m", flush=True)
-            print(f"   \033[2m{sid[:8] if sid else ''}· {session_title}\033[0m", flush=True)
+        try:
+            if evt.get("type") == "sandbox_prompt":
+                req_id = evt.get("request_id", "?")
+                cmd = evt.get("cmd", "")
+                sid = evt.get("session_id", "")
+                mandatory = evt.get("mandatory", False)
+                m_tag = " \033[1;31m[mandatory]\033[0m" if mandatory else ""
+                session_title = self._lookup_session_title(sid)
+                label = f" {session_title}" if session_title else ""
+                print(f"\n \033[1;33m>\033[0m \033[1mSandbox\033[0m Waiting for approval{m_tag}", flush=True)
+                print(f"   \033[2m{sid[:8] if sid else ''}·{label}\033[0m", flush=True)
+                print(f"   Command: {cmd}  [{req_id}]", flush=True)
+            if evt.get("type") == "task_exit":
+                sid = evt.get("session_id", "")
+                reason = evt.get("reason", "completed")
+                session_title = self._lookup_session_title(sid)
+                color = "\033[32m" if reason == "completed" else "\033[31m"
+                print(f"\n {color}>\033[0m \033[1mTask {reason}\033[0m", flush=True)
+                print(f"   \033[2m{sid[:8] if sid else ''}· {session_title}\033[0m", flush=True)
+        except (BrokenPipeError, OSError):
+            pass
 
         self._push_sse(evt)
 
@@ -2096,7 +2232,7 @@ class AgentServer:
 
 
 def start_server(
-    provider_name: str = "auto",
+    selected_model: str = "auto",
     system_prompt: str = "",
     enable_tools: bool = True,
     port: int = 0,
@@ -2111,7 +2247,7 @@ def start_server(
     Returns the AgentServer instance (server is already running).
     """
     agent = AgentServer(
-        provider_name=provider_name,
+        selected_model=selected_model,
         system_prompt=system_prompt,
         enable_tools=enable_tools,
         port=port,

@@ -1,9 +1,9 @@
 {
- "id": "dbf4f4b1",
- "title": "Queue Test",
+ "id": "8e3574f1",
+ "title": "New Task",
  "status": "idle",
  "mode": "agent",
- "created_at": 1773724852.5029771,
+ "created_at": 1773730909.045254,
  "message_count": 0,
  "codebase_root": "/Applications/AITerminalTools",
  "context": {

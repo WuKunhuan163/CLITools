@@ -203,6 +203,12 @@ class ProviderManager:
                 if limiter:
                     limiter.report_429()
 
+        try:
+            pq = self._queue_mgr._ensure_provider(provider_name)
+            pq.record_complete(0, result)
+        except Exception:
+            pass
+
     def mark_user_selected(self, provider_name: str):
         """Signal that the user manually selected this provider.
 

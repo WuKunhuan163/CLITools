@@ -54,8 +54,13 @@ class ProviderState(Enum):
 
 @dataclass
 class RateLimits:
-    """Rate limit configuration for a provider."""
+    """Rate limit configuration for a provider.
+
+    Supports stacked limits: rpm, rph (per hour), rpd (per day), tpm.
+    All limits are enforced simultaneously — the most restrictive wins.
+    """
     rpm: int = 30
+    rph: int = 0
     tpm: int = 0
     rpd: int = 0
     max_concurrency: int = 0
@@ -70,6 +75,7 @@ class RateLimits:
         settings = model_json.get("recommended_settings", {})
         return cls(
             rpm=limits.get("rpm", 30),
+            rph=limits.get("rph", 0),
             tpm=limits.get("tpm", 0),
             rpd=limits.get("rpd", 0),
             max_concurrency=limits.get("max_concurrency", 0),
@@ -184,6 +190,7 @@ class ProviderQueue:
     state: ProviderState = ProviderState.IDLE
     next_safe_t: float = 0.0
     rpm_window: List[float] = field(default_factory=list)
+    rph_window: List[float] = field(default_factory=list)
     tpm_window: List[tuple] = field(default_factory=list)
     rpd_count: int = 0
     rpd_date: str = ""
@@ -195,7 +202,9 @@ class ProviderQueue:
 
     def _prune_windows(self, now: float):
         cutoff_60 = now - 60.0
+        cutoff_3600 = now - 3600.0
         self.rpm_window = [t for t in self.rpm_window if t > cutoff_60]
+        self.rph_window = [t for t in self.rph_window if t > cutoff_3600]
         self.tpm_window = [(t, n) for t, n in self.tpm_window if t > cutoff_60]
         today = time.strftime("%Y-%m-%d")
         if self.rpd_date != today:
@@ -227,6 +236,12 @@ class ProviderQueue:
                 window_start = self.rpm_window[0]
                 rpm_earliest = window_start + 60.0 + 0.1
                 earliest = max(earliest, rpm_earliest)
+
+        if self.rph_window and self.limits.rph > 0:
+            if len(self.rph_window) >= self.limits.rph:
+                window_start = self.rph_window[0]
+                rph_earliest = window_start + 3600.0 + 0.1
+                earliest = max(earliest, rph_earliest)
 
         if self.limits.tpm > 0:
             recent_tokens = sum(n for _, n in self.tpm_window)
@@ -277,6 +292,8 @@ class ProviderQueue:
             reason = f"429 backoff (x{self.consecutive_429s})"
         elif self.limits.rpm > 0 and len(self.rpm_window) >= self.limits.rpm:
             reason = "RPM limit reached"
+        elif self.limits.rph > 0 and len(self.rph_window) >= self.limits.rph:
+            reason = "Hourly request limit reached"
         elif self.limits.rpd > 0 and self.rpd_count >= self.limits.rpd:
             reason = "Daily request limit reached"
         elif self.limits.max_concurrency > 0 and self.in_flight >= self.limits.max_concurrency:
@@ -295,6 +312,7 @@ class ProviderQueue:
         """Record that a request was dispatched now."""
         now = time.time()
         self.rpm_window.append(now)
+        self.rph_window.append(now)
         if context_tokens > 0:
             self.tpm_window.append((now, context_tokens))
         self.rpd_count += 1
@@ -336,6 +354,7 @@ class ProviderQueue:
         self.state = ProviderState.IDLE
         self.next_safe_t = 0.0
         self.rpm_window.clear()
+        self.rph_window.clear()
         self.tpm_window.clear()
         self.in_flight = 0
         self.in_flight_tickets.clear()
@@ -513,6 +532,8 @@ class RateQueueManager:
             "consecutive_429s": pq.consecutive_429s,
             "rpm_used": len(pq.rpm_window),
             "rpm_limit": pq.limits.rpm,
+            "rph_used": len(pq.rph_window),
+            "rph_limit": pq.limits.rph,
             "rpd_used": pq.rpd_count,
             "rpd_limit": pq.limits.rpd,
         }

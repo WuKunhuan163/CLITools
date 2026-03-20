@@ -140,6 +140,7 @@ Typical flow: Bootstrap → Execute → Verify → Capture → Feedback → (new
 **Critical behaviors:**
 - **Self-test**: After implementing code, always run it to verify. Write `tmp/` test scripts for non-trivial changes.
 - **Iterate**: Don't stop at first implementation. Test, find issues, fix, test again.
+- **Triage user reports**: When a user reports an issue, it may already be fixed (e.g., from a prior session or unrestarted server). Before diving into code, first self-test: reproduce via endpoint calls, check recent git history for relevant fixes, and verify the running server has the latest code. If the fix exists but isn't deployed, restart the server and confirm. Report "Already fixed — verified via self-test" rather than re-investigating.
 - **Fix at source**: When a tool (including ecosystem tools like TOOL, BRAIN, SKILLS) errors, read its source and for_agent.md, fix the bug directly, and retry. If unfixable, search for alternatives. Ask the user only as last resort.
 - **Pivot on repeated failure**: If 3+ attempts with the same approach fail, stop and rethink. Search `TOOL --eco search` for alternative tools/patterns. Consider fundamentally different strategies (e.g., browser automation failing → build a backend API endpoint; GUI interaction failing → use CLI). Record the failure pattern via `SKILLS learn` so future agents avoid the same dead end. Build compensatory infrastructure when a persistent limitation is found.
 - **Interface-first**: When building reusable functionality, put implementation in `logic/`, expose a public API in `interface/main.py`, and import from `interface.*` (never `logic.*`). See `SKILLS show tool-interface` for the pattern.
@@ -395,11 +396,23 @@ Session IDs use the format `YYYYMMDD-HHMMSS-<6hex>` for chronological sorting.
 
 **The project complements your IDE**, not replaces it. Use IDE tools for what they do best (file editing, code navigation). Use project tools for session management, progress tracking, and the GUI.
 
+#### Claiming Your IDE Environment
+
+When starting a self-operate session, specify `--env "IDE/<ide-name>"` to claim your IDE environment. This enables:
+- IDE-specific logo displayed on the model banner (resolved from `logic/asset/image/env/IDE/`)
+- Frontend hints that identify you as an advanced IDE agent
+- Environment context passed to the assistant for better tool selection
+
+Available IDE environments: `cursor`, `copilot`, `windsurf`. Use `--self-name` to set your display name (e.g., `"Claude 4.6 Opus"`).
+
+When both `--env` and `--self-name` are specified, the frontend model banner automatically displays the combined format: **Cursor (Claude 4.6 Opus)** — the environment label followed by your model name in parentheses.
+
 #### Recommended: Self-Operate Workflow
 
 ```bash
 # 1. Start a self-operate session (exec via your IDE's terminal tool)
 #    Choose mode by task type: --agent (coding), --ask (questions), --plan (design)
+#    ALWAYS specify --env and --self-name so the GUI displays your identity
 exec("TOOL_NAME --assistant --agent --prompt '<task>' --self-operate --self-name 'YourModel' --env 'IDE/cursor'")
 
 # 2. Write your response as JSON, inject it
@@ -416,6 +429,8 @@ exec("./bin/USERINPUT/USERINPUT")
 ```
 
 See "Self-Operate Mode" section above for response JSON format and lifecycle rules.
+
+**Queue during self-operate**: You can queue tasks while in self-operate mode by sending messages to the session. Queued tasks will be dispatched to the LLM provider after the self-operate turn completes. This allows you to prepare follow-up work while processing the current response.
 
 #### Alternative: Dry-Run Workflow (legacy)
 

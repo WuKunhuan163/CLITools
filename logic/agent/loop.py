@@ -19,7 +19,7 @@ class AgentLoop:
 
     def __init__(self,
                  session: AgentSession,
-                 provider_name: str,
+                 selected_model: str = "auto",
                  system_prompt: str = "",
                  project_root: str = "",
                  emit: Optional[Callable] = None,
@@ -27,7 +27,7 @@ class AgentLoop:
                  tier: int = 1,
                  mode: str = "agent"):
         self._session = session
-        self._provider_name = provider_name
+        self._selected_model = selected_model
         self._system_prompt = system_prompt
         self._project_root = project_root
         self._emit = emit or (lambda evt: None)
@@ -86,11 +86,11 @@ class AgentLoop:
 
         try:
             from tool.LLM.logic.registry import get_provider, get_pipeline
-            provider = get_provider(self._provider_name)
-            pipeline = get_pipeline(self._provider_name)
+            provider = get_provider(self._selected_model)
+            pipeline = get_pipeline(self._selected_model)
 
             if not provider.is_available():
-                msg = f"Provider {self._provider_name} not available."
+                msg = f"Provider {self._selected_model} not available."
                 self._emit({"type": "system_notice", "text": msg, "level": "error"})
                 self._emit({"type": "complete", "reason": "error"})
                 self._session.status = "error"
@@ -127,7 +127,7 @@ class AgentLoop:
                     except Exception:
                         pass
 
-                self._emit({"type": "llm_request", "provider": self._provider_name,
+                self._emit({"type": "llm_request", "provider": self._selected_model,
                              "round": round_num})
 
                 api_messages = pipeline.prepare_messages(

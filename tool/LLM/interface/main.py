@@ -158,7 +158,7 @@ def get_conversation_manager():
         from tool.LLM.interface.main import get_conversation_manager
         ConversationManager = get_conversation_manager()
 
-        mgr = ConversationManager(provider_name="zhipu-glm-4.7")
+        mgr = ConversationManager(selected_model="auto")
         mgr.on_event(lambda evt: push_to_gui(evt))
         sid = mgr.new_session()
         mgr.send_message(sid, "Hello!")
@@ -202,7 +202,7 @@ def get_brain(data_dir=None):
     return Brain(data_dir=data_dir)
 
 
-def start_server(provider_name="zhipu-glm-4.7", port=0,
+def start_server(selected_model="auto", port=0,
                        open_browser=True, enable_tools=False,
                        default_codebase=None, brain=None):
     """Start the live LLM Agent server.
@@ -211,7 +211,7 @@ def start_server(provider_name="zhipu-glm-4.7", port=0,
     """
     from logic.assistant.gui.server import start_server as _start
     return _start(
-        provider_name=provider_name,
+        selected_model=selected_model,
         port=port,
         open_browser=open_browser,
         enable_tools=enable_tools,

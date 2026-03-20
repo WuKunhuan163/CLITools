@@ -313,7 +313,7 @@ def cmd_agent(args):
     print(fmt_info(f"Provider: {provider_name}"))
 
     agent = start_server(
-        provider_name=provider_name,
+        selected_model=provider_name,
         port=port,
         open_browser=not no_open,
         enable_tools=enable_tools,

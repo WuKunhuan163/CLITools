@@ -9,7 +9,8 @@
   "tool_dependencies": [
     "PYTHON",
     "GIT",
-    "SKILLS"
+    "SKILLS",
+    "FILEDIALOG"
   ],
   "tools": [
     "PYTHON",

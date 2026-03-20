@@ -59,13 +59,20 @@ class OpenAICompatProvider(LLMProvider):
         else:
             self._api_key = self._get_stored_key()
         self._model = self.MODEL_ID
-        self._rate_limiter = RateLimiter(
-            rpm=rpm or self.DEFAULT_RPM, min_interval_s=2.0, jitter_s=1.0
-        )
         try:
-            get_manager().register_rate_limiter(self.name, self._rate_limiter)
+            mgr = get_manager()
+            existing = mgr._rate_limiters.get(self.name)
+            if existing:
+                self._rate_limiter = existing
+            else:
+                self._rate_limiter = RateLimiter(
+                    rpm=rpm or self.DEFAULT_RPM, min_interval_s=2.0, jitter_s=1.0
+                )
+                mgr.register_rate_limiter(self.name, self._rate_limiter)
         except Exception:
-            pass
+            self._rate_limiter = RateLimiter(
+                rpm=rpm or self.DEFAULT_RPM, min_interval_s=2.0, jitter_s=1.0
+            )
 
     def _get_stored_key(self) -> Optional[str]:
         key = get_config_value(f"{self.CONFIG_VENDOR}_api_key")

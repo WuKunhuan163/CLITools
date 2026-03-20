@@ -11,7 +11,7 @@ are discovered and lessons learned, the context feed evolves.
 Usage:
     from tool.LLM.logic.task.agent.conversation import ConversationManager
 
-    mgr = ConversationManager(provider_name="zhipu-glm-4.7")
+    mgr = ConversationManager(selected_model="auto")
     mgr.on_event(lambda evt: push_to_gui(evt))
 
 import logging as _logging
@@ -482,13 +482,18 @@ class ConversationManager:
     format expected by ``AgentGUIEngine``.
     """
 
-    def __init__(self, provider_name: str = "zhipu-glm-4.7",
+    def __init__(self, selected_model: str = "zhipu-glm-4.7",
                  system_prompt: str = "",
                  enable_tools: bool = False,
                  sandbox_policy: str = "ask",
                  default_codebase: Optional[str] = None,
                  brain=None):
-        self._provider_name = provider_name
+        self._selected_model = selected_model
+        self._current_model = selected_model
+        self._selected_mode = "agent"
+        self._current_mode = "agent"
+        self._selected_turn_limit = 20
+        self._current_turn_limit = 20
         self._system_prompt = system_prompt
         self._enable_tools = enable_tools
         self._sandbox_policy = sandbox_policy
@@ -1322,6 +1327,20 @@ class ConversationManager:
         if mode and session:
             session.mode = mode
 
+        existing_queue = self._task_queues.get(session_id, [])
+        if existing_queue:
+            existing_queue.append({"id": f"q{self._next_task_id}", "text": text,
+                                   "context_feed": context_feed,
+                                   "turn_limit": turn_limit, "mode": mode,
+                                   "model": model})
+            self._next_task_id += 1
+            first = existing_queue.pop(0)
+            self._emit({"type": "queue_updated",
+                        "queue": self._serialize_queue(session_id)})
+            text = first["text"]
+            context_feed = first.get("context_feed")
+            turn_limit = first.get("turn_limit", 0)
+
         self._start_turn(session_id, text, blocking, context_feed, turn_limit)
 
     def _start_turn(self, session_id: str, text: str,
@@ -1330,8 +1349,12 @@ class ConversationManager:
                     turn_limit: int = 0):
         """Start a turn, processing any queued tasks on completion."""
         if blocking:
-            self._run_turn(session_id, text, context_feed, turn_limit)
-            self._drain_task_queue(session_id)
+            try:
+                self._run_turn(session_id, text, context_feed, turn_limit)
+            except Exception:
+                pass
+            finally:
+                self._drain_task_queue(session_id)
         else:
             def _safe_run():
                 try:
@@ -1339,14 +1362,22 @@ class ConversationManager:
                 except Exception as e:
                     import traceback, sys
                     traceback.print_exc(file=sys.stderr)
-                    self._emit({"type": "system_notice",
-                                "text": f"Thread exception: {e}",
-                                "level": "error"})
-                    self._emit({"type": "complete", "reason": "error"})
-                    session = self._sessions.get(session_id)
-                    if session:
-                        self._mark_session_done(session_id)
-                self._drain_task_queue(session_id)
+                    try:
+                        self._emit({"type": "system_notice",
+                                    "text": f"Thread exception: {e}",
+                                    "level": "error"})
+                        self._emit({"type": "complete", "reason": "error"})
+                        session = self._sessions.get(session_id)
+                        if session:
+                            self._mark_session_done(session_id)
+                    except Exception:
+                        pass
+                finally:
+                    try:
+                        self._drain_task_queue(session_id)
+                    except Exception:
+                        import traceback, sys
+                        traceback.print_exc(file=sys.stderr)
             t = threading.Thread(target=_safe_run, daemon=True)
             t.start()
 
@@ -1359,34 +1390,35 @@ class ConversationManager:
             if self._cancel_requested:
                 break
             task = queue.pop(0)
-            task_mode = task.get("mode", "")
-            task_model = task.get("model", "")
-            if task_mode:
-                session = self._sessions.get(session_id)
-                if session:
-                    session.mode = task_mode
-            self._emit({"type": "queue_task_started",
-                        "task_id": task.get("id", ""),
-                        "text": task.get("text", "")[:80],
-                        "mode": task_mode,
-                        "model": task_model,
-                        "remaining": len(queue)})
-            self._emit({"type": "queue_updated",
-                        "queue": self._serialize_queue(session_id)})
             try:
+                task_mode = task.get("mode", "")
+                task_model = task.get("model", "")
+                if task_mode:
+                    session = self._sessions.get(session_id)
+                    if session:
+                        session.mode = task_mode
+                self._emit({"type": "queue_task_started",
+                            "task_id": task.get("id", ""),
+                            "text": task.get("text", "")[:80],
+                            "mode": task_mode,
+                            "model": task_model,
+                            "remaining": len(queue)})
+                self._emit({"type": "queue_updated",
+                            "queue": self._serialize_queue(session_id)})
                 self._run_turn(session_id, task["text"],
                                task.get("context_feed"),
                                task.get("turn_limit", 0))
             except Exception as e:
                 import traceback, sys
                 traceback.print_exc(file=sys.stderr)
-                self._emit({"type": "system_notice",
-                            "text": f"Queue task exception: {e}",
-                            "level": "error"})
-                self._emit({"type": "complete", "reason": "error"})
-                session = self._sessions.get(session_id)
-                if session:
-                    self._mark_session_done(session_id)
+                try:
+                    self._emit({"type": "system_notice",
+                                "text": f"Queue task failed: {e}",
+                                "level": "error"})
+                    self._emit({"type": "complete", "reason": "error"})
+                    self._mark_session_done(session_id, "error")
+                except Exception:
+                    pass
 
     def _serialize_queue(self, session_id: str) -> list:
         """Return a serializable snapshot of the task queue."""
@@ -1563,6 +1595,14 @@ class ConversationManager:
             self._emit({"type": "error", "message": f"Session {session_id} not found"})
             return
 
+        self._current_mode = self._selected_mode
+        if turn_limit > 0:
+            self._current_turn_limit = turn_limit
+        elif turn_limit < 0:
+            self._current_turn_limit = self._selected_turn_limit
+        else:
+            self._current_turn_limit = self._selected_turn_limit
+
         session_mode = getattr(session, 'mode', 'agent')
         session.status = "running"
         session.done_reason = None
@@ -1636,8 +1676,8 @@ class ConversationManager:
             auto_title = session.message_count == 1 and session.title == "New Task"
             from tool.LLM.logic.registry import get_provider, get_pipeline
 
-            is_auto = self._provider_name == "auto"
-            actual_provider_name = self._provider_name
+            is_auto = self._selected_model == "auto"
+            current_model = self._selected_model
 
             if is_auto:
                 self._emit({
@@ -1648,7 +1688,7 @@ class ConversationManager:
                     from tool.LLM.logic.auto import auto_decide
                     chosen, _ = auto_decide(user_prompt=text)
                     if chosen:
-                        actual_provider_name = chosen
+                        current_model = chosen
                     else:
                         self._emit({"type": "model_decision_end", "chosen": None,
                                     "error": "No available providers"})
@@ -1665,14 +1705,15 @@ class ConversationManager:
                     return
                 self._emit({
                     "type": "model_decision_proposed",
-                    "proposed": actual_provider_name,
+                    "proposed": current_model,
                 })
 
-            provider = get_provider(actual_provider_name)
+            self._current_model = current_model
+            provider = get_provider(current_model)
             self._active_provider = provider
 
             if not provider.is_available():
-                self._emit({"type": "system_notice", "text": f"Provider {actual_provider_name} is not available.", "level": "error"})
+                self._emit({"type": "system_notice", "text": f"Provider {current_model} is not available.", "level": "error"})
                 self._emit({"type": "complete", "reason": "error"})
                 self._mark_session_done(session_id, "error")
                 return
@@ -1686,7 +1727,7 @@ class ConversationManager:
                              if t.get("function", {}).get("name") not in _write_tools]
                 if hasattr(self, '_extra_tools'):
                     tools.extend(self._extra_tools)
-            pipeline = get_pipeline(actual_provider_name)
+            pipeline = get_pipeline(current_model)
 
             from tool.LLM.logic.config import get_config_value
             cfg_turn_limit = get_config_value("default_turn_limit", 20)
@@ -1723,9 +1764,9 @@ class ConversationManager:
                     _was_cancelled = True
                     break
 
-                _user_selection = self._provider_name
+                _user_selection = self._selected_model
                 _selection_changed = (round_num > 0
-                                     and _user_selection != actual_provider_name
+                                     and _user_selection != current_model
                                      and not (is_auto and _user_selection == "auto"))
                 if _selection_changed:
                     new_name = _user_selection
@@ -1737,9 +1778,10 @@ class ConversationManager:
                             from tool.LLM.logic.auto import auto_decide
                             chosen, _ = auto_decide(user_prompt=text)
                             if chosen:
-                                actual_provider_name = chosen
-                                provider = get_provider(actual_provider_name)
-                                pipeline = get_pipeline(actual_provider_name)
+                                current_model = chosen
+                                self._current_model = current_model
+                                provider = get_provider(current_model)
+                                pipeline = get_pipeline(current_model)
                                 is_auto = True
                                 self._auto_confirmed = False
                                 self._thread_local.auto_confirmed = False
@@ -1752,24 +1794,25 @@ class ConversationManager:
                                         "text": f"Auto re-decision failed: {e}",
                                         "level": "warning"})
                     else:
-                        old_name = actual_provider_name
-                        actual_provider_name = new_name
+                        old_name = current_model
+                        current_model = new_name
                         try:
-                            provider = get_provider(actual_provider_name)
-                            pipeline = get_pipeline(actual_provider_name)
+                            provider = get_provider(current_model)
+                            pipeline = get_pipeline(current_model)
                         except Exception as e:
                             self._emit({"type": "system_notice",
                                         "text": f"Failed to switch to {new_name}: {e}",
                                         "level": "warning"})
-                            actual_provider_name = old_name
-                            provider = get_provider(actual_provider_name)
-                            pipeline = get_pipeline(actual_provider_name)
+                            current_model = old_name
+                            provider = get_provider(current_model)
+                            pipeline = get_pipeline(current_model)
+                        self._current_model = current_model
                         is_auto = False
                         self._emit({"type": "system_notice",
-                                    "text": f"Switched to {actual_provider_name}.",
+                                    "text": f"Switched to {current_model}.",
                                     "level": "info"})
                         self._emit({"type": "model_confirmed",
-                                    "provider": actual_provider_name})
+                                    "provider": current_model})
 
                 round_num += 1
                 self._current_round = round_num
@@ -1800,7 +1843,7 @@ class ConversationManager:
                 for _llm_attempt in range(2):
                     llm_req_evt = {
                         "type": "llm_request",
-                        "provider": actual_provider_name if _llm_attempt == 0 else getattr(provider, 'name', '?'),
+                        "provider": current_model if _llm_attempt == 0 else getattr(provider, 'name', '?'),
                         "round": round_num,
                     }
                     self._emit(llm_req_evt)
@@ -1845,7 +1888,7 @@ class ConversationManager:
                                     self._auto_confirmed = True
                                     self._emit({
                                         "type": "model_confirmed",
-                                        "provider": actual_provider_name,
+                                        "provider": current_model,
                                     })
                                     self._emit({"type": "llm_response_start", "round": round_num})
                                 r = chunk.get("reasoning", "")
@@ -1892,7 +1935,7 @@ class ConversationManager:
                                     if is_auto and not _tl_confirmed:
                                         self._thread_local.auto_confirmed = True
                                         self._auto_confirmed = True
-                                        self._emit({"type": "model_confirmed", "provider": actual_provider_name})
+                                        self._emit({"type": "model_confirmed", "provider": current_model})
                                         self._emit({"type": "llm_response_start", "round": round_num})
                                     for sidx in _streaming_tc_map:
                                         self._emit({"type": "tool_stream_end",
@@ -1907,8 +1950,8 @@ class ConversationManager:
                                         "round": round_num,
                                         "latency_s": latency,
                                         "has_tool_calls": bool(tool_calls_accum),
-                                        "provider": actual_provider_name,
-                                        "model": chunk.get("model", actual_provider_name),
+                                        "provider": current_model,
+                                        "model": chunk.get("model", current_model),
                                         "_full_text": full_text,
                                     }
                                     if chunk.get("usage"):
@@ -1953,7 +1996,7 @@ class ConversationManager:
                         try:
                             from tool.LLM.logic.provider_manager import get_manager
                             get_manager().report_result(
-                                actual_provider_name, None,
+                                current_model, None,
                                 {"ok": True}, None)
                         except Exception:
                             pass
@@ -1963,7 +2006,7 @@ class ConversationManager:
                     error_code = _llm_error.get("error_code", 0)
                     if not error_code and ("429" in err or "rate limit" in err.lower()):
                         error_code = 429
-                    failed_name = getattr(provider, 'name', actual_provider_name)
+                    failed_name = getattr(provider, 'name', current_model)
 
                     try:
                         from tool.LLM.logic.provider_manager import get_manager
@@ -1988,9 +2031,10 @@ class ConversationManager:
                                 self._auto_retry_count = _auto_retries + 1
                                 self._auto_confirmed = False
                                 self._thread_local.auto_confirmed = False
-                                actual_provider_name = fallback
-                                provider = get_provider(actual_provider_name)
-                                pipeline = get_pipeline(actual_provider_name)
+                                current_model = fallback
+                                self._current_model = current_model
+                                provider = get_provider(current_model)
+                                pipeline = get_pipeline(current_model)
                                 tools_reload = list(BUILTIN_TOOLS) if self._enable_tools and provider.capabilities.supports_tool_calling else None
                                 if tools_reload and session_mode in ("ask", "plan"):
                                     _write_tools = {"edit_file", "todo"}
@@ -2012,10 +2056,10 @@ class ConversationManager:
                                             "text": f"{failed_name} failed: {err}",
                                             "level": "warning"})
                                 self._emit({"type": "debug",
-                                            "text": f"Auto retry ({_auto_retries+1}/{_MAX_AUTO_RETRIES}): {failed_name} → {actual_provider_name}"})
+                                            "text": f"Auto retry ({_auto_retries+1}/{_MAX_AUTO_RETRIES}): {failed_name} → {current_model}"})
                                 self._emit({
                                     "type": "model_decision_proposed",
-                                    "proposed": actual_provider_name,
+                                    "proposed": current_model,
                                 })
                                 consecutive_empty = 0
                                 round_num -= 1
@@ -2044,8 +2088,8 @@ class ConversationManager:
                         "round": round_num,
                         "latency_s": round(latency, 3),
                         "has_tool_calls": bool(tool_calls_accum),
-                        "provider": getattr(provider, 'name', self._provider_name),
-                        "model": result.get("model", self._provider_name),
+                        "provider": getattr(provider, 'name', self._selected_model),
+                        "model": result.get("model", self._selected_model),
                         "_full_text": full_text,
                     }
                     if result.get("usage"):
@@ -2345,7 +2389,21 @@ class ConversationManager:
                 self._generate_title_async(session_id, text, full_text)
 
         except Exception as e:
-            self._emit({"type": "system_notice", "text": f"Exception: {e}", "level": "error"})
+            _network_exc_types = (
+                ConnectionError, OSError, TimeoutError,
+            )
+            _network_exc_names = {
+                "ChunkedEncodingError", "ReadTimeout", "ConnectTimeout",
+                "RemoteDisconnected", "IncompleteRead", "ProtocolError",
+            }
+            exc_name = type(e).__name__
+            if isinstance(e, _network_exc_types) or exc_name in _network_exc_names:
+                self._emit({"type": "system_notice",
+                            "text": f"Connection lost: {e}",
+                            "level": "error"})
+            else:
+                self._emit({"type": "system_notice",
+                            "text": f"Exception: {e}", "level": "error"})
             self._emit_file_summary()
             try:
                 _err_elapsed = round(time.time() - _turn_t0)
@@ -2473,7 +2531,7 @@ class ConversationManager:
                      "id": "ctx-compress"})
         try:
             from tool.LLM.logic.registry import get_provider
-            provider = get_provider(self._provider_name)
+            provider = get_provider(self._selected_model)
             prompt = session.context.build_compression_prompt(target_ratio=0.15)
             result = provider.send(
                 session.context.get_messages_for_api() + [
@@ -2504,7 +2562,7 @@ class ConversationManager:
         try:
             from tool.LLM.logic.registry import list_models
             for m in list_models():
-                if any(self._provider_name.endswith(p) or p in self._provider_name
+                if any(self._selected_model.endswith(p) or p in self._selected_model
                        for p in [m["model"]]):
                     max_ctx = m.get("capabilities", {}).get("max_context_tokens", 0)
                     break
@@ -2526,7 +2584,7 @@ class ConversationManager:
         try:
             from tool.LLM.logic.registry import list_models
             for m in list_models():
-                if any(self._provider_name.endswith(p) or p in self._provider_name
+                if any(self._selected_model.endswith(p) or p in self._selected_model
                        for p in [m["model"]]):
                     max_ctx = m.get("capabilities", {}).get("max_context_tokens", 0)
                     break
@@ -2540,7 +2598,7 @@ class ConversationManager:
             pass
         effective_limit = int(max_ctx * compression_ratio) if max_ctx else 0
         return {
-            "provider": self._provider_name,
+            "provider": self._selected_model,
             "active_session": self._active_session_id,
             "max_context_tokens": max_ctx,
             "effective_context_limit": effective_limit,

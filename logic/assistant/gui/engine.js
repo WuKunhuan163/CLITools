@@ -1497,7 +1497,17 @@ class AgentGUIEngine {
     this._currentRound = round;
     this._pendingLLMModel = model;
     this._pendingLLMOpts = { self_operate: evt.self_operate, env: evt.env, self_name: evt.self_name };
-    if (evt.self_operate) this._selfOperate = true;
+    if (evt.self_operate) {
+      this._selfOperate = true;
+      if (this.activeSessionId && this.sessions[this.activeSessionId]) {
+        this.sessions[this.activeSessionId].selfOperate = true;
+      }
+    } else if (this._selfOperate) {
+      this._selfOperate = false;
+      if (this.activeSessionId && this.sessions[this.activeSessionId]) {
+        this.sessions[this.activeSessionId].selfOperate = false;
+      }
+    }
     if (!this._taskStartTime) this._taskStartTime = Date.now();
     this._llmRoundStartTime = Date.now();
     this._streamingCharCount = 0;
@@ -1564,18 +1574,22 @@ class AgentGUIEngine {
     const inputTokens = this._streamingInputTokens || 0;
 
     const sep = () => { const s = document.createElement('span'); s.textContent = '\u00b7'; s.className = 'model-sep'; return s; };
+    const fmtT = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+    const tkUnit = (n) => n === 1 ? 'token' : 'tokens';
 
     latencyEl.innerHTML = '';
     const isSelfOperate = this._selfOperate;
 
     latencyEl.appendChild(sep());
-
-    const fmtT = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
     const totalEst = inputTokens + estOutputTokens;
-    const tokenStr = '~' + fmtT(totalEst) + ' tokens';
     const tokenSpan = document.createElement('span');
-    tokenSpan.textContent = tokenStr;
+    tokenSpan.textContent = fmtT(inputTokens) + ',' + fmtT(estOutputTokens) + ' ' + tkUnit(totalEst);
     latencyEl.appendChild(tokenSpan);
+
+    latencyEl.appendChild(sep());
+    const timeSpan = document.createElement('span');
+    timeSpan.textContent = elapsed + 's';
+    latencyEl.appendChild(timeSpan);
 
     if (!isSelfOperate) {
       const pricing = this._getModelPricing(this._currentProvider);
@@ -1589,18 +1603,6 @@ class AgentGUIEngine {
         latencyEl.appendChild(costSpan);
       }
     }
-
-    latencyEl.appendChild(sep());
-    const timeSpan = document.createElement('span');
-    timeSpan.textContent = elapsed + 's';
-    latencyEl.appendChild(timeSpan);
-
-    latencyEl.appendChild(sep());
-    const mode = (typeof window !== 'undefined' && window.currentMode) || 'agent';
-    const actLabel = document.createElement('span');
-    actLabel.className = 'model-activity';
-    actLabel.textContent = (mode === 'agent' || mode === 'meta-agent') ? 'Working' : 'Responding';
-    latencyEl.appendChild(actLabel);
   }
 
   _getModelPricing(provider) {
@@ -1663,7 +1665,9 @@ class AgentGUIEngine {
       const latLabel = elapsed ? elapsed + 's' : '';
 
       const fmtTk = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
-      const tokenLabel = fmtTk(ctxTokens + outTokens) + ' tokens';
+      const tkUnit = (n) => n === 1 ? 'token' : 'tokens';
+      const tokenTotal = ctxTokens + outTokens;
+      const tokenLabel = fmtTk(tokenTotal) + ' ' + tkUnit(tokenTotal);
       const costLabel = isSelfOperate ? ''
         : (usage.cost != null ? (this._costCurrency || '$') + usage.cost.toFixed(4) : '$0.00');
       let ctxLabel = '';
@@ -1689,8 +1693,8 @@ class AgentGUIEngine {
         };
         const parts = [];
         parts.push(makeLink(tokenLabel, ridx));
-        if (costLabel) parts.push(document.createTextNode(costLabel));
         if (latLabel) parts.push(document.createTextNode(latLabel));
+        if (costLabel) parts.push(document.createTextNode(costLabel));
         if (ctxLabel) parts.push(makeLink(ctxLabel, ridx));
 
         latency.innerHTML = '';

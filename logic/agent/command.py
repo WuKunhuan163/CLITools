@@ -294,7 +294,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
 
     import sys as _sys
     prompt = " ".join(args) if args else None
-    provider = _get_provider_name()
+    provider = "auto"
     default_turn_limit = _get_session_config_default("default_turn_limit", 20)
 
     codebase = tool_dir or project_root
@@ -359,7 +359,7 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         lang = "en"
 
     agent = start_server(
-        provider_name=provider,
+        selected_model=provider,
         port=0,
         open_browser=True,
         enable_tools=True,
@@ -504,19 +504,15 @@ def _has_running_session(base_url: str) -> bool:
 
 
 def _get_provider_name() -> str:
-    """Get the best available provider."""
+    """Get the best available provider. Defaults to 'auto' for intelligent selection."""
     try:
         from tool.LLM.logic.config import get_config_value
         configured = get_config_value("active_backend")
         if configured:
             return configured
-        from tool.LLM.logic.registry import list_providers
-        available = [p["name"] for p in list_providers() if p.get("available")]
-        if available:
-            return available[0]
     except ImportError:
         pass
-    return "zhipu-glm-4.7"
+    return "auto"
 
 
 def _get_system_prompt(tool_name: str, mode: str = "agent") -> str:
@@ -611,7 +607,7 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
     session = AgentSession(
         tool_name=tool_name,
         codebase_root=codebase,
-        provider_name=provider,
+        selected_model=provider,
         tier=2,
         mode=mode,
         initial_prompt=prompt[:500],
@@ -661,7 +657,7 @@ def _handle_prompt(args: list, tool_name: str, project_root: str,
     from logic.agent.loop import AgentLoop
     loop = AgentLoop(
         session=session,
-        provider_name=provider,
+        selected_model=provider,
         system_prompt=system_prompt,
         project_root=project_root,
         emit=emit,
@@ -721,7 +717,7 @@ def _handle_feed(args: list, tool_name: str, project_root: str,
     from logic.agent.loop import AgentLoop
     loop = AgentLoop(
         session=session,
-        provider_name=provider,
+        selected_model=provider,
         system_prompt=system_prompt,
         project_root=project_root,
         emit=emit,
@@ -909,6 +905,31 @@ def _handle_response(args: list, tool_name: str, project_root: str,
     if has_tool_calls and tool_calls:
         _auto_feed(base_url, found, tool_calls, BOLD, DIM, CYAN, YELLOW, RESET)
 
+    _check_self_operate_queue(base_url, found, BOLD, DIM, CYAN, RESET)
+
+
+def _check_self_operate_queue(base_url: str, session_id: str,
+                              BOLD: str, DIM: str, CYAN: str, RESET: str):
+    """After --response completes, check if queued tasks exist and report."""
+    import urllib.request
+    try:
+        resp = json.loads(
+            urllib.request.urlopen(
+                urllib.request.Request(
+                    f"{base_url}/api/session/{session_id}/queue",
+                    data=json.dumps({"action": "list"}).encode(),
+                    headers={"Content-Type": "application/json"},
+                ), timeout=5).read())
+        queue = resp.get("queue", [])
+        if queue:
+            next_task = queue[0]
+            print(f"\n  {CYAN}{BOLD}Queue has {len(queue)} pending task(s).{RESET}")
+            print(f"  {DIM}Next: {next_task.get('text', '?')[:80]}{RESET}")
+            print(f"  {DIM}The queued task will start when a new --response is sent,")
+            print(f"  or use --prompt to start it as a provider task.{RESET}")
+    except Exception:
+        pass
+
 
 def _auto_feed(base_url: str, session_id: str, tool_calls: list,
                BOLD: str, DIM: str, CYAN: str, YELLOW: str, RESET: str):
@@ -1011,7 +1032,7 @@ def _ensure_gui_and_create_session(session, provider_name: str,
             from tool.LLM.logic.config import get_config_value
             lang = get_config_value("lang", "en")
             agent = start_server(
-                provider_name=provider_name,
+                selected_model=provider_name,
                 port=0,
                 open_browser=True,
                 enable_tools=True,
@@ -1525,6 +1546,7 @@ def _print_event(evt: dict):
     DIM = get_color("DIM", "\033[2m")
     GREEN = get_color("GREEN", "\033[32m")
     RED = get_color("RED", "\033[31m")
+    YELLOW = get_color("YELLOW", "\033[33m")
     BLUE = get_color("BLUE", "\033[34m")
     RESET = get_color("RESET", "\033[0m")
 
@@ -1561,7 +1583,15 @@ def _print_event(evt: dict):
         if prompt:
             print(f"\n  {BOLD}User:{RESET} {prompt[:120]}")
     elif t == "complete":
-        print(f"  {GREEN}{BOLD}Task completed.{RESET}")
+        reason = evt.get("reason", "done")
+        if reason == "error":
+            print(f"  {RED}{BOLD}Task failed.{RESET}")
+        elif reason == "cancelled":
+            print(f"  {YELLOW}{BOLD}Task cancelled.{RESET}")
+        elif reason == "round_limit":
+            print(f"  {YELLOW}{BOLD}Round limit reached.{RESET}")
+        else:
+            print(f"  {GREEN}{BOLD}Task completed.{RESET}")
     elif t == "file_summary":
         files = evt.get("files", [])
         count = len(files)

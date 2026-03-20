@@ -970,6 +970,7 @@ body.debug-mode .debug-block { display: block; }
         <option value="200">200 rounds</option>
         <option value="500">500 rounds</option>
         <option value="0">&infin; unlimited</option>
+        <option value="custom">Custom...</option>
       </select>
       <div class="selector-spacer"></div>
       <!-- shortcut hint moved to placeholder -->
@@ -1002,9 +1003,9 @@ let activeSessionId = null;
 let sessions = {};
 let sending = false;
 let debugMode = false;
-let currentMode = 'agent';
-let currentModel = 'zhipu-glm-4.7-flash';
-let currentTurnLimit = localStorage.getItem('default_turn_limit') !== null ? parseInt(localStorage.getItem('default_turn_limit')) : 20;
+let selectedMode = null;
+let selectedModel = null;
+let selectedTurnLimit = null;
 
 const ZHIPU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/zhipu-color.svg';
 const GOOGLE_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/gemini-color.svg';
@@ -1232,7 +1233,7 @@ function buildPillSelect(container, options, currentValue, onChange, opts = {}) 
 }
 
 function setMode(mode) {
-  currentMode = mode;
+  selectedMode = mode;
   const welcome = $('welcome');
   if (welcome) {
     const icon = welcome.querySelector('.welcome-icon');
@@ -1243,7 +1244,8 @@ function setMode(mode) {
 }
 
 function setModel(model) {
-  currentModel = model;
+  selectedModel = model;
+  localStorage.setItem('preferred_model', model);
   fetch('/api/model/switch', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -1251,7 +1253,37 @@ function setModel(model) {
   }).catch(err => console.warn('Model switch failed:', err));
 }
 function setTurnLimit(val) {
-  currentTurnLimit = parseInt(val, 10) || 0;
+  if (val === 'custom') {
+    const input = prompt('Enter custom round limit (1-9999, 0 for unlimited):',
+                         String(selectedTurnLimit));
+    if (input === null) {
+      $('turn-limit-select').value = String(selectedTurnLimit);
+      return;
+    }
+    const n = parseInt(input, 10);
+    if (isNaN(n) || n < 0) {
+      $('turn-limit-select').value = String(selectedTurnLimit);
+      return;
+    }
+    selectedTurnLimit = n;
+    const sel = $('turn-limit-select');
+    const existing = sel.querySelector(`option[value="${n}"]`);
+    if (existing) {
+      sel.value = String(n);
+    } else {
+      const opt = document.createElement('option');
+      opt.value = String(n);
+      opt.textContent = n === 0 ? '\u221E unlimited' : n + ' rounds';
+      sel.insertBefore(opt, sel.querySelector('[value="custom"]'));
+      sel.value = String(n);
+    }
+  } else {
+    selectedTurnLimit = parseInt(val, 10) || 0;
+  }
+  fetch(`/api/session/${activeSessionId}/turn-limit`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({turn_limit: selectedTurnLimit})
+  }).catch(() => {});
 }
 
 function createModelInfoLine(provider, round, latency, model) {
@@ -1355,7 +1387,7 @@ function _refreshPillLabels() {
       const n = opt.value;
       opt.textContent = n === '0' ? '\u221E ' + _('unlimited') : n + ' ' + _('rounds');
     });
-    turnSel.value = String(currentTurnLimit);
+    turnSel.value = String(selectedTurnLimit);
   }
 }
 
@@ -1557,19 +1589,19 @@ fetch('/api/state').then(r => r.json()).then(d => {
 const modePill = buildPillSelect(
   $('mode-pill'),
   Object.keys(MODE_ICONS).map(k => ({ value: k, label: MODE_LABELS[k], icon: MODE_ICONS[k] })),
-  currentMode,
+  selectedMode,
   (v) => setMode(v)
 );
 const modelPill = buildPillSelect(
   $('model-pill'),
   MODEL_OPTIONS.map(o => o.value === 'auto' ? { value: 'auto', label: 'Auto', icon: 'bx-bot' } : { value: o.value, label: o.label, ...(MODEL_LOGOS[o.value] ? { logo: MODEL_LOGOS[o.value] } : { icon: 'bx-bot' }) }),
-  currentModel,
+  selectedModel,
   (v) => setModel(v)
 );
 engine.onAutoModelChosen((chosenProvider) => {
   if (modelPill && modelPill.setValue) {
     modelPill.setValue(chosenProvider);
-    currentModel = chosenProvider;
+    selectedModel = chosenProvider;
   }
 });
 
@@ -1583,6 +1615,17 @@ engine.onSessionChange((action, session) => {
     }
     activeSessionId = session.id;
     $('main-title').textContent = session.title;
+
+    const isSelfOp = !!session.selfOperate;
+    engine._selfOperate = isSelfOp;
+    if (isSelfOp && session.status === 'running') {
+      inputEl.placeholder = 'Self-operate mode \u2014 type to queue, response via CLI...';
+    } else {
+      inputEl.disabled = false;
+      inputEl.placeholder = _('Type a message. Ctrl+Enter to send.');
+      $('btn-send').disabled = false;
+    }
+
     apiActivateSession(session.id);
     if (inputEl) {
       inputEl.value = _sessionDrafts[session.id] || '';
@@ -1590,8 +1633,8 @@ engine.onSessionChange((action, session) => {
       inputEl.style.height = inputEl.scrollHeight + 'px';
     }
     const sessionMode = session.mode || 'agent';
-    if (sessionMode !== currentMode) {
-      currentMode = sessionMode;
+    if (sessionMode !== selectedMode) {
+      selectedMode = sessionMode;
       if (modePill && modePill.setValue) modePill.setValue(sessionMode);
     }
   } else if (action === 'rename' && session) {
@@ -1716,9 +1759,9 @@ function _renderQueueContainer() {
     const row = container.querySelectorAll('.queue-item')[i];
     if (!row) return;
     const selects = row.querySelectorAll('select');
-    if (selects[0]) selects[0].value = t.mode || currentMode;
+    if (selects[0]) selects[0].value = t.mode || selectedMode;
     if (selects[1]) {
-      const mval = t.model || currentModel;
+      const mval = t.model || selectedModel;
       const opts = Array.from(selects[1].options).map(o => o.value);
       if (opts.includes(mval)) {
         selects[1].value = mval;
@@ -1850,7 +1893,7 @@ async function sendMessage() {
     input.value = '';
     input.style.height = 'auto';
     _autoResizeInput();
-    const payload = { text, mode: currentMode, model: currentModel, turn_limit: currentTurnLimit };
+    const payload = { text, mode: selectedMode, model: selectedModel, turn_limit: selectedTurnLimit };
     fetch(`/api/session/${activeSessionId}/send`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify(payload),
@@ -1873,11 +1916,11 @@ async function sendMessage() {
   engine._localUserPending = true;
   engine.enqueueEvent({ type: 'user', prompt: text });
 
-  engine.showPendingModelBanner(currentModel);
+  engine.showPendingModelBanner(selectedModel);
   _startConnectionWatchdog();
 
   try {
-    const payload = { text, mode: currentMode, model: currentModel, turn_limit: currentTurnLimit };
+    const payload = { text, mode: selectedMode, model: selectedModel, turn_limit: selectedTurnLimit };
     const resp = await fetch(`/api/session/${activeSessionId}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1911,6 +1954,21 @@ function setWorkspace(path) {
   _updateWorkspaceIndicator();
 }
 
+async function browseWorkspaceDir() {
+  try {
+    const r = await fetch('/api/workspace/browse', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({dir: currentWorkspace || ''})
+    });
+    const d = await r.json();
+    if (d.ok && d.path) { setWorkspace(d.path); return; }
+    if (d.error === 'Cancelled') return;
+  } catch (e) { /* fallback below */ }
+  const p = prompt('Workspace directory (empty to reset):', currentWorkspace);
+  if (p !== null) setWorkspace(p);
+}
+
 function _updateWorkspaceIndicator(overridePath) {
   const wsPath = overridePath || currentWorkspace;
   if (overridePath && !currentWorkspace) {
@@ -1936,10 +1994,7 @@ function _updateWorkspaceIndicator(overridePath) {
       badge.id = 'workspace-badge';
       badge.style.cssText = 'font-size:10px;color:var(--text-3);padding:2px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;';
       badge.title = 'Click to change workspace';
-      badge.onclick = () => {
-        const p = prompt('Workspace directory (empty to reset):', currentWorkspace);
-        if (p !== null) setWorkspace(p);
-      };
+      badge.onclick = () => browseWorkspaceDir();
       const footer = document.getElementById('sidebar-footer');
       if (footer) footer.parentElement.insertBefore(badge, footer);
     }
@@ -1972,7 +2027,7 @@ async function createNewSession() {
       const welcome = document.createElement('div');
       welcome.className = 'welcome';
       welcome.id = 'welcome';
-      const modeIcon = MODE_ICONS[currentMode] || 'bx-bot';
+      const modeIcon = MODE_ICONS[selectedMode] || 'bx-bot';
       welcome.innerHTML = '<i class="bx ' + modeIcon + ' welcome-icon"></i><div class="welcome-text">Type a message to start</div>';
       engine.chatArea.appendChild(welcome);
 
@@ -1991,9 +2046,11 @@ let _pendingOlderEvents = [];
 let _allSessionEvents = [];
 
 let _activatingSessionLock = null;
+let _sseBufferDuringActivation = [];
 async function apiActivateSession(sid) {
   if (_activatingSessionLock === sid) return;
   _activatingSessionLock = sid;
+  _sseBufferDuringActivation = [];
   const chatArea = $('chat-area');
   chatArea.innerHTML = '';
   _pendingOlderEvents = [];
@@ -2047,7 +2104,12 @@ async function apiActivateSession(sid) {
       </div>
     </div>`;
   } finally {
-    setTimeout(() => { if (_activatingSessionLock === sid) _activatingSessionLock = null; }, 500);
+    _activatingSessionLock = null;
+    const buffered = _sseBufferDuringActivation;
+    _sseBufferDuringActivation = [];
+    for (const bEvt of buffered) {
+      handleSSEEvent(bEvt);
+    }
   }
 }
 
@@ -2248,8 +2310,8 @@ function renderGeneralView() {
     <div class="settings-card" style="padding:16px;">
       <label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;">
         <span style="flex:1"><strong>${_('Default Round Limit')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Default max agent rounds for new tasks. None = unlimited.</span></span>
-        <select onchange="const v=this.value==='0'?0:parseInt(this.value);localStorage.setItem('default_turn_limit',this.value);currentTurnLimit=v;const s=$('turn-limit-select');if(s)s.value=String(v);_saveAssistantConfig('default_turn_limit',v);" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
-          ${[2,5,10,20,50,100,200,500,0].map(v => `<option value="${v}" ${v === (parseInt(localStorage.getItem('default_turn_limit'))||20) ? 'selected' : ''}>${v === 0 ? 'None' : v + ' rounds'}</option>`).join('')}
+        <select onchange="const v=this.value==='0'?0:parseInt(this.value);localStorage.setItem('default_turn_limit',this.value);selectedTurnLimit=v;const s=$('turn-limit-select');if(s)s.value=String(v);_saveAssistantConfig('default_turn_limit',v);" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
+          ${[1,2,5,10,20,50,100,200,500,0].map(v => `<option value="${v}" ${v === (parseInt(localStorage.getItem('default_turn_limit'))||20) ? 'selected' : ''}>${v === 0 ? 'None' : v + ' rounds'}</option>`).join('')}
         </select>
       </label>
       <label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;">
@@ -2266,9 +2328,13 @@ function renderGeneralView() {
       </div>
       <div style="display:flex;align-items:center;gap:12px;font-size:13px;">
         <span style="flex:1"><strong>${_('Workspace')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Working directory for new sessions. Empty = project root.</span></span>
+        <div style="display:flex;gap:4px;align-items:center;">
         <input id="workspace-input" type="text" value="${currentWorkspace||''}" placeholder="(project root)"
           onchange="setWorkspace(this.value)"
-          style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;font-family:var(--font-mono);width:200px;outline:none;">
+          style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;font-family:var(--font-mono);width:170px;outline:none;">
+        <button onclick="browseWorkspaceDir()" title="Browse..."
+          style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text-2);font-size:13px;cursor:pointer;line-height:1;"><i class="bx bx-folder-open"></i></button>
+        </div>
       </div>
     </div>`;
 }
@@ -3735,6 +3801,12 @@ function syncSessions() {
 setInterval(syncSessions, 10000);
 
 function handleSSEEvent(evt) {
+  if (_activatingSessionLock && evt.session_id === _activatingSessionLock
+      && evt.type !== 'session_created' && evt.type !== 'session_deleted') {
+    _sseBufferDuringActivation.push(evt);
+    return;
+  }
+
   const welcome = $('welcome');
   if (welcome) welcome.remove();
 
@@ -3748,11 +3820,12 @@ function handleSSEEvent(evt) {
   }
 
   const _globalEventTypes = new Set([
-    'session_created', 'session_renamed', 'session_deleted',
+    'session_created', 'session_renamed', 'session_deleted', 'session_status',
     'settings_changed', 'settings_open', 'settings_close',
     'inject_input', 'model_switched', 'mode_switch_resolved',
     'queue_updated', 'turn_limit_set', 'queue_task_started',
     'workspace_created', 'workspace_opened', 'workspace_closed',
+    'cancel_requested',
   ]);
   if (!_globalEventTypes.has(evt.type) && evt.session_id && evt.session_id !== activeSessionId) {
     return;
@@ -3768,19 +3841,21 @@ function handleSSEEvent(evt) {
       engine.clearAllTrackers();
       engine._refreshSessions();
       $('main-title').textContent = evt.title || 'New Task';
-      if (evt.self_operate) engine._selfOperate = true;
+      engine._selfOperate = !!evt.self_operate;
+      if (engine.sessions[evt.id]) {
+        engine.sessions[evt.id].selfOperate = !!evt.self_operate;
+      }
       apiActivateSession(evt.id).then(() => {
         if (engine._selfOperate) {
-          $('input').disabled = true;
-          $('input').placeholder = 'Self-operate mode \u2014 awaiting response via CLI...';
+          $('input').disabled = false;
+          $('input').placeholder = 'Self-operate mode \u2014 type to queue, response via CLI...';
           _autoResizeInput();
-          $('btn-send').disabled = true;
           setStopMode(true);
         }
       });
       { const m = evt.mode || 'agent';
-        if (m !== currentMode) {
-          currentMode = m;
+        if (m !== selectedMode) {
+          selectedMode = m;
           if (modePill && modePill.setValue) modePill.setValue(m);
         }
       }
@@ -3805,6 +3880,14 @@ function handleSSEEvent(evt) {
         $('btn-send').disabled = false;
         setStopMode(false);
       }
+      break;
+
+    case 'cancel_requested':
+      engine._selfOperate = false;
+      $('input').disabled = false;
+      $('input').placeholder = _('Type a message. Ctrl+Enter to send.');
+      _autoResizeInput();
+      $('btn-send').disabled = false;
       break;
 
     case 'settings_changed':
@@ -3849,7 +3932,7 @@ function handleSSEEvent(evt) {
 
     case 'mode_switch_resolved': {
       if (evt.decision === 'allow' && evt.target_mode) {
-        currentMode = evt.target_mode;
+        selectedMode = evt.target_mode;
         if (modePill && modePill.setValue) modePill.setValue(evt.target_mode);
       }
       engine.enqueueEvent(evt);
@@ -3865,7 +3948,7 @@ function handleSSEEvent(evt) {
 
     case 'model_confirmed': {
       if (evt.provider) {
-        currentModel = evt.provider;
+        selectedModel = evt.provider;
       }
       engine.enqueueEvent(evt);
       break;
@@ -3908,19 +3991,34 @@ function handleSSEEvent(evt) {
     }
 
     case 'turn_limit_set': {
+      const tl = evt.turn_limit || 0;
+      selectedTurnLimit = tl;
+      const sel = $('turn-limit-select');
+      if (sel) {
+        const existing = sel.querySelector(`option[value="${tl}"]`);
+        if (existing) {
+          sel.value = String(tl);
+        } else if (tl > 0) {
+          const opt = document.createElement('option');
+          opt.value = String(tl);
+          opt.textContent = tl + ' rounds';
+          sel.insertBefore(opt, sel.querySelector('[value="custom"]'));
+          sel.value = String(tl);
+        }
+      }
       break;
     }
 
     case 'queue_task_started': {
       if (evt.mode) {
-        currentMode = evt.mode;
+        selectedMode = evt.mode;
         const modeBtn = document.getElementById('mode-pill');
         if (modeBtn) modeBtn.setValue(evt.mode);
         const modeBtns = document.querySelectorAll('[data-mode]');
         modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === evt.mode));
       }
       if (evt.model && modelPill) {
-        currentModel = evt.model;
+        selectedModel = evt.model;
         modelPill.setValue(evt.model);
       }
       const taskPreview = evt.text ? `: ${evt.text}` : '';
@@ -3939,7 +4037,8 @@ function handleSSEEvent(evt) {
       $('btn-send').disabled = false;
       sending = false;
       setStopMode(false);
-      if (activeSessionId) engine.setSessionStatus(activeSessionId, 'done');
+      const errorSid = evt.session_id || activeSessionId;
+      if (errorSid) engine.setSessionStatus(errorSid, 'done', 'error');
       break;
     }
 
@@ -3948,22 +4047,43 @@ function handleSSEEvent(evt) {
         if (engine._localUserPending) { engine._localUserPending = false; break; }
       }
       if (evt.type === 'llm_request' && evt.self_operate) {
-        $('input').disabled = true;
-        $('input').placeholder = 'Self-operate mode — awaiting response via CLI...';
+        if (!engine._selfOperate) {
+          engine.enqueueEvent({type: 'notice', level: 'info',
+            icon: 'bx-transfer-alt',
+            message: 'Switched to Self-operate mode'});
+        }
+        engine._selfOperate = true;
+        if (engine.activeSessionId && engine.sessions[engine.activeSessionId]) {
+          engine.sessions[engine.activeSessionId].selfOperate = true;
+        }
+        $('input').placeholder = 'Self-operate mode \u2014 type to queue, response via CLI...';
         _autoResizeInput();
-        $('btn-send').disabled = true;
-      }
-      if (evt.type === 'complete') {
-        _clearConnectionWatchdog();
-        engine._clearPendingModelBanner();
-        sending = false;
-        $('input').disabled = false;
+      } else if (evt.type === 'llm_request' && !evt.self_operate && engine._selfOperate) {
+        engine._selfOperate = false;
+        if (engine.activeSessionId && engine.sessions[engine.activeSessionId]) {
+          engine.sessions[engine.activeSessionId].selfOperate = false;
+        }
+        engine.enqueueEvent({type: 'notice', level: 'info',
+          icon: 'bx-transfer-alt',
+          message: 'Switched to Model Provider'});
         $('input').placeholder = _('Type a message. Ctrl+Enter to send.');
         _autoResizeInput();
-        $('btn-send').disabled = false;
-        setStopMode(false);
+      }
+      if (evt.type === 'complete') {
         const reason = evt.reason || 'done';
-        if (activeSessionId) engine.setSessionStatus(activeSessionId, 'done');
+        const completeSid = evt.session_id || activeSessionId;
+        if (completeSid) engine.setSessionStatus(completeSid, 'done', reason);
+        if (!evt.session_id || evt.session_id === activeSessionId) {
+          _clearConnectionWatchdog();
+          engine._clearPendingModelBanner();
+          sending = false;
+          engine._selfOperate = false;
+          $('input').disabled = false;
+          $('input').placeholder = _('Type a message. Ctrl+Enter to send.');
+          _autoResizeInput();
+          $('btn-send').disabled = false;
+          setStopMode(false);
+        }
       }
       engine.enqueueEvent(evt);
       break;
@@ -4038,8 +4158,8 @@ async function init() {
       }
       if (runningId && !_requestedSid) initialSessionId = runningId;
       const initSession = data.sessions.find(s => s.id === initialSessionId);
-      if (initSession && initSession.mode && initSession.mode !== currentMode) {
-        currentMode = initSession.mode;
+      if (initSession && initSession.mode && initSession.mode !== selectedMode) {
+        selectedMode = initSession.mode;
         if (modePill && modePill.setValue) modePill.setValue(initSession.mode);
       }
     }
@@ -4078,11 +4198,31 @@ async function init() {
   _loadModels(3);
 
   try {
+    const mst = await fetch('/api/model/state').then(r => r.json());
+    if (mst.ok) {
+      selectedModel = mst.selected_model || 'auto';
+      selectedMode = mst.selected_mode || 'agent';
+      selectedTurnLimit = mst.selected_turn_limit || 20;
+      if (modelPill) modelPill.setValue(selectedModel);
+      if (modePill) modePill.setValue(selectedMode);
+      const tlSel = document.getElementById('turn-limit-select');
+      if (tlSel) {
+        const match = Array.from(tlSel.options).find(o => parseInt(o.value) === selectedTurnLimit);
+        if (match) tlSel.value = String(selectedTurnLimit);
+      }
+    }
+  } catch (_) {
+    selectedModel = selectedModel || 'auto';
+    selectedMode = selectedMode || 'agent';
+    selectedTurnLimit = selectedTurnLimit || 20;
+  }
+
+  try {
     const scfg = await fetch('/api/session_config').then(r => r.json());
     if (scfg.ok && scfg.config) {
       const c = scfg.config;
-      if (c.default_turn_limit && !localStorage.getItem('default_turn_limit')) {
-        currentTurnLimit = c.default_turn_limit;
+      if (c.default_turn_limit && selectedTurnLimit === null) {
+        selectedTurnLimit = c.default_turn_limit;
         const sel = document.getElementById('turn-limit-select');
         if (sel) sel.value = String(c.default_turn_limit);
       }

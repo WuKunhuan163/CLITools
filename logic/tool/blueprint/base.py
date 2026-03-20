@@ -1223,6 +1223,18 @@ class ToolBase:
             handle_assistant_command(filtered, self.tool_name)
         elif subcmd in ("agent", "ask", "plan"):
             self._handle_agent(rest, mode=subcmd)
+        elif subcmd == "gui":
+            gui_pass = ["--gui"]
+            j = 0
+            while j < len(rest):
+                if rest[j] == "--port" and j + 1 < len(rest):
+                    j += 2
+                elif rest[j] == "--no-auto":
+                    j += 1
+                else:
+                    gui_pass.append(rest[j])
+                    j += 1
+            self._handle_agent(gui_pass, mode=mode)
         elif subcmd == "checkout":
             self._handle_assistant_checkout(rest)
         elif subcmd == "clean":

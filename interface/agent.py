@@ -4,7 +4,7 @@ Usage:
     from interface.agent import AgentLoop, AgentSession, AgentEnvironment
 
     session = AgentSession(tool_name="BILIBILI", codebase_root="/path/to/tool")
-    loop = AgentLoop(session=session, provider_name="zhipu-glm-4.7",
+    loop = AgentLoop(session=session, selected_model="auto",
                      system_prompt="You are an agent.", project_root="/path")
     result = loop.run_turn("Search for trending videos")
 
