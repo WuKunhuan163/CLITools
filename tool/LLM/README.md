@@ -1,11 +1,11 @@
 # LLM
 
-Unified LLM provider management with rate limiting, usage monitoring, cost tracking, and multi-turn session context.
+Unified LLM provider management with adaptive key selection, rate limiting, usage monitoring, cost tracking, Auto model routing, and multi-turn session context.
 
 ## Quick Start
 
 ```bash
-LLM setup               # Configure API keys
+LLM setup               # Configure API keys (per-provider)
 LLM status              # Check provider availability and pricing
 LLM providers           # List all providers with details
 LLM test                # Send a test message
@@ -14,23 +14,158 @@ LLM usage               # View API usage statistics
 LLM usage --period today # Today's usage only
 ```
 
-## Providers
+## Directory Structure
 
-| Provider | Model | Endpoint | Free Tier |
-|----------|-------|----------|-----------|
-| `nvidia-glm-4-7b` | z-ai/glm4.7 (358B) | integrate.api.nvidia.com | 40 RPM, 131K ctx |
-| `zhipu-glm-4-flash` | glm-4-flash | open.bigmodel.cn | Rate limited, 128K ctx |
+```
+tool/LLM/
+  main.py                              CLI entry point
+  interface/main.py                    Cross-tool API facade
+  data/
+    settings.json                      General settings (active_backend, turn limits)
+    brain_memory.json                  Long-term agent memory
+    report/                            Development reports
+  logic/
+    config.py                          Config manager (reads per-provider data + settings.json)
+    registry.py                        Provider discovery and instantiation
+
+    base/                              Base classes
+      __init__.py                      LLMProvider ABC, CostModel, ModelCapabilities
+      openai_compat.py                 OpenAI-compatible base (most providers inherit this)
+      auto.py                          Auto model selection, provider health tracking
+
+    models/                            One directory per model (max 1 level deep)
+      <model_name>/
+        main.py                        Primary provider implementation
+        model.json                     Model metadata (capabilities, rate limits, cost)
+        <vendor>.py                    Secondary vendor implementation (e.g. nvidia.py)
+        pipeline.py                    Custom context pipeline (optional)
+        logo.svg                       Model favicon (from open-source projects)
+
+    providers/                         One directory per vendor
+      <vendor>/
+        __init__.py                    Provider module init
+        base.py                        Vendor-specific base class (optional)
+        data/
+          .gitignore                   Prevents tracking of secrets
+          keys.json                    API keys + key states for this vendor
+          usage.db                     Per-provider usage tracking (SQLite)
+        logo.svg                       Vendor favicon (from open-source projects)
+      manager.py                       Unified ProviderManager facade
+      guides/                          Provider-specific configuration guides
+
+    rate/                              Rate control
+      limiter.py                       Token-bucket RPM limiter with jitter + backoff
+      queue.py                         Global rate queue manager (cross-provider)
+      key_state.py                     Per-key health tracking, adaptive selection
+
+    session/                           Session management
+      context.py                       Multi-turn message array manager
+      usage.py                         Per-provider usage monitoring (SQLite)
+      brain.py                         Long-term memory / brain management
+```
+
+## Provider Architecture
+
+### Base Class Hierarchy
+
+```
+LLMProvider (base/__init__.py)
+  ├── OpenAICompatProvider (base/openai_compat.py)  ← Most models
+  │     ├── Google Gemini models
+  │     ├── Baidu ERNIE models
+  │     ├── DeepSeek models
+  │     ├── OpenAI GPT models
+  │     ├── SiliconFlow models
+  │     └── Tencent Hunyuan models
+  ├── AnthropicProvider (providers/anthropic/base.py)
+  │     ├── Claude Haiku 4.5
+  │     └── Claude Sonnet 4.6
+  └── Direct LLMProvider subclasses (custom SDK)
+        ├── GLM-4-Flash (zhipu SDK + urllib fallback)
+        ├── GLM-4.7 (zhipu SDK)
+        ├── GLM-4.7-Flash (zhipu SDK)
+        └── GLM-4.7 via NVIDIA (nvidia SDK)
+```
+
+### Data Storage
+
+- **API keys & key states**: `providers/<vendor>/data/keys.json` (per-vendor, gitignored)
+- **Usage DB**: `providers/<vendor>/data/usage.db` (per-provider SQLite, gitignored)
+- **General settings**: `data/settings.json` (active_backend, turn limits, etc.)
+- **Model metadata**: `models/<model>/model.json` (capabilities, pricing, rate limits)
+
+### Auto Model Selection
+
+The `auto` provider (`base/auto.py`) uses two preference lists:
+
+- **PRIMARY_LIST (A)**: All models ranked by quality, free first. Used as the candidate pool.
+- **FALLBACK_LIST (B)**: Fast non-thinking free models sorted by response speed. Used to make the routing decision.
+
+Decision flow:
+1. User prompt → first available model from B decides which model from A to use
+2. Decision timeout: 10s. If all B models fail, first available from A is used.
+3. Provider health (ProviderHealth) tracks errors with 10-minute sliding windows.
+4. Recovery conditions (timed cooldown, user selection) re-enable disabled providers.
+
+### Favicon / Logo Resources
+
+Each model and provider directory can contain a `logo.svg` file. These are sourced from open-source icon projects. The GUI resolves icons in order:
+1. `models/<model_name>/logo.svg` (model-specific)
+2. `providers/<vendor>/logo.svg` (vendor fallback)
+3. Default asset directory icons
+
+To add a logo for a new model: download an SVG from the model's official branding or a reputable open-source icon set, and place it as `logo.svg` in the model directory.
+
+## Creating a New Model
+
+1. Create directory: `logic/models/<model_name>/`
+2. Create `model.json` with metadata:
+   ```json
+   {
+     "display_name": "Model Display Name",
+     "vendor": "vendor_name",
+     "model_id": "api-model-id",
+     "capabilities": {
+       "max_context_tokens": 128000,
+       "max_output_tokens": 4096,
+       "tool_calling": true,
+       "vision": false,
+       "reasoning": false
+     },
+     "cost": { "free_tier": true },
+     "rate_limits": { "free": { "rpm": 30 } }
+   }
+   ```
+3. Create `main.py` extending `OpenAICompatProvider` (or `LLMProvider` for custom APIs):
+   ```python
+   from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
+   from tool.LLM.logic.base import CostModel, ModelCapabilities
+
+   class MyModelProvider(OpenAICompatProvider):
+       name = "vendor-model-name"
+       CONFIG_VENDOR = "vendor_name"
+       API_URL = "https://api.example.com/v1/chat/completions"
+       MODEL_ID = "model-id"
+       # ... configure cost_model, capabilities, etc.
+   ```
+4. Register in `logic/registry.py`
+5. Add `logo.svg` from the model's official branding
+
+## Creating a New Provider (Vendor)
+
+1. Create directory: `logic/providers/<vendor>/`
+2. Add `__init__.py`, `data/` (with `.gitignore` containing `*\n!.gitignore`)
+3. Optionally add `base.py` if the vendor has a non-standard API
+4. Add `logo.svg` from the vendor's official branding
+5. Configure API keys via `LLM setup` or directly in `data/keys.json`
 
 ## Cross-Tool Interface
-
-Other tools access LLM capabilities via the interface:
 
 ```python
 from tool.LLM.interface.main import send, get_provider, SessionContext
 
 result = send("What is 2+2?", provider_name="zhipu-glm-4-flash")
 print(result["text"])
-print(result["estimated_cost_usd"])  # Cost estimation per call
 
 provider = get_provider("nvidia-glm-4-7b")
 ctx = SessionContext(system_prompt="You are helpful.")
@@ -38,137 +173,12 @@ ctx.add_user("Hello")
 result = provider.send(ctx.get_messages_for_api())
 ```
 
-## Rate Limiting and Retry
+## Rate Limiting
 
-Every provider has a built-in `RateLimiter` with:
-- RPM cap (requests per minute)
-- Minimum interval between requests
-- Random jitter to avoid anti-bot detection
-- Adaptive backoff on consecutive 429 responses
+Every provider uses `RateLimiter` (logic/rate/limiter.py) with RPM cap, minimum interval, jitter, and adaptive 429 backoff. The `RateQueueManager` (logic/rate/queue.py) coordinates globally across providers.
 
-For transient errors (429, 5xx, network), use `retry_on_transient`:
+`AdaptiveKeySelector` (logic/rate/key_state.py) selects API keys probabilistically based on health scores — success rate, latency, and consecutive failures. Stale keys (auth failures) are excluded until re-verified.
 
-```python
-from tool.LLM.interface.main import retry_on_transient, get_provider
+## Dependencies
 
-provider = get_provider("zhipu-glm-4-flash")
-messages = [{"role": "user", "content": "Hello"}]
-
-result = retry_on_transient(
-    lambda: provider.send(messages),
-    max_retries=3,
-    rate_limiter=provider._rate_limiter,
-)
-```
-
-## Usage Monitoring
-
-Every API call is automatically logged to `data/usage.jsonl` with:
-- Timestamp, provider, model
-- Token counts (prompt, completion, total)
-- Latency, error details, error codes
-- Estimated cost (USD)
-
-```python
-from tool.LLM.interface.main import get_usage_summary, get_daily_usage_summary
-
-summary = get_usage_summary()         # All-time
-daily = get_daily_usage_summary()     # Today only
-# {"total_calls": N, "successful": N, "failed": N, "total_tokens": N, ...}
-```
-
-## Agent GUI Engine
-
-A reusable, protocol-driven rendering engine for LLM agent UIs. The engine renders streaming tokens, tool calls (exec, edit, read, search), TODO management, exec/call trackers, and session management with a Cursor-inspired dark-mode UI.
-
-### Architecture
-
-The GUI is split into two layers:
-
-- **`engine.js`** — Portable JS class (`AgentGUIEngine`) with zero framework dependencies. Handles all rendering, block registry, SSE streaming, session management, scroll behavior, and theming.
-- **`demo.html`** — Thin demo wrapper that feeds protocol events to the engine.
-
-### Embedding in Other Tools
-
-```javascript
-const engine = new AgentGUIEngine({
-  chatArea: document.getElementById('chat'),
-  todoListEl: document.getElementById('todo-list'),
-  sessionListEl: document.getElementById('sessions'),
-  // ... exec/call panels optional
-});
-
-// Custom blocks
-engine.registerBlock('memory', (evt) => {
-  engine._appendEl('div', 'custom-block', evt.content);
-});
-
-// Theme override (e.g. OpenClaw red theme)
-engine.loadTheme({ accent: '#e63946', bg: '#1a0a0a' });
-
-// Process events from SSE or backend
-engine.connectSSE('/api/events');
-// or manually: engine.processEvent({ type: 'text', tokens: 'Hello' });
-```
-
-### Protocol Events
-
-| Type | Fields | Description |
-|------|--------|-------------|
-| `user` | `text` | User message bubble |
-| `thinking` | `tokens` | Collapsible thinking block with streaming |
-| `text` | `tokens` | Markdown-rendered assistant text |
-| `tool` | `name`, `desc`, `cmd`, `file` | Tool call block (exec/edit/read/search) |
-| `tool_result` | `ok`, `output` | Tool result with diff rendering for edit blocks |
-| `todo` | `items[]` | Initialize TODO list |
-| `todo_update` | `id`, `status` | Update a TODO item status |
-| `todo_delete` | `id` | Remove a TODO item |
-| `experience` | `lesson` | Muted info/experience block |
-| `complete` | — | Task completion indicator |
-
-### Session Management
-
-```javascript
-engine.addSession('id', 'Title', 'idle');    // idle | running | done
-engine.renameSession('id', 'New Title');
-engine.deleteSession('id');                  // with confirmation dialog
-engine.setSessionStatus('id', 'running');
-engine.setActiveSession('id');
-engine.onSessionChange((action, session) => { /* rename|delete|activate */ });
-```
-
-### Interface Functions
-
-```python
-from tool.LLM.interface.main import get_agent_gui_path, get_engine_path
-
-html_path = get_agent_gui_path()           # Full HTML template path
-engine_path = get_engine_path()  # Reusable JS engine path
-```
-
-## Architecture
-
-```
-tool/LLM/
-  main.py                        CLI entry point
-  interface/main.py              Cross-tool API
-  logic/
-    base.py                      LLMProvider ABC + CostModel
-    rate_limiter.py              Token-bucket RPM limiter with jitter + retry
-    session_context.py           Multi-turn message array manager
-    config.py                    API key storage (data/config.json)
-    usage.py                     Usage monitoring (data/usage.jsonl)
-    registry.py                  Provider discovery and instantiation
-    providers/
-      nvidia_glm47.py            NVIDIA Build GLM-4.7 (ID: nvidia-glm-4-7b)
-      zhipu_glm4.py              Zhipu AI GLM-4-Flash (ID: zhipu-glm-4-flash)
-    gui/
-      engine.js        Reusable rendering engine (AgentGUIEngine)
-      demo.html            Demo wrapper with sample protocol events
-    dashboard/
-      template.html              Usage monitoring dashboard
-```
-
-## Configuration
-
-API keys are stored in `tool/LLM/data/config.json`. They can also be set via environment variables `NVIDIA_API_KEY` and `ZHIPU_API_KEY`.
+- PYTHON (managed Python runtime)

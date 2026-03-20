@@ -67,24 +67,24 @@ PRIMARY_LIST = [
 ]
 
 FALLBACK_LIST = [
-    # Non-thinking free models sorted by response speed (latency).
-    # Auto decisions are infrequent — speed > RPM for routing.
-    "tencent-hunyuan-lite",           # ~1.7s avg, 60 RPM
-    "google-gemini-3.1-flash-lite",   # ~2.9s avg, 30 RPM
-    "zhipu-glm-4-flash",             # ~3-5s est, 30 RPM
-    "baidu-ernie-speed-8k",          # ~7.3s avg, 10000 RPM
-    "baidu-ernie-4.5-turbo-128k",    # ~7s est, free
-    "siliconflow-qwen2.5-7b",        # ~28s avg, often exceeds 10s timeout
+    # Non-thinking free models sorted by benchmarked routing latency.
+    # Benchmark: 2-trial avg with 392-char routing prompt, 64 max_tokens.
+    "zhipu-glm-4-flash",             # 1.66s avg, 30 RPM, 100% success
+    "tencent-hunyuan-lite",           # 1.85s avg, 60 RPM, 100% success
+    "baidu-ernie-speed-8k",          # 2.33s avg, 10000 RPM, 100% success
+    "baidu-ernie-4.5-turbo-128k",    # 2.66s avg, free, 100% success
+    "google-gemini-3.1-flash-lite",   # 2.88s avg, 30 RPM, 100% success
+    "siliconflow-qwen2.5-7b",        # 2.56s avg but 50% success (conn resets)
 ]
 
 TITLE_LIST = [
     # Non-thinking free models for generating short session titles.
-    # Sorted by response speed — max_tokens=16 keeps output fast.
-    "tencent-hunyuan-lite",
-    "google-gemini-3.1-flash-lite",
+    # Same order as FALLBACK_LIST — fast and reliable.
     "zhipu-glm-4-flash",
+    "tencent-hunyuan-lite",
     "baidu-ernie-speed-8k",
     "baidu-ernie-4.5-turbo-128k",
+    "google-gemini-3.1-flash-lite",
     "siliconflow-qwen2.5-7b",
 ]
 

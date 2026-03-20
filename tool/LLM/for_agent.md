@@ -37,267 +37,134 @@ result = retry_on_transient(
 )
 ```
 
+## Directory Structure
+
+```
+tool/LLM/
+  logic/
+    config.py              Config reads per-provider data/keys.json + data/settings.json
+    registry.py            get_provider(name), list_providers(), register(name, cls)
+    base/
+      __init__.py          LLMProvider ABC, CostModel, ModelCapabilities
+      openai_compat.py     OpenAI-compatible base (most providers extend this)
+      auto.py              Auto model selection, PRIMARY_LIST, FALLBACK_LIST
+    models/<name>/
+      main.py              Provider implementation (inherits base class)
+      model.json           Model metadata: capabilities, rate_limits, cost, vendor
+      pipeline.py          Custom context pipeline (optional)
+      <vendor>.py          Secondary vendor implementation (optional)
+      logo.svg             Model-specific favicon
+    providers/<vendor>/
+      data/keys.json       API keys + key states (gitignored)
+      data/usage.db        Per-provider usage DB (gitignored)
+      logo.svg             Vendor favicon
+      manager.py           Unified ProviderManager (aggregates health, keys, rate limits)
+    rate/
+      limiter.py           RateLimiter: RPM cap, jitter, adaptive 429 backoff
+      queue.py             RateQueueManager: global cross-provider coordination
+      key_state.py         AdaptiveKeySelector: per-key health scoring
+    session/
+      context.py           SessionContext: multi-turn message manager
+      usage.py             Per-provider usage monitoring (SQLite)
+      brain.py             Long-term agent memory
+```
+
 ## Providers
 
-| Name | Model | API URL | Key Config | RPM | Context |
-|------|-------|---------|------------|-----|---------|
-| `nvidia-glm-4-7b` | z-ai/glm4.7 | integrate.api.nvidia.com/v1/chat/completions | `nvidia_api_key` / `NVIDIA_API_KEY` | 30 | 131K |
-| `zhipu-glm-4-flash` | glm-4-flash | open.bigmodel.cn/api/paas/v4/chat/completions | `zhipu_api_key` / `ZHIPU_API_KEY` | 30 | 128K |
-| `zhipu-glm-4.7-flash` | glm-4.7-flash | open.bigmodel.cn/api/paas/v4/chat/completions | `zhipu_api_key` / `ZHIPU_API_KEY` | 10 | 128K |
-| `auto` | (auto-select) | — | — | — | — |
+27 provider implementations across 9 vendors:
+
+| Vendor | Models | Free Tier | Key Field |
+|--------|--------|-----------|-----------|
+| zhipu | glm-4-flash, glm-4.7, glm-4.7-flash | Yes (RPM limited) | `zhipu_api_key` |
+| google | gemini-2.5-flash, 2.5-pro, 3-flash, 3.1-flash-lite, 3.1-pro, 2.5-flash-lite | Yes (RPM limited) | `google_api_key` |
+| baidu | ernie-speed-8k, ernie-4.0-turbo-8k, ernie-4.5-*, ernie-5.0, ernie-x1.* | Partial | `baidu_api_key` |
+| tencent | hunyuan-lite | Yes | `tencent_api_key` |
+| siliconflow | qwen2.5-7b | Yes | `siliconflow_api_key` |
+| nvidia | glm-4-7b | Yes (40 RPM) | `nvidia_api_key` |
+| anthropic | claude-haiku-4.5, claude-sonnet-4.6 | No | `anthropic_api_key` |
+| openai | gpt-4o, gpt-4o-mini | No | `openai_api_key` |
+| deepseek | chat, reasoner | No | `deepseek_api_key` |
 
 ### Auto Model Selection
 
-Use `auto` as the provider name for automatic model selection with fallback. The Auto provider:
-- Ranks available models by stability (free-tier preference, RPM headroom, recent error rate)
-- Falls back to the next model on 429/500/502/503 errors
-- Tracks per-provider health in a 10-minute sliding window
-- Implemented in `tool/LLM/logic/auto.py`
+Use `auto` as provider name. Uses two lists:
+- **List A (PRIMARY_LIST)**: All models ranked by quality (free first)
+- **List B (FALLBACK_LIST)**: Fast non-thinking free models sorted by response speed for routing decisions
 
-### Rate Limit Tuning — Practice is the Sole Criterion for Truth
+Decision timeout: 10s. Falls back to first available from A if all B fail.
 
-Provider-documented rate limits are often imprecise. The **actual** rate limit behavior
-can only be determined through empirical observation. When encountering frequent 429 errors:
+The ProviderManager (`providers/manager.py`) aggregates per-key health, rate limiter state, and provider-level health into a unified status API. The Auto decision prompt includes UTC timestamps, 429 labels, and expected recovery times.
 
-1. **Inspect current state** via the assistant endpoint:
-   ```
-   POST /api/provider/status  {"provider": "zhipu-glm-4.7-flash"}
-   ```
-   Returns: `consecutive_429s`, `in_flight`, `queue_wait_s`, `rpm_used`, `rpm_limit`, health data.
+### Rate Limit Tuning
 
-2. **Query usage history** from `tool/LLM/data/usage.db` (SQLite):
-   ```sql
-   SELECT timestamp, ok, error_code, latency_s
-   FROM usage WHERE provider = 'zhipu-glm-4.7-flash'
-   ORDER BY timestamp DESC LIMIT 50;
-   ```
+Provider rate limits are empirically calibrated. When encountering 429s:
 
-3. **Adjust hyperparameters** in `logic/models/<model>/model.json` under `rate_limits` and
-   `recommended_settings`. Key parameters:
-   - `rpm`: Requests per minute cap
-   - `max_concurrency`: Simultaneous in-flight requests
-   - `min_interval_s`: Minimum seconds between requests
-   - `jitter_s`: Random delay range added to each request
-   - `context_threshold_tokens` + `large_context_delay_s`: Extra delay for large contexts
+1. Check status: `POST /api/provider/status {"provider": "zhipu-glm-4.7-flash"}`
+2. Adjust `rate_limits` in `models/<model>/model.json`
+3. Key parameters: `rpm`, `max_concurrency`, `min_interval_s`, `jitter_s`
+4. Verify: monitor subsequent calls for zero 429s
 
-4. **Verify the change** by monitoring subsequent calls — if 429s persist, lower the RPM
-   further or increase `min_interval_s`. The goal is zero 429s in normal operation.
+### Creating a New Model
 
-The `RateLimiter` (per-provider) and `RateQueueManager` (global) both apply exponential
-backoff on 429s (`2^n` seconds, capped at 60-120s). Streaming errors are also recorded
-in the usage database for analysis.
+1. `logic/models/<model_name>/` — create directory with `model.json` + `main.py`
+2. `main.py` extends `OpenAICompatProvider` (or `LLMProvider` for custom APIs)
+3. Register in `logic/registry.py`
+4. Add `logo.svg` from official branding / open-source icon set
+
+### Creating a New Provider (Vendor)
+
+1. `logic/providers/<vendor>/` — create with `__init__.py`, `data/.gitignore`
+2. Optionally add `base.py` for vendor-specific base class
+3. Add `logo.svg` from vendor branding
+4. Keys stored in `data/keys.json`, usage in `data/usage.db` (both gitignored)
+
+## Data Storage
+
+| Data | Location | Gitignored |
+|------|----------|------------|
+| API keys + key states | `providers/<vendor>/data/keys.json` | Yes |
+| Usage tracking | `providers/<vendor>/data/usage.db` | Yes |
+| General settings | `data/settings.json` | No |
+| Model metadata | `models/<model>/model.json` | No |
+| Brain memory | `data/brain_memory.json` | No |
 
 ## Live Agent GUI
 
-Start the live agent server with:
-
 ```bash
-LLM agent                            # Start with auto-detected provider
-LLM agent --tools                    # Enable tool calling (exec, search, etc.)
-LLM agent --port 8100 --no-open      # Custom port, no browser
-LLM agent --agent-provider zhipu-glm-4-flash  # Specific provider
+LLM --assistant --gui "task description"   # Open GUI with initial prompt
+LLM --assistant --gui                      # Open GUI (no prompt)
+LLM --assistant --gui --workspace /path    # Mount workspace directory
 ```
 
-The live server provides:
-- Real-time SSE streaming of agent events to the browser
-- HTTP API for programmatic control (send messages, create sessions)
-- Auto-generated conversation titles on first message
-- `Ctrl+D` or `Enter` to send messages
-- Single-line input field with overflow ellipsis
+The frontend shows:
+- Session ID and workspace path in the title bar
+- Real-time SSE streaming of agent events
+- Task timing from prompt submission to completion (includes Auto decision time)
+- Task failed status on 429/error exits (not "Task completed")
 
-### Tool Calling via exec
+### HTTP API
 
-When `--tools` is enabled, the agent can use the `exec` tool to call any
-installed CLI tool. The agent discovers tools via `TOOL --list` and reads
-their `for_agent.md` for usage. Example flow:
-
-```
-User: "帮我查找Bilibili播放量最大的10个视频"
-Agent calls: exec(command="BILIBILI trending --limit 10")
-→ Browser opens, navigates to Bilibili trending page, extracts video data
-→ Agent formats and presents results to user
-```
-
-The system prompt guides the agent to use exec for tool calls. Any tool
-in the `bin/` directory (BILIBILI, GOOGLE, GIT, etc.) can be called.
-
-### Programmatic Control (MCP-compatible injection)
-
-```python
-from tool.LLM.interface.main import start_server
-
-agent = start_server(port=8100, enable_tools=True)
-
-# Inject text into input box (types character by character, then auto-sends)
-import requests
-requests.post(f"{agent.url}api/input", json={
-    "session_id": agent.default_session_id,
-    "text": "帮我查找Bilibili播放量最大的10个视频"
-})
-
-# Or send directly (bypasses input box animation)
-requests.post(f"{agent.url}api/send", json={
-    "session_id": agent.default_session_id,
-    "text": "帮我查找Bilibili播放量最大的10个视频"
-})
-```
-
-### Agent Discovery Pattern
-
-A context-free agent discovers tools through this sequence:
-1. `exec(command="TOOL --list")` → discovers BILIBILI, GOOGLE, etc.
-2. `exec(command="cat tool/BILIBILI/for_agent.md")` → reads BILIBILI docs
-3. `exec(command="BILIBILI boot")` → starts browser session
-4. `exec(command="BILIBILI trending --limit 10")` → real browser automation
+- `POST /api/send` — Send message to session
+- `POST /api/session` — Create new session
+- `POST /api/rename` / `POST /api/delete` — Session management
+- `GET /api/sessions` — List sessions
+- `GET /api/state` — Full state dump
+- `POST /api/provider/status` — Provider health status
 
 ## Key Modules
 
-- `logic/base.py` -- `LLMProvider` ABC with unified `send()` that auto-records usage, measures latency, and estimates cost. `CostModel` dataclass for pricing metadata.
-- `logic/session_context.py` -- `SessionContext`: manages messages array with system prompt and auto-truncation.
-- `logic/rate_limiter.py` -- `RateLimiter`: token-bucket with RPM cap, min interval, jitter, and adaptive 429 backoff. `retry_on_transient(fn, max_retries, rate_limiter)` for auto-retry.
-- `logic/usage.py` -- `record_usage()`, `get_summary()`, `get_daily_summary()`, `rotate_usage()` -- persistent JSONL tracking.
-- `logic/registry.py` -- `get_provider(name)`, `list_providers()`, `register(name, cls)`.
-- `logic/config.py` -- `get_config_value(key)`, `set_config_value(key, value)` -- stores in `data/config.json`.
-
-## Provider Architecture
-
-Providers only implement `_send_request()` (raw API call). The base class `send()` method handles:
-1. Latency timing
-2. Cost estimation via `CostModel`
-3. Automatic usage recording to `data/usage.jsonl`
-
-## Agent GUI Engine
-
-The LLM tool provides a reusable browser-based UI engine for agent interactions.
-
-### Key Files
-
-- `logic/gui/engine.js` — `AgentGUIEngine` class: block registry, SSE streaming, session management, scroll-to-bottom, theming.
-- `logic/gui/demo.html` — Demo that feeds protocol events to the engine.
-
-### Interface
-
-```python
-from tool.LLM.interface.main import get_agent_gui_path, get_engine_path
-
-get_agent_gui_path()           # → path to demo.html
-get_engine_path()    # → path to engine.js
-```
-
-### Protocol Event Types
-
-Feed events via `engine.processEvent(evt)` or SSE at `/api/events`:
-
-- `user { prompt, ecosystem, user_rationale, system_state }` — User message. `ecosystem` contains: project_summary, exploration (tool/skill/doc discovery commands), rationale (mental models), standard_tools (available tool list), skills (key skills + usage), agent_behaviors (expected patterns). `system_state` contains: nudge_triggered, quality_warnings, recent_results, discovered_tools.
-- `thinking { tokens }` — Streaming thinking block
-- `text { tokens }` — Markdown assistant text
-- `tool { name, desc, cmd, file }` — Tool call (exec/edit/read/search)
-- `tool_result { ok, output }` — Tool output (auto-renders diff for edit)
-- `todo { items[] }` / `todo_update { id, status }` / `todo_delete { id }` — TODO management
-- `experience { lesson }` — Info/lesson block
-- `complete` — Task done
-
-### Extending
-
-Register custom blocks: `engine.registerBlock('memory', renderFn)`
-Override theme: `engine.loadTheme({ accent: '#e63946' })`
-Session management: `addSession`, `renameSession`, `deleteSession`, `setSessionStatus`, `setActiveSession`
-
-### ConversationManager (GUI-agnostic)
-
-A stateful middle layer between any GUI and the LLM provider:
-
-```python
-from tool.LLM.interface.main import get_conversation_manager
-ConversationManager = get_conversation_manager()
-
-mgr = ConversationManager(provider_name="zhipu-glm-4-flash")
-mgr.on_event(lambda evt: push_to_gui(evt))
-
-sid = mgr.new_session()
-mgr.send_message(sid, "Hello!")  # non-blocking, emits events via callback
-mgr.rename_session(sid, "New Title")
-mgr.delete_session(sid)
-mgr.list_sessions()
-mgr.get_state()  # full state export for persistence
-```
-
-All GUIs (HTML, CLI, tkinter) call the same methods. The first message in a session auto-generates a title.
-
-### SSE Streaming
-
-Use `logic/serve/html_server.py` (`LocalHTMLServer` with `enable_sse=True`) to push events from Python to the browser in real time. The server is now multi-threaded to handle concurrent SSE connections and API requests.
-
-### HTTP API for Remote Control
-
-When using the live GUI server, these API endpoints are available:
-
-- `POST /api/send` — `{"session_id": "...", "text": "..."}` Send a message
-- `POST /api/session` — `{"title": "..."}` Create a new session
-- `POST /api/rename` — `{"session_id": "...", "title": "..."}` Rename session
-- `POST /api/delete` — `{"session_id": "..."}` Delete session
-- `GET /api/sessions` — List all sessions
-- `GET /api/state` — Full state dump
-
-## Provider Reports
-
-When making improvements to provider behavior (prompt engineering, pipeline fixes,
-quality feedback mechanisms), document findings in:
-
-```
-tool/LLM/logic/models/<model_name>/providers/<vendor>/report/YYYY-MM-DD_topic.md
-```
-
-Follow the `development-report` skill for naming and content structure. Reports should
-include before/after metrics, root cause analysis, and lessons learned.
-
-Existing reports:
-- `providers/zhipu_glm4/report/2026-03-08_quality-feedback-loop.md` — Quality feedback loop infrastructure
-
-## Context Feed Compression
-
-Multi-round agent sessions generate rapidly growing context. The pipeline
-applies automatic compression to keep API calls within token limits while
-preserving the agent's ability to recall past actions.
-
-### How it works
-
-`compress_history()` in `logic/pipeline.py` processes messages before each
-API call. It identifies "rounds" (user message boundaries) and:
-
-- **Last 3 rounds**: Full tool output preserved (agent needs precise content
-  for ongoing work).
-- **Older rounds**: Tool results compressed to first/last line summaries:
-  - `edit_file` → "[ok] Edited {file} ({N} lines)"
-  - `read_file` → First line + "..." + last line
-  - `exec` → "[ok] `{cmd}` + first/last output lines"
-  - `search` → "Searched '{pattern}': ~{N} result lines"
-  - `assistant` text → First + last sentence
-  - `think` → Preserved in full (already concise)
-
-### Design rationale
-
-Remote model providers (Zhipu, Baidu, Google, etc.) do NOT maintain server-side
-session context. Each API call sends the full message history. Without compression,
-a 20-round session can exceed 100K tokens, causing failures on models with smaller
-context windows and unnecessary API costs.
-
-The round-based approach was chosen over LLM-based summarization because:
-1. It's deterministic and fast (no extra API call)
-2. It preserves the exact structure agents expect (role/tool_call_id fields)
-3. First/last line heuristic retains enough detail for recall without full content
-4. The most recent rounds (where active work happens) remain fully intact
-
-### Future work (TODO)
-
-- **Progressive disclosure**: Agent brain tracks what it has explored, enabling
-  retrieval-augmented recall of specific old round contents on demand.
-- **Semantic round labels**: Each round gets a brief label (e.g., "Read config.py")
-  that serves as a compact index for the agent to reference.
-- **Initial prompt compression**: System prompt + tool schemas compression to
-  reduce the fixed-cost portion of each API call.
-- **Multi-range edit_file**: Support a list of (old_text, new_text) pairs in
-  a single edit_file call to reduce round trips.
+- `logic/base/__init__.py` — `LLMProvider` ABC with unified `send()` (auto-records usage, measures latency, estimates cost)
+- `logic/base/openai_compat.py` — `OpenAICompatProvider`: shared implementation for OpenAI-compatible APIs
+- `logic/base/auto.py` — `AutoProvider`, `auto_decide()`, `ProviderHealth`, preference lists
+- `logic/config.py` — Reads per-provider `data/keys.json` + general `data/settings.json`
+- `logic/registry.py` — `get_provider(name)`, `list_providers()`, `register(name, cls)`
+- `logic/providers/manager.py` — `ProviderManager`: unified health, keys, rate limits, status API
+- `logic/rate/key_state.py` — `AdaptiveKeySelector`: weighted random key selection by health score
+- `logic/rate/limiter.py` — `RateLimiter`: token-bucket with RPM, jitter, adaptive 429 backoff
+- `logic/rate/queue.py` — `RateQueueManager`: global rate coordination
+- `logic/session/context.py` — `SessionContext`: message array manager with auto-truncation
+- `logic/session/usage.py` — Per-provider SQLite usage tracking
+- `logic/session/brain.py` — Long-term memory management
 
 ## Dependencies
 

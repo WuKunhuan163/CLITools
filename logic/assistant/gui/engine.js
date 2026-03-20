@@ -96,54 +96,78 @@ function escWbr(s) {
   return esc(s).replace(/([/._\-\\])/g, '$1<wbr>');
 }
 
-function md(text) {
-  const codeBlocks = [];
-  let s = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    const idx = codeBlocks.length;
-    codeBlocks.push(`<pre class="md-codeblock"><code>${esc(code.replace(/\n$/, ''))}</code></pre>`);
-    return `\x00CB${idx}\x00`;
-  });
-
-  const lines = s.split('\n');
-  const out = [];
-  let inList = false;
-
-  for (const line of lines) {
-    const h3 = line.match(/^### (.+)/);
-    const h2 = line.match(/^## (.+)/);
-    const h1 = line.match(/^# (.+)/);
-    const li = line.match(/^[-*] (.+)/);
-
-    if (line.trim() === '---' || line.trim() === '***' || line.trim() === '___') {
-      if (inList) { out.push('</ul>'); inList = false; }
-      out.push('<hr class="md-hr">');
-    }
-    else if (h1) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<h3 class="md-h1">${inlineMd(h1[1])}</h3>`); }
-    else if (h2) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<h4 class="md-h2">${inlineMd(h2[1])}</h4>`); }
-    else if (h3) { if (inList) { out.push('</ul>'); inList = false; } out.push(`<h5 class="md-h3">${inlineMd(h3[1])}</h5>`); }
-    else if (li) { if (!inList) { out.push('<ul class="md-list">'); inList = true; } out.push(`<li>${inlineMd(li[1])}</li>`); }
-    else { if (inList) { out.push('</ul>'); inList = false; } out.push(inlineMd(line) + '<br>'); }
+function renderToolIcon(icon, opts) {
+  const w = (opts && opts.width) || 14;
+  const h = (opts && opts.height) || 14;
+  const cls = (opts && opts.cls) || '';
+  if (icon && icon.startsWith('_devicon_:')) {
+    return `<img src="${icon.slice(10)}" style="width:${w}px;height:${h}px;" class="${cls}" alt="">`;
   }
-  if (inList) out.push('</ul>');
+  return `<i class="bx ${icon || 'bx-code-alt'} ${cls}" style="font-size:${w}px"></i>`;
+}
 
-  let result = out.join('');
-  result = result.replace(/\x00CB(\d+)\x00/g, (_, idx) => codeBlocks[+idx]);
-  return result;
+function buildToolHeaderHtml(info) {
+  const chevron = '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>';
+  const status = '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+  const iconHtml = renderToolIcon(info.icon, { width: info.isEdit ? 13 : 14, cls: info.isEdit ? '' : 'tool-natural-icon' });
+  const iconWrap = info.isEdit ? `<div class="tool-icon edit">${iconHtml}</div>` : iconHtml;
+  return chevron + iconWrap + '<span class="tool-desc">' + (info._descHtml || esc(info.label || '')) + '</span>' + (info._extraHtml || '') + status;
+}
+
+const _markedInstance = typeof marked !== 'undefined' ? new marked.Marked({
+  gfm: true,
+  breaks: true,
+  renderer: {
+    code({ text, lang }) {
+      return `<pre class="md-codeblock"><code>${esc(text)}</code></pre>`;
+    },
+    codespan({ text }) {
+      return `<code class="md-inline-code">${esc(text)}</code>`;
+    },
+    heading({ tokens, depth }) {
+      const inner = this.parser.parseInline(tokens);
+      const tag = depth <= 1 ? 'h3' : depth === 2 ? 'h4' : 'h5';
+      const cls = depth <= 1 ? 'md-h1' : depth === 2 ? 'md-h2' : 'md-h3';
+      return `<${tag} class="${cls}">${inner}</${tag}>`;
+    },
+    table({ header, rows }) {
+      const hdr = header.map(cell => {
+        const inner = this.parser.parseInline(cell.tokens);
+        return `<th>${inner}</th>`;
+      }).join('');
+      const body = rows.map(row => {
+        const cells = row.map(cell => {
+          const inner = this.parser.parseInline(cell.tokens);
+          return `<td>${inner}</td>`;
+        }).join('');
+        return `<tr>${cells}</tr>`;
+      }).join('');
+      return `<table class="md-table"><thead><tr>${hdr}</tr></thead><tbody>${body}</tbody></table>`;
+    },
+    list({ items, ordered }) {
+      const tag = ordered ? 'ol' : 'ul';
+      const inner = items.map(item => `<li>${this.parser.parse(item.tokens, !!item.task)}</li>`).join('');
+      return `<${tag} class="md-list">${inner}</${tag}>`;
+    },
+    hr() { return '<hr class="md-hr">'; },
+    link({ href, text }) {
+      return `<a href="${esc(href)}" target="_blank" rel="noopener">${text}</a>`;
+    },
+  },
+}) : null;
+
+function md(text) {
+  if (_markedInstance) {
+    try { return _markedInstance.parse(text); } catch (_) {}
+  }
+  return esc(text).replace(/\n/g, '<br>');
 }
 
 function inlineMd(text) {
-  const inlineCode = [];
-  let safe = text.replace(/`(.+?)`/g, (_, code) => {
-    const idx = inlineCode.length;
-    inlineCode.push(`<code class="md-inline-code">${esc(code)}</code>`);
-    return `\x01IC${idx}\x01`;
-  });
-  safe = esc(safe);
-  safe = safe
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>');
-  safe = safe.replace(/\x01IC(\d+)\x01/g, (_, idx) => inlineCode[+idx]);
-  return safe;
+  if (_markedInstance) {
+    try { return _markedInstance.parseInline(text); } catch (_) {}
+  }
+  return esc(text);
 }
 
 let _replayMode = false;
@@ -152,30 +176,24 @@ function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
-const _DEVICON_BASE = 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons';
 const _DEVICON_MAP = {
-  py: 'python/python-original', js: 'javascript/javascript-original',
-  ts: 'typescript/typescript-original', jsx: 'react/react-original',
-  tsx: 'react/react-original', html: 'html5/html5-original',
-  css: 'css3/css3-original', scss: 'sass/sass-original',
-  json: 'json/json-original', md: 'markdown/markdown-original',
-  yaml: 'yaml/yaml-original', yml: 'yaml/yaml-original',
-  sh: 'bash/bash-original', bash: 'bash/bash-original',
-  go: 'go/go-original', rs: 'rust/rust-original',
-  java: 'java/java-original', rb: 'ruby/ruby-original',
-  php: 'php/php-original', c: 'c/c-original', cpp: 'cplusplus/cplusplus-original',
-  h: 'c/c-original', sql: 'postgresql/postgresql-original',
-  vue: 'vuejs/vuejs-original', svelte: 'svelte/svelte-original',
-  xml: 'xml/xml-original', swift: 'swift/swift-original',
-  kt: 'kotlin/kotlin-original', dart: 'dart/dart-original',
-  r: 'r/r-original', lua: 'lua/lua-original',
+  py: 'python', js: 'javascript', ts: 'typescript',
+  jsx: 'react', tsx: 'react', html: 'html5',
+  css: 'css3', scss: 'sass', json: 'json',
+  md: 'markdown', yaml: 'yaml', yml: 'yaml',
+  sh: 'bash', bash: 'bash', go: 'go',
+  rs: 'rust', java: 'java', rb: 'ruby',
+  php: 'php', c: 'c', cpp: 'cplusplus',
+  h: 'c', sql: 'postgresql', vue: 'vuejs',
+  svelte: 'svelte', xml: 'xml', swift: 'swift',
+  kt: 'kotlin', dart: 'dart', r: 'r', lua: 'lua',
 };
 const _BOXICON_FALLBACK = {
   toml: 'bx-file', svg: 'bx-image',
 };
 function fileExtIcon(filename) {
   const ext = (filename || '').split('.').pop().toLowerCase();
-  if (_DEVICON_MAP[ext]) return `_devicon_:${_DEVICON_BASE}/${_DEVICON_MAP[ext]}.svg`;
+  if (_DEVICON_MAP[ext]) return `_devicon_:/asset/icon/devicon/${_DEVICON_MAP[ext]}.svg`;
   return _BOXICON_FALLBACK[ext] || 'bx-code-alt';
 }
 function renderFileIcon(filename) {
@@ -1015,25 +1033,13 @@ class AgentGUIEngine {
 
     let headerHtml, bodyClass;
     if (isEdit) {
-      headerHtml =
-        '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
-        + '<div class="tool-icon edit"><i class="bx bx-code-alt" style="font-size:13px"></i></div>'
-        + '<span class="tool-desc">Writing...</span>'
-        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+      headerHtml = buildToolHeaderHtml({ label: 'Writing...', icon: 'bx-code-alt', isEdit: true });
       bodyClass = 'streaming-edit';
     } else if (isThink) {
-      headerHtml =
-        '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
-        + '<i class="bx bx-brain tool-natural-icon"></i>'
-        + '<span class="tool-desc">Thinking...</span>'
-        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+      headerHtml = buildToolHeaderHtml({ label: 'Thinking...', icon: 'bx-brain' });
       bodyClass = 'streaming-think';
     } else {
-      headerHtml =
-        '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
-        + '<i class="bx bx-code-alt tool-natural-icon"></i>'
-        + '<span class="tool-desc">' + esc(name) + '...</span>'
-        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+      headerHtml = buildToolHeaderHtml({ label: esc(name) + '...', icon: 'bx-code-alt' });
       bodyClass = 'streaming-generic';
     }
 
@@ -2191,36 +2197,16 @@ class AgentGUIEngine {
     if (info.isEdit) {
       const short = (info.fname || '').split('/').pop() || info.fname;
       const newTag = info.isNew ? '<span class="tool-file-tag">new</span>' : '';
-      const iconHtml = info.icon && info.icon.startsWith('_devicon_:')
-        ? '<img src="' + info.icon.slice(10) + '" style="width:13px;height:13px;" alt="">'
-        : '<i class="bx ' + (info.icon || 'bx-code-alt') + '" style="font-size:13px"></i>';
-      headerContent =
-        '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
-        + '<div class="tool-icon edit">' + iconHtml + '</div>'
-        + '<span class="tool-desc">Edited <span class="tool-file-link" data-op="edit">' + escWbr(short) + '</span></span>'
-        + newTag
-        + '<span class="diff-stats" data-tc="diffstats"></span>'
-        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+      info._descHtml = 'Edited <span class="tool-file-link" data-op="edit">' + escWbr(short) + '</span>';
+      info._extraHtml = newTag + '<span class="diff-stats" data-tc="diffstats"></span>';
+      headerContent = buildToolHeaderHtml(info);
     } else if (info.isRead) {
-      const readIconHtml = info.icon && info.icon.startsWith('_devicon_:')
-        ? '<img src="' + info.icon.slice(10) + '" class="tool-natural-icon" style="width:14px;height:14px;" alt="">'
-        : '<i class="bx ' + (info.icon || 'bx-file') + ' tool-natural-icon"></i>';
-      headerContent =
-        '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
-        + readIconHtml
-        + '<span class="tool-desc">Read <span class="tool-file-link" data-op="read">' + escWbr(info.readLabel || '') + '</span></span>'
-        + '<span class="diff-stats" data-tc="diffstats"></span>'
-        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+      info._descHtml = 'Read <span class="tool-file-link" data-op="read">' + escWbr(info.readLabel || '') + '</span>';
+      info._extraHtml = '<span class="diff-stats" data-tc="diffstats"></span>';
+      headerContent = buildToolHeaderHtml(info);
     } else if (info.isThink) {
-      headerContent =
-        '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
-        + '<i class="bx bx-brain tool-natural-icon"></i>'
-        + '<span class="tool-desc">Thinking...</span>'
-        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>';
+      headerContent = buildToolHeaderHtml({ label: 'Thinking...', icon: 'bx-brain' });
     } else {
-      const otherIconHtml = info.icon && info.icon.startsWith('_devicon_:')
-        ? '<img src="' + info.icon.slice(10) + '" class="tool-natural-icon" style="width:14px;height:14px;" alt="">'
-        : '<i class="bx ' + (info.icon || 'bx-code-alt') + ' tool-natural-icon"></i>';
       const isExec = name === 'exec';
       const sandboxHtml = isExec
         ? '<div class="sandbox-actions">'
@@ -2234,14 +2220,11 @@ class AgentGUIEngine {
       const cmdInline = isExec && info.fullCmd
         ? '<span class="tool-cmd-inline">$ ' + esc(info.fullCmd) + '</span>'
         : '';
-      headerContent =
-        '<div class="tool-call-chevron"><i class="bx bx-chevron-right"></i></div>'
-        + otherIconHtml
-        + '<span class="tool-desc">' + escWbr(info.label) + '</span>'
-        + cmdInline
+      info._descHtml = escWbr(info.label);
+      info._extraHtml = cmdInline
         + (info.detail ? '<span class="tool-detail">' + esc(info.detail) + '</span>' : '')
-        + '<div class="tool-status running" data-tc="status"><div class="spinner spinner-sm"></div></div>'
         + sandboxHtml;
+      headerContent = buildToolHeaderHtml(info);
     }
 
     const bodyContent = (info.isEdit || info.isRead)
@@ -2379,6 +2362,12 @@ class AgentGUIEngine {
           out.innerHTML = _renderSearchOutput(output);
         } else {
           out.textContent = output;
+        }
+
+        if (window.Collapsible && out.scrollHeight > 0) {
+          requestAnimationFrame(() => {
+            window.Collapsible.apply(out);
+          });
         }
       }
     }

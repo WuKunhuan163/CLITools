@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@17.0.4/lib/marked.umd.js"></script>
 <style>
 :root {
   --bg: #0f1117;
@@ -492,6 +493,10 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .msg-text .md-list li { margin: 2px 0; }
 .msg-text .md-inline-code { background: var(--surface-3); padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 12px; }
 .msg-text .md-hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+.msg-text .md-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+.msg-text .md-table th { background: var(--surface-2); font-weight: 600; text-align: left; padding: 6px 10px; border: 1px solid var(--border); color: var(--text); }
+.msg-text .md-table td { padding: 5px 10px; border: 1px solid var(--border); color: var(--text-2); }
+.msg-text .md-table tr:hover td { background: var(--surface); }
 .msg-text .md-codeblock { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; margin: 8px 0; overflow-x: auto; }
 .msg-text .md-codeblock code { font-family: var(--mono); font-size: 12px; color: var(--text); white-space: pre; }
 .turn-spacer { height: 6px; }
@@ -575,6 +580,27 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .tool-terminal-cmd { padding: 8px 14px; font-family: var(--mono); font-size: 12px; color: var(--text); background: var(--surface-3); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
 .tool-terminal-cmd .prompt { color: var(--green); font-weight: 600; }
 .tool-terminal { padding: 10px 14px; font-family: var(--mono); font-size: 12px; line-height: 1.65; color: var(--text-2); white-space: pre-wrap; max-height: 300px; overflow-y: auto; background: var(--bg); font-variant-ligatures: none; }
+
+/* ── Collapsible Content ── */
+.collapsible-wrap { position: relative; }
+.collapsible-inner { overflow: hidden; transition: max-height 0.25s ease; }
+.collapsible-fade { display: none; position: absolute; bottom: 24px; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, var(--surface-2)); pointer-events: none; transition: opacity 0.2s; }
+.collapsible-wrap.no-collapse .collapsible-fade { display: none !important; }
+.collapsible-toggle { display: flex; align-items: center; justify-content: center; height: 24px; cursor: pointer; color: var(--text-3); font-size: 14px; border-top: 1px solid var(--border); background: var(--surface-2); transition: color 0.15s, background 0.15s; }
+.collapsible-toggle:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+.collapsible-wrap.no-collapse .collapsible-toggle { display: none !important; }
+
+/* ── Block Base ── */
+.block-file-content { font-family: var(--mono); font-size: 12px; line-height: 18px; font-variant-ligatures: none; }
+.block-line { display: flex; padding: 0 10px; }
+.block-line.hl { background: rgba(255,255,0,0.06); }
+.block-gutter { display: inline-block; min-width: 36px; text-align: right; padding-right: 12px; color: var(--text-3); user-select: none; flex-shrink: 0; }
+.block-code { white-space: pre-wrap; word-break: break-all; flex: 1; color: var(--text-2); }
+.block-header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; font-weight: 500; color: var(--text-2); }
+.block-header-icon { width: 14px; height: 14px; flex-shrink: 0; }
+.block-header-icon.bx { font-size: 14px; }
+.block-header-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.block-header-badge { font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
 
 /* ── Experience block ── */
 .experience-block { background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--text-3); border-radius: 2px var(--radius) var(--radius) 2px; padding: 10px 14px; margin: 8px 0; font-size: 12.5px; color: var(--text-2); max-width: 90%; line-height: 1.55; }
@@ -808,9 +834,6 @@ body.debug-mode .debug-block { display: block; }
 
 /* ── Mode/Model Selector ── */
 .input-selectors { display: flex; align-items: center; gap: 8px; padding-top: 8px; }
-.model-select { padding: 4px 10px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); font-size: 12px; font-family: var(--font); cursor: pointer; outline: none; -webkit-appearance: none; appearance: none; }
-.model-select:hover { border-color: var(--text-3); color: var(--text); }
-.model-select:focus { border-color: var(--accent); }
 .selector-spacer { flex: 1; }
 
 /* ── Custom pill selector ── */
@@ -833,10 +856,12 @@ body.debug-mode .debug-block { display: block; }
 .pill-option.active { color: var(--accent); }
 .pill-option img { width: 14px; height: 14px; border-radius: 3px; opacity: 1 !important; }
 .pill-option i.bx { font-size: 15px; }
+.pill-custom-input { width: 60px; background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 6px; color: var(--text); font-size: 12px; font-family: var(--font); outline: none; -moz-appearance: textfield; }
+.pill-custom-input::-webkit-inner-spin-button, .pill-custom-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
 /* ── Ask User ── */
 .ask-user-block { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; margin: 6px 0; background: var(--orange-dim); border: 1px solid rgba(251,191,36,0.2); border-radius: var(--radius-lg); max-width: 90%; animation: fadeIn 0.3s ease; }
-.ask-user-icon { width: 18px; height: 18px; border-radius: 50%; background: var(--orange); color: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+.ask-user-icon { width: 14px; height: 14px; border-radius: 50%; background: var(--orange); color: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; flex-shrink: 0; margin-top: 3px; }
 .ask-user-text { font-size: 13px; line-height: 1.55; color: var(--text); }
 
 /* ── Tool icon extras ── */
@@ -960,18 +985,7 @@ body.debug-mode .debug-block { display: block; }
     <div class="input-selectors">
       <div class="pill-select" id="mode-pill"></div>
       <div class="pill-select" id="model-pill"></div>
-      <select class="model-select" id="turn-limit-select" onchange="setTurnLimit(this.value)" title="Max rounds per message">
-        <option value="2">2 rounds</option>
-        <option value="5">5 rounds</option>
-        <option value="10">10 rounds</option>
-        <option value="20" selected>20 rounds</option>
-        <option value="50">50 rounds</option>
-        <option value="100">100 rounds</option>
-        <option value="200">200 rounds</option>
-        <option value="500">500 rounds</option>
-        <option value="0">Unlimited</option>
-        <option value="custom">Custom...</option>
-      </select>
+      <div class="pill-select" id="turn-limit-pill"></div>
       <div class="selector-spacer"></div>
       <!-- shortcut hint moved to placeholder -->
     </div>
@@ -995,6 +1009,8 @@ body.debug-mode .debug-block { display: block; }
   </div>
 </div>
 
+<script src="block/base.js"></script>
+<script src="block/collapsible.js"></script>
 <script src="engine.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -1155,33 +1171,7 @@ function setModel(model) {
   }).catch(err => console.warn('Model switch failed:', err));
 }
 function setTurnLimit(val) {
-  if (val === 'custom') {
-    const input = prompt('Enter custom round limit (1-9999, 0 for unlimited):',
-                         String(selectedTurnLimit));
-    if (input === null) {
-      $('turn-limit-select').value = String(selectedTurnLimit);
-      return;
-    }
-    const n = parseInt(input, 10);
-    if (isNaN(n) || n < 0) {
-      $('turn-limit-select').value = String(selectedTurnLimit);
-      return;
-    }
-    selectedTurnLimit = n;
-    const sel = $('turn-limit-select');
-    const existing = sel.querySelector(`option[value="${n}"]`);
-    if (existing) {
-      sel.value = String(n);
-    } else {
-      const opt = document.createElement('option');
-      opt.value = String(n);
-      opt.textContent = n === 0 ? 'Unlimited' : n + ' rounds';
-      sel.insertBefore(opt, sel.querySelector('[value="custom"]'));
-      sel.value = String(n);
-    }
-  } else {
-    selectedTurnLimit = parseInt(val, 10) || 0;
-  }
+  selectedTurnLimit = parseInt(val, 10) || 0;
   fetch(`/api/session/${activeSessionId}/turn-limit`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({turn_limit: selectedTurnLimit})
@@ -1277,14 +1267,7 @@ function _refreshPillLabels() {
       return { value: o.value, label: _(o.label), ...(logo ? { logo } : { icon: 'bx-bot' }) };
     }));
   }
-  const turnSel = $('turn-limit-select');
-  if (turnSel) {
-    turnSel.querySelectorAll('option').forEach(opt => {
-      const n = opt.value;
-      opt.textContent = n === '0' ? _('Unlimited') : n + ' ' + _('rounds');
-    });
-    turnSel.value = String(selectedTurnLimit);
-  }
+  if (turnLimitPill) turnLimitPill.render();
 }
 
 const _FAVICON_SVG = (color) => `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22${encodeURIComponent(color)}%22><path d=%22M21.928 11.607c-.202-.488-.635-.605-.928-.633V8c0-1.103-.897-2-2-2h-6V4.61c.305-.274.5-.668.5-1.11a1.5 1.5 0 0 0-3 0c0 .442.195.836.5 1.11V6H5c-1.103 0-2 .897-2 2v2.997l-.082.006A1 1 0 0 0 1.99 12v2a1 1 0 0 0 1 1H3v5c0 1.103.897 2 2 2h14c1.103 0 2-.897 2-2v-5a1 1 0 0 0 1-1v-1.938a1.006 1.006 0 0 0-.072-.455zM5 20V8h14l.001 3.996L19 12v2l.001.005.001 5.995H5z%22/><ellipse cx=%228.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><ellipse cx=%2215.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><path d=%22M8 16h8v2H8z%22/></svg>`;
@@ -1496,6 +1479,102 @@ engine.onAutoModelChosen((chosenProvider) => {
     selectedModel = chosenProvider;
   }
 });
+
+const TURN_LIMIT_PRESETS = [2, 5, 10, 20, 50, 100, 200, 500];
+const turnLimitPill = (function() {
+  const container = $('turn-limit-pill');
+  let customValue = null;
+
+  function buildOptions() {
+    const opts = TURN_LIMIT_PRESETS.map(n => ({
+      value: String(n), label: n + ' rounds', icon: 'bx-revision'
+    }));
+    opts.push({ value: '0', label: 'Unlimited', icon: 'bx-infinite' });
+    const isPreset = selectedTurnLimit === 0 || TURN_LIMIT_PRESETS.includes(selectedTurnLimit);
+    if (!isPreset && selectedTurnLimit > 0) customValue = selectedTurnLimit;
+    const customLabel = customValue ? 'Custom (' + customValue + ')' : 'Custom';
+    opts.push({ value: 'custom', label: customLabel, icon: 'bx-edit-alt' });
+    return opts;
+  }
+
+  function currentVal() {
+    if (selectedTurnLimit === 0) return '0';
+    if (TURN_LIMIT_PRESETS.includes(selectedTurnLimit)) return String(selectedTurnLimit);
+    return 'custom';
+  }
+
+  function render() {
+    const opts = buildOptions();
+    const cv = currentVal();
+    const cur = opts.find(o => o.value === cv) || opts[0];
+    const displayLabel = cv === 'custom' && customValue
+      ? 'Custom (' + customValue + ' rounds)'
+      : cur.label;
+
+    let iconHtml = cur.icon ? `<i class="bx ${cur.icon}"></i>` : '';
+    container.innerHTML =
+      `<button class="pill-btn">${iconHtml} ${esc(displayLabel)}<i class="bx bx-chevron-down pill-chevron"></i></button>`
+      + `<div class="pill-menu"><div class="pill-menu-items">`
+      + opts.map(o => {
+          let oIcon = o.icon ? `<i class="bx ${o.icon}"></i>` : '';
+          return `<div class="pill-option${o.value === cv ? ' active' : ''}" data-value="${esc(o.value)}">${oIcon} ${esc(o.label)}</div>`;
+        }).join('')
+      + `</div></div>`;
+
+    const btn = container.querySelector('.pill-btn');
+    const menu = container.querySelector('.pill-menu');
+    btn.onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
+
+    container.querySelectorAll('.pill-option').forEach(opt => {
+      opt.onclick = (e) => {
+        e.stopPropagation();
+        const v = opt.dataset.value;
+        if (v === 'custom') {
+          const optEl = opt;
+          const curText = customValue ? String(customValue) : '';
+          optEl.innerHTML = `<i class="bx bx-edit-alt"></i> <input type="number" min="1" max="9999" class="pill-custom-input" value="${esc(curText)}" placeholder="rounds">`;
+          const inp = optEl.querySelector('input');
+          inp.onclick = (ev) => ev.stopPropagation();
+          inp.focus();
+          inp.select();
+          function commit() {
+            const n = parseInt(inp.value, 10);
+            if (n > 0 && n <= 9999) {
+              customValue = n;
+              selectedTurnLimit = n;
+              setTurnLimit(String(n));
+            } else if (inp.value === '' || inp.value === '0') {
+              selectedTurnLimit = 0;
+              customValue = null;
+              setTurnLimit('0');
+            }
+            menu.classList.remove('open');
+            render();
+          }
+          inp.onblur = commit;
+          inp.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); commit(); } if (ev.key === 'Escape') { menu.classList.remove('open'); render(); } };
+          return;
+        }
+        menu.classList.remove('open');
+        const nv = parseInt(v, 10) || 0;
+        selectedTurnLimit = nv;
+        if (nv > 0 && !TURN_LIMIT_PRESETS.includes(nv)) customValue = nv;
+        setTurnLimit(v);
+        render();
+      };
+    });
+  }
+
+  render();
+  document.addEventListener('click', () => {
+    const m = container.querySelector('.pill-menu');
+    if (m) m.classList.remove('open');
+  });
+  return {
+    setValue(v) { selectedTurnLimit = parseInt(v, 10) || 0; render(); },
+    render
+  };
+})();
 
 const _sessionDrafts = {};
 
@@ -2208,7 +2287,7 @@ function renderGeneralView() {
     <div class="settings-card" style="padding:16px;">
       <label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;">
         <span style="flex:1"><strong>${_('Default Round Limit')}</strong><br><span style="color:var(--text-3);font-size:11.5px;">Default max agent rounds for new tasks. None = unlimited.</span></span>
-        <select onchange="const v=this.value==='0'?0:parseInt(this.value);localStorage.setItem('default_turn_limit',this.value);selectedTurnLimit=v;const s=$('turn-limit-select');if(s)s.value=String(v);_saveAssistantConfig('default_turn_limit',v);" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
+        <select onchange="const v=this.value==='0'?0:parseInt(this.value);localStorage.setItem('default_turn_limit',this.value);selectedTurnLimit=v;if(turnLimitPill)turnLimitPill.setValue(v);_saveAssistantConfig('default_turn_limit',v);" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:13px;font-family:var(--font);cursor:pointer;min-width:100px;">
           ${[1,2,5,10,20,50,100,200,500,0].map(v => `<option value="${v}" ${v === (parseInt(localStorage.getItem('default_turn_limit'))||20) ? 'selected' : ''}>${v === 0 ? 'None' : v + ' rounds'}</option>`).join('')}
         </select>
       </label>
@@ -2399,6 +2478,32 @@ async function renderChatView() {
           <button class="stepper-btn up" onclick="_ctxLinesStep(1)">&#x25B2;</button>
         </div>
       </label>
+      <label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-top:10px;">
+        <span style="flex:1">
+          <strong>${_('Collapsed Lines')}</strong><br>
+          <span style="color:var(--text-3);font-size:11.5px;">
+            Lines visible when a tool output block is collapsed.
+          </span>
+        </span>
+        <div class="settings-stepper" id="collapsed-lines-stepper">
+          <button class="stepper-btn down" onclick="_blockLinesStep('block_collapsed_lines',-1)">&#x25BC;</button>
+          <span class="stepper-value" id="collapsed-lines-val">${parseInt(localStorage.getItem('block_collapsed_lines'))||6}</span>
+          <button class="stepper-btn up" onclick="_blockLinesStep('block_collapsed_lines',1)">&#x25B2;</button>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:12px;font-size:13px;margin-top:10px;">
+        <span style="flex:1">
+          <strong>${_('Expanded Lines')}</strong><br>
+          <span style="color:var(--text-3);font-size:11.5px;">
+            Lines visible when a tool output block is expanded (scroll for more).
+          </span>
+        </span>
+        <div class="settings-stepper" id="expanded-lines-stepper">
+          <button class="stepper-btn down" onclick="_blockLinesStep('block_expanded_lines',-1)">&#x25BC;</button>
+          <span class="stepper-value" id="expanded-lines-val">${parseInt(localStorage.getItem('block_expanded_lines'))||16}</span>
+          <button class="stepper-btn up" onclick="_blockLinesStep('block_expanded_lines',1)">&#x25B2;</button>
+        </div>
+      </label>
     </div>
 
     <div class="settings-section-title">${_('Data Retention')}</div>
@@ -2492,6 +2597,30 @@ function _ctxLinesStep(dir) {
   document.getElementById('ctx-lines-val').textContent = val;
   fetch('/api/send', {method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({_config:true, key:'context_lines', value:val})});
+}
+
+function _blockLinesStep(key, dir) {
+  const schema = (window._sessionSettingsSchema || []).find(x => x.key === key);
+  const opts = (schema && schema.options) || (key === 'block_collapsed_lines' ? [4,5,6,8,10] : [12,14,16,18,20]);
+  const defVal = (schema && schema.default) || (key === 'block_collapsed_lines' ? 6 : 16);
+  const cur = parseInt(localStorage.getItem(key)) || defVal;
+  let idx = opts.indexOf(cur);
+  if (idx < 0) idx = opts.indexOf(defVal);
+  idx = Math.max(0, Math.min(opts.length - 1, idx + dir));
+  const val = opts[idx];
+  localStorage.setItem(key, String(val));
+  const valId = key === 'block_collapsed_lines' ? 'collapsed-lines-val' : 'expanded-lines-val';
+  const valEl = document.getElementById(valId);
+  if (valEl) valEl.textContent = val;
+  fetch('/api/send', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({_config:true, key:key, value:val})});
+  if (window.Collapsible) {
+    window.Collapsible.configure({
+      collapsed_lines: parseInt(localStorage.getItem('block_collapsed_lines')) || 6,
+      expanded_lines: parseInt(localStorage.getItem('block_expanded_lines')) || 16,
+    });
+    window.Collapsible.refreshAll();
+  }
 }
 
 function _setModeSwitchPolicy(val) {
@@ -3891,19 +4020,7 @@ function handleSSEEvent(evt) {
     case 'turn_limit_set': {
       const tl = evt.turn_limit || 0;
       selectedTurnLimit = tl;
-      const sel = $('turn-limit-select');
-      if (sel) {
-        const existing = sel.querySelector(`option[value="${tl}"]`);
-        if (existing) {
-          sel.value = String(tl);
-        } else if (tl > 0) {
-          const opt = document.createElement('option');
-          opt.value = String(tl);
-          opt.textContent = tl + ' rounds';
-          sel.insertBefore(opt, sel.querySelector('[value="custom"]'));
-          sel.value = String(tl);
-        }
-      }
+      if (turnLimitPill) turnLimitPill.setValue(tl);
       break;
     }
 
@@ -4109,11 +4226,7 @@ async function init() {
       selectedTurnLimit = mst.selected_turn_limit || 20;
       if (modelPill) modelPill.setValue(selectedModel);
       if (modePill) modePill.setValue(selectedMode);
-      const tlSel = document.getElementById('turn-limit-select');
-      if (tlSel) {
-        const match = Array.from(tlSel.options).find(o => parseInt(o.value) === selectedTurnLimit);
-        if (match) tlSel.value = String(selectedTurnLimit);
-      }
+      if (turnLimitPill) turnLimitPill.setValue(selectedTurnLimit);
     }
   } catch (_) {
     selectedModel = selectedModel || 'auto';
@@ -4127,8 +4240,7 @@ async function init() {
       const c = scfg.config;
       if (c.default_turn_limit && selectedTurnLimit === null) {
         selectedTurnLimit = c.default_turn_limit;
-        const sel = document.getElementById('turn-limit-select');
-        if (sel) sel.value = String(c.default_turn_limit);
+        if (turnLimitPill) turnLimitPill.setValue(c.default_turn_limit);
       }
     }
     if (scfg.ok && scfg.schema) {
@@ -4138,6 +4250,12 @@ async function init() {
           localStorage.setItem(s.key, String(scfg.config[s.key]));
         }
       }
+    }
+    if (scfg.ok && scfg.config && window.Collapsible) {
+      window.Collapsible.configure({
+        collapsed_lines: parseInt(localStorage.getItem('block_collapsed_lines')) || scfg.config.block_collapsed_lines || 6,
+        expanded_lines: parseInt(localStorage.getItem('block_expanded_lines')) || scfg.config.block_expanded_lines || 16,
+      });
     }
   } catch (e) { console.warn('Failed to load session config:', e); }
 

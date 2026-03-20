@@ -71,13 +71,13 @@ from logic.assistant.gui.backend.store import (
 
 from tool.LLM.logic.task.agent.conversation import ConversationManager
 
-from logic.assistant.gui.backend.keys import KeysMixin
-from logic.assistant.gui.backend.models import ModelsMixin
-from logic.assistant.gui.backend.sandbox import SandboxMixin
-from logic.assistant.gui.backend.workspace import WorkspaceMixin
-from logic.assistant.gui.backend.brain import BrainMixin
-from logic.assistant.gui.backend.edits import EditsMixin
-from logic.assistant.gui.backend.usage import UsageMixin
+from logic.assistant.gui.api.keys import KeysMixin
+from logic.assistant.gui.api.models import ModelsMixin
+from logic.assistant.gui.api.sandbox import SandboxMixin
+from logic.assistant.gui.api.workspace import WorkspaceMixin
+from logic.assistant.gui.api.brain import BrainMixin
+from logic.assistant.gui.api.edits import EditsMixin
+from logic.assistant.gui.api.usage import UsageMixin
 from logic.assistant.gui.backend.config import ConfigMixin
 
 

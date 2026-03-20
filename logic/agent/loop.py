@@ -11,7 +11,9 @@ from typing import Any, Callable, Dict, List, Optional
 from logic.agent.state import AgentSession
 from logic.agent.context import build_context
 from logic.agent.tools import BUILTIN_TOOL_DEFS, ToolHandlers, get_tool_defs_for_mode
-from logic.agent.nudge import should_nudge, build_nudge_message, build_quality_nudge, build_verify_nudge
+from logic.agent.nudge import (should_nudge, build_nudge_message,
+                                build_quality_nudge, build_verify_nudge,
+                                should_stop_exploring, STOP_EXPLORING_MSG)
 
 
 class AgentLoop:
@@ -101,6 +103,9 @@ class AgentLoop:
             consecutive_empty = 0
             MAX_CONSECUTIVE_EMPTY = 3
             full_text = ""
+            consecutive_reads = 0
+            total_writes = 0
+            stop_explore_nudged = False
 
             flushed_this_turn = False
 
@@ -210,7 +215,16 @@ class AgentLoop:
                 }
                 self._context_messages.append(assistant_msg)
 
+                round_has_write = False
+                round_is_read_only = True
                 for tc in tool_calls_accum:
+                    fn_name = tc.get("function", {}).get("name", "")
+                    if fn_name in ("edit_file", "write_file", "exec"):
+                        round_has_write = True
+                        round_is_read_only = False
+                    elif fn_name not in ("read_file", "search", "think"):
+                        round_is_read_only = False
+
                     tc_result = self._execute_tool_call(tc)
                     tool_msg = {
                         "role": "tool",
@@ -218,6 +232,22 @@ class AgentLoop:
                         "content": tc_result.get("output", ""),
                     }
                     self._context_messages.append(tool_msg)
+
+                if round_has_write:
+                    total_writes += 1
+                    consecutive_reads = 0
+                elif round_is_read_only:
+                    consecutive_reads += 1
+
+                if (self._mode == "agent" and not stop_explore_nudged
+                        and should_stop_exploring(
+                            consecutive_reads, total_writes, round_num)):
+                    self._context_messages.append(
+                        {"role": "user", "content": STOP_EXPLORING_MSG})
+                    self._emit({"type": "debug",
+                                "text": "Nudging agent to stop exploring"})
+                    stop_explore_nudged = True
+                    continue
 
             self._emit({"type": "complete"})
 

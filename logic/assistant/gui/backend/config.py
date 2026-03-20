@@ -54,6 +54,12 @@ class ConfigMixin:
         {"key": "history_context_rounds", "default": 8, "min": 1, "max": 64,
          "mode": "pow2", "tab": "chat",
          "desc": "Number of recent rounds whose full data is retained for prompt engineering."},
+        {"key": "block_collapsed_lines", "default": 6, "min": 4, "max": 10,
+         "mode": "options", "options": [4, 5, 6, 8, 10], "tab": "chat",
+         "desc": "Lines shown when a tool output block is collapsed."},
+        {"key": "block_expanded_lines", "default": 16, "min": 12, "max": 20,
+         "mode": "options", "options": [12, 14, 16, 18, 20], "tab": "chat",
+         "desc": "Lines shown when a tool output block is expanded (scroll for more)."},
     ]
 
     def _get_session_config(self) -> dict:

@@ -77,3 +77,24 @@ def build_verify_nudge(unverified: List[str]) -> Optional[str]:
         f"You wrote {len(unverified)} file(s) but never read them back. "
         f"Use read_file to confirm changes: "
         + ", ".join(os.path.basename(p) for p in unverified[:3]))
+
+
+def should_stop_exploring(consecutive_reads: int,
+                          total_writes: int,
+                          round_num: int) -> bool:
+    """Detect aimless exploration: many reads/searches with no edits.
+
+    Returns True if the agent appears to be exploring without purpose.
+    Triggers after 4+ consecutive read-only rounds with zero writes overall.
+    """
+    if total_writes > 0:
+        return False
+    return consecutive_reads >= 4 and round_num >= 4
+
+
+STOP_EXPLORING_MSG = (
+    "[System] You have read multiple files without making any changes. "
+    "If the user's prompt is a clear task, act now with edit_file or exec. "
+    "If not, provide a brief text response and STOP. "
+    "Do NOT continue exploring."
+)

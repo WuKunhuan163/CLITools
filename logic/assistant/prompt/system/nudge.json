@@ -7,6 +7,7 @@
     "described_not_applied": "You described changes but didn't apply them. First read_file to locate exact line numbers, then use edit_file with start_line, end_line, and new_text.",
     "quality_issues_prefix": "UNRESOLVED QUALITY ISSUES — fix these before finishing:\n",
     "verify_unread_writes": "You wrote {count} file(s) but never read them back to verify. Use read_file to confirm ALL requested changes are present: {files}",
-    "tool_call_loop": "You are repeating the same tool calls. Stop reading and SYNTHESIZE what you have learned so far. Respond to the user with your findings now."
+    "tool_call_loop": "You are repeating the same tool calls. Stop reading and SYNTHESIZE what you have learned so far. Respond to the user with your findings now.",
+    "stop_exploring": "You have read multiple files without making any changes. If the user's prompt is a clear task, act now with edit_file or exec. If not, provide a brief text response and STOP. Do NOT continue exploring."
   }
 }
