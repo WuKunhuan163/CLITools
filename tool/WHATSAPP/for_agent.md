@@ -1,36 +1,83 @@
 # WHATSAPP — Agent Reference
 
-## Quick Start
-```
-WHATSAPP status                      # Check link state
-WHATSAPP chats                       # List visible chats
-WHATSAPP search "John"               # Search contacts/chats by name
-WHATSAPP send +85290549853 "Hello"   # Send message by phone number
-WHATSAPP send-to "John Doe" "Hello"  # Send message by contact name
-WHATSAPP profile                     # Profile info
-```
+## Status: PARTIALLY MIGRATED (CDMCP auth only)
 
-## CDP API (`tool.WHATSAPP.logic.chrome.api`)
-- `get_auth_state()` — Check if phone is linked (QR scanned)
-- `get_chats()` — Read chat list from DOM (name, last message, time, unread count)
-- `search_contact(query)` — Search contacts/chats, returns matching names
-- `send_message(phone, message)` — Send to phone number via wa.me deep link
-- `send_to_contact(name, message)` — Send by contact name (searches, opens chat, sends)
-- `get_profile()` — Read push name and avatar status
-- `get_page_info()` — Get page title/URL
+DOM automation disabled. Only QR/link authentication state checking via CDMCP remains.
+All message operations must use the WhatsApp Cloud API.
 
-## Workflow: Send to All Contacts
-1. `WHATSAPP chats` — get list of contact names
-2. For each name: `WHATSAPP send-to "<name>" "<message>"`
+## Active Commands (CDMCP auth only)
 
-## Notes
-- Requires Chrome CDP on port 9222
-- WhatsApp Web uses QR code linking (no username/password login)
-- `send_to_contact` uses search UI to find contacts — works with partial name matches
-- `send_message` requires phone number digits (strips non-digits automatically)
+| Command | Description | Status |
+|---------|-------------|--------|
+| `WHATSAPP status` | Check QR link/authentication state | Active |
+| `WHATSAPP page` | Show current page info | Active |
+
+## Disabled Commands (ToS violation)
+
+| Command | Description | Status |
+|---------|-------------|--------|
+| `WHATSAPP chats` | List chats | **Disabled** |
+| `WHATSAPP profile` | Profile info | **Disabled** |
+| `WHATSAPP search` | Search contacts | **Disabled** |
+| `WHATSAPP send` | Send by phone number | **Disabled** |
+| `WHATSAPP send-to` | Send by contact name | **Disabled** |
 
 ## ToS Compliance
 
-**Status: HIGH RISK** -- WhatsApp explicitly prohibits "unofficial clients, auto-messaging, auto-dialing, or automation." Current implementation uses DOM scraping (52 DOM calls) which violates WhatsApp ToS. **Migration needed**: WhatsApp Cloud API or WhatsApp Business API should be used instead. CDMCP should only be retained for initial login/authentication. Account ban risk is HIGH if automation is detected.
+**Status: HIGH RISK** (DOM automation disabled)
 
-**Alternative**: WhatsApp Cloud API (requires Meta Business account) - supports sending/receiving messages, media, templates.
+WhatsApp ToS explicitly prohibits:
+> "Unofficial clients, auto-messaging, auto-dialing, or automation."
+
+### Decision Matrix
+
+| Factor | Value |
+|--------|-------|
+| ToS prohibits automation | **Yes** (explicit) |
+| Official API exists | **Yes** (WhatsApp Cloud API) |
+| Decision | **Use Cloud API; CDMCP for auth/login only** |
+
+### CDMCP Retained For
+
+- QR code scan detection (`get_auth_state()`)
+- Page info checking (`get_page_info()`)
+
+These are read-only session checks, not message automation.
+
+## Migration: WhatsApp Cloud API
+
+### Overview
+
+The WhatsApp Cloud API (hosted by Meta) provides official programmatic access:
+- Free tier: 1,000 service conversations/month
+- 80 messages/second rate limit
+- Media, templates, webhooks supported
+
+### Setup
+
+1. Create Meta Developer account at developers.facebook.com
+2. Create a "Business" type app
+3. Add WhatsApp product
+4. Get permanent System User token
+5. Add test recipient phone numbers
+
+### API Endpoints
+
+| Operation | Endpoint | Notes |
+|-----------|----------|-------|
+| Send text | POST `/v21.0/{phone_id}/messages` | body: `{type: "text", text: {body: "msg"}}` |
+| Send template | POST `/v21.0/{phone_id}/messages` | body: `{type: "template", ...}` |
+| Send media | POST `/v21.0/{phone_id}/messages` | body: `{type: "image\|document\|audio", ...}` |
+| Webhooks | Configured in Meta dashboard | Receive incoming messages |
+
+### Documentation
+
+- https://developers.facebook.com/docs/whatsapp/cloud-api/
+- https://developers.facebook.com/docs/whatsapp/getting-started/signing-up
+
+## Return Value Format
+
+```json
+{"ok": true, "authenticated": true, "url": "...", "title": "..."}
+{"ok": false, "error": "Disabled: WhatsApp ToS prohibits automated access..."}
+```

@@ -1,24 +1,35 @@
-# WHIMSICAL -- For Agent Reference
+# WHIMSICAL — Agent Reference
 
-Whimsical whiteboard & flowchart automation via CDMCP.
+## Status: STUB (no CDMCP implementation)
 
-## Quick Reference
+No CDMCP implementation. Use Whimsical Beta API for all operations.
 
-```bash
-WHIMSICAL --mcp-boot          # Boot session
-WHIMSICAL --mcp-status        # Auth & page state
-WHIMSICAL --mcp-state         # Full JSON state
-WHIMSICAL --mcp-boards        # List boards
-WHIMSICAL --mcp-explore       # DOM exploration
-```
+## ToS Compliance
 
-## Key Behaviors
+**Risk Level: MEDIUM RISK**
 
-- Uses CDMCP session management (auto-recovery, visual overlays).
-- Brand color: `#7B61FF` (Whimsical purple).
-- URL pattern: `whimsical.com`.
-- Requires active Chrome session with whimsical.com logged in.
+Whimsical ToS prohibits scraping and automated access to the service.
 
-## Development Status
+### Decision Matrix
 
-Early exploration phase. Use `--mcp-explore` to discover interactive elements and build the element brainstorming JSON.
+| Factor | Value |
+|--------|-------|
+| ToS restricts automation | **Yes** (implicit) |
+| Official API exists | **Yes** (Whimsical Beta API) |
+| Decision | **Use official API** |
+
+## Migration: Whimsical Beta API
+
+**Documentation**: https://whimsical.com/developers
+
+### Features
+
+- Workspace listing
+- Board/document CRUD
+- Export to image/PDF
+- Embed generation
+
+### Setup
+
+1. Request API access (beta program)
+1. Generate API key from workspace settings

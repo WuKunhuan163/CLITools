@@ -1,27 +1,38 @@
 # WPS — Agent Reference
 
-## Quick Start
-```
-WPS status    # Check auth state
-WPS page      # Current page info
-WPS me        # User info (requires auth)
-WPS docs      # Recent documents (requires auth)
-```
+## Status: PARTIALLY MIGRATED (CDMCP auth only)
 
-## CDP API (`tool.WPS.logic.chrome.api`)
-- `find_wps_tab()` — Locate the WPS/KDocs tab
-- `get_auth_state()` — Check authentication state
-- `get_page_info()` — Get page title/URL/heading
-- `get_user_info()` — Read name, avatar, localStorage data
-- `get_recent_docs()` — List recent documents from DOM
-
-## Notes
-- Requires Chrome CDP on port 9222
-- Searches for tabs matching `kdocs`, `wps.cn`, or `wps.com`
-- WPS login supports WeChat, QQ, and email/password
+DOM automation disabled. Only session/auth state checking via CDMCP remains.
+Use KDocs Developer Platform API for all operations.
 
 ## ToS Compliance
 
-**Status: MEDIUM RISK** -- WPS ToS prohibits unauthorized automated access. Current implementation uses DOM scraping (10 DOM calls). **Migration recommended**: KDocs Developer Platform API should be used instead (100 calls/day test, 200/day production). CDMCP should only be retained for initial login.
+**Risk Level: MEDIUM RISK**
 
-**Alternative**: WPS WebOffice Open Platform + KDocs Developer API with registered application.
+WPS ToS restricts automated access. KDocs Developer Platform provides official API.
+
+### Decision Matrix
+
+| Factor | Value |
+|--------|-------|
+| ToS restricts automation | **Yes** (implicit) |
+| Official API exists | **Yes** (KDocs Developer Platform API) |
+| Decision | **Use official API** |
+
+## Migration: KDocs Developer Platform API
+
+**Documentation**: https://open.wps.cn/
+
+### Features
+
+- Document CRUD (create, read, update, delete)
+- Spreadsheet operations
+- Presentation management
+- File sharing and permissions
+- Webhook notifications
+
+### Setup
+
+1. Register at open.wps.cn
+1. Create application
+1. Use OAuth2 for user authorization

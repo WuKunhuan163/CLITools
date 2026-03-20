@@ -1,10 +1,7 @@
-"""Yuque (语雀) operations via CDMCP (Chrome DevTools MCP).
+"""ToS-restricted: YUQUE DOM automation disabled.
 
-Uses CDMCP sessions to manage the yuque.com browser tab with
-visual overlays and MCP interaction interfaces.
-
-Pattern follows CHARTCUBE/XMIND: boot_tool_session -> require_tab -> CDPSession(ws).
-CDPSession is cached to avoid multiple WebSocket connections to the same target.
+Use official API: https://www.yuque.com/yuque/developer
+Only auth/session functions remain active.
 """
 
 import json
@@ -25,6 +22,26 @@ _session_name = "yuque"
 _yq_session = None
 _yq_cdp: Optional[CDPSession] = None
 _yq_tab_ws: Optional[str] = None
+
+
+_TOS_ERR = ("Disabled: Use Yuque official API (yuque.com/yuque/developer) instead of DOM automation.")
+
+_AUTH_FUNCS = frozenset({
+    "boot_session", "get_session_status", "get_status", "get_auth_state",
+    "get_page_info", "get_mcp_state", "take_screenshot",
+})
+
+
+def _tos_guard(func):
+    """Decorator that blocks non-auth functions with ToS error."""
+    import functools
+    if func.__name__ in _AUTH_FUNCS or func.__name__.startswith("_"):
+        return func
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return {"ok": False, "error": _TOS_ERR}
+    return wrapper
 
 
 def _debug_log(msg: str):
@@ -245,3 +262,13 @@ def scan_elements(port: int = CDP_PORT) -> Dict[str, Any]:
         return json.loads(r) if r else {"ok": False, "error": "Empty response"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+# Apply ToS guard to all public functions defined in this module
+import types as _types
+for _name in list(globals()):
+    _obj = globals()[_name]
+    if (isinstance(_obj, _types.FunctionType)
+            and not _name.startswith("_")
+            and getattr(_obj, "__module__", "") == __name__):
+        globals()[_name] = _tos_guard(_obj)
+del _types, _name, _obj

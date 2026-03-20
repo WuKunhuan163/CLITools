@@ -1,7 +1,7 @@
-"""Figma operations via CDMCP (Chrome DevTools MCP).
+"""ToS-restricted: FIGMA DOM automation disabled.
 
-Uses CDMCP sessions to manage figma.com tabs with visual overlays,
-state machine tracking, and MCP interaction interfaces.
+Use official API: https://www.figma.com/developers/api
+Only auth/session functions remain active.
 """
 
 import json
@@ -29,6 +29,26 @@ _session_name = "figma"
 _TOOL_DIR = Path(__file__).resolve().parent.parent.parent
 
 _fg_session = None
+
+
+_TOS_ERR = ("Disabled: Figma ToS prohibits scraping/automation. Use Figma REST API (api.figma.com) instead.")
+
+_AUTH_FUNCS = frozenset({
+    "boot_session", "get_session_status", "get_auth_state",
+    "get_page_info", "get_mcp_state", "take_screenshot",
+})
+
+
+def _tos_guard(func):
+    """Decorator that blocks non-auth functions with ToS error."""
+    import functools
+    if func.__name__ in _AUTH_FUNCS or func.__name__.startswith("_"):
+        return func
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return {"ok": False, "error": _TOS_ERR}
+    return wrapper
 
 
 def _load_overlay():
@@ -1578,3 +1598,13 @@ def open_quick_actions(query: str = "", port: int = CDP_PORT) -> Dict[str, Any]:
         return {"ok": True, "action": "open_quick_actions", "query": query}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+# Apply ToS guard to all public functions defined in this module
+import types as _types
+for _name in list(globals()):
+    _obj = globals()[_name]
+    if (isinstance(_obj, _types.FunctionType)
+            and not _name.startswith("_")
+            and getattr(_obj, "__module__", "") == __name__):
+        globals()[_name] = _tos_guard(_obj)
+del _types, _name, _obj

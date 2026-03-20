@@ -1,34 +1,38 @@
 # KLING — Agent Reference
 
-## Quick Start
-```
-KLING me      # User info (ID, name, email)
-KLING points  # Credit points balance
-KLING page    # Current page state
-KLING history # Generation history from DOM
-```
+## Status: PARTIALLY MIGRATED (CDMCP auth only)
 
-## CDP API (`tool.KLING.logic.chrome.api`)
-- `find_kling_tab()` — Locate the Kling AI browser tab
-- `get_user_info()` — Read user data from localStorage
-- `get_points()` — Read credit points from DOM
-- `get_page_info()` — Get current page title/URL
-- `get_generation_history()` — Read visible generation items from DOM
-
-## Notes
-- Requires Chrome CDP on port 9222
-- Data comes from localStorage and DOM (not direct API)
-- Kling's API gateway (`api-app-global.klingai.com`) blocks cross-origin fetch
-- Navigate to Assets page before calling `history` command
+DOM automation disabled. Only session/auth state checking via CDMCP remains.
+Use Kling AI API for all operations.
 
 ## ToS Compliance
 
-**Status: MEDIUM RISK -- API AVAILABLE** -- Kling AI ToS contains general misuse prohibitions. Current implementation uses DOM scraping (11 DOM calls). An official API now exists at klingapi.com with Python and Node.js SDKs.
+**Risk Level: MEDIUM RISK**
 
-**Migration path**:
-- CDMCP: Retain ONLY for session boot and auth state detection.
-- Data operations: Use Kling AI official API (https://klingapi.com/docs).
-  - Supports text-to-video, image-to-video, video extension.
-  - Async task polling, multiple model versions (O1, 2.6 Pro/Standard, 2.5 Turbo).
-  - Python SDK: `pip install kling-ai`
-- Reference: GMAIL tool shows the auth-only CDMCP pattern.
+Official API available at klingapi.com with comprehensive SDKs.
+
+### Decision Matrix
+
+| Factor | Value |
+|--------|-------|
+| ToS restricts automation | **Yes** (implicit) |
+| Official API exists | **Yes** (Kling AI API) |
+| Decision | **Use official API** |
+
+## Migration: Kling AI API
+
+**Documentation**: https://klingapi.com/
+
+### Features
+
+- Image generation (text-to-image, image-to-image)
+- Video generation (text-to-video, image-to-video)
+- Virtual try-on
+- Lip sync
+- Python/Node/Java SDKs available
+
+### Setup
+
+1. Register at klingapi.com
+1. Get API key from console
+1. Install SDK: pip install kling-ai

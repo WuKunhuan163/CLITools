@@ -1,24 +1,37 @@
-# COGGLE -- For Agent Reference
+# COGGLE — Agent Reference
 
-Coggle mind mapping automation via CDMCP.
+## Status: STUB (no CDMCP implementation)
 
-## Quick Reference
+No CDMCP implementation. Use Coggle API for all operations.
 
-```bash
-COGGLE --mcp-boot          # Boot session
-COGGLE --mcp-status        # Auth & page state
-COGGLE --mcp-state         # Full JSON state
-COGGLE --mcp-diagrams      # List diagrams
-COGGLE --mcp-explore       # DOM exploration
-```
+## ToS Compliance
 
-## Key Behaviors
+**Risk Level: LOW RISK**
 
-- Uses CDMCP session management (auto-recovery, visual overlays).
-- Brand color: `#62D0F1` (Coggle cyan).
-- URL pattern: `coggle.it`.
-- Requires active Chrome session with coggle.it logged in.
+Coggle provides official API and npm package for programmatic access.
 
-## Development Status
+### Decision Matrix
 
-Early exploration phase. Use `--mcp-explore` to discover interactive elements.
+| Factor | Value |
+|--------|-------|
+| ToS restricts automation | **Silent** |
+| Official API exists | **Yes** (Coggle API) |
+| Decision | **Use official API** |
+
+## Migration: Coggle API
+
+**Documentation**: https://coggle.it/developer
+
+### Features
+
+- Diagram CRUD (create, read, update)
+- Node manipulation (add, edit, move)
+- Branch management
+- Image/PDF export
+- npm package: coggle-js
+
+### Setup
+
+1. Get API key from coggle.it/developer
+1. npm install coggle or use REST endpoints
+1. Free for reasonable use

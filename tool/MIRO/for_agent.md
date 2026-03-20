@@ -1,24 +1,39 @@
-# MIRO -- For Agent Reference
+# MIRO — Agent Reference
 
-Miro collaborative whiteboard automation via CDMCP.
+## Status: STUB (no CDMCP implementation)
 
-## Quick Reference
+No CDMCP implementation. Use Miro REST API v2 for all operations.
 
-```bash
-MIRO --mcp-boot          # Boot session
-MIRO --mcp-status        # Auth & page state
-MIRO --mcp-state         # Full JSON state
-MIRO --mcp-boards        # List boards
-MIRO --mcp-explore       # DOM exploration
-```
+## ToS Compliance
 
-## Key Behaviors
+**Risk Level: LOW RISK**
 
-- Uses CDMCP session management (auto-recovery, visual overlays).
-- Brand color: `#FFD02F` (Miro yellow).
-- URL pattern: `miro.com`.
-- Requires active Chrome session with miro.com logged in.
+Miro provides comprehensive official REST API. No need for browser automation.
 
-## Development Status
+### Decision Matrix
 
-Early exploration phase. Use `--mcp-explore` to discover interactive elements.
+| Factor | Value |
+|--------|-------|
+| ToS restricts automation | **Silent** |
+| Official API exists | **Yes** (Miro REST API v2) |
+| Decision | **Use official API** |
+
+## Migration: Miro REST API v2
+
+**Documentation**: https://developers.miro.com/
+
+### Features
+
+- Board CRUD and sharing
+- Item management (sticky notes, shapes, text, connectors)
+- Frame management
+- Tags and comments
+- Webhooks for real-time events
+- OAuth2 authentication
+- SDKs: JavaScript, Python, Ruby
+
+### Setup
+
+1. Create app at miro.com/app/settings/user-profile/apps
+1. Use OAuth2 or token-based auth
+1. Rate limit: 100 credits/min per app

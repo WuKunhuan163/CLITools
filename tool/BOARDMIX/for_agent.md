@@ -1,24 +1,35 @@
-# BOARDMIX -- For Agent Reference
+# BOARDMIX — Agent Reference
 
-Boardmix collaborative whiteboard automation via CDMCP.
+## Status: CDMCP ACCEPTABLE (ToS silent)
 
-## Quick Reference
+DOM automation disabled. Only session/auth state checking via CDMCP remains.
+Use BoardMix SDK (partial) for all operations.
 
-```bash
-BOARDMIX --mcp-boot          # Boot session
-BOARDMIX --mcp-status        # Auth & page state
-BOARDMIX --mcp-state         # Full JSON state
-BOARDMIX --mcp-boards        # List boards
-BOARDMIX --mcp-explore       # DOM exploration
-```
+## ToS Compliance
 
-## Key Behaviors
+**Risk Level: LOW RISK**
 
-- Uses CDMCP session management (auto-recovery, visual overlays).
-- Brand color: `#4A6CF7` (Boardmix blue).
-- URL pattern: `boardmix.com`.
-- Requires active Chrome session with boardmix.com logged in.
+BoardMix ToS is silent on automation. SDK available for some operations.
 
-## Development Status
+### Decision Matrix
 
-Early exploration phase. Use `--mcp-explore` to discover interactive elements.
+| Factor | Value |
+|--------|-------|
+| ToS restricts automation | **Silent** |
+| Official API exists | **Yes** (BoardMix SDK (partial)) |
+| Decision | **Use official API** |
+
+## Migration: BoardMix SDK (partial)
+
+**Documentation**: https://boardmix.com/
+
+### Features
+
+- SDK available for board embedding
+- No comprehensive REST API documented
+- CDMCP acceptable for now with caution
+
+### Setup
+
+1. Check boardmix.com for SDK updates
+1. Monitor for official API release

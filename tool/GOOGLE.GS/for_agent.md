@@ -1,77 +1,84 @@
 # GOOGLE.GS — Agent Quick Reference
 
-## When to Use
-Use GOOGLE.GS when you need to:
-- Search academic papers on Google Scholar
-- Get citation data (BibTeX, MLA, APA, etc.) for a paper
-- Find papers that cite a specific paper
-- Discover author profiles and their publications
-- Save papers to the user's Google Scholar library
-- Get PDF download URLs for papers
+## Status: RESTRICTED (ToS Violation)
 
-## CLI Commands
+**Google Scholar's Terms of Service explicitly prohibit automated access.**
+The CDMCP browser automation implementation was removed on 2026-03-17.
 
-| Command | Description |
-|---------|-------------|
-| `GS boot` | Boot Scholar session |
-| `GS search <query> [--year-from N] [--year-to N]` | Search papers |
-| `GS results` | Re-read current results |
-| `GS next` / `GS prev` | Navigate pages |
-| `GS open --index N` | Open paper link |
-| `GS save --index N` | Save paper to library |
-| `GS cite --index N` | Get citation formats |
-| `GS cited-by --index N` | Find citing papers |
-| `GS pdf --index N` | Get PDF URL |
-| `GS filter --time YEAR` | Filter by year |
-| `GS filter --sort date` | Sort by date |
-| `GS profile` | View user's profile |
-| `GS library` | View saved papers |
-| `GS author <name>` | Search author profiles |
-| `GS state` | Get MCP state |
-| `GS screenshot [--output path]` | Take screenshot |
+## ToS Compliance
 
-## Typical Workflow
+Google Scholar operates under Google's unified Terms of Service which states:
+> "Don't misuse our Services. For example, don't interfere with our Services
+> or try to access them using a method other than the interface and the
+> instructions that we provide."
 
-```bash
-# 1. Boot session (if not already running)
-GS boot
+Specific prohibitions include:
+- Automated queries of any kind
+- Use of robots, spiders, scrapers, or other automated technology
+- Bypassing CAPTCHA or rate-limiting mechanisms
 
-# 2. Search
-GS search "attention mechanism transformer"
+**Enforcement**: Google actively blocks automated requests after ~100-200 queries.
+Users face CAPTCHA challenges and IP bans.
 
-# 3. Get citation for the top result
-GS cite --index 0
+**robots.txt**: `scholar.google.com/robots.txt` blocks most bot activity.
 
-# 4. Get PDF link
-GS pdf --index 0
+### Decision Matrix Result
 
-# 5. Explore citing papers
-GS cited-by --index 0
+| Factor | Value |
+|--------|-------|
+| ToS prohibits automation | **Yes** (explicit) |
+| Official API exists | **No** (Search Researcher API is restricted to approved academics) |
+| Decision | **Do NOT build CDMCP automation** |
 
-# 6. Find a specific author
-GS author "Yoshua Bengio"
-```
+## Alternatives
 
-## Return Value Format
+### Free / Open APIs (no ToS issues)
 
-All API functions return dicts with `ok` boolean:
-```json
-{"ok": true, "results": [...], "count": 10}
-{"ok": false, "error": "No session"}
-```
+| API | URL | Notes |
+|-----|-----|-------|
+| Semantic Scholar | https://api.semanticscholar.org/ | Free, 100 req/sec, excellent coverage |
+| OpenAlex | https://openalex.org/ | Free, open, 100k works/day |
+| Crossref | https://api.crossref.org/ | Free with polite pool, DOI-based |
+| CORE | https://core.ac.uk/services/api | Free for non-commercial, open access |
 
-Search result objects:
-```json
-{
-  "index": 0, "title": "...", "link": "https://...",
-  "authors": "...", "snippet": "...",
-  "cited": "Cited by 234175", "cited_href": "...",
-  "pdf_url": "https://...", "pdf_label": "[PDF] neurips.cc"
-}
-```
+### Paid APIs (structured Google Scholar data)
 
-## Notes
-- Results are 0-indexed (first result = index 0)
-- Session auto-boots on first operation if not already running
-- All operations use CDMCP visual effects (lock, badge, highlight)
-- The tool reuses the existing `scholar` CDMCP session
+| API | URL | Notes |
+|-----|-----|-------|
+| SerpAPI | https://serpapi.com/google-scholar-api | Paid, most complete GS mirror |
+| ScrapingBee | https://www.scrapingbee.com/ | Paid, proxy rotation |
+
+### Restricted Access
+
+| API | URL | Notes |
+|-----|-----|-------|
+| Google Search Researcher API | https://support.google.com/websearch/answer/13856826 | Accredited academics only, 1000 queries/day |
+
+## Recommendation
+
+For academic paper search functionality, integrate **Semantic Scholar API** as
+the primary provider (free, high-quality, ToS-compliant). Add **OpenAlex** as a
+secondary source. If Google Scholar-specific data is required, use **SerpAPI**
+(requires paid subscription).
+
+## Preserved Exploration Data
+
+The `data/exploration/scholar_elements.json` file documents the DOM structure
+explored during the original CDMCP development. This is preserved as reference
+material for understanding Google Scholar's UI, not for automation.
+
+## Original CLI Commands (now disabled)
+
+The following commands existed in the CDMCP implementation:
+
+| Command | Description | Status |
+|---------|-------------|--------|
+| `GS search <query>` | Search papers | **Removed** |
+| `GS results` | Re-read current results | **Removed** |
+| `GS next` / `GS prev` | Navigate pages | **Removed** |
+| `GS cite --index N` | Get citation formats | **Removed** |
+| `GS cited-by --index N` | Find citing papers | **Removed** |
+| `GS pdf --index N` | Get PDF URL | **Removed** |
+| `GS profile` | View user's profile | **Removed** |
+| `GS library` | View saved papers | **Removed** |
+| `GS author <name>` | Search author profiles | **Removed** |

@@ -1,18 +1,7 @@
-"""Lucidchart operations via CDMCP (Chrome DevTools MCP).
+"""ToS-restricted: LUCIDCHART DOM automation disabled.
 
-Uses standard CDMCP interfaces (via cdmcp_loader) for:
-  - Session management (boot_tool_session / require_tab)
-  - Visual overlays (badge, lock, focus, favicon)
-  - MCP interaction effects (mcp_click, mcp_type, mcp_navigate)
-
-All tab operations go through CDMCP session.require_tab() to ensure tabs
-open in the dedicated session window.
-
-Operations:
-  - Session: boot / status / recover
-  - Navigation: home, documents, templates, editor
-  - Editor: shapes, text, connections, selection, alignment
-  - Document: page info, layers, export
+Use official API: https://developer.lucid.co/
+Only auth/session functions remain active.
 """
 
 import json
@@ -36,6 +25,26 @@ LUCID_HOME = "https://lucid.app/documents"
 
 _TOOL_DIR = Path(__file__).resolve().parent.parent.parent
 _DATA_DIR = _TOOL_DIR / "data"
+
+
+_TOS_ERR = ("Disabled: Lucidchart ToS prohibits scraping/automation. Use Lucid API (developer.lucid.co) instead.")
+
+_AUTH_FUNCS = frozenset({
+    "boot_session", "get_session_status", "get_auth_state",
+    "get_page_info", "get_mcp_state", "take_screenshot",
+})
+
+
+def _tos_guard(func):
+    """Decorator that blocks non-auth functions with ToS error."""
+    import functools
+    if func.__name__ in _AUTH_FUNCS or func.__name__.startswith("_"):
+        return func
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return {"ok": False, "error": _TOS_ERR}
+    return wrapper
 
 
 def _overlay():
@@ -1371,3 +1380,13 @@ def rename_document(new_name: str, port: int = CDP_PORT) -> Dict[str, Any]:
         return {"ok": True, "action": "renamed", "new_name": new_name}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+# Apply ToS guard to all public functions defined in this module
+import types as _types
+for _name in list(globals()):
+    _obj = globals()[_name]
+    if (isinstance(_obj, _types.FunctionType)
+            and not _name.startswith("_")
+            and getattr(_obj, "__module__", "") == __name__):
+        globals()[_name] = _tos_guard(_obj)
+del _types, _name, _obj
