@@ -97,9 +97,9 @@ def _load_ecosystem(project_dir: Path) -> list:
 
 
 def _load_reflection(project_dir: Path) -> list:
-    """Load the system gaps section from for_agent_reflection.md for agent awareness."""
+    """Load the system gaps section from AGENT_REFLECTION.md for agent awareness."""
     parts = []
-    reflection_file = project_dir / "for_agent_reflection.md"
+    reflection_file = project_dir / "AGENT_REFLECTION.md"
     if reflection_file.exists():
         content = reflection_file.read_text(encoding="utf-8")
         for section_header in ("## Current System Gaps", "## Known Gaps"):
@@ -124,9 +124,9 @@ def _load_reflection(project_dir: Path) -> list:
                             cleaned = cleaned[:dash].strip()
                         gap_lines.append(cleaned)
                 if gap_lines:
-                    parts.append("## Known System Gaps (from for_agent_reflection.md)\n" +
+                    parts.append("## Known System Gaps (from AGENT_REFLECTION.md)\n" +
                                  "\n".join(f"- {g}" for g in gap_lines) +
-                                 "\nRead for_agent_reflection.md for full details and fix guidance.")
+                                 "\nRead AGENT_REFLECTION.md for full details and fix guidance.")
                 break
     return parts
 
@@ -173,10 +173,10 @@ def main():
         "Tools are CLI commands — run them in the terminal shell, not as Python imports. "
         "Symmetric design: tool/<NAME>/ each has main.py, logic/, interface/, tool.json. "
         "Root mirrors this: logic/ (shared), interface/ (facade, import from here), bin/ (executables), data/ (API keys/caches, gitignored), tmp/ (temp scripts, gitignored). "
-        "Every directory has README.md (users) + for_agent.md (agents) — read these for context. "
+        "Every directory has README.md (users) + AGENT.md (agents) — read these for context. "
         "Run `TOOL status` to see installed tools. "
         "Run `TOOL --search all \"query\"` to find anything. "
-        "Read for_agent.md Section 0 for the bootstrap protocol, then start working.\n\n"
+        "Read AGENT.md Section 0 for the bootstrap protocol, then start working.\n\n"
     )
 
     metacog_primer = (
@@ -185,7 +185,7 @@ def main():
         "1. **Self-Iteration**: Get faster each round. If you re-derive something, fix the discovery path.\n"
         "2. **Environment Improvement**: Fix nearby problems (docs, tests, inconsistencies) proactively.\n"
         "After each task: verify results are user-visible, scan for nearby issues, "
-        "take a proactive quality pass (see for_agent_reflection.md 'Proactive Quality Pass'), "
+        "take a proactive quality pass (see AGENT_REFLECTION.md 'Proactive Quality Pass'), "
         "record improvements via BRAIN log.\n"
     )
 

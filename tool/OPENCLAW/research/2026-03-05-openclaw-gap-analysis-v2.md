@@ -25,8 +25,8 @@ This is an OpenClaw-level task: multi-step, requires tool orchestration, error r
 | Step | Available | Quality |
 |------|-----------|---------|
 | Tool discovery | `.cursor/rules/AITerminalTools.mdc` lists all tools | Good |
-| WHATSAPP docs | `tool/WHATSAPP/logic/README.md` + `for_agent.md` | Good |
-| CDMCP session guide | `tool/GOOGLE.CDMCP/logic/for_agent.md` | Good |
+| WHATSAPP docs | `tool/WHATSAPP/logic/README.md` + `AGENT.md` | Good |
+| CDMCP session guide | `tool/GOOGLE.CDMCP/logic/AGENT.md` | Good |
 | WHATSAPP API (`get_chats()`, `send_message()`) | Implemented in `chrome/api.py` | Good |
 | Orchestration pattern | No end-to-end workflow example | **Gap** |
 | Error recovery | No retry/backoff pattern documented | **Gap** |
@@ -84,7 +84,7 @@ This is an OpenClaw-level task: multi-step, requires tool orchestration, error r
 **Fix**: 
 - Add rate limiting to CDMCP tools (`logic/cdp/rate_limit.py`)
 - Add confirmation prompts for bulk operations via USERINPUT
-- Document safe operation limits per tool in `for_agent.md
+- Document safe operation limits per tool in `AGENT.md
 
 ### 5. Self-Healing / Recovery (Minor Gap)
 
@@ -104,7 +104,7 @@ This is an OpenClaw-level task: multi-step, requires tool orchestration, error r
 
 A Sonnet-class agent can:
 - Find tools via `.cursor/rules/`
-- Read `README.md` and `for_agent.md` to understand APIs
+- Read `README.md` and `AGENT.md` to understand APIs
 - Follow the template system to create new tools
 - Record lessons via `SKILLS learn`
 
@@ -119,13 +119,13 @@ A Sonnet-class agent cannot:
 If we add:
 1. **Metacognitive skills** (task decomposition, error recovery patterns)
 2. **Recipes** (worked examples for common workflows)
-3. **Per-tool gotchas in for_agent.md** (rate limits, auth requirements, common pitfalls)
+3. **Per-tool gotchas in AGENT.md** (rate limits, auth requirements, common pitfalls)
 4. **`SKILLS introspect`** (automated behavior analysis)
 
 Then a Sonnet-class agent could:
 - Follow recipes for known workflow types
 - Apply metacognitive skills to decompose unfamiliar tasks
-- Check for_agent.md gotchas before executing
+- Check AGENT.md gotchas before executing
 - Learn from its own failures via introspection
 
 ### Development Efficiency & Robustness
@@ -147,7 +147,7 @@ Then a Sonnet-class agent could:
 |----------|--------|--------|
 | P0 | Create 3-5 multi-tool workflow recipes | Medium |
 | P0 | Add metacognitive skill: task-orchestration | Small |
-| P0 | Add rate limits and bulk operation warnings to CDMCP for_agent.md | Small |
+| P0 | Add rate limits and bulk operation warnings to CDMCP AGENT.md | Small |
 | P1 | Create metacognitive skill: error-recovery-patterns | Small |
 | P1 | Implement `SKILLS introspect` (transcript analysis) | Medium |
 | P2 | Add pre-flight check framework to ToolBase | Large |

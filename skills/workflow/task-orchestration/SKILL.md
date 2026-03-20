@@ -47,9 +47,9 @@ Before executing, check ALL prerequisites. Common ones:
 - **File tools**: Directory exists? Permissions correct?
 - **Network tools**: Internet reachable? API endpoint responding?
 
-**Critical**: Read `for_agent.md` for EACH involved tool AND its dependencies before writing any code. For CDMCP tools, also read:
-- `logic/chrome/for_agent.md` (CDPSession, open_tab, find_tab)
-- `tool/GOOGLE.CDMCP/logic/for_agent.md` (session management, rate limits)
+**Critical**: Read `AGENT.md` for EACH involved tool AND its dependencies before writing any code. For CDMCP tools, also read:
+- `logic/chrome/AGENT.md` (CDPSession, open_tab, find_tab)
+- `tool/GOOGLE.CDMCP/logic/AGENT.md` (session management, rate limits)
 - `SKILLS show recipes` (CDMCP Session Bootstrap recipe)
 
 ## Step 3: Plan Error Handling
@@ -110,7 +110,7 @@ When receiving multiple tasks from the user:
 
 When multiple tools need to work together:
 
-1. **Read each tool's `for_agent.md`** before starting
+1. **Read each tool's `AGENT.md`** before starting
 2. **Check for shared dependencies** (e.g., both need Chrome CDP)
 3. **Establish session order** (boot CDMCP -> open tab -> authenticate -> operate)
 4. **Pass data between tools** via return values or temporary files

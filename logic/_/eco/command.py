@@ -147,7 +147,7 @@ class EcoNavCommand(EcoCommand):
         print()
         checks = [
             ("README.md", info.get("has_readme")),
-            ("for_agent.md", info.get("has_for_agent")),
+            ("AGENT.md", info.get("has_for_agent")),
             ("interface/main.py", info.get("has_interface")),
             ("hooks/", info.get("has_hooks")),
             ("test/", info.get("has_tests")),
@@ -166,7 +166,7 @@ class EcoNavCommand(EcoCommand):
         print(f"\n  {self.BOLD}Actions:{self.RESET}")
         print(f"    {self.tool_name} --eco search \"{info['name']}\"  — search related knowledge")
         if info.get("has_for_agent"):
-            print(f"    Read: tool/{info['name']}/for_agent.md")
+            print(f"    Read: tool/{info['name']}/AGENT.md")
         if info.get("has_readme"):
             print(f"    Read: tool/{info['name']}/README.md")
         print()

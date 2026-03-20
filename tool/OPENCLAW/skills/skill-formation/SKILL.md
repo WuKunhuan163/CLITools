@@ -115,7 +115,7 @@ TOOL_NAME --skills search "keywords"
 These are all about the same pattern (git binary resolution),
 they're cross-tool (affects GIT, USERINPUT, PYTHON, FONT), and
 they involve judgment (knowing WHEN to use the helper). This
-justifies a skill, not just a for_agent.md rule.
+justifies a skill, not just a AGENT.md rule.
 
 But wait — the fix is also mechanical (replace hardcoded path with
 helper call). So the skill should include a script:
@@ -135,7 +135,7 @@ cross-tool-binaries/
   patterns. One-off procedures belong in README or documentation.
 - **500+ line SKILL.md**: Split into scripts/ and references/. The
   body should be guidance, not a manual.
-- **Skill that duplicates a tool's for_agent.md**: If it's only
-  relevant to one tool, extend for_agent.md instead.
+- **Skill that duplicates a tool's AGENT.md**: If it's only
+  relevant to one tool, extend AGENT.md instead.
 - **Creating a skill without checking lessons first**: Skills should
   emerge FROM lessons, not be imagined from scratch.

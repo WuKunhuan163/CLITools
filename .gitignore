@@ -4,8 +4,7 @@
 !/setup.py
 !/tool.json
 !/README.md
-!/for_agent.md
-!/AGENTS.md
+!/AGENT.md
 
 # --- Framework Directories ---
 !/logic/

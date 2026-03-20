@@ -441,7 +441,7 @@ def migrate_one(harness_name, force=False, use_local=True):
     (tool_path / "tool.json").write_text(tool_json)
 
     for_agent = _generate_for_agent(tool_name, harness_name, meta, commands)
-    (tool_path / "for_agent.md").write_text(for_agent)
+    (tool_path / "AGENT.md").write_text(for_agent)
 
     readme = f"# {tool_name}\n\n"
     if meta.get("description"):
@@ -460,7 +460,7 @@ def migrate_one(harness_name, force=False, use_local=True):
         "metadata": meta,
         "click_tree": click_tree,
         "commands_detected": commands,
-        "auto_generated": ["main.py", "tool.json", "for_agent.md", "README.md"],
+        "auto_generated": ["main.py", "tool.json", "AGENT.md", "README.md"],
         "post_processing": [
             "Move core logic from data/upstream/ into logic/",
             "Rewrite main.py with argparse (replace Click)",

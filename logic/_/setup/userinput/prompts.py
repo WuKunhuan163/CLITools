@@ -25,7 +25,7 @@ UNIVERSAL_PROMPTS: List[str] = [
         "Subsequent parts are complements. No emojis."
     ),
     (
-        "Frequently refine README.md and for_agent.md. "
+        "Frequently refine README.md and AGENT.md. "
         "When creating skills, tools, or tests, always consider "
         "discoverability for context-free agents."
     ),
@@ -35,7 +35,7 @@ UNIVERSAL_PROMPTS: List[str] = [
     ),
     (
         "When switching to a new task, first search relevant "
-        "README.md, for_agent.md, and skill files before implementation."
+        "README.md, AGENT.md, and skill files before implementation."
     ),
 ]
 

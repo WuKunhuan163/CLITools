@@ -18,7 +18,7 @@
 
 ### Areas for Improvement
 
-1. **Documentation Density**: README.md and for_agent.md contain detailed but dense information. The SKILLS migration will help (moving specifics to skills).
+1. **Documentation Density**: README.md and AGENT.md contain detailed but dense information. The SKILLS migration will help (moving specifics to skills).
 
 2. **Test Coverage**: Not all tools have comprehensive unit tests. The mandatory `test_00_help.py` is a good baseline, but integration tests are sparse.
 

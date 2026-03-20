@@ -2,7 +2,7 @@
 
 Constructs a structured context payload that gives a context-free agent
 enough information to operate effectively in the AITerminalTools ecosystem
-on its very first turn — without needing to read for_agent.md first.
+on its very first turn — without needing to read AGENT.md first.
 
 The payload has these sections:
   - project_summary: What AITerminalTools is and its core philosophy
@@ -72,7 +72,7 @@ def build_ecosystem_info(
         "Tool name = command (GIT, PYTHON, SEARCH). "
         "Architecture: tool/<NAME>/{{main.py, logic/, interface/}}. "
         "Shared: logic/ (internal), interface/ (facade). "
-        "Docs: README.md (usage), for_agent.md (internals)."
+        "Docs: README.md (usage), AGENT.md (internals)."
     )
 
     # -- Exploration guide (compact) --
@@ -81,7 +81,7 @@ def build_ecosystem_info(
         "Tool info: exec 'TOOL --eco tool <NAME>'. "
         "Load skill: exec 'TOOL --eco skill <name>'. "
         "Onboarding: exec 'TOOL --eco guide'. "
-        "Read docs: read_file('tool/<NAME>/for_agent.md'). "
+        "Read docs: read_file('tool/<NAME>/AGENT.md'). "
         f"Installed: {', '.join(top_tools[:8])}"
         + (f" +{tool_count - 8} more" if tool_count > 8 else "")
         + "."
@@ -90,7 +90,7 @@ def build_ecosystem_info(
     # -- Rationale (compact mental models) --
     rationale = {
         "tools": "Tool = integrated workflow (tool/<NAME>/{main.py, logic/, interface/}). Name IS the command. Fix bugs directly, don't work around them.",
-        "docs": "README.md=usage, for_agent.md=architecture, for_agent_reflection.md=self-improvement protocol, SKILL.md=best practice. Import from interface.*, never logic.* directly. Create interface/main.py for reusable cross-tool APIs.",
+        "docs": "README.md=usage, AGENT.md=architecture, AGENT_REFLECTION.md=self-improvement protocol, SKILL.md=best practice. Import from interface.*, never logic.* directly. Create interface/main.py for reusable cross-tool APIs.",
         "memory": "Persistent lessons in runtime/experience/. Search: exec 'TOOL --search lessons \"keywords\"'. Record: experience(lesson=..., tool=...).",
         "evolution": "Errors -> Lessons -> Skills -> Infrastructure -> Better Tools. Each fix makes the ecosystem permanently smarter.",
     }
@@ -109,10 +109,10 @@ def build_ecosystem_info(
         "BEFORE any task: exec 'TOOL --eco search \"task keywords\"' to find tools/lessons/skills. Never code blindly.",
         "Search before creating: no duplicate tools, skills, or lessons. Improve existing ones.",
         "Act immediately. Interleave actions with 1-line status: 'Reading config... Found 3 endpoints. Testing...'",
-        "If a tool errors: (1) read its source code and for_agent.md, (2) fix the bug directly and retry, (3) if unfixable, search for alternatives via TOOL --eco search, (4) if still stuck, ask the user. Ecosystem tools (TOOL, BRAIN, SKILLS) can have bugs too — treat them the same way. Record: experience(lesson=..., tool=...).",
+        "If a tool errors: (1) read its source code and AGENT.md, (2) fix the bug directly and retry, (3) if unfixable, search for alternatives via TOOL --eco search, (4) if still stuck, ask the user. Ecosystem tools (TOOL, BRAIN, SKILLS) can have bugs too — treat them the same way. Record: experience(lesson=..., tool=...).",
         "PIVOT: If 3+ attempts with the same approach fail, STOP and rethink strategy. Search for alternative tools/patterns. Consider equivalent but different paths (browser→API, GUI→CLI, manual→script). Record the failure pattern via SKILLS learn. Build compensatory infrastructure when a persistent limitation is found.",
         "Promote knowledge: 3+ lessons on same theme -> create skill. Accumulated skills -> infrastructure.",
-        "After changes: update tool's README.md + for_agent.md. Document new infrastructure.",
+        "After changes: update tool's README.md + AGENT.md. Document new infrastructure.",
         "Complete ALL tasks before stopping. User must confirm satisfaction.",
         "Prefer tool calls over reading files. exec 'TOOL --eco search X' finds anything.",
         "You may be interrupted at any round. Proactively record key findings via experience() so progress is never lost.",

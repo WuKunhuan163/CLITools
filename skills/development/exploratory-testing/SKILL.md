@@ -52,7 +52,7 @@ def log(msg, data=None):
 ### 3. Document Findings
 
 When you discover the correct approach, document it:
-- Update the tool's `README.md` or `for_agent.md`
+- Update the tool's `README.md` or `AGENT.md`
 - If the finding is a reusable pattern, create or update a skill
 - If it reveals a bug, capture a lesson via `SKILLS learn`
 

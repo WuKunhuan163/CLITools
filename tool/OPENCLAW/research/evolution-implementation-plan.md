@@ -2,7 +2,7 @@
 
 ## Design Principle
 
-We do NOT need to replicate OpenClaw's file-as-brain architecture verbatim. Cursor already provides context injection via `.cursor/rules/`, `for_agent.md`, and skills. Our approach: **build the introspection and evolution loop as tools, leveraging our existing infrastructure**.
+We do NOT need to replicate OpenClaw's file-as-brain architecture verbatim. Cursor already provides context injection via `.cursor/rules/`, `AGENT.md`, and skills. Our approach: **build the introspection and evolution loop as tools, leveraging our existing infrastructure**.
 
 ## Architecture
 
@@ -42,8 +42,8 @@ Agent Transcripts (agent-transcripts/*.jsonl)
 | Function | Our Implementation |
 |----------|-------------------|
 | Agent identity | `.cursor/rules/AITerminalTools.mdc` (always loaded) |
-| Workspace conventions | `for_agent.md` (always loaded) |
-| Tool-specific knowledge | `tool/<NAME>/for_agent.md` |
+| Workspace conventions | `AGENT.md` (always loaded) |
+| Tool-specific knowledge | `tool/<NAME>/AGENT.md` |
 | Institutional memory | `runtime/experience/lessons.jsonl` |
 | Session raw data | `agent-transcripts/*.jsonl` |
 | Curated skills | `skills/core/*/SKILL.md` |
@@ -81,7 +81,7 @@ All implemented as subcommands of the existing `SKILLS` tool:
 
 #### `SKILLS suggest [--focus security|performance|quality]`
 - Based on analysis, generates typed suggestions:
-  - `rule`: Propose a new `for_agent.md` entry
+  - `rule`: Propose a new `AGENT.md` entry
   - `hook`: Propose a new pre-commit check
   - `skill`: Propose a new skill document
 - Each suggestion has: id, type, confidence (0-1), content, evidence

@@ -14,7 +14,7 @@ Filesystem layout:
                 episodic/
                 MANIFEST.md
             README.md          # Auto-generated workspace overview
-            for_agent.md       # Agent guidance for this workspace
+            AGENT.md       # Agent guidance for this workspace
 """
 import hashlib
 import json
@@ -255,12 +255,12 @@ class WorkspaceManager:
             f"│   ├── knowledge/    # Lessons\n"
             f"│   └── episodic/     # Personality, memory, daily logs\n"
             f"├── README.md         # This file\n"
-            f"└── for_agent.md      # Agent guidance\n```\n",
+            f"└── AGENT.md      # Agent guidance\n```\n",
             encoding="utf-8",
         )
 
     def _write_for_agent(self, ws_id: str, meta: Dict):
-        fa = self.ws_root / ws_id / "for_agent.md"
+        fa = self.ws_root / ws_id / "AGENT.md"
         fa.write_text(
             f"# Workspace Agent Guide: {meta['name']}\n\n"
             f"This workspace targets `{meta['path']}`.\n\n"

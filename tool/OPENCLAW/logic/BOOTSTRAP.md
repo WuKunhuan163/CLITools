@@ -22,7 +22,7 @@ To learn a specific tool:
 exec(command="--openclaw-tool-help TOOLNAME")
 ```
 
-This returns the tool's `README.md` and `for_agent.md` -- everything you need to use it.
+This returns the tool's `README.md` and `AGENT.md` -- everything you need to use it.
 
 ## How You Execute
 
@@ -214,7 +214,7 @@ If no tool matches the needed capability:
 
 1. First search thoroughly: `exec(command="TOOL --search tools \"what you need\"")`
 2. Check interfaces too: `exec(command="TOOL --search interfaces \"what you need\"")`
-3. Check if an existing tool can be extended (read its `for_agent.md`).
+3. Check if an existing tool can be extended (read its `AGENT.md`).
 4. **Assess necessity**: Does this task justify building a tool?
    - **Yes**: The task is recurring, complex, or benefits from encapsulation.
    - **No**: A one-off shell command or script is sufficient.

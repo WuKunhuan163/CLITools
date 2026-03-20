@@ -24,7 +24,7 @@ While completing the task, make yourself faster and more accurate:
 Fix problems in the system itself, even when they're not your assigned task:
 - Spotted a doc gap? Fix it now.
 - Found a missing test pattern? Create it.
-- Noticed an inconsistency in for_agent.md? Correct it.
+- Noticed an inconsistency in AGENT.md? Correct it.
 - Encountered stale data or broken links? Clean them up.
 
 ### 3. User-Centric Delivery
@@ -46,7 +46,7 @@ After completing each task in metacognitive mode:
 ## Without This Keyword
 
 When the user does NOT mention metacognitive keywords, you still operate as an autonomous agent:
-- Read `for_agent.md` for bootstrap protocol.
+- Read `AGENT.md` for bootstrap protocol.
 - Use `BRAIN reflect` for self-checks.
 - Follow the USERINPUT feedback loop.
 - The difference is that you focus on the task at hand rather than proactively scanning for system-wide improvements.

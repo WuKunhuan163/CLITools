@@ -9,7 +9,7 @@ Symmetry is the architectural principle that makes this ecosystem navigable. Whe
 
 ## The Principle
 
-**Information entropy decreases when structure is predictable.** If you've seen one tool directory, you know the shape of all tool directories. If you've read one `for_agent.md`, you know where to find guidance in any directory. This predictability is not accidental — it's designed.
+**Information entropy decreases when structure is predictable.** If you've seen one tool directory, you know the shape of all tool directories. If you've read one `AGENT.md`, you know where to find guidance in any directory. This predictability is not accidental — it's designed.
 
 ## Symmetry Layers
 
@@ -28,7 +28,7 @@ tool/<NAME>/
 ├── data/              # Persistent data (gitignored)
 ├── translation/       # Localization strings
 ├── README.md          # User documentation
-└── for_agent.md       # Agent documentation
+└── AGENT.md       # Agent documentation
 ```
 
 Root mirrors this: `logic/`, `interface/`, `hooks/`, `test/`, `data/`, `skills/`, `runtime/`.
@@ -46,7 +46,7 @@ Consistent naming eliminates guesswork:
 | Interfaces | `interface/main.py` | Public API for cross-tool use |
 | Metadata | `tool.json` | Tool configuration |
 | User docs | `README.md` | Every directory |
-| Agent docs | `for_agent.md` | Every directory |
+| Agent docs | `AGENT.md` | Every directory |
 | Resource files | `logo.svg` | Not `icon.png`, `favicon.ico`, etc. |
 | Test files | `test_<module>.py` | Mirror the module being tested |
 
@@ -71,8 +71,8 @@ Every directory has three potential documentation layers:
 | File | Audience | Purpose |
 |------|----------|---------|
 | `README.md` | Humans | What this is, how to use it |
-| `for_agent.md` | Agents | How to work with it, what to watch for |
-| `for_agent_reflection.md` | Self-improvement | Known gaps, improvement opportunities |
+| `AGENT.md` | Agents | How to work with it, what to watch for |
+| `AGENT_REFLECTION.md` | Self-improvement | Known gaps, improvement opportunities |
 
 Not every directory needs all three. But when they exist, their role is predictable.
 
@@ -80,7 +80,7 @@ Not every directory needs all three. But when they exist, their role is predicta
 
 Skills are organized as a dictionary tree. Each directory level has:
 - `README.md` — What you'll find here
-- `for_agent.md` — Navigation guide (what's below, what's above)
+- `AGENT.md` — Navigation guide (what's below, what's above)
 - Subdirectories — each containing either more subdirectories or a `SKILL.md`
 
 This makes skills browsable by hierarchy, searchable by name, and navigable by agents who don't know the exact skill they need.
@@ -119,7 +119,7 @@ Symmetry is a strong default, not an absolute rule. Break it when:
 - The symmetric structure would create empty, misleading directories
 - Performance requires a non-standard layout
 
-When breaking symmetry, document why in `for_agent.md`.
+When breaking symmetry, document why in `AGENT.md`.
 
 ## Audit
 

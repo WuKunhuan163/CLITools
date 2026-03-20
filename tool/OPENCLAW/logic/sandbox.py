@@ -294,7 +294,7 @@ def _handle_openclaw_tool_help(parts: list) -> Dict[str, Any]:
             for t in sorted(os.listdir(tool_dir)):
                 if is_path_protected(str(tool_dir / t)):
                     continue
-                fa = tool_dir / t / "for_agent.md"
+                fa = tool_dir / t / "AGENT.md"
                 tj = tool_dir / t / "tool.json"
                 desc = ""
                 if tj.exists():
@@ -308,7 +308,7 @@ def _handle_openclaw_tool_help(parts: list) -> Dict[str, Any]:
     tool_name = parts[1].upper()
     if is_path_protected(str(root / "tool" / tool_name)):
         return {"ok": False, "error": f"Access denied: tool '{tool_name}' is protected"}
-    for fname in ("for_agent.md", "README.md"):
+    for fname in ("AGENT.md", "README.md"):
         fpath = root / "tool" / tool_name / fname
         if fpath.exists():
             try:

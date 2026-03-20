@@ -100,8 +100,8 @@ class SkillsCommand(EcoCommand):
         # Show current location (pwd)
         print(f"\n  {self.BOLD}📂 {rel}/{self.RESET}")
 
-        # Show for_agent.md guidance if available
-        fa = target / "for_agent.md"
+        # Show AGENT.md guidance if available
+        fa = target / "AGENT.md"
         if fa.exists():
             lines = fa.read_text().splitlines()
             guidance = []

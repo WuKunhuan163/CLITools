@@ -58,7 +58,7 @@ The measure of self-iteration is not how many tasks were completed, but how much
 
 A meta-agent does not limit itself to the assigned task. While working, it observes:
 
-- **Documentation gaps**: "I had to read source code to understand this module. There should be a for_agent.md here." → Creates it.
+- **Documentation gaps**: "I had to read source code to understand this module. There should be a AGENT.md here." → Creates it.
 - **Structural asymmetries**: "This tool has `logic/` but no `interface/main.py`. Cross-tool consumers can't use it." → Adds the interface.
 - **Dead code**: "This file was imported nowhere." → Deletes it.
 - **Naming inconsistencies**: "Three different names for the same concept." → Unifies them.

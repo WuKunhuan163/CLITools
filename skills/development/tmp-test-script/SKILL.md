@@ -71,7 +71,7 @@ if __name__ == "__main__":
 **When purpose is achieved:**
 1. Test passed / bug fixed → **delete** the script and data
 2. Prototype validated → **promote** code to its proper location (e.g., `logic/`, `test/`), then delete the tmp file
-3. Exploration complete → **record** findings in a report (`data/report/` or `for_agent.md`), then delete
+3. Exploration complete → **record** findings in a report (`data/report/` or `AGENT.md`), then delete
 
 **Periodic cleanup:**
 - Before starting a new major task, scan `tmp/` for stale files

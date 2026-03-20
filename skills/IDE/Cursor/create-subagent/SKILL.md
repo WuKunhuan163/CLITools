@@ -56,7 +56,7 @@ SKILLS search "error recovery"       # Search skills
 TOOL --search tools "LFS"            # Search tool docs
 ```
 
-Or use `Grep`/`Glob` directly on `**/for_agent.md` and `**/README.md` patterns.
+Or use `Grep`/`Glob` directly on `**/AGENT.md` and `**/README.md` patterns.
 
 ## When to Use Subagents
 

@@ -201,7 +201,7 @@ def build_ecosystem_graph(root: Path) -> ActionGraph:
     graph.add_node("act:edit_brain", "action", "edit brain paths",
                    "Reading or writing brain instance data")
     graph.add_node("act:edit_documentation", "action", "edit documentation",
-                   "Modifying README.md, for_agent.md, or for_agent_reflection.md")
+                   "Modifying README.md, AGENT.md, or AGENT_REFLECTION.md")
     graph.add_node("act:delete_symlink", "action", "delete symlink",
                    "Removing a symbolic link via rm or unlink")
     graph.add_node("act:install_tool", "action", "install tool",
@@ -226,7 +226,7 @@ def build_ecosystem_graph(root: Path) -> ActionGraph:
     # --- File nodes ---
     graph.add_node("file:git_manager", "file", "logic/git/manager.py",
                    "GitIgnoreManager with base_patterns")
-    graph.add_node("file:for_agent", "file", "for_agent.md",
+    graph.add_node("file:for_agent", "file", "AGENT.md",
                    "Bootstrap guide, Section 9 covers gitignore")
     graph.add_node("file:tool_template", "file", "logic/tool/template/",
                    "Template files for TOOL --dev create")
@@ -306,9 +306,9 @@ def build_ecosystem_graph(root: Path) -> ActionGraph:
                    "Semantic search across tools, skills, interfaces")
     graph.add_node("sys:skills_list", "system", "SKILLS list",
                    "Skill catalog with descriptions and categories")
-    graph.add_node("sys:for_agent_md", "system", "for_agent.md bootstrap",
+    graph.add_node("sys:for_agent_md", "system", "AGENT.md bootstrap",
                    "Section 0 bootstraps agent with ecosystem overview")
-    graph.add_node("sys:for_agent_reflection", "system", "for_agent_reflection.md",
+    graph.add_node("sys:for_agent_reflection", "system", "AGENT_REFLECTION.md",
                    "Self-check protocol, system gaps, reflexive awareness")
     graph.add_node("sys:brain_commands", "system", "BRAIN commands",
                    "log, reflect, recall, snapshot, digest")
@@ -324,7 +324,7 @@ def build_ecosystem_graph(root: Path) -> ActionGraph:
                    "logic/setup/ide_detect.py — auto-detect and configure IDE")
 
     # --- File support nodes ---
-    graph.add_node("file:for_agent_reflection", "file", "for_agent_reflection.md",
+    graph.add_node("file:for_agent_reflection", "file", "AGENT_REFLECTION.md",
                    "Root-level self-check protocol and gap tracking")
     graph.add_node("file:ide_detect", "file", "logic/setup/ide_detect.py",
                    "IDE auto-detection and hook deployment")
@@ -338,7 +338,7 @@ def build_ecosystem_graph(root: Path) -> ActionGraph:
 
     # --- Edges: convention dimension ---
     graph.add_edge("probe:convention", "sys:for_agent_md", "taught_by",
-                   note="Symmetric dirs, import rules in for_agent.md")
+                   note="Symmetric dirs, import rules in AGENT.md")
     graph.add_edge("probe:convention", "sys:symmetric_dirs", "requires_check")
     graph.add_edge("probe:convention", "sys:import_rules", "requires_check")
 

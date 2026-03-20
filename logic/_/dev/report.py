@@ -45,7 +45,7 @@ def list_reports(scope: str = "root") -> list:
 
 
 def view_file(scope: str, filename: str) -> Optional[str]:
-    """Read a specific file (README.md, for_agent.md, or report/xxx.md)."""
+    """Read a specific file (README.md, AGENT.md, or report/xxx.md)."""
     target = _resolve_target(scope)
     if filename.startswith("report/"):
         path = target / filename
@@ -69,7 +69,7 @@ def create_report(scope: str, topic: str, content: str) -> str:
 
 
 def edit_doc(scope: str, filename: str, content: str) -> str:
-    """Write or overwrite a documentation file (README.md, for_agent.md, etc.)."""
+    """Write or overwrite a documentation file (README.md, AGENT.md, etc.)."""
     target = _resolve_target(scope)
     path = target / filename
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -119,7 +119,7 @@ def list_docs(scope: str) -> dict:
     readme = target / "README.md"
     if readme.exists():
         result["readme"] = str(readme)
-    for_agent = target / "for_agent.md"
+    for_agent = target / "AGENT.md"
     if for_agent.exists():
         result["for_agent"] = str(for_agent)
     result["reports"] = list_reports(scope)

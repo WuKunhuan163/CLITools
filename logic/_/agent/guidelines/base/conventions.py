@@ -20,13 +20,13 @@ def get_guidelines():
             ],
             "exploration": [
                 "Before implementing: search for existing skills/tools via TOOL --search all 'query'.",
-                "Read for_agent.md for tool internals before extending or debugging a tool.",
+                "Read AGENT.md for tool internals before extending or debugging a tool.",
                 "Use SKILLS show <name> to load relevant skills; check skills-index for the master list.",
                 "Prefer extending existing implementations over creating new ones (avoid-duplicate-implementations).",
             ],
             "quality": [
                 "Fix bugs directly in source — don't work around them. Escalation: read source → fix → retry → search alternatives → ask user.",
-                "Update README.md and for_agent.md after structural changes.",
+                "Update README.md and AGENT.md after structural changes.",
                 "Run TOOL --audit code and TOOL --lang audit to verify quality.",
                 "Use tmp/ scripts for exploratory testing before committing changes.",
                 "Pre-commit hooks must pass before any commit (severity: BLOCK).",
@@ -40,7 +40,7 @@ def get_guidelines():
                 "During Harden: distill knowledge (lessons → skills → automated infrastructure → hooks). Don't leave mechanical knowledge as prose.",
             ],
             "self_improvement": [
-                "Read for_agent_reflection.md after task completion — compare your behavior against the self-check protocol and fix any system gaps you find.",
+                "Read AGENT_REFLECTION.md after task completion — compare your behavior against the self-check protocol and fix any system gaps you find.",
                 "Run self-audit after major changes: check for new lessons to capture.",
                 "Review skills-index periodically for outdated or redundant skills.",
                 "Propose infrastructure upgrades when manual patterns become repetitive.",

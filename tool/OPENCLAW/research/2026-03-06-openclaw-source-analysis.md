@@ -39,7 +39,7 @@ The system prompt is constructed from these sections, in order:
 OpenClaw loads these files from `~/.openclaw/workspace/` and embeds them:
 
 ```
-AGENTS.md   - Agent rules, workspace conventions (like our for_agent.md)
+AGENTS.md   - Agent rules, workspace conventions (like our AGENT.md)
 SOUL.md     - Personality, tone, communication style
 TOOLS.md    - User-facing tool usage guidance
 IDENTITY.md - Agent name/identity
@@ -138,7 +138,7 @@ OpenClaw relies on:
 
 Our project's advantage:
 - We have more specialized tools (CDMCP, GOOGLE.*, WHATSAPP, etc.)
-- We have a richer skill system with `for_agent.md` per-tool docs
+- We have a richer skill system with `AGENT.md` per-tool docs
 - We have experience/lesson capture (`SKILLS learn`)
 - OPENCLAW provides a sandboxed execution environment
 
@@ -158,7 +158,7 @@ Our project's advantage:
 |---------|----------|-------------------|
 | Skills in system prompt | Mandatory scan | ✅ Implemented in `protocol.py` |
 | Memory recall | `memory_search` tool | Partially (learnings file) |
-| Bootstrap files | AGENTS.md, SOUL.md, etc. | Use `for_agent.md` + skills |
+| Bootstrap files | AGENTS.md, SOUL.md, etc. | Use `AGENT.md` + skills |
 | Heartbeat | Periodic self-check | TODO: Implement in pipeline |
 | Sandbox | Docker-based | ✅ Process-level in `sandbox.py` |
 | Sub-agents | Codex/Claude Code | Future: Support multiple backends |

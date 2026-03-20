@@ -23,7 +23,7 @@ Refactor when you observe any of these:
 | **Feature pile-up** | Unrelated features in the same module | Separate into distinct modules |
 | **Repeated patterns** | Same 5+ lines appearing in 3+ places | Extract into shared utility |
 | **Missing interface** | External code reaches into internal implementation | Create `interface/main.py` facade |
-| **Missing documentation** | Directory has code but no README.md or for_agent.md | Add navigation docs immediately |
+| **Missing documentation** | Directory has code but no README.md or AGENT.md | Add navigation docs immediately |
 | **Hard-coded assets** | URLs, paths, or resources embedded in logic | Move to config, data/, or resource files |
 
 ## The Three-Layer Architecture
@@ -44,7 +44,7 @@ The assistant system's development history is a textbook example of what happens
 
 ### Provider/Model Directory Chaos
 
-The LLM subsystem (`tool/LLM/logic/`) had models nested inside providers nested inside models. No `info.json` to record critical metadata like rate limits. No README.md or for_agent.md, so developers couldn't discover what each component did or how to use it. No interface layer, so the assistant GUI reached directly into provider internals.
+The LLM subsystem (`tool/LLM/logic/`) had models nested inside providers nested inside models. No `info.json` to record critical metadata like rate limits. No README.md or AGENT.md, so developers couldn't discover what each component did or how to use it. No interface layer, so the assistant GUI reached directly into provider internals.
 
 **Lesson:** Every discrete component (a model, a provider, a tool) needs its own metadata file, its own documentation, and its own interface. The cost of adding these upfront is trivial compared to the cost of debugging an undocumented system.
 
@@ -77,7 +77,7 @@ Call records, session history, and rate-limit state were stored in flat files. T
 When reviewing or creating code, verify:
 
 - [ ] No file exceeds 300 lines of logic (excluding tests and generated code)
-- [ ] Every directory has README.md + for_agent.md
+- [ ] Every directory has README.md + AGENT.md
 - [ ] Every cross-tool API goes through `interface/main.py`
 - [ ] No duplicate implementations (run `TOOL --audit code` and search before creating)
 - [ ] Flat directories with >8 entries are grouped into subdirectories

@@ -829,7 +829,7 @@ class ToolBase:
                     print()
                     for label, ok in [
                         ("README.md", info.get("has_readme")),
-                        ("for_agent.md", info.get("has_for_agent")),
+                        ("AGENT.md", info.get("has_for_agent")),
                         ("interface/main.py", info.get("has_interface")),
                         ("hooks/", info.get("has_hooks")),
                         ("test/", info.get("has_tests")),
@@ -843,7 +843,7 @@ class ToolBase:
                     print(f"\n  {BOLD}Actions:{RESET}")
                     print(f"    {self.tool_name} --eco search \"query\"")
                     if info.get("has_for_agent"):
-                        print(f"    Read: tool/{self.tool_name}/for_agent.md")
+                        print(f"    Read: tool/{self.tool_name}/AGENT.md")
                     print()
                 else:
                     print(f"  {BOLD}{self.tool_name}{RESET}: no tool info available.")

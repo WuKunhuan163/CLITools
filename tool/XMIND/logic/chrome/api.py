@@ -27,7 +27,7 @@ XMIND_HOME = "https://app.xmind.com"
 _session_name = "xmind"
 
 # TODO: Migrate to XMind SDK (npm: xmind) for file operations.
-# UI automation violates XMind ToS. See for_agent.md ## ToS Compliance.
+# UI automation violates XMind ToS. See AGENT.md ## ToS Compliance.
 _TOS_ERR = "Disabled: XMind ToS prohibits external tools and UI automation. Use XMind SDK instead."
 
 _CDMCP_TOOL_DIR = Path(__file__).resolve().parent.parent.parent.parent / "GOOGLE.CDMCP"

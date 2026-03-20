@@ -7,13 +7,13 @@ Browser-based GUI blueprints for AITerminalTools. Each blueprint is a self-conta
 ```
 html/
   __init__.py
-  for_agent.md         Agent reference
+  AGENT.md         Agent reference
   README.md            This file
   blueprint/
     chatbot/           Multi-session chatbot with sidebar
       index.html       SPA: sidebar + chat + WebSocket client
       server.py        ChatbotServer: HTTP + WebSocket bridge
-      for_agent.md     Blueprint documentation
+      AGENT.md     Blueprint documentation
 ```
 
 ## Comparison with Tkinter Blueprints
@@ -32,5 +32,5 @@ html/
 1. Create `blueprint/<name>/` directory
 2. Add `index.html` (standalone SPA)
 3. Add `server.py` with a server class
-4. Add `for_agent.md` documentation
+4. Add `AGENT.md` documentation
 5. Add `__init__.py`

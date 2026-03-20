@@ -30,7 +30,7 @@
       "id": "act:edit_documentation",
       "type": "action",
       "label": "edit documentation",
-      "description": "Modifying README.md, for_agent.md, or for_agent_reflection.md"
+      "description": "Modifying README.md, AGENT.md, or AGENT_REFLECTION.md"
     },
     {
       "id": "act:delete_symlink",
@@ -95,7 +95,7 @@
     {
       "id": "file:for_agent",
       "type": "file",
-      "label": "for_agent.md",
+      "label": "AGENT.md",
       "description": "Bootstrap guide, Section 9 covers gitignore"
     },
     {
@@ -191,13 +191,13 @@
     {
       "id": "sys:for_agent_md",
       "type": "system",
-      "label": "for_agent.md bootstrap",
+      "label": "AGENT.md bootstrap",
       "description": "Section 0 bootstraps agent with ecosystem overview"
     },
     {
       "id": "sys:for_agent_reflection",
       "type": "system",
-      "label": "for_agent_reflection.md",
+      "label": "AGENT_REFLECTION.md",
       "description": "Self-check protocol, system gaps, reflexive awareness"
     },
     {
@@ -239,7 +239,7 @@
     {
       "id": "file:for_agent_reflection",
       "type": "file",
-      "label": "for_agent_reflection.md",
+      "label": "AGENT_REFLECTION.md",
       "description": "Root-level self-check protocol and gap tracking"
     },
     {
@@ -443,7 +443,7 @@
       "target": "sys:for_agent_md",
       "relation": "taught_by",
       "weight": 1.0,
-      "note": "Symmetric dirs, import rules in for_agent.md"
+      "note": "Symmetric dirs, import rules in AGENT.md"
     },
     {
       "source": "probe:convention",

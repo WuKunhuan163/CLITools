@@ -20,7 +20,7 @@ These traits co-evolve like human civilization's relationship with tools: create
 
 ## For AI Agents
 
-**If you are an AI assistant working in this codebase, read [`for_agent.md`](for_agent.md) first.** It contains the bootstrap protocol, key commands, session phases, and everything you need to operate effectively. Start at Section 0.
+**If you are an AI assistant working in this codebase, read [`AGENT.md`](AGENT.md) first.** It contains the bootstrap protocol, key commands, session phases, and everything you need to operate effectively. Start at Section 0.
 
 Quick reference:
 - `TOOL --eco guide` — onboarding walkthrough
@@ -58,8 +58,8 @@ root/                        tool/<NAME>/
 ├── logic/      (internal)   ├── logic/      (internal)
 ├── interface/  (public API) ├── interface/  (public API)
 ├── hooks/      (lifecycle)  ├── hooks/      (lifecycle)
-├── for_agent.md             ├── for_agent.md
-├── for_agent_reflection.md  ├── for_agent_reflection.md
+├── AGENT.md             ├── AGENT.md
+├── AGENT_REFLECTION.md  ├── AGENT_REFLECTION.md
 └── README.md                └── README.md
 ```
 
@@ -83,8 +83,8 @@ Tool-specific commands omit the prefix: `BRAIN reflect`, `SKILLS list`, `USERINP
 
 Agents don't read everything at once. The system uses layered docs:
 - **L0** (`README.md`): Stable overview. What this is.
-- **L1** (`for_agent.md`): Operational guide. How to work with it.
-- **L2** (`for_agent_reflection.md`): Self-improvement. What gaps exist.
+- **L1** (`AGENT.md`): Operational guide. How to work with it.
+- **L2** (`AGENT_REFLECTION.md`): Self-improvement. What gaps exist.
 
 This pattern repeats at root, logic/, and tool/ levels.
 
@@ -98,7 +98,7 @@ Each step automates the previous one. Agents are expected to advance along this 
 
 ### Skills as a Dictionary Tree
 
-Skills are organized as a hierarchical tree — like a dictionary you navigate by topic. Each directory level narrows the subject. Category directories contain `README.md` (what's here) and `for_agent.md` (navigation: what's below, what's above). Leaf directories contain `SKILL.md`.
+Skills are organized as a hierarchical tree — like a dictionary you navigate by topic. Each directory level narrows the subject. Category directories contain `README.md` (what's here) and `AGENT.md` (navigation: what's below, what's above). Leaf directories contain `SKILL.md`.
 
 ```
 skills/
@@ -113,6 +113,20 @@ skills/
 ```
 
 The hierarchy itself carries information. An agent searching for "how to write tests" navigates `skills/` → `development/` → `unit-test-conventions/`. The path encodes the topic without reading any file.
+
+### Layered Documentation with AGENT.md
+
+Every directory in the project has up to three documentation files:
+
+| File | Audience | Purpose |
+|---|---|---|
+| `README.md` | Humans | What this is, how to use it |
+| `AGENT.md` | AI agents | Navigation guide: what's here, what's below, what's above |
+| `AGENT_REFLECTION.md` | Self-improvement | Known gaps, improvement opportunities |
+
+This is the project's modularization principle applied to documentation: each level of the directory tree is a logical layer, and each layer tells its readers what they can find by going deeper. `AGENT.md` at every level creates a "filesystem for knowledge" — agents navigate it like `cd` and `ls`, always knowing where they are and where to go next.
+
+The rationale: modularized code without modularized documentation is half-modularized. If every `logic/` subdirectory has clean interfaces but no `AGENT.md`, a context-free agent must read source code to understand what's there. Adding `AGENT.md` makes the structure self-describing. Run `TOOL --audit skills` to verify documentation coverage.
 
 ## Architecture
 
@@ -130,8 +144,8 @@ AITerminalTools/
 ├── skills/          # Dictionary-tree of agent skills (hierarchical)
 ├── runtime/         # Git-tracked institutional memory
 │   └── experience/  # Lessons, suggestions, evolution history
-├── for_agent.md     # Agent bootstrap guide
-└── for_agent_reflection.md  # Self-improvement protocol
+├── AGENT.md     # Agent bootstrap guide
+└── AGENT_REFLECTION.md  # Self-improvement protocol
 ```
 
 **Transient directories** (gitignored): `data/`, `logs/`, `tmp/`
@@ -176,7 +190,7 @@ If you use this project with an AI IDE (Cursor, Copilot, Windsurf), **just type 
 | BRAIN | Cross-session memory — tasks, activity, progress | Nothing |
 
 **If the assistant seems lost**, paste:
-> Read for_agent.md Section 0 and follow the bootstrap protocol. Then BRAIN reflect and USERINPUT --hint.
+> Read AGENT.md Section 0 and follow the bootstrap protocol. Then BRAIN reflect and USERINPUT --hint.
 
 ## Discovering Tools and Skills
 
@@ -189,7 +203,7 @@ SKILLS list                       # All available skills
 BRAIN recall "topic"              # Search institutional memory
 ```
 
-Tool details, specific commands, and skill catalogs are intentionally kept in `for_agent.md` and per-tool docs — not here — because they change frequently.
+Tool details, specific commands, and skill catalogs are intentionally kept in `AGENT.md` and per-tool docs — not here — because they change frequently.
 
 ## Developer Workflow
 
@@ -205,10 +219,10 @@ See `SKILLS show tool-development-workflow` for the full guide.
 
 ## For AI Agents
 
-Read `for_agent.md` in this directory. That file is your primary reference. Key entry points:
+Read `AGENT.md` in this directory. That file is your primary reference. Key entry points:
 
-- `for_agent.md` — Architecture guide, bootstrap protocol, conventions
-- `for_agent_reflection.md` — Self-improvement protocol and system gaps
+- `AGENT.md` — Architecture guide, bootstrap protocol, conventions
+- `AGENT_REFLECTION.md` — Self-improvement protocol and system gaps
 - `TOOL --search all "<query>"` — Find anything
 - `BRAIN reflect` — Self-check protocol + active reminders
 - `USERINPUT --hint "summary"` — Report to user (blocking feedback loop)

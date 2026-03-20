@@ -70,7 +70,7 @@ Our three-layer reflex arc system is an adaptation of ProcMEM's ideas:
 | Skill with activation/execution/termination | Blueprint procedural_skills | `openclaw-20260316/blueprint.json` |
 | Skill pool (Omega) | Combination of blueprint + lessons + graph | `logic/brain/utils/procedural.py` |
 | Activation matching | Regex patterns + keyword overlap | `match_skills()`, `match_lessons()` |
-| Non-Parametric optimization | Lesson→Skill→Infrastructure pipeline | `for_agent_reflection.md` Knowledge Creation |
+| Non-Parametric optimization | Lesson→Skill→Infrastructure pipeline | `AGENT_REFLECTION.md` Knowledge Creation |
 | Score-based maintenance | Lesson severity + trigger frequency | `trigger_patterns` in lessons.jsonl |
 | Cross-agent transfer | Blueprint portability + brain export | `BRAIN session export` |
 

@@ -74,7 +74,7 @@ Lessons accumulate. When 3+ lessons cluster around the same theme, they should b
 
 ```
 3+ lessons on same theme
-  → Consolidate into a rule in for_agent.md or .cursor/rules/
+  → Consolidate into a rule in AGENT.md or .cursor/rules/
     → If rule grows beyond 10 lines
       → Extract into a SKILL
         → If behavior can be automated
@@ -90,7 +90,7 @@ Lesson: "CDMCP ensure_chrome() must be called before any tab operation"
 Lesson: "CDMCP boot_tool_session closes stale sessions automatically"
 Lesson: "CDMCP session.require_tab() handles both create and navigate"
   ↓
-Rule added to tool/GOOGLE.CDMCP/for_agent.md:
+Rule added to tool/GOOGLE.CDMCP/AGENT.md:
   "Always use boot_tool_session() + require_tab(). Never manage Chrome lifecycle manually."
   ↓
 Skill created: skills/core/mcp-development/SKILL.md

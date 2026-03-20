@@ -14,7 +14,7 @@ Scaffold templates for `TOOL --dev create <NAME>`. Each `.tmpl` file is loaded b
 | `interface_main.py.tmpl` | `tool/<NAME>/interface/main.py` |
 | `hook_interface.py.tmpl` | `tool/<NAME>/hooks/interface/on_demo_action.py` |
 | `hook_instance.py.tmpl` | `tool/<NAME>/hooks/instance/demo_logger.py` |
-| `for_agent.md.tmpl` | `tool/<NAME>/for_agent.md` |
+| `AGENT.md.tmpl` | `tool/<NAME>/AGENT.md` |
 | `tool_readme.md.tmpl` | `tool/<NAME>/README.md` |
 
 ## Generated Directories

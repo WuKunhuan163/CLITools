@@ -53,12 +53,12 @@ tool/<NAME>/
 
 ## 3b. Dependency Discovery (Before Writing Code)
 
-After creating the tool scaffold, read the `for_agent.md` of every dependency listed in `tool.json`:
+After creating the tool scaffold, read the `AGENT.md` of every dependency listed in `tool.json`:
 
 ```bash
 # For each dependency in tool.json:
-cat tool/<DEPENDENCY>/for_agent.md       # Tool-specific API and gotchas
-cat tool/<DEPENDENCY>/logic/for_agent.md # Internal architecture
+cat tool/<DEPENDENCY>/AGENT.md       # Tool-specific API and gotchas
+cat tool/<DEPENDENCY>/logic/AGENT.md # Internal architecture
 ```
 
 Key dependency patterns:
@@ -67,9 +67,9 @@ Key dependency patterns:
 - **PYTHON**: Use `get_safe_python_for_gui()` for tkinter subprocess launching.
 
 Also read root-level dependency docs:
-- `logic/for_agent.md` — Path resolution, dependency graph, gotchas
-- `logic/chrome/for_agent.md` — CDPSession, tab helpers (if Chrome-based)
-- `logic/gui/for_agent.md` — GUI patterns, Interface I protocol (if GUI-based)
+- `logic/AGENT.md` — Path resolution, dependency graph, gotchas
+- `logic/chrome/AGENT.md` — CDPSession, tab helpers (if Chrome-based)
+- `logic/gui/AGENT.md` — GUI patterns, Interface I protocol (if GUI-based)
 
 ## 4. ToolBase Features
 

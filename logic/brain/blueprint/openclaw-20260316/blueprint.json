@@ -87,7 +87,7 @@
         {"type": "brain_state", "tier": "working", "files": ["context", "tasks", "curated_memory"], "format": "markdown"},
         {"type": "memory_search", "tier": "knowledge", "query": "recent learnings errors", "max_results": 5, "format": "bullet_list"},
         {"type": "ecosystem", "module": "logic.agent.ecosystem", "function": "build_ecosystem_info"},
-        {"type": "reflection", "file": "for_agent_reflection.md", "section": "Current System Gaps"}
+        {"type": "reflection", "file": "AGENT_REFLECTION.md", "section": "Current System Gaps"}
       ],
       "wrapper": {
         "prefix": "--- AGENT BRAIN + ECOSYSTEM ---",
@@ -188,7 +188,7 @@
           "Check: .gitignore uses deny-all (/*). Root files need explicit whitelisting.",
           "Add !/filename to GitIgnoreManager.base_patterns in logic/git/manager.py",
           "Do NOT only edit .gitignore manually — it is auto-regenerated on tool install.",
-          "Reference: for_agent.md Section 9 (Auto-Generated .gitignore)"
+          "Reference: AGENT.md Section 9 (Auto-Generated .gitignore)"
         ],
         "termination": "base_patterns updated AND .gitignore regenerated"
       },
@@ -202,7 +202,7 @@
           "Verify symmetric pattern: logic/, interface/, hooks/, data/, test/",
           "Check template at logic/tool/template/ for required files",
           "data/ and logs/ are gitignored. runtime/ is tracked.",
-          "Ensure for_agent.md, for_agent_reflection.md, README.md exist"
+          "Ensure AGENT.md, AGENT_REFLECTION.md, README.md exist"
         ],
         "termination": "directory structure matches symmetric pattern"
       },
@@ -241,8 +241,8 @@
         },
         "execution": [
           "README.md: Stable overview only. No tool lists, model names, or volatile inventories.",
-          "for_agent.md: Operational guide. Technical details agents need.",
-          "for_agent_reflection.md: Stable protocol, NOT recording file. Refined not grown.",
+          "AGENT.md: Operational guide. Technical details agents need.",
+          "AGENT_REFLECTION.md: Stable protocol, NOT recording file. Refined not grown.",
           "Each directory should have all three. Check doc symmetry."
         ],
         "termination": "documentation updated within its designated scope"

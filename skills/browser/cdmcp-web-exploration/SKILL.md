@@ -33,7 +33,7 @@ Use this skill when:
 | ToS is silent on automation, no API | CDMCP acceptable with caution |
 | ToS explicitly allows automation | CDMCP acceptable |
 
-5. **Document your finding** in the tool's `for_agent.md` under a `## ToS Compliance` section.
+5. **Document your finding** in the tool's `AGENT.md` under a `## ToS Compliance` section.
 6. **CDMCP for login/auth is generally acceptable** -- the concern is about automating post-login interactions (data scraping, button clicking, form filling) at scale.
 
 **Example of a compliant approach (ShowDoc):** Use CDMCP only for session management (opening tab, auth detection), but call the service's REST API via in-page `fetch()` for all data operations.
@@ -85,7 +85,7 @@ cdp.evaluate('document.querySelector("[data-testid=submit-btn]").click()')
 
 ### 7. Document Findings
 
-Create a `for_agent.md` in the tool directory documenting:
+Create a `AGENT.md` in the tool directory documenting:
 - Page structure and navigation flow
 - Key selectors for each operation
 - Authentication requirements

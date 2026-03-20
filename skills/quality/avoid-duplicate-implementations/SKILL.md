@@ -13,7 +13,7 @@ Before implementing any new functionality, search for existing code that does so
 
 1. **Grep for function/class names** related to your feature
 2. **Check `interface/main.py`** files for already-exposed APIs
-3. **Read `for_agent.md`** and `README.md` for documented patterns
+3. **Read `AGENT.md`** and `README.md` for documented patterns
 4. **Search `skills/`** for relevant conventions
 5. **Check `logic/`** for shared utilities
 6. **Check `logic/gui/tkinter/blueprint/`** for reusable tkinter GUI components

@@ -24,7 +24,7 @@ class GitIgnoreManager:
             "!/setup.py",
             "!/tool.json",
             "!/README.md",
-            "!/for_agent.md",
+            "!/AGENT.md",
             "!/AGENTS.md",
             "",
             "# --- Framework Directories ---",

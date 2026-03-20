@@ -87,7 +87,7 @@ def _build_tool_ecosystem_reminder() -> str:
         "This project uses AITerminalTools. Tool name = command (GIT, PYTHON, etc.). "
         "Discover tools: exec 'TOOL --search tools \"keyword\"'. "
         "Load skills: exec 'SKILLS show <name>'. "
-        "Read docs: read_file('tool/<NAME>/for_agent.md')."
+        "Read docs: read_file('tool/<NAME>/AGENT.md')."
     )
 
 

@@ -22,7 +22,7 @@ cat runtime/brain/context.md
 cat runtime/brain/tasks.md
 
 # Read the reflection protocol (system improvement guide)
-cat for_agent_reflection.md
+cat AGENT_REFLECTION.md
 ```
 
 If `context.md` has content, a previous agent left you a handoff. Read it carefully — it tells you:
@@ -85,7 +85,7 @@ Before your session ends (or when calling USERINPUT):
 An agent session flows through named phases. Always know which phase you're in:
 
 ```
-BOOTSTRAP   → Read brain/context.md, for_agent_reflection.md, run TOOL --search all
+BOOTSTRAP   → Read brain/context.md, AGENT_REFLECTION.md, run TOOL --search all
 EXECUTE     → Implement the user's task (code, fix, investigate)
 VERIFY      → Self-test: run the code, check edge cases, write tmp/ tests
 CAPTURE     → BRAIN log "activity", SKILLS learn, BRAIN done <id>, update docs
@@ -96,12 +96,12 @@ HANDOFF     → BRAIN snapshot "summary" (before session end)
 ```
 
 **Meta activities** (ecosystem-level, between tasks or when requested):
-- **Document** — enhance README.md / for_agent.md for agent discoverability
+- **Document** — enhance README.md / AGENT.md for agent discoverability
 - **Curate** — audit, merge, refine skills; leave breadcrumbs for future agents
 - **Audit** — run `TOOL --audit code`, `TOOL --lang audit`
 - **Refactor** — clean up code, reorganize structure
 - **Harden** — raise quality of working-but-imperfect infrastructure (fix latent bugs, generalize, align with conventions)
-- **Improve** — fix ecosystem gaps from for_agent_reflection.md
+- **Improve** — fix ecosystem gaps from AGENT_REFLECTION.md
 
 **Phase awareness matters.** When executing a user task, focus on their goal. When doing meta activities, focus on ecosystem quality and future agent experience. When capturing, focus on what future agents need to know. Don't mix phases — finish one before starting another.
 
@@ -129,8 +129,8 @@ BRAIN reflect           # Self-check protocol + system gaps (proactive self-impr
 | `runtime/brain/tasks.md` | Task list with priorities |
 | `runtime/experience/lessons.jsonl` | Accumulated lessons |
 | `skills/core/` | Core skills (read with `SKILLS show`) |
-| `tool/<NAME>/for_agent.md` | Tool-specific agent documentation |
-| `for_agent.md` (root) | Full architecture guide |
+| `tool/<NAME>/AGENT.md` | Tool-specific agent documentation |
+| `AGENT.md` (root) | Full architecture guide |
 
 ## Anti-Patterns
 
@@ -139,5 +139,5 @@ BRAIN reflect           # Self-check protocol + system gaps (proactive self-impr
 - Ignoring `brain/context.md` when it has content
 - Ending a session without updating the brain
 - Making changes without recording non-obvious findings as lessons
-- Not reading `for_agent_reflection.md` at session start (misses known gaps and improvement protocol)
+- Not reading `AGENT_REFLECTION.md` at session start (misses known gaps and improvement protocol)
 - Not self-testing code after writing it

@@ -52,7 +52,7 @@ viking://skills/code_review/
 
 | Concept | Our Implementation | Gap |
 |---------|-------------------|-----|
-| File-based knowledge | `for_agent.md`, `skills/`, `memory/` | Already tree-structured |
+| File-based knowledge | `AGENT.md`, `skills/`, `memory/` | Already tree-structured |
 | Agent state | `SessionContext` with full message history | No compression/summarization |
 | Tool results | Full output passed back to LLM | No truncation/summarization |
 | Context feeds | `_package_message()` packages CWD, file list | No progressive disclosure |

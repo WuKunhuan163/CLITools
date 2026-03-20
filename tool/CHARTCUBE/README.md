@@ -120,5 +120,5 @@ tool/CHARTCUBE/
 │   └── exploration/
 │       └── chartcube_elements.json  # DOM exploration findings
 ├── README.md
-└── for_agent.md
+└── AGENT.md
 ```

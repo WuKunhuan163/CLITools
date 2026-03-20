@@ -16,9 +16,9 @@ All v2 action items have been addressed:
 | Pre-flight check patterns | Created: `skills/core/preflight-checks/SKILL.md` |
 | Multi-tool workflow recipes (5 recipes) | Created: `skills/core/recipes/SKILL.md` |
 | `SKILLS introspect` (transcript analysis) | Implemented in `tool/SKILLS/logic/evolution.py` |
-| Rate limits in CDMCP `for_agent.md` | Added to `tool/GOOGLE.CDMCP/logic/for_agent.md` |
-| WHATSAPP bulk messaging safety + gotchas | Added to `tool/WHATSAPP/logic/for_agent.md` |
-| CDMCP session recovery documentation | Added to `tool/GOOGLE.CDMCP/logic/for_agent.md` |
+| Rate limits in CDMCP `AGENT.md` | Added to `tool/GOOGLE.CDMCP/logic/AGENT.md` |
+| WHATSAPP bulk messaging safety + gotchas | Added to `tool/WHATSAPP/logic/AGENT.md` |
+| CDMCP session recovery documentation | Added to `tool/GOOGLE.CDMCP/logic/AGENT.md` |
 
 **The gap is no longer skills or documentation. The remaining gap is operational infrastructure — the mechanisms that ensure a weaker agent actually finds and uses the right knowledge at the right time.**
 
@@ -38,12 +38,12 @@ The agent has never seen this project before. The user provides no additional co
 
 **Phase 1: Discovery (0-2 minutes)**
 
-The agent reads the system prompt's user rules, which list all installed tools. It sees "WHATSAPP: WhatsApp Web messaging via CDMCP." The user rules also say: "When receiving an unfamiliar instruction, first search for relevant README.md, for_agent.md, and skill files."
+The agent reads the system prompt's user rules, which list all installed tools. It sees "WHATSAPP: WhatsApp Web messaging via CDMCP." The user rules also say: "When receiving an unfamiliar instruction, first search for relevant README.md, AGENT.md, and skill files."
 
-- A strong Sonnet reads `tool/WHATSAPP/logic/for_agent.md` and finds the API, gotchas, and a pointer to the `recipes` skill.
+- A strong Sonnet reads `tool/WHATSAPP/logic/AGENT.md` and finds the API, gotchas, and a pointer to the `recipes` skill.
 - A weaker agent might skip this and jump straight to calling `WHATSAPP send_message()`.
 
-**Verdict**: The instruction to read `for_agent.md` exists in user rules, but it's buried among 13 other system prompts. A weaker agent may not prioritize it. **No active enforcement mechanism.**
+**Verdict**: The instruction to read `AGENT.md` exists in user rules, but it's buried among 13 other system prompts. A weaker agent may not prioritize it. **No active enforcement mechanism.**
 
 **Phase 2: Planning (2-5 minutes)**
 
@@ -60,7 +60,7 @@ The agent needs to: verify auth, get contacts, iterate with delays, handle error
 
 Likely failure points for a weaker agent:
 1. Calling `send_message()` before checking `get_auth_state()` — preflight-checks covers this, but only if read.
-2. Not adding delays between messages — for_agent.md covers this, but the 2-5 second recommendation may be ignored under time pressure.
+2. Not adding delays between messages — AGENT.md covers this, but the 2-5 second recommendation may be ignored under time pressure.
 3. No progress reporting — the user sees nothing for 10 minutes and wonders if it's working.
 4. First error causes the agent to stop entirely instead of skip-and-continue.
 
@@ -70,7 +70,7 @@ Likely failure points for a weaker agent:
 
 If Chrome CDP isn't running, the agent should prompt the user. If WhatsApp logs out mid-operation, the agent should detect and recover. If rate-limited, it should back off.
 
-- Session recovery is documented in `GOOGLE.CDMCP/logic/for_agent.md`.
+- Session recovery is documented in `GOOGLE.CDMCP/logic/AGENT.md`.
 - But there's no automated detection. The agent must interpret the error, match it to a recovery pattern, and execute the recovery steps.
 
 **Verdict**: Recovery knowledge exists but recovery execution is manual. OpenClaw automates this with heartbeats and self-healing loops.
@@ -81,7 +81,7 @@ If Chrome CDP isn't running, the agent should prompt the user. If WhatsApp logs 
 
 ### Gap 1: No Agent Bootstrap Protocol (Critical)
 
-**Problem**: When a new agent encounters an unfamiliar task, there is no single entry point that guides it through the discovery process. The knowledge exists across 25+ skills and 50+ for_agent.md files, but navigating this requires Opus-level reasoning.
+**Problem**: When a new agent encounters an unfamiliar task, there is no single entry point that guides it through the discovery process. The knowledge exists across 25+ skills and 50+ AGENT.md files, but navigating this requires Opus-level reasoning.
 
 **What OpenClaw does**: An explicit boot sequence: load context -> identify task type -> load relevant skills -> plan -> execute. This is hardcoded into the agent's initialization, not left to discovery.
 
@@ -89,7 +89,7 @@ If Chrome CDP isn't running, the agent should prompt the user. If WhatsApp logs 
 ```
 When you receive a task:
 1. Identify which tools are involved (check user rules)
-2. Read each tool's for_agent.md (prerequisites, gotchas)
+2. Read each tool's AGENT.md (prerequisites, gotchas)
 3. Check SKILLS show recipes for a matching workflow
 4. Check SKILLS show task-orchestration for decomposition pattern
 5. Check SKILLS show preflight-checks for safety requirements
@@ -98,7 +98,7 @@ When you receive a task:
 
 This doesn't exist as a single coherent document. The pieces exist but the routing logic is implicit.
 
-**Impact**: A Sonnet agent might read for_agent.md but miss the recipes. Or follow a recipe but skip preflight checks. The probability of reading all relevant materials decreases as model capability decreases.
+**Impact**: A Sonnet agent might read AGENT.md but miss the recipes. Or follow a recipe but skip preflight checks. The probability of reading all relevant materials decreases as model capability decreases.
 
 ### Gap 2: No Skill Chaining / Dependency Graph (Critical)
 

@@ -234,7 +234,7 @@ def _get_action_guide(suggestion):
     tool = suggestion.get("tool", "unknown")
     if stype == "rule":
         return [
-            f"1. Check if tool/{tool}/for_agent.md exists; create if not.",
+            f"1. Check if tool/{tool}/AGENT.md exists; create if not.",
             f"2. Add a section consolidating lessons from SKILLS lessons --tool {tool}",
             f"3. Include concrete do/don't examples from the evidence.",
             f"4. Run 'SKILLS learn' to mark this pattern as addressed.",

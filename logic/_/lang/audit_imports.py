@@ -147,7 +147,7 @@ def audit_docs(project_root: Path) -> List[ImportIssue]:
     """Audit documentation files for non-compliant import examples."""
     issues: List[ImportIssue] = []
     doc_files = list(project_root.glob("*.md"))
-    doc_files.extend(project_root.glob("tool/*/for_agent.md"))
+    doc_files.extend(project_root.glob("tool/*/AGENT.md"))
     doc_files.extend(project_root.glob("tool/*/README.md"))
 
     import re

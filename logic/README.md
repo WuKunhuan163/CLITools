@@ -62,4 +62,4 @@ from logic.tool.blueprint.base import ToolBase
 from logic.turing.stage import TuringStage
 ```
 
-Each sub-package has its own `README.md` (overview) and `for_agent.md` (technical detail).
+Each sub-package has its own `README.md` (overview) and `AGENT.md` (technical detail).

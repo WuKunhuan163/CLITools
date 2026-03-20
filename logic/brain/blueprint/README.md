@@ -41,10 +41,10 @@ Full specification: `logic/tutorial/brain/README.md`
 ## Base (Shared Ecosystem Rules)
 
 All blueprints inherit from `base.json`, which defines ecosystem rules shared across every brain:
-- **Guidance**: bootstrap docs (`for_agent.md`, `for_agent_reflection.md`)
+- **Guidance**: bootstrap docs (`AGENT.md`, `AGENT_REFLECTION.md`)
 - **Hooks**: IDE integration hooks (session start, post-tool-use, stop)
 - **Directory conventions**: tracked vs. gitignored symmetric directories
-- **Documentation pattern**: `README.md` / `for_agent.md` / `for_agent_reflection.md`
+- **Documentation pattern**: `README.md` / `AGENT.md` / `AGENT_REFLECTION.md`
 - **Quality commands**: `TOOL --audit code`, `TOOL --lang audit`
 - **Search commands**: `TOOL --search all`, `BRAIN recall`
 

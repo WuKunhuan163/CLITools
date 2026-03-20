@@ -88,7 +88,7 @@ def get_page_info(port: int = CDP_PORT) -> Dict[str, Any]:
 
 
 # TODO: Migrate to WhatsApp Business Cloud API (developers.facebook.com/docs/whatsapp/).
-# DOM scraping and UI automation violate WhatsApp ToS. See for_agent.md ## ToS Compliance.
+# DOM scraping and UI automation violate WhatsApp ToS. See AGENT.md ## ToS Compliance.
 
 _TOS_ERR = "Disabled: WhatsApp ToS prohibits automated access. Use WhatsApp Business Cloud API instead."
 

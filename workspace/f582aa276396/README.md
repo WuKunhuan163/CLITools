@@ -15,5 +15,5 @@ workspace/f582aa276396/
 │   ├── knowledge/    # Lessons
 │   └── episodic/     # Personality, memory, daily logs
 ├── README.md         # This file
-└── for_agent.md      # Agent guidance
+└── AGENT.md      # Agent guidance
 ```

@@ -69,7 +69,7 @@ repeating the same mistakes.
 When you've identified a relevant tool:
 
 1. `tool/<NAME>/README.md` — Overview, setup, usage
-2. `tool/<NAME>/for_agent.md` — Agent-specific rules and API surface
+2. `tool/<NAME>/AGENT.md` — Agent-specific rules and API surface
 3. `tool/<NAME>/interface/main.py` — Public API (what you can import)
 4. `tool/<NAME>/tool.json` — Dependencies and metadata
 5. `tool/<NAME>/skills/` — Tool-specific skills (if any)
@@ -88,7 +88,7 @@ TOOL --search tools "send WhatsApp message"
 
 # Step 2: Read its docs
 # Read tool/WHATSAPP/README.md
-# Read tool/WHATSAPP/for_agent.md
+# Read tool/WHATSAPP/AGENT.md
 
 # Step 3: Check for interfaces
 TOOL --search interfaces "send message"
@@ -107,7 +107,7 @@ SKILLS lessons --tool WHATSAPP
   or miss existing interfaces.
 - **Reading all source files sequentially**: Token-wasteful. Use
   semantic search to find what matters.
-- **Ignoring `for_agent.md`**: This file exists specifically for you.
+- **Ignoring `AGENT.md`**: This file exists specifically for you.
   It contains rules that prevent common agent mistakes.
 - **Creating a new utility without checking interfaces**: Run
   `TOOL --search interfaces` first. Always.

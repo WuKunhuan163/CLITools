@@ -5,7 +5,7 @@ Google Scholar's Terms of Service explicitly prohibit automated access,
 scraping, and bot-driven interaction. This tool's CDMCP implementation
 was removed to comply with those terms.
 
-See for_agent.md for alternatives (SerpAPI, Semantic Scholar API, etc.).
+See AGENT.md for alternatives (SerpAPI, Semantic Scholar API, etc.).
 """
 import sys
 from pathlib import Path

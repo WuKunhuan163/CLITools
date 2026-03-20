@@ -344,15 +344,15 @@ class KnowledgeManager:
     def _index_docs(self, idx: SemanticIndex):
         """Index root-level and shared logic documentation.
 
-        Covers: for_agent.md, README.md, for_agent_reflection.md at project root,
-        plus logic/*/README.md, logic/*/for_agent.md, interface/for_agent.md.
+        Covers: AGENT.md, README.md, AGENT_REFLECTION.md at project root,
+        plus logic/*/README.md, logic/*/AGENT.md, interface/AGENT.md.
         """
         from logic._.search.tools import _read_text, _split_sections
 
         root_docs = [
-            ("for_agent.md", self.root / "for_agent.md"),
+            ("AGENT.md", self.root / "AGENT.md"),
             ("README.md", self.root / "README.md"),
-            ("for_agent_reflection.md", self.root / "for_agent_reflection.md"),
+            ("AGENT_REFLECTION.md", self.root / "AGENT_REFLECTION.md"),
         ]
 
         for name, path in root_docs:
@@ -380,7 +380,7 @@ class KnowledgeManager:
             base = self.root / subdir
             if not base.exists():
                 continue
-            for doc_name in ("README.md", "for_agent.md"):
+            for doc_name in ("README.md", "AGENT.md"):
                 doc_path = base / doc_name
                 text = _read_text(doc_path, max_chars=6000)
                 if text:
@@ -395,7 +395,7 @@ class KnowledgeManager:
                 for child in sorted(base.iterdir()):
                     if not child.is_dir():
                         continue
-                    for doc_name in ("README.md", "for_agent.md"):
+                    for doc_name in ("README.md", "AGENT.md"):
                         doc_path = child / doc_name
                         text = _read_text(doc_path, max_chars=4000)
                         if text:

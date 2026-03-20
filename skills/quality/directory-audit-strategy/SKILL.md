@@ -60,7 +60,7 @@ Check:
 
 Required at minimum:
 - **`README.md`**: Brief overview (1-3 paragraphs) explaining the directory's purpose and organization.
-- **`for_agent.md`** (optional): Detailed technical reference for AI agents.
+- **`AGENT.md`** (optional): Detailed technical reference for AI agents.
 
 Check:
 - Does the directory have a README.md?
@@ -119,7 +119,7 @@ Check:
 
 ### 8. Seek Feedback on Uncertainty
 
-**Rule**: When constructing README.md or for_agent.md and you encounter ambiguity or design questions, use USERINPUT immediately to get the user's input.
+**Rule**: When constructing README.md or AGENT.md and you encounter ambiguity or design questions, use USERINPUT immediately to get the user's input.
 
 - If the user has no preference, make a reasonable decision and document your reasoning
 - If the user provides guidance, incorporate it and continue

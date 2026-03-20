@@ -128,8 +128,8 @@ def _default_blueprint() -> Dict:
             "episodic": {"backend": "flatfile", "path": "runtime/experience/default/"},
         },
         "guidance": {
-            "bootstrap": "for_agent.md",
-            "reflection": "for_agent_reflection.md",
+            "bootstrap": "AGENT.md",
+            "reflection": "AGENT_REFLECTION.md",
         },
     }
 

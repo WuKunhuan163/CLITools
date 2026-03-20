@@ -41,7 +41,7 @@ Is the pattern the same sequence every time, with no judgment needed?
 └── NO: Does it require understanding context to apply correctly?
     ├── YES: Is the knowledge cross-cutting (applies to many tools)?
     │   ├── YES → CREATE A SKILL in skills/core/
-    │   └── NO  → ADD TO the tool's for_agent.md
+    │   └── NO  → ADD TO the tool's AGENT.md
     └── NO: Is it a checklist or reference table?
         └── YES → ADD TO a skill's references/ directory
 ```
@@ -133,10 +133,10 @@ How to know it's time to formulate:
 
 | Signal | Count | Action |
 |--------|-------|--------|
-| Same lesson recorded | 3+ times | Consolidate into **for_agent.md rule** |
+| Same lesson recorded | 3+ times | Consolidate into **AGENT.md rule** |
 | Same script written | 3+ times | Wrap into **scripts/** or **tool** |
 | Same multi-step judgment | 3+ times | Write a **skill** |
-| Rule in for_agent.md growing | >10 lines | Extract into **skill** |
+| Rule in AGENT.md growing | >10 lines | Extract into **skill** |
 | Skill body growing | >500 lines | Split into **skill + references/** |
 | Skill has >3 scripts | — | Consider promoting to **tool** |
 
@@ -151,6 +151,6 @@ How to know it's time to formulate:
 
 - **Creating a tool for variable tasks**: If the task changes based on context, a tool will either be too rigid or too complex. Use a skill.
 - **Writing a 200-line SKILL.md**: Progressive disclosure — keep SKILL.md lean, put details in references/.
-- **Creating both a skill AND a tool for the same thing**: Pick the dominant mode. If it's 80% mechanical, make a tool with a brief for_agent.md. If 80% judgment, make a skill with scripts/.
+- **Creating both a skill AND a tool for the same thing**: Pick the dominant mode. If it's 80% mechanical, make a tool with a brief AGENT.md. If 80% judgment, make a skill with scripts/.
 - **Formulating too early**: Wait for 3 occurrences. One-off patterns don't need codification.
 - **Never formulating**: If you're writing the same lesson for the 4th time, stop and create the artifact.

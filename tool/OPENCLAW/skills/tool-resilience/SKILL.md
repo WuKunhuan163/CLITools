@@ -18,7 +18,7 @@ A bug is when a tool's behavior contradicts its documented purpose.
 
 ### Diagnosis
 
-1. Confirm the bug: re-read the tool's `for_agent.md` to verify expected behavior.
+1. Confirm the bug: re-read the tool's `AGENT.md` to verify expected behavior.
 2. Read the relevant source file:
    ```
    <<EXEC: cat tool/TOOLNAME/main.py >>
@@ -57,7 +57,7 @@ Try different phrasings. "open Chrome tab" vs "browser automation" vs "CDP navig
 
 ### Check If an Existing Tool Can Be Extended
 
-Read `for_agent.md` for the closest match. Sometimes the capability exists but isn't documented, or it can be added with a small change.
+Read `AGENT.md` for the closest match. Sometimes the capability exists but isn't documented, or it can be added with a small change.
 
 ### The Build-or-Skip Decision
 

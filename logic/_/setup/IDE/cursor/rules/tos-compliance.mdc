@@ -15,6 +15,6 @@ Before developing any tool that automates interaction with a web service (via CD
    - ToS silent + API exists: Prefer API; CDMCP only for auth/bootstrap.
    - ToS silent + no API: CDMCP acceptable with caution.
 4. **CDMCP for login/auth is generally acceptable** -- the concern is post-login UI automation at scale.
-5. **Document findings** in the tool's `for_agent.md` under `## ToS Compliance`.
+5. **Document findings** in the tool's `AGENT.md` under `## ToS Compliance`.
 
 This applies to all CDMCP tools (XMIND, WPS, KLING, WHATSAPP, GMAIL, CLOUDFLARE, ASANA, ATLASSIAN, INTERCOM, LINEAR, PAYPAL, SENTRY, SQUARE) and any future browser automation tools.

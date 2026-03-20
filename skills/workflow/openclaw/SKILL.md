@@ -107,7 +107,7 @@ Each suggestion includes a concrete Action Guide with implementation steps.
 
 When multiple lessons cluster around a theme, consolidate:
 - **Workspace rules**: `.cursor/rules/*.mdc` (auto-loaded by Cursor)
-- **Tool-specific rules**: `tool/<NAME>/for_agent.md`
+- **Tool-specific rules**: `tool/<NAME>/AGENT.md`
 
 ## Step 7: Escalate to Skills
 

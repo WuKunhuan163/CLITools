@@ -11,7 +11,7 @@ description: How agents record, refine, and promote experience into permanent pr
 Agent encounters surprise
   → Record lesson (immediate)
     → Lessons cluster around a theme (3+ related)
-      → Promote to for_agent.md rule
+      → Promote to AGENT.md rule
         → Rule grows (>10 lines)
           → Extract into a Skill
             → Skill has automatable parts
@@ -73,12 +73,12 @@ Why: No specifics, no mechanism, no fix.
 
 ## Promotion Pipeline
 
-### Stage 1: Rule in for_agent.md
+### Stage 1: Rule in AGENT.md
 
 When 3+ lessons share a theme:
 
 ```markdown
-<!-- tool/GIT/for_agent.md -->
+<!-- tool/GIT/AGENT.md -->
 ## Path Shadowing
 Never call `git` (lowercase) directly in subprocess calls.
 Always use `get_system_git()` from the GIT interface.

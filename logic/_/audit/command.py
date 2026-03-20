@@ -36,7 +36,7 @@ class AuditCommand(EcoCommand):
         cp.add_argument("--fix", action="store_true", help="Auto-fix safe issues")
         cp.add_argument("--targets", nargs="*", help="Directories to scan")
 
-        sub.add_parser("skills", help="Audit skill hierarchy: README.md, for_agent.md coverage")
+        sub.add_parser("skills", help="Audit skill hierarchy: README.md, AGENT.md coverage")
 
         parsed = parser.parse_args(args)
         root = self.project_root
@@ -170,7 +170,7 @@ class AuditCommand(EcoCommand):
                     if has_subdirs and not has_skill:
                         if not (dirpath / "README.md").exists():
                             issues += 1
-                        if not (dirpath / "for_agent.md").exists():
+                        if not (dirpath / "AGENT.md").exists():
                             issues += 1
             if issues:
                 stage.success_name = f"skills hierarchy — {issues} missing docs"
@@ -276,8 +276,8 @@ class AuditCommand(EcoCommand):
                 rel = dirpath.relative_to(root)
                 if not (dirpath / "README.md").exists():
                     issues.append(("error", str(rel), "Missing README.md (category directory)"))
-                if not (dirpath / "for_agent.md").exists():
-                    issues.append(("warning", str(rel), "Missing for_agent.md (category directory)"))
+                if not (dirpath / "AGENT.md").exists():
+                    issues.append(("warning", str(rel), "Missing AGENT.md (category directory)"))
 
         for td in sorted((root / "tool").iterdir()):
             sd = td / "skills"
@@ -286,8 +286,8 @@ class AuditCommand(EcoCommand):
                 rel = sd.relative_to(root)
                 if not (sd / "README.md").exists():
                     issues.append(("warning", str(rel), f"Tool {tool_name} skills/ missing README.md"))
-                if not (sd / "for_agent.md").exists():
-                    issues.append(("info", str(rel), f"Tool {tool_name} skills/ missing for_agent.md"))
+                if not (sd / "AGENT.md").exists():
+                    issues.append(("info", str(rel), f"Tool {tool_name} skills/ missing AGENT.md"))
 
         BOLD = "\033[1m"
         RED = "\033[31m"

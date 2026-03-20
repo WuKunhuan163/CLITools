@@ -89,7 +89,7 @@ def get_page_info(port: int = CDP_PORT) -> Dict[str, Any]:
 
 
 # TODO: Migrate to PayPal REST API (developer.paypal.com) with OAuth credentials.
-# DOM scraping violates PayPal ToS. See for_agent.md ## ToS Compliance.
+# DOM scraping violates PayPal ToS. See AGENT.md ## ToS Compliance.
 
 def get_account_info(port: int = CDP_PORT) -> Dict[str, Any]:
     """Read account info. DISABLED: violates PayPal ToS (DOM scraping)."""

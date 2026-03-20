@@ -109,7 +109,7 @@ Mixed result:
 
 Good architecture, missing persistence:
 - Studied BILIBILI tool as reference (correct approach)
-- Created all 5 files: main.py, logic/core.py, tool.json, README.md, for_agent.md
+- Created all 5 files: main.py, logic/core.py, tool.json, README.md, AGENT.md
 - Clean Python code with docstrings and proper class structure
 - **Critical gap**: No file-based state persistence between invocations
 - Tool uses in-memory singleton that resets with each process

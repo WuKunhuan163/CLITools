@@ -254,18 +254,18 @@ def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Ca
     hooks_config = {"enabled": [], "disabled": []}
     with open(tool_dir / "hooks" / "config.json", 'w') as f: json.dump(hooks_config, f, indent=2)
 
-    for_agent_content = _load_template("docs/for_agent.md.tmpl", name=tool_name, short_name=short_name)
-    with open(tool_dir / "for_agent.md", 'w') as f: f.write(for_agent_content)
+    for_agent_content = _load_template("docs/AGENT.md.tmpl", name=tool_name, short_name=short_name)
+    with open(tool_dir / "AGENT.md", 'w') as f: f.write(for_agent_content)
 
     readme_content = _load_template("docs/tool_readme.md.tmpl", name=tool_name, short_name=short_name)
     with open(tool_dir / "README.md", 'w') as f: f.write(readme_content)
 
-    reflection_content = _load_template("docs/for_agent_reflection.md.tmpl", name=tool_name)
-    with open(tool_dir / "for_agent_reflection.md", 'w') as f: f.write(reflection_content)
+    reflection_content = _load_template("docs/AGENT_REFLECTION.md.tmpl", name=tool_name)
+    with open(tool_dir / "AGENT_REFLECTION.md", 'w') as f: f.write(reflection_content)
 
     (tool_dir / "data" / "report").mkdir(parents=True, exist_ok=True)
-    report_fa = _load_template("docs/report_for_agent.md.tmpl", tool_name=tool_name)
-    with open(tool_dir / "data" / "report" / "for_agent.md", 'w') as f: f.write(report_fa)
+    report_fa = _load_template("docs/report_AGENT.md.tmpl", tool_name=tool_name)
+    with open(tool_dir / "data" / "report" / "AGENT.md", 'w') as f: f.write(report_fa)
 
     try:
         res = run_git_tool_managed(["rev-parse", "--abbrev-ref", "HEAD"], cwd=str(project_root))

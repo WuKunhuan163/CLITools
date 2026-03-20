@@ -22,7 +22,7 @@ The brain uses a pluggable three-tier architecture defined in `blueprint.json`:
 | **knowledge** | Lessons, skills, institutional memory | `runtime/experience/` |
 | **episodic** | Agent personality, long-term memory | `runtime/experience/{brain_type}/` |
 
-Each tier can use a different storage backend (currently `flatfile`). See `logic/brain/for_agent.md` for the backend interface and upgrade path.
+Each tier can use a different storage backend (currently `flatfile`). See `logic/brain/AGENT.md` for the backend interface and upgrade path.
 
 ## How It Works
 
@@ -33,8 +33,8 @@ Each tier can use a different storage backend (currently `flatfile`). See `logic
 ## Guidance Auto-Adaptation
 
 The `blueprint.json` `guidance` section maps documentation keys to files:
-- `bootstrap` → `for_agent.md` (agent bootstrap protocol)
-- `reflection` → `for_agent_reflection.md` (self-improvement protocol)
+- `bootstrap` → `AGENT.md` (agent bootstrap protocol)
+- `reflection` → `AGENT_REFLECTION.md` (self-improvement protocol)
 
 When a new brain type is created, it can reference different guidance docs, enabling documentation to auto-adapt to the brain architecture.
 

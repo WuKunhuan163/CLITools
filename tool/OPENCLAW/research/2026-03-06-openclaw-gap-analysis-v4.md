@@ -13,7 +13,7 @@ v3 identified "operational infrastructure" as the remaining gap — mechanisms t
 |----------------|--------|
 | OPENCLAW tool created (prototype) | ✅ Built with CDMCP, sandbox, protocol, pipeline, GUI |
 | Skill chaining guidance | ✅ In `task-orchestration` and `recipes` skills |
-| Dependency discovery mandate | ✅ Added to `logic/for_agent.md` and `tool-development-workflow` |
+| Dependency discovery mandate | ✅ Added to `logic/AGENT.md` and `tool-development-workflow` |
 | Code-level guardrails (sandbox) | ✅ `OPENCLAW/logic/sandbox.py` with protected patterns |
 | Blueprint reuse awareness | ✅ Updated `avoid-duplicate-implementations` skill |
 
@@ -91,11 +91,11 @@ IF the task is 50/50 (some judgment + some automation)
 
 **OpenClaw**: Embeds `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`, `USER.md`, `BOOTSTRAP.md` directly into system prompt as "Project Context."
 
-**Our project**: `for_agent.md` files scattered across `logic/`, `tool/*/`, `tool/*/logic/`. No single bootstrap bundle. Agent must discover and navigate these documents.
+**Our project**: `AGENT.md` files scattered across `logic/`, `tool/*/`, `tool/*/logic/`. No single bootstrap bundle. Agent must discover and navigate these documents.
 
-**Impact**: New agent doesn't get essential context in its first interaction. Must find and read multiple `for_agent.md` files to understand the project.
+**Impact**: New agent doesn't get essential context in its first interaction. Must find and read multiple `AGENT.md` files to understand the project.
 
-**Fix**: Create a centralized `BOOTSTRAP.md` or `AGENTS.md` at project root that aggregates essential context from all `for_agent.md` files. Or: OPENCLAW protocol already does this via `build_system_prompt()` for remote agents.
+**Fix**: Create a centralized `BOOTSTRAP.md` or `AGENTS.md` at project root that aggregates essential context from all `AGENT.md` files. Or: OPENCLAW protocol already does this via `build_system_prompt()` for remote agents.
 
 ### Gap 4: Progressive Disclosure in Skills
 
@@ -134,7 +134,7 @@ IF the task is 50/50 (some judgment + some automation)
 
 **OpenClaw**: Every interaction loads the full system prompt with all bootstrap files. New sessions automatically get skills, memory, workspace context.
 
-**Our project**: Agent bootstrap relies on Cursor's agent skills feature + `.cursor/rules/`. But a new agent doesn't know to read `logic/for_agent.md` or check dependencies before coding.
+**Our project**: Agent bootstrap relies on Cursor's agent skills feature + `.cursor/rules/`. But a new agent doesn't know to read `logic/AGENT.md` or check dependencies before coding.
 
 **Impact**: Despite v3's "mandatory dependency discovery" additions, enforcement is still documentation-based, not structural.
 
@@ -152,8 +152,8 @@ A Sonnet-class agent takes over the project. User asks: "Send Happy New Year mes
 
 1. **Agent scans Cursor agent skills** → finds `task-orchestration`, `recipes`, `preflight-checks`
 2. **Reads `task-orchestration`** → learns to decompose task into steps
-3. **Discovers WHATSAPP tool** via `for_agent.md` in `tool/WHATSAPP/`
-4. **Reads WHATSAPP `for_agent.md`** → learns about CDMCP, rate limits, session management
+3. **Discovers WHATSAPP tool** via `AGENT.md` in `tool/WHATSAPP/`
+4. **Reads WHATSAPP `AGENT.md`** → learns about CDMCP, rate limits, session management
 5. **Checks `preflight-checks`** → runs pre-flight validation
 6. **Starts execution** → but...
 
@@ -193,7 +193,7 @@ A Sonnet-class agent takes over the project. User asks: "Send Happy New Year mes
 
 ### P1: High (Significantly improves autonomy)
 
-4. **Centralized BOOTSTRAP.md** — Aggregate essential `for_agent.md` context into single file
+4. **Centralized BOOTSTRAP.md** — Aggregate essential `AGENT.md` context into single file
 5. **Progressive disclosure enforcement** — Update `skill-creation-guide` with 3-level pattern
 6. **Heartbeat in OPENCLAW pipeline** — Periodic status check between iterations
 
@@ -215,5 +215,5 @@ A Sonnet-class agent takes over the project. User asks: "Send Happy New Year mes
 | Tool ecosystem | Basic (read/write/exec/grep) | Rich (CDMCP, WHATSAPP, etc.) | Us > OpenClaw |
 | Bootstrap context | Centralized, auto-loaded | Distributed, manually discovered | OpenClaw > Us |
 | Self-check | Heartbeat system | None | OpenClaw > Us |
-| Agent guidance | Workspace files (AGENTS.md, SOUL.md) | for_agent.md + skills | Comparable |
+| Agent guidance | Workspace files (AGENTS.md, SOUL.md) | AGENT.md + skills | Comparable |
 | Sandbox | Docker-based | Process-level | OpenClaw > Us (but ours is simpler) |

@@ -116,7 +116,7 @@ def suggest(focus="all"):
                 "type": "rule",
                 "tool": tool_name,
                 "confidence": min(0.5 + len(lessons) * 0.1, 0.9),
-                "content": f"Create a dedicated for_agent.md rule consolidating {len(lessons)} lessons for {tool_name}.",
+                "content": f"Create a dedicated AGENT.md rule consolidating {len(lessons)} lessons for {tool_name}.",
                 "evidence": [e.get("lesson", "")[:80] for e in lessons[:3]],
                 "timestamp": datetime.now().isoformat(),
             })
@@ -294,7 +294,7 @@ def _derive_opportunities(tool_mentions, error_patterns):
             opps.append({
                 "type": "focus",
                 "message": f"{tool} is heavily used ({count} mentions). "
-                           "Ensure its for_agent.md is comprehensive and up-to-date.",
+                           "Ensure its AGENT.md is comprehensive and up-to-date.",
                 "priority": "medium",
             })
     timeout_count = error_patterns.get("timeout", 0)

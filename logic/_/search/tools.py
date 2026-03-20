@@ -1,6 +1,6 @@
 """Search tools, interfaces, and skills by semantic similarity.
 
-Builds a TF-IDF index over tool README.md / for_agent.md content and
+Builds a TF-IDF index over tool README.md / AGENT.md content and
 lets agents (or users) discover relevant tools, interfaces, or skills
 using natural language queries.
 
@@ -32,7 +32,7 @@ def _read_text(path: Path, max_chars: int = 8000) -> str:
 # ---------------------------------------------------------------------------
 
 def build_tool_index(project_root: Path) -> SemanticIndex:
-    """Index all tools' README.md, for_agent.md, and tool.json description."""
+    """Index all tools' README.md, AGENT.md, and tool.json description."""
     idx = SemanticIndex()
     tool_dir = project_root / "tool"
     if not tool_dir.exists():
@@ -53,7 +53,7 @@ def build_tool_index(project_root: Path) -> SemanticIndex:
                 pass
 
         readme = _read_text(td / "README.md")
-        for_agent = _read_text(td / "for_agent.md")
+        for_agent = _read_text(td / "AGENT.md")
 
         combined = f"{td.name} {desc} {purpose} {readme} {for_agent}"
         idx.add(td.name, combined, {
@@ -123,7 +123,7 @@ def _split_sections(text: str) -> List[Dict[str, str]]:
 
 
 def _extract_commands_from_for_agent(text: str) -> List[Dict[str, str]]:
-    """Extract command examples from for_agent.md code blocks."""
+    """Extract command examples from AGENT.md code blocks."""
     commands = []
     in_code = False
     code_lines: List[str] = []
@@ -153,7 +153,7 @@ def build_deep_tool_index(project_root: Path) -> SemanticIndex:
 
     Indexes three levels:
     1. Tool-level (same as build_tool_index)
-    2. Section-level (each heading section of for_agent.md and README.md)
+    2. Section-level (each heading section of AGENT.md and README.md)
     3. Command-level (each command example from code blocks)
     """
     idx = SemanticIndex()
@@ -185,7 +185,7 @@ def build_deep_tool_index(project_root: Path) -> SemanticIndex:
             "level": "tool",
         })
 
-        for doc_name in ("for_agent.md", "README.md"):
+        for doc_name in ("AGENT.md", "README.md"):
             doc_path = td / doc_name
             text = _read_text(doc_path, max_chars=12000)
             if not text:

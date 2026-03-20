@@ -20,7 +20,7 @@ skills/
 
 Skills are a **dictionary tree**. Each level has:
 - `README.md` — What you'll find at this level
-- `for_agent.md` — Navigation guide: what's below, what's above
+- `AGENT.md` — Navigation guide: what's below, what's above
 - Subdirectories — either more categories or a `SKILL.md` at the leaf
 
 This structure is itself informative. An agent looking for "how to write tests" navigates: `skills/` → `development/` → `unit-test-conventions/SKILL.md`. The path encodes the topic hierarchy.

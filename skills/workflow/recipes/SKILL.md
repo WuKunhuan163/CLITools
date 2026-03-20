@@ -185,7 +185,7 @@ Before starting a multi-tool task:
 2. Implement logic:
    - Edit tool/NEWTOOL/logic/ — add domain logic
    - Edit tool/NEWTOOL/main.py — add CLI commands
-   - Read logic/tool/template/for_agent.md for standard patterns
+   - Read logic/tool/template/AGENT.md for standard patterns
 
 3. Add translations:
    - Edit tool/NEWTOOL/logic/translation/zh.json

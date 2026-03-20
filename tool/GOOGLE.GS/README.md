@@ -13,4 +13,4 @@ Run `GS` to see available alternatives (Semantic Scholar, OpenAlex, SerpAPI).
 - **OpenAlex API** — Free, open, comprehensive works database
 - **SerpAPI** — Paid service providing structured Google Scholar data
 
-See `for_agent.md` for detailed comparison and integration guidance.
+See `AGENT.md` for detailed comparison and integration guidance.

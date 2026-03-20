@@ -43,7 +43,7 @@ def get_tool_info(root: Path, name: str) -> Optional[Dict[str, Any]]:
             pass
 
     info["has_readme"] = (tool_dir / "README.md").exists()
-    info["has_for_agent"] = (tool_dir / "for_agent.md").exists()
+    info["has_for_agent"] = (tool_dir / "AGENT.md").exists()
     info["has_interface"] = (tool_dir / "interface" / "main.py").exists()
     info["has_hooks"] = (tool_dir / "hooks").is_dir()
     info["has_tests"] = (tool_dir / "test").is_dir()
@@ -327,7 +327,7 @@ def _workspace_info(root: Path) -> Optional[Dict[str, str]]:
 
 def _find_docs(directory: Path) -> List[str]:
     docs = []
-    for name in ["README.md", "for_agent.md", "for_agent_reflection.md"]:
+    for name in ["README.md", "AGENT.md", "AGENT_REFLECTION.md"]:
         if (directory / name).exists():
             docs.append(str(directory / name))
     return docs

@@ -3,8 +3,8 @@
   "version": "1.1",
   "description": "Shared ecosystem rules inherited by all brain blueprints. Blueprints override tiers (storage) and context_injection but share guidance, hooks, and directory conventions.",
   "guidance": {
-    "bootstrap": "for_agent.md",
-    "reflection": "for_agent_reflection.md",
+    "bootstrap": "AGENT.md",
+    "reflection": "AGENT_REFLECTION.md",
     "onboarding_skill": "agent-onboarding",
     "brain_commands": [
       "BRAIN list", "BRAIN add", "BRAIN done", "BRAIN log",
@@ -33,7 +33,7 @@
         {"type": "brain_state", "tier": "working", "files": ["context", "tasks"], "format": "markdown"},
         {"type": "lessons", "tier": "knowledge", "count": 5, "format": "bullet_list"},
         {"type": "ecosystem", "module": "logic.agent.ecosystem", "function": "build_ecosystem_info"},
-        {"type": "reflection", "file": "for_agent_reflection.md", "section": "Current System Gaps"}
+        {"type": "reflection", "file": "AGENT_REFLECTION.md", "section": "Current System Gaps"}
       ],
       "wrapper": {
         "prefix": "--- AGENT BRAIN + ECOSYSTEM ---",
@@ -63,9 +63,9 @@
     }
   },
   "documentation": {
-    "per_directory": ["README.md", "for_agent.md", "for_agent_reflection.md"],
+    "per_directory": ["README.md", "AGENT.md", "AGENT_REFLECTION.md"],
     "hierarchy": "root → logic/<module>/ → tool/<NAME>/",
-    "convention": "README.md (users), for_agent.md (agents), for_agent_reflection.md (self-improvement)"
+    "convention": "README.md (users), AGENT.md (agents), AGENT_REFLECTION.md (self-improvement)"
   },
   "quality_commands": [
     "TOOL --audit code",

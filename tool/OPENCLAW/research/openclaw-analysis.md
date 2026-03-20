@@ -68,7 +68,7 @@ The critical insight: **the agent wakes up fresh each session and re-reads these
 
 ### How We Can Adopt This
 
-Our project's condition: We operate inside Cursor IDE, not as a standalone daemon. Our "sessions" are Cursor conversations, and our "memory" is `.cursor/rules/`, `for_agent.md`, and skills.
+Our project's condition: We operate inside Cursor IDE, not as a standalone daemon. Our "sessions" are Cursor conversations, and our "memory" is `.cursor/rules/`, `AGENT.md`, and skills.
 
 **Mapping OpenClaw concepts to our infrastructure:**
 
