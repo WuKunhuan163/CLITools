@@ -36,6 +36,9 @@ class AuditCommand(EcoCommand):
         cp.add_argument("--fix", action="store_true", help="Auto-fix safe issues")
         cp.add_argument("--targets", nargs="*", help="Directories to scan")
 
+        ap = sub.add_parser("argparse", help="Three-tier argparse conformance (---/--/-)")
+        ap.add_argument("--fix", action="store_true", help="Auto-fix structure violations")
+
         sub.add_parser("skills", help="Audit skill hierarchy: README.md, AGENT.md coverage")
         sub.add_parser("archived", help="Check for duplicate tools in tool/ and archived/")
 
@@ -48,6 +51,8 @@ class AuditCommand(EcoCommand):
             return self._quality(parsed, root)
         elif parsed.audit_command == "code":
             return self._code(parsed)
+        elif parsed.audit_command == "argparse":
+            return self._argparse(parsed)
         elif parsed.audit_command == "skills":
             return self._skills_audit()
         elif parsed.audit_command == "archived":
@@ -495,3 +500,77 @@ class AuditCommand(EcoCommand):
         report = run_full_audit(targets=parsed.targets or None, auto_fix=parsed.fix)
         print_report(report)
         return 0
+
+    def _argparse(self, parsed):
+        """Run argparse three-tier conformance audit with optional --fix."""
+        from logic._.audit.argparse_audit import audit_project, print_report
+
+        root = self.project_root
+        result = audit_project(root)
+        print_report(result)
+
+        if parsed.fix and result["total_findings"] > 0:
+            self._argparse_fix(root, result)
+
+        if parsed.fix:
+            self._structure_fix(root)
+
+        return 1 if result["errors"] > 0 else 0
+
+    def _argparse_fix(self, root, result):
+        """Auto-fix argparse conformance violations in source files."""
+        import re
+        BOLD = "\033[1m"
+        DIM = "\033[2m"
+        RESET = "\033[0m"
+        fixed = 0
+
+        for finding in result["findings"]:
+            fpath = Path(finding["file"])
+            violation = finding["violation"]
+            opt = finding["option"]
+            line_num = finding["line"]
+
+            if violation == "decorator_wrong_prefix":
+                name = opt.lstrip("-")
+                try:
+                    text = fpath.read_text(encoding="utf-8")
+                    old = f'"{opt}"'
+                    new = f'"-{name}", "{opt}"'
+                    if old in text:
+                        text = text.replace(old, new, 1)
+                        fpath.write_text(text, encoding="utf-8")
+                        fixed += 1
+                        print(f"  {DIM}Fixed L{line_num}: {opt} → -{name} alias added{RESET}")
+                except Exception as e:
+                    print(f"  {DIM}Skip {fpath.name} L{line_num}: {e}{RESET}")
+
+        if fixed:
+            print(f"\n{BOLD}Fixed {fixed} violations.{RESET}")
+
+    def _structure_fix(self, root):
+        """Auto-create missing logic/_/ directories for shared eco commands."""
+        BOLD = "\033[1m"
+        DIM = "\033[2m"
+        RESET = "\033[0m"
+
+        from logic._.audit.argparse_audit import ECO_COMMANDS_WITH_DIR
+
+        shared_dir = root / "logic" / "_"
+        created = 0
+
+        for cmd in sorted(ECO_COMMANDS_WITH_DIR):
+            cmd_dir = shared_dir / cmd
+            if not cmd_dir.exists():
+                cmd_dir.mkdir(parents=True, exist_ok=True)
+                (cmd_dir / "__init__.py").write_text("")
+                (cmd_dir / "main.py").write_text(
+                    f'"""logic/_/{cmd}/main.py — {cmd} eco command."""\n'
+                )
+                created += 1
+                print(f"  {DIM}Created logic/_/{cmd}/ (stub){RESET}")
+
+        if created:
+            print(f"\n{BOLD}Created {created} directories.{RESET}")
+        else:
+            print(f"\n{DIM}Structure already compliant.{RESET}")

@@ -63,27 +63,28 @@ When naming resources, prefer a single canonical name. If every provider logo is
 
 Commands follow a **three-tier classification** based on their role in the ecosystem. Each tier has a distinct indicator pattern, implementation location, and dispatch mechanism.
 
-#### Tier 1: Shared Eco Commands (prefix: `--`)
+#### Tier 1: Shared Eco Commands (prefix: `---`)
 
 Framework-level commands available to **all tools**. Their implementation lives in `logic/_/<name>/command.py`. They are intercepted in `handle_command_line()` before tool-specific argparse runs.
 
 | Command | Implementation | Purpose |
 |---------|---------------|---------|
-| `--dev` | `logic/_/dev/command.py` | Development utilities |
-| `--test` | `logic/_/test/manager.py` | Test runner |
-| `--setup` | `logic/_/setup/engine.py` | Tool installation |
-| `--config` | `logic/_/config/` | Configuration |
-| `--eco` | `logic/_/eco/navigation.py` | Ecosystem navigation |
-| `--skills` | `logic/_/skills/command.py` | Skill management |
-| `--hooks` | `logic/_/hooks/` | Hook management |
-| `--audit` | `logic/_/audit/command.py` | Code quality |
-| `--assistant` | `logic/_/assistant/` | Agent sessions |
-| `--agent` / `--ask` / `--plan` | `logic/_/agent/command.py` | Agent modes |
-| `--endpoint` | `logic/_/assistant/` | API endpoints |
-| `--install` / `--uninstall` | `logic/_/setup/` | Subtool management |
-| `--rule` | `logic/_/setup/` | Rule display |
+| `---dev` | `logic/_/dev/command.py` | Development utilities |
+| `---test` | `logic/_/test/manager.py` | Test runner |
+| `---setup` | `logic/_/setup/engine.py` | Tool installation |
+| `---config` | `logic/_/config/` | Configuration |
+| `---eco` | `logic/_/eco/navigation.py` | Ecosystem navigation |
+| `---skills` | `logic/_/skills/command.py` | Skill management |
+| `---hooks` | `logic/_/hooks/` | Hook management |
+| `---audit` | `logic/_/audit/command.py` | Code quality |
+| `---assistant` | `logic/_/assistant/` | Agent sessions |
+| `---agent` / `---ask` / `---plan` | `logic/_/agent/command.py` | Agent modes |
+| `---install` / `---uninstall` | `logic/_/setup/` | Subtool management |
+| `---rule` | `logic/_/setup/` | Rule display |
 
-**Key rule:** If a command is shared (appears in `base.py`'s dispatch), its logic MUST be in `logic/_/`. Conversely, if logic is in `logic/_/`, it should be reachable via a shared `--command`.
+**Key rule:** If a command is shared (appears in `base.py`'s dispatch), its logic MUST be in `logic/_/`. Conversely, if logic is in `logic/_/`, it should be reachable via a shared `---command`.
+
+**Unordered dispatch:** Eco tokens are resolved by finding the registered handler among all `---` tokens in argv. Order does not matter: `TOOL ---dev ---create` and `TOOL ---create ---dev` are equivalent — the system finds `---dev` as the primary handler and passes `create` as a sub-argument. This reduces cognitive load for users.
 
 #### Tier 2: Hierarchical Commands (tool-specific subparsers)
 
@@ -101,54 +102,62 @@ Example: `LLM provider add openai` → `tool/LLM/logic/provider/add/main.py` or 
 - `AGENT.md` at each level guides agents navigating the command tree
 - Terminal `main.py` files contain the actual command handler
 
-#### Tier 3: Decorator Commands (modifiers)
+#### Tier 3: Decorator Commands (modifiers, prefix: `-`)
 
 Flags that modify the behavior of other commands without producing their own dispatch. They are stripped from `sys.argv` before dispatch.
 
 | Decorator | Effect |
 |-----------|--------|
-| `--no-warning` | Suppress warning output |
-| `--tool-quiet` | Minimize all output |
+| `-no-warning` | Suppress warning output |
+| `-tool-quiet` | Minimize all output |
 | `--mcp-*` | Rewrite to bare subcommand for MCP |
 
-**Indicator:** Decorators use the `--no-*` or `--tool-*` prefix patterns. They NEVER have subcommands of their own and are always `action="store_true"` boolean flags.
+**Indicator:** Decorators use single-dash long flags (`-no-warning`, `-tool-quiet`). They NEVER have subcommands of their own and are always `action="store_true"` boolean flags. In argparse definitions, always list the `-` form first: `add_argument("-no-warning", "--no-warning", ...)`.
 
 #### Dispatch Order
 
 The dispatch follows a strict precedence:
-1. **Decorators** are stripped first (early parse)
-2. **Shared eco commands** are intercepted via `_extract_flag_args()`
+1. **Decorators** (`-flag`) are stripped from `sys.argv`
+2. **Shared eco commands** (`---flag`) are collected, handler resolved by matching against registry (unordered)
 3. **Subtool delegation** checks for `tool/<NAME>/tool/<CMD>/main.py`
-4. **Hierarchical commands** fall through to tool's own argparse
+4. **Hierarchical commands** (`--flag` or positional) fall through to tool's own argparse
 
 #### Dash-Level Indicators (argparse-native)
 
-argparse natively supports different dash counts as distinct option prefixes. This gives us **syntactic indicators** for command tiers:
+argparse natively supports different dash counts as distinct option prefixes. This gives **syntactic indicators** for command tiers:
 
 | Tier | Syntax | argparse | Example |
 |------|--------|----------|---------|
 | Shared eco | `---<name>` (triple dash) | `add_argument('---dev', ...)` | `TOOL ---dev info` |
-| Hierarchical | `--<name>` or positional | `add_argument('--provider', ...)` or subparsers | `TOOL --provider add` |
+| Hierarchical | `--<name>` or positional | `add_argument('--provider', ...)` or subparsers | `LLM --provider add` |
 | Decorator | `-<name>` (single dash, long) | `add_argument('-no-warning', ...)` | `TOOL -no-warning` |
 | Positional | `<value>` (no dash) | Positional args | `TOOL "query text"` |
 
-**Verified behavior:**
-- `---eco search query` parses as `Namespace(eco=['search', 'query'])` — works with `nargs='*'`
-- `-no-warning` parses as `Namespace(no_warning=True)` — works with `action='store_true'`
-- `--` (bare double dash) correctly acts as end-of-options, distinct from `---`
-- All three can coexist in one parser: `-no-warning ---eco dev info` parses correctly
+Tiers are **syntactically unambiguous** — `---dev`, `--dev`, and `-dev` are three distinct options. No naming collisions possible.
 
-This means command tier is **syntactically unambiguous** — no naming collisions possible between tiers. A shared eco command `---dev` can never collide with a hierarchical `--dev` or a decorator `-dev`.
-
-#### Implementation Location
+#### Implementation
 
 The base tool at `logic/tool/blueprint/base.py` handles all three tiers in `handle_command_line()`:
 
-1. **Decorators** (`-*`) are stripped first from `sys.argv`
-2. **Shared eco commands** (`---*`) are intercepted via registry dispatch
-3. **Hierarchical commands** (`--*` or positional) fall through to tool's argparse
+1. Decorators (`-*`) stripped from `sys.argv`
+2. All `---` tokens collected into a list; the registered handler is found (unordered)
+3. Remaining positional args plus unused eco tokens are passed to the handler
+4. If no eco token matched, hierarchical command dispatch via tool's argparse
 
-The shared eco command registry lives in `logic/_/eco/registry.py` (planned). Each registered eco command points to its handler in `logic/_/<name>/command.py`.
+#### Conformance Audit
+
+Run `TOOL ---audit argparse` to verify all tools comply with the three-tier convention. Run `TOOL ---audit argparse --fix` to auto-fix decorator prefix issues and auto-create missing `logic/_/` directories for eco commands.
+
+#### Refactor Aggressiveness
+
+The global config `refactor_aggressiveness` (set via `TOOL ---config set refactor_aggressiveness <0|1>`) controls how agents approach refactoring:
+
+| Value | Behavior |
+|-------|----------|
+| `0` | Conservative: preserve backward compat, add shims, gradual migration |
+| `1` | Bold: no backward compat, no shims, no legacy fallbacks. Clean break. |
+
+**Default is `1`.** The ecosystem philosophy: when few callers are affected, remove old code immediately. Long-term maintenance cost of shims always exceeds the short-term pain of a clean refactor. See also: `modularization` skill's "Bold Refactoring" section.
 
 ### 4. Documentation Symmetry
 
@@ -240,16 +249,18 @@ When breaking symmetry, document why in `AGENT.md`.
 
 ## Audit
 
-Run `TOOL --audit quality` to detect structural asymmetries:
+Run `TOOL ---audit quality` to detect structural asymmetries:
 - Missing `interface/main.py` when `logic/` exists
 - Missing documentation files
 - Inconsistent hook configurations
+
+Run `TOOL ---audit argparse` to check three-tier dash convention compliance. Use `--fix` to auto-remediate.
 
 The audit system itself follows symmetric design — each audit phase uses the same input/output patterns, making the full-flow audit possible.
 
 ## Information Entropy Quantification
 
-The entropy audit (`TOOL --audit --experimental entropy`) quantifies structural predictability across 6 dimensions:
+The entropy audit (`TOOL ---audit entropy`) quantifies structural predictability across 6 dimensions:
 
 | Dimension | What It Measures | Metric |
 |-----------|-----------------|--------|

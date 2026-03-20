@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-# Project root is three levels up: logic/config/main.py -> logic/config -> logic -> root
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+# logic/_/config/main.py -> config -> _ -> logic -> root
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 COLORS_JSON = Path(__file__).parent / "colors.json"
 SETTINGS_JSON = Path(__file__).parent / "settings.json"
 
@@ -45,6 +45,15 @@ def set_global_config(key, value):
         return True
     except Exception:
         return False
+
+def get_refactor_aggressiveness():
+    """Return refactor aggressiveness level (0=conservative, 1=bold).
+    
+    When 1: no backward compat, no shims, no legacy fallbacks.
+    When 0: preserve backward compat, add migration shims.
+    """
+    return get_global_config("refactor_aggressiveness", 1)
+
 
 def get_color(color_name, default="\033[0m"):
     """Retrieve an ANSI color code from colors.json."""

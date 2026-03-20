@@ -145,6 +145,8 @@ Backward-compat shims accumulate silently. Each one is "just one file" but colle
 
 There is **no threshold** at which backward compat becomes the right answer for internal code. External-facing APIs (published interfaces consumed by users or external tools) may warrant deprecation periods, but internal module reorganization never does.
 
+**Config-driven:** The global config `refactor_aggressiveness` (check via `TOOL ---config show`) controls this behavior. When set to `1` (default), agents should always choose the bold path — no shims, no legacy, immediate migration. When set to `0`, agents may preserve backward compat during phased rollouts. Always check this config before deciding whether to add migration shims.
+
 ### Real Example: logic/ Shim Cleanup (2026-03)
 
 During the logic/ directory cleanup, six backward-compat shim directories were found (`logic/turing/`, `logic/mcp/`, `logic/accessibility/`, `logic/chrome/`, `logic/asset/`, `logic/serve/`) that each contained only an `__init__.py` re-exporting from `logic/_/utils/`. Total callers across all six: fewer than 10. Each shim was deleted and its callers updated directly. The cleanup took minutes and eliminated six phantom modules from the import namespace.

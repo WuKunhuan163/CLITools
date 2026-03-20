@@ -10,7 +10,7 @@ class ToolBase:
     def __init__(self, tool_name, is_root=False):
         self.tool_name = tool_name
         self.is_root = is_root
-        self.no_warning = "-no-warning" in sys.argv or "--no-warning" in sys.argv
+        self.no_warning = "-no-warning" in sys.argv
 
         import inspect
         caller_file = Path(inspect.stack()[1].filename).resolve()
@@ -226,11 +226,11 @@ class ToolBase:
         self.check_cpu_load_and_warn()
 
         # ---- Tier 3: Strip decorator flags (single-dash) ----
-        self.is_quiet = "-tool-quiet" in sys.argv or "--tool-quiet" in sys.argv
+        self.is_quiet = "-tool-quiet" in sys.argv
 
         sys.argv = [sys.argv[0]] + [
             a for a in sys.argv[1:]
-            if a not in ["-no-warning", "--no-warning", "-tool-quiet", "--tool-quiet"]
+            if a not in ["-no-warning", "-tool-quiet"]
         ]
 
         # ---- Rewrite --mcp-* to bare subcommands for argparse ----
@@ -239,113 +239,58 @@ class ToolBase:
             for a in sys.argv[1:]
         ]
 
-        # ---- Tier 1: Shared eco command intercepts (---prefixed, before argparse) ----
-        def _extract_eco_args(name):
-            """Extract arguments after a shared eco command.
-            
-            Accepts both ---name (canonical) and --name (migration compat).
-            """
-            triple = f"---{name}"
-            double = f"--{name}"
-            for flag in (triple, double):
-                if flag in sys.argv:
-                    idx = sys.argv.index(flag)
-                    return sys.argv[idx + 1:]
-            return None
+        # ---- Tier 1: Shared eco command dispatch (--- prefix) ----
+        # Collect all ---tokens and positional args from argv
+        eco_tokens = []
+        positional_args = []
+        for arg in sys.argv[1:]:
+            if arg.startswith("---") and len(arg) > 3:
+                eco_tokens.append(arg[3:])
+            else:
+                positional_args.append(arg)
 
-        dev_args = _extract_eco_args("dev")
-        if dev_args is not None:
-            (dev_handler or self._handle_default_dev)(dev_args)
-            return True
+        if eco_tokens:
+            from logic._.agent.command import ALLOW_ASSISTANT_SHORTHAND
 
-        test_args = _extract_eco_args("test")
-        if test_args is not None:
-            (test_handler or self._handle_default_test)(test_args)
-            return True
+            eco_handlers = {
+                "dev": dev_handler or self._handle_default_dev,
+                "test": test_handler or self._handle_default_test,
+                "setup": lambda args: self.run_setup(),
+                "assistant": self._handle_assistant,
+                "endpoint": self._handle_endpoint,
+                "rule": lambda args: self.print_rule(),
+                "config": self._handle_tool_config,
+                "install": self._handle_install_dispatch,
+                "uninstall": self._handle_uninstall_dispatch,
+                "skills": self._handle_skills_command,
+                "hooks": self._handle_hooks_command,
+                "eco": self._handle_eco_command,
+                "call-register": self._handle_call_register,
+            }
+            if ALLOW_ASSISTANT_SHORTHAND:
+                eco_handlers["agent"] = lambda args: self._handle_agent(args)
+                eco_handlers["ask"] = lambda args: self._handle_agent(args, mode="ask")
+                eco_handlers["plan"] = lambda args: self._handle_agent(args, mode="plan")
 
-        if _extract_eco_args("setup") is not None:
-            self.run_setup()
-            return True
-
-        session_args = _extract_eco_args("assistant")
-        if session_args is not None:
-            self._handle_assistant(session_args)
-            return True
-
-        endpoint_args = _extract_eco_args("endpoint")
-        if endpoint_args is not None:
-            self._handle_endpoint(endpoint_args)
-            return True
-
-        from logic._.agent.command import ALLOW_ASSISTANT_SHORTHAND
-        if ALLOW_ASSISTANT_SHORTHAND:
-            agent_args = _extract_eco_args("agent")
-            if agent_args is not None:
-                self._handle_agent(agent_args)
-                return True
-
-            ask_args = _extract_eco_args("ask")
-            if ask_args is not None:
-                self._handle_agent(ask_args, mode="ask")
-                return True
-
-            plan_args = _extract_eco_args("plan")
-            if plan_args is not None:
-                self._handle_agent(plan_args, mode="plan")
-                return True
-
-        if _extract_eco_args("rule") is not None:
-            self.print_rule()
-            return True
-
-        config_args = _extract_eco_args("config")
-        if config_args is not None:
-            is_custom_config = False
-            if parser:
+            # Config override: if tool parser has its own 'config' subcommand, skip eco config
+            if "config" in eco_tokens and parser:
                 for action in parser._actions:
                     if action.dest == 'command' and hasattr(action, 'choices') and 'config' in action.choices:
-                        is_custom_config = True
+                        eco_handlers.pop("config", None)
                         break
-            if not is_custom_config:
-                self._handle_tool_config(config_args)
+
+            # Resolve: find which token is a registered handler (unordered)
+            primary = None
+            for token in eco_tokens:
+                if token in eco_handlers:
+                    primary = token
+                    break
+
+            if primary:
+                remaining_eco = [t for t in eco_tokens if t != primary]
+                sub_args = remaining_eco + positional_args
+                eco_handlers[primary](sub_args)
                 return True
-
-        install_args = _extract_eco_args("install")
-        if install_args is not None:
-            if install_args:
-                self.run_subtool_install(install_args[0])
-            else:
-                print(f"Usage: {self.tool_name} ---install <SUBTOOL_NAME>")
-            return True
-
-        uninstall_args = _extract_eco_args("uninstall")
-        if uninstall_args is not None:
-            if uninstall_args:
-                force_yes = "-y" in uninstall_args or "--yes" in uninstall_args
-                self.run_subtool_uninstall(uninstall_args[0], force_yes=force_yes)
-            else:
-                print(f"Usage: {self.tool_name} ---uninstall <SUBTOOL_NAME> [-y]")
-            return True
-
-        skills_args = _extract_eco_args("skills")
-        if skills_args is not None:
-            self._handle_skills_command(skills_args)
-            return True
-
-        hooks_args = _extract_eco_args("hooks")
-        if hooks_args is not None:
-            self._handle_hooks_command(hooks_args)
-            return True
-
-        eco_args = _extract_eco_args("eco")
-        if eco_args is not None:
-            self._handle_eco_command(eco_args)
-            return True
-
-        call_reg_args = _extract_eco_args("call-register")
-        if call_reg_args is not None:
-            self._handle_call_register(call_reg_args)
-            return True
 
         if len(sys.argv) > 1:
             args_to_check = sys.argv[1:]
@@ -1629,6 +1574,23 @@ class ToolBase:
     def get_fallback_initial_content(self, hint):
         """Hook for tools to customize initial fallback file content."""
         return hint or ""
+
+    def _handle_install_dispatch(self, args):
+        if args:
+            self.run_subtool_install(args[0])
+        else:
+            print(f"Usage: {self.tool_name} ---install <SUBTOOL_NAME>")
+
+    def _handle_uninstall_dispatch(self, args):
+        if args:
+            force_yes = "-y" in args or "--yes" in args
+            name = [a for a in args if not a.startswith("-")][0] if [a for a in args if not a.startswith("-")] else None
+            if name:
+                self.run_subtool_uninstall(name, force_yes=force_yes)
+            else:
+                print(f"Usage: {self.tool_name} ---uninstall <SUBTOOL_NAME> [-y]")
+        else:
+            print(f"Usage: {self.tool_name} ---uninstall <SUBTOOL_NAME> [-y]")
 
     def run_subtool_install(self, subtool_name):
         """Standardized sub-tool installation logic."""

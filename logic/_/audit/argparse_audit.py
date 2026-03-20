@@ -25,6 +25,18 @@ SHARED_ECO_COMMANDS = {
     "call-register",
 }
 
+# Commands that MUST have their own logic/_/<name>/ directory
+ECO_COMMANDS_WITH_DIR = {
+    "dev", "test", "setup", "config", "eco", "skills",
+    "hooks", "audit", "assistant", "agent",
+    "install", "search", "list", "status", "migrate",
+}
+
+# Aliases/small commands handled by parent modules (no own directory needed)
+ECO_COMMAND_ALIASES = {
+    "ask", "plan", "endpoint", "rule", "call-register", "uninstall",
+}
+
 DECORATOR_FLAGS = {
     "no-warning", "tool-quiet",
 }

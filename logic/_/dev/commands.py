@@ -10,7 +10,7 @@ from typing import Optional, Callable
 from logic._.config import get_color
 from logic._.utils import get_logic_dir
 
-_TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "tool" / "template"
+_TEMPLATE_DIR = Path(__file__).resolve().parent.parent.parent / "tool" / "template"
 
 
 def _git_bin():
@@ -206,7 +206,9 @@ def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Ca
     (tool_dir / "hooks" / "instance").mkdir(parents=True, exist_ok=True)
     (tool_dir / "eco").mkdir(exist_ok=True)
     
-    main_content = _load_template("core/main.py.tmpl", name=tool_name)
+    short_name = tool_name.split('.')[-1] if '.' in tool_name else tool_name
+
+    main_content = _load_template("core/main.py.tmpl", name=tool_name, short_name=short_name)
     with open(tool_dir / "main.py", 'w') as f: f.write(main_content)
     os.chmod(tool_dir / "main.py", 0o755)
     
@@ -216,8 +218,6 @@ def dev_create(tool_name: str, project_root: Path, translation_func: Optional[Ca
     tool_json_content = _load_template("core/tool.json.tmpl", name=tool_name)
     with open(tool_dir / "tool.json", 'w') as f: f.write(tool_json_content)
     tool_json = json.loads(tool_json_content)
-    
-    short_name = tool_name.split('.')[-1] if '.' in tool_name else tool_name
     
     # Update global tool.json
     registry_path = project_root / "tool.json"

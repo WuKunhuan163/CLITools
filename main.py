@@ -155,7 +155,7 @@ def _print_tool_help():
 
 def main():
     stripped_argv = [a for a in sys.argv[1:]
-                     if a not in ["-no-warning", "--no-warning", "-tool-quiet", "--tool-quiet"]]
+                     if a not in ["-no-warning", "-tool-quiet"]]
 
     current_lang = get_global_config("language", "en")
     set_rtl_mode(current_lang in ["ar"])
@@ -164,41 +164,42 @@ def main():
         _print_tool_help()
         return
 
-    primary = stripped_argv[0]
     _b = get_color("BOLD", "\033[1m")
     _d = get_color("DIM", "\033[2m")
     _r = get_color("RESET", "\033[0m")
 
-    # Enforce ---eco prefix to avoid tool name collision
-    if primary == "eco":
-        print(f"{_b}Use ---eco{_r} (with triple-dash prefix).")
-        print(f"  {_d}TOOL ---eco                   Dashboard{_r}")
-        print(f"  {_d}TOOL ---eco search \"query\"     Search ecosystem{_r}")
-        print(f"  {_d}TOOL ---eco --help             All eco commands{_r}")
-        return
+    # Collect --- eco tokens and positional args (unordered dispatch)
+    eco_tokens = []
+    positional_args = []
+    for arg in stripped_argv:
+        if arg.startswith("---") and len(arg) > 3:
+            eco_tokens.append(arg)
+        else:
+            positional_args.append(arg)
 
-    # Normalize: ---name is canonical, --name accepted for migration
-    name = primary.lstrip("-")
-    canon = f"---{name}"
+    if eco_tokens:
+        # Find which token matches a registered handler
+        primary = None
+        for token in eco_tokens:
+            if token in _TOOL_FLAG_HANDLERS:
+                primary = token
+                break
 
-    if canon in _TOOL_FLAG_HANDLERS:
-        _TOOL_FLAG_HANDLERS[canon](stripped_argv[1:])
-        return
+        if primary:
+            remaining_eco = [t for t in eco_tokens if t != primary]
+            _TOOL_FLAG_HANDLERS[primary](remaining_eco + positional_args)
+            return
 
-    user_cmd = primary
+        user_cmd = eco_tokens[0]
+    else:
+        user_cmd = stripped_argv[0]
+
     from interface.utils import suggest_commands
     flags = list(_TOOL_FLAG_HANDLERS.keys())
-    bare_names = [f.lstrip("-") for f in flags]
-    candidates = flags + bare_names
-    matches = suggest_commands(user_cmd, candidates, n=3, cutoff=0.5)
-    normalized = []
-    for m in matches:
-        c = f"---{m}" if not m.startswith("-") else m
-        if c not in normalized:
-            normalized.append(c)
+    matches = suggest_commands(user_cmd, flags, n=3, cutoff=0.4)
     print(f"{_b}Unknown command:{_r} {user_cmd}")
-    if normalized:
-        hint = ", ".join(normalized)
+    if matches:
+        hint = ", ".join(matches)
         print(f"  {_d}Did you mean: {hint}?{_r}")
     print(f"  {_d}Use TOOL --help for available commands.{_r}")
 
