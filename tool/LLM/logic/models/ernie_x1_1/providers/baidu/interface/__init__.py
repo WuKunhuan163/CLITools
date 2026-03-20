@@ -3,7 +3,7 @@
 Latest reasoning model from Baidu. 1 CNY/M input, 4 CNY/M output.
 128K context window. Supports search enhancement.
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import baidu as vendor
 

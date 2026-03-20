@@ -329,7 +329,7 @@ class AgentLoop:
         merged_tc = [tool_calls_by_idx[k] for k in sorted(tool_calls_by_idx)]
 
         try:
-            from tool.LLM.logic.usage import record_usage
+            from tool.LLM.logic.session.usage import record_usage
             model = getattr(provider, "_model", provider.name)
             api_key = getattr(provider, "_api_key", "")
             record_usage(provider.name, model,

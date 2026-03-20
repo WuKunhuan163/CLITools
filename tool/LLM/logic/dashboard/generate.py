@@ -20,7 +20,7 @@ def _get_providers() -> list:
 
 
 def _get_records() -> list:
-    from tool.LLM.logic.usage import load_records
+    from tool.LLM.logic.session.usage import load_records
     records = load_records()
     return [
         {
@@ -76,7 +76,7 @@ def _enrich_costs(records: list, providers: list):
 
 
 def _get_provider_limits() -> Dict[str, Any]:
-    from tool.LLM.logic.usage import get_all_provider_limits
+    from tool.LLM.logic.session.usage import get_all_provider_limits
     return get_all_provider_limits()
 
 

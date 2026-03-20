@@ -3,7 +3,7 @@
 Budget reasoning model. 1 CNY/M input, 4 CNY/M output.
 32K context window. Deep thinking capability.
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import baidu as vendor
 

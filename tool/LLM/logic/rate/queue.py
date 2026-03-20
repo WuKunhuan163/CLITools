@@ -10,7 +10,7 @@ and feedback-driven pushback. Each (provider, model) pair maintains:
 - state: idle / throttled / cooldown / blocked
 
 Usage:
-    from tool.LLM.logic.rate_queue import get_queue_manager
+    from tool.LLM.logic.rate.queue import get_queue_manager
 
     qm = get_queue_manager()
 
@@ -397,7 +397,7 @@ class RateQueueManager:
         directory by stripping the vendor prefix and comparing against
         the directory name with hyphens normalized to underscores.
         """
-        models_dir = Path(__file__).parent / "models"
+        models_dir = Path(__file__).parent.parent / "models"
         if not models_dir.is_dir():
             return RateLimits()
 

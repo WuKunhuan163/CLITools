@@ -16,10 +16,10 @@ import urllib.error
 from typing import Any, Dict, List, Optional
 
 from tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities
-from tool.LLM.logic.rate_limiter import RateLimiter
+from tool.LLM.logic.rate.limiter import RateLimiter
 from tool.LLM.logic.config import get_config_value, set_config_value
-from tool.LLM.logic.key_state import get_selector, KeyStatus
-from tool.LLM.logic.provider_manager import get_manager
+from tool.LLM.logic.rate.key_state import get_selector, KeyStatus
+from tool.LLM.logic.providers.manager import get_manager
 
 
 class AnthropicProvider(LLMProvider):

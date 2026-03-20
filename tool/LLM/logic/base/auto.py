@@ -17,7 +17,7 @@ Provider recovery:
 
 The decision interface is callable standalone:
 
-    from tool.LLM.logic.auto import auto_decide
+    from tool.LLM.logic.base.auto import auto_decide
     model_c, response = auto_decide(
         primary_list=PRIMARY_LIST,
         fallback_list=FALLBACK_LIST,
@@ -33,7 +33,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities
 
-_MODELS_DIR = Path(__file__).parent / "models"
+_MODELS_DIR = Path(__file__).parent.parent / "models"
 
 # ── Preference Lists ─────────────────────────────────────────────────
 
@@ -278,7 +278,7 @@ def _get_available_models(model_list: List[str]) -> List[str]:
     Delegates to ProviderManager for unified availability that factors in
     per-key state, rate-limiter backoff, and provider-level health.
     """
-    from tool.LLM.logic.provider_manager import get_manager
+    from tool.LLM.logic.providers.manager import get_manager
     return get_manager().get_available_from_list(model_list)
 
 
@@ -297,7 +297,7 @@ def _build_model_descriptions(available: List[str]) -> str:
     Includes real-time health state so the decision model can factor in
     which providers are rate-limited or degraded.
     """
-    from tool.LLM.logic.provider_manager import get_manager
+    from tool.LLM.logic.providers.manager import get_manager
     mgr = get_manager()
 
     lines = []
@@ -412,7 +412,7 @@ def auto_decide(
     catalog = _build_model_descriptions(available_a)
     full_prompt = task_description + "\n" + user_prompt if task_description else user_prompt
 
-    from tool.LLM.logic.provider_manager import get_manager
+    from tool.LLM.logic.providers.manager import get_manager
     health_summary = get_manager().get_status_summary_for_prompt(available_a)
 
     decision_prompt = _DECISION_PROMPT.format(

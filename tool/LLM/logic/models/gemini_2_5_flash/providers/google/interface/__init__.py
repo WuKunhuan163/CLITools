@@ -4,7 +4,7 @@ Endpoint: https://generativelanguage.googleapis.com/v1beta/openai/chat/completio
 Model:    gemini-2.5-flash
 Free tier available (rate-limited). Paid: $0.3/M in, $2.5/M out.
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import google as vendor
 

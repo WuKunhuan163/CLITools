@@ -13,7 +13,7 @@ import urllib.error
 from typing import Dict, Any, List, Optional
 
 from tool.LLM.logic.base import LLMProvider, CostModel, ModelCapabilities
-from tool.LLM.logic.rate_limiter import RateLimiter
+from tool.LLM.logic.rate.limiter import RateLimiter
 from tool.LLM.logic.config import get_config_value, set_config_value
 
 ZHIPU_API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"

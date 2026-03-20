@@ -117,6 +117,7 @@ class _SingleFileHandler(SimpleHTTPRequestHandler):
     _api_handler: Optional[Callable] = None
     _page_handler: Optional[Callable] = None
     _sse_broker: Optional[_SSEBroker] = None
+    _asset_dirs: dict = {}
 
     def __init__(self, *args, **kwargs):
         directory = str(self._html_path.parent) if self._html_path else "."
@@ -146,6 +147,8 @@ class _SingleFileHandler(SimpleHTTPRequestHandler):
         elif path.startswith("/api/") and self._api_handler:
             result = self._api_handler("GET", path, None)
             self._json_response(result)
+        elif self._asset_dirs and self._try_serve_asset(path):
+            pass
         elif path.startswith("/session/") and self._page_handler:
             html = self._page_handler(self.path)
             if html:
@@ -154,6 +157,35 @@ class _SingleFileHandler(SimpleHTTPRequestHandler):
                 self.send_error(404)
         else:
             super().do_GET()
+
+    def _try_serve_asset(self, url_path: str) -> bool:
+        """Serve a static file from configured asset directories. Returns True if handled."""
+        import mimetypes
+        for prefix, local_dir in self._asset_dirs.items():
+            if not url_path.startswith(prefix):
+                continue
+            rel = url_path[len(prefix):]
+            if ".." in rel or rel.startswith("/"):
+                self.send_error(403)
+                return True
+            file_path = Path(local_dir) / rel
+            if not file_path.is_file():
+                self.send_error(404)
+                return True
+            ctype = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+            try:
+                data = file_path.read_bytes()
+            except OSError:
+                self.send_error(500)
+                return True
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "public, max-age=86400, immutable")
+            self.end_headers()
+            self.wfile.write(data)
+            return True
+        return False
 
     def do_POST(self):
         if self.path.startswith("/api/") and self._api_handler:
@@ -258,6 +290,7 @@ class LocalHTMLServer:
         page_handler: Optional[Callable] = None,
         on_generate: Optional[Callable] = None,
         enable_sse: bool = False,
+        asset_dirs: Optional[dict] = None,
     ):
         self.html_path = Path(html_path)
         self.port = port or find_free_port()
@@ -265,6 +298,7 @@ class LocalHTMLServer:
         self.api_handler = api_handler
         self.page_handler = page_handler
         self.on_generate = on_generate
+        self.asset_dirs = asset_dirs or {}
         self._sse_broker = _SSEBroker() if enable_sse else None
         self._httpd: Optional[HTTPServer] = None
         self._thread: Optional[threading.Thread] = None
@@ -306,7 +340,8 @@ class LocalHTMLServer:
             {"_html_path": self.html_path,
              "_api_handler": staticmethod(self.api_handler) if self.api_handler else None,
              "_page_handler": staticmethod(self.page_handler) if self.page_handler else None,
-             "_sse_broker": self._sse_broker},
+             "_sse_broker": self._sse_broker,
+             "_asset_dirs": self.asset_dirs},
         )
         threaded_server = type("_ThreadedHTTPServer", (ThreadingMixIn, HTTPServer), {"daemon_threads": True, "allow_reuse_address": True})
         self._httpd = threaded_server(("127.0.0.1", self.port), handler_class)

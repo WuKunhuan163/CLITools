@@ -1,0 +1,9 @@
+{
+  "id": "agent_feed_prompts",
+  "version": "1.0",
+  "description": "System feed prompts injected at round boundaries",
+  "prompts": {
+    "wrapup_approaching": "[System] You are approaching the turn limit. Complete ALL remaining sub-tasks now. If you have multiple parts to address, do them in this round. Summarize your findings concisely.",
+    "final_round": "[SYSTEM] FINAL ROUND. After this response the task ends. Include a text summary alongside any tool calls. Do NOT rely on another round."
+  }
+}

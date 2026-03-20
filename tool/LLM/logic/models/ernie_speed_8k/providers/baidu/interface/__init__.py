@@ -3,7 +3,7 @@
 This model previously used the qianfan SDK. Now uses OpenAI-compatible API.
 Kept for backward compatibility; model.json marks it as inactive.
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import baidu as vendor
 

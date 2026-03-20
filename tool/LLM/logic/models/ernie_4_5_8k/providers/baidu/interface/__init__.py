@@ -3,7 +3,7 @@
 Standard ERNIE model with 8K context. Vision-capable.
 4 CNY/M input, 16 CNY/M output.
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import baidu as vendor
 

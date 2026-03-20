@@ -141,7 +141,7 @@ class Brain:
 
     def __init__(self, data_dir: Optional[Path] = None):
         if data_dir is None:
-            data_dir = Path(__file__).resolve().parent.parent / "data"
+            data_dir = Path(__file__).resolve().parent.parent.parent / "data"
         self._data_dir = data_dir
         self._store = MemoryStore(data_dir / "brain_memory.json")
         self._on_memory_cb: Optional[Callable] = None

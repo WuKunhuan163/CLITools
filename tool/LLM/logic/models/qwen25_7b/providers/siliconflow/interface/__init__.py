@@ -2,7 +2,7 @@
 
 Free tier: 3 RPS, 100 RPM (permanently free for select open-source models).
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import siliconflow as vendor
 

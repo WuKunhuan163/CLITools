@@ -1,0 +1,8 @@
+{
+  "id": "light",
+  "order": 1,
+  "label": "Light",
+  "icon": "bx-sun",
+  "cls": "light-mode",
+  "favicon_color": "#3a6fd8"
+}

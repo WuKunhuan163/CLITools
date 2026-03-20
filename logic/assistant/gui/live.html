@@ -969,7 +969,7 @@ body.debug-mode .debug-block { display: block; }
         <option value="100">100 rounds</option>
         <option value="200">200 rounds</option>
         <option value="500">500 rounds</option>
-        <option value="0">&infin; unlimited</option>
+        <option value="0">Unlimited</option>
         <option value="custom">Custom...</option>
       </select>
       <div class="selector-spacer"></div>
@@ -1007,148 +1007,53 @@ let selectedMode = null;
 let selectedModel = null;
 let selectedTurnLimit = null;
 
-const ZHIPU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/zhipu-color.svg';
-const GOOGLE_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/gemini-color.svg';
-const BAIDU_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/wenxin-color.svg';
-const TENCENT_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/hunyuan-color.svg';
-const SILICONFLOW_LOGO = 'https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/siliconcloud-color.svg';
-const _ICON = n => `https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/${n}-color.svg`;
-const _ICON_PLAIN = n => `https://registry.npmmirror.com/@lobehub/icons-static-svg/latest/files/icons/${n}.svg`;
-const CURSOR_LOGO = _ICON_PLAIN('cursor');
-const COPILOT_LOGO = _ICON('copilot');
-const WINDSURF_LOGO = _ICON_PLAIN('windsurf');
-const PROVIDER_LOGOS = {
-  zhipu: _ICON('zhipu'),
-  google: _ICON('google'),
-  gemini: GOOGLE_LOGO,
-  baidu: _ICON('baidu'),
-  ernie: BAIDU_LOGO,
-  tencent: _ICON('tencent'),
-  hunyuan: TENCENT_LOGO,
-  siliconflow: _ICON('siliconcloud'),
-  nvidia: _ICON('nvidia'),
-  alibaba: _ICON('alibaba'),
-  qwen: _ICON('qwen'),
-  anthropic: _ICON('anthropic'),
-  openai: _ICON('openai'),
-  deepseek: _ICON('deepseek'),
-  cursor: CURSOR_LOGO,
-  copilot: COPILOT_LOGO,
-  windsurf: WINDSURF_LOGO,
-  'github-copilot': COPILOT_LOGO,
-};
-const MODEL_LOGOS = {
-  'zhipu-glm-4.7-flash': ZHIPU_LOGO,
-  'zhipu-glm-4-flash': ZHIPU_LOGO,
-  'zhipu-glm-4.7': ZHIPU_LOGO,
-  'glm-4.7-flash': ZHIPU_LOGO,
-  'glm-4-flash': ZHIPU_LOGO,
-  'glm-4.7': ZHIPU_LOGO,
-  'nvidia-glm-4-7b': _ICON('nvidia'),
-  'google-gemini-2.5-flash': GOOGLE_LOGO,
-  'google-gemini-2.5-flash-lite': GOOGLE_LOGO,
-  'google-gemini-2.5-pro': GOOGLE_LOGO,
-  'google-gemini-3-flash': GOOGLE_LOGO,
-  'google-gemini-3.1-flash-lite': GOOGLE_LOGO,
-  'google-gemini-3.1-pro': GOOGLE_LOGO,
-  'gemini-2.5-flash': GOOGLE_LOGO,
-  'gemini-2.5-flash-lite': GOOGLE_LOGO,
-  'gemini-2.5-pro': GOOGLE_LOGO,
-  'gemini-3-flash': GOOGLE_LOGO,
-  'gemini-3.1-flash-lite': GOOGLE_LOGO,
-  'gemini-3.1-pro': GOOGLE_LOGO,
-  'baidu-ernie-4.5-turbo-128k': BAIDU_LOGO,
-  'baidu-ernie-5.0': BAIDU_LOGO,
-  'baidu-ernie-x1-turbo-32k': BAIDU_LOGO,
-  'baidu-ernie-x1.1': BAIDU_LOGO,
-  'baidu-ernie-4.5-8k': BAIDU_LOGO,
-  'baidu-ernie-4.5-8k-preview': BAIDU_LOGO,
-  'baidu-ernie-4.0-turbo-8k': BAIDU_LOGO,
-  'baidu-ernie-4.5-turbo-32k': BAIDU_LOGO,
-  'baidu-ernie-speed-8k': BAIDU_LOGO,
-  'ernie-4.5-turbo-128k': BAIDU_LOGO,
-  'ernie-5.0': BAIDU_LOGO,
-  'ernie-x1-turbo-32k': BAIDU_LOGO,
-  'ernie-x1.1': BAIDU_LOGO,
-  'ernie-4.5-8k-preview': BAIDU_LOGO,
-  'ernie-4.0-turbo-8k': BAIDU_LOGO,
-  'ernie-4.5-turbo-32k': BAIDU_LOGO,
-  'ernie-speed-8k': BAIDU_LOGO,
-  'tencent-hunyuan-lite': TENCENT_LOGO,
-  'hunyuan-lite': TENCENT_LOGO,
-  'siliconflow-qwen2.5-7b': SILICONFLOW_LOGO,
-  'qwen2.5-7b': SILICONFLOW_LOGO,
-  'anthropic-claude-sonnet-4.6': _ICON('anthropic'),
-  'anthropic-claude-haiku-4.5': _ICON('anthropic'),
-  'openai-gpt-4o': _ICON('openai'),
-  'openai-gpt-4o-mini': _ICON('openai'),
-  'deepseek-chat': _ICON('deepseek'),
-  'deepseek-reasoner': _ICON('deepseek'),
-  'auto': null,
-  'cursor': CURSOR_LOGO,
-  'copilot': COPILOT_LOGO,
-  'windsurf': WINDSURF_LOGO,
-};
-
-const MODEL_DISPLAY_NAMES = {
-  'auto': 'Auto',
-  'zhipu-glm-4.7-flash': 'GLM-4.7-Flash',
-  'zhipu-glm-4-flash': 'GLM-4-Flash',
-  'zhipu-glm-4.7': 'GLM-4.7',
-  'glm-4.7-flash': 'GLM-4.7-Flash',
-  'glm-4-flash': 'GLM-4-Flash',
-  'glm-4.7': 'GLM-4.7',
-  'google-gemini-2.5-flash': 'Gemini 2.5 Flash',
-  'google-gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite',
-  'google-gemini-2.5-pro': 'Gemini 2.5 Pro',
-  'google-gemini-3-flash': 'Gemini 3 Flash',
-  'google-gemini-3.1-flash-lite': 'Gemini 3.1 Flash-Lite',
-  'google-gemini-3.1-pro': 'Gemini 3.1 Pro',
-  'gemini-2.5-flash': 'Gemini 2.5 Flash',
-  'gemini-2.5-flash-lite': 'Gemini 2.5 Flash-Lite',
-  'gemini-2.5-pro': 'Gemini 2.5 Pro',
-  'gemini-3-flash': 'Gemini 3 Flash',
-  'gemini-3.1-flash-lite': 'Gemini 3.1 Flash-Lite',
-  'gemini-3.1-pro': 'Gemini 3.1 Pro',
-  'baidu-ernie-4.5-turbo-128k': 'ERNIE 4.5 Turbo 128K',
-  'baidu-ernie-5.0': 'ERNIE 5.0',
-  'baidu-ernie-x1-turbo-32k': 'ERNIE X1-Turbo 32K',
-  'baidu-ernie-x1.1': 'ERNIE X1.1',
-  'baidu-ernie-4.5-8k': 'ERNIE 4.5 8K',
-  'baidu-ernie-4.5-8k-preview': 'ERNIE 4.5 8K',
-  'baidu-ernie-4.0-turbo-8k': 'ERNIE 4.0 Turbo 8K',
-  'baidu-ernie-4.5-turbo-32k': 'ERNIE 4.5 Turbo 32K',
-  'ernie-4.5-turbo-128k': 'ERNIE 4.5 Turbo 128K',
-  'ernie-5.0': 'ERNIE 5.0',
-  'ernie-x1-turbo-32k': 'ERNIE X1-Turbo 32K',
-  'ernie-x1.1': 'ERNIE X1.1',
-  'ernie-4.5-8k-preview': 'ERNIE 4.5 8K',
-  'ernie-4.0-turbo-8k': 'ERNIE 4.0 Turbo 8K',
-  'ernie-4.5-turbo-32k': 'ERNIE 4.5 Turbo 32K',
-  'baidu-ernie-speed-8k': 'ERNIE Speed 8K',
-  'ernie-speed-8k': 'ERNIE Speed 8K',
-  'tencent-hunyuan-lite': 'Hunyuan Lite',
-  'hunyuan-lite': 'Hunyuan Lite',
-  'siliconflow-qwen2.5-7b': 'Qwen 2.5 7B',
-  'qwen2.5-7b': 'Qwen 2.5 7B',
-  'anthropic-claude-sonnet-4.6': 'Claude Sonnet 4.6',
-  'anthropic-claude-haiku-4.5': 'Claude Haiku 4.5',
-  'openai-gpt-4o': 'GPT-4o',
-  'openai-gpt-4o-mini': 'GPT-4o Mini',
-  'deepseek-chat': 'DeepSeek V3',
-  'deepseek-reasoner': 'DeepSeek R1',
-  'cursor': 'Cursor',
-  'copilot': 'Copilot',
-  'windsurf': 'Windsurf',
-};
-
+let PROVIDER_LOGOS = {};
+let MODEL_LOGOS = {};
+let MODEL_DISPLAY_NAMES = { 'auto': 'Auto' };
+let ENV_LOGOS = {};
+let MODE_ICONS = { 'meta-agent': 'bx-brain', agent: 'bx-bot', plan: 'bx-edit', ask: 'bx-chat' };
+let MODE_LABELS = { 'meta-agent': 'Meta-Agent', agent: 'Agent', plan: 'Plan', ask: 'Ask' };
 const AI_IDE_PROVIDERS = new Set(['cursor', 'copilot', 'windsurf', 'github-copilot']);
+const _iconCache = {};
 
-const ENV_LOGOS = {
-  'cursor': CURSOR_LOGO,
-  'copilot': COPILOT_LOGO,
-  'windsurf': WINDSURF_LOGO,
-};
+function _preloadIcon(url) {
+  if (!url || _iconCache[url]) return;
+  const img = new Image();
+  img.src = url;
+  _iconCache[url] = img;
+}
+
+async function _loadModelsMeta() {
+  try {
+    const r = await fetch('/api/models/metadata');
+    const d = await r.json();
+    if (!d.ok) return;
+    if (d.providers) {
+      for (const [pid, p] of Object.entries(d.providers)) {
+        if (p.icon) { PROVIDER_LOGOS[pid] = p.icon; _preloadIcon(p.icon); }
+      }
+      PROVIDER_LOGOS['github-copilot'] = PROVIDER_LOGOS['copilot'] || null;
+    }
+    if (d.models) {
+      for (const [mid, m] of Object.entries(d.models)) {
+        if (m.icon) { MODEL_LOGOS[mid] = m.icon; _preloadIcon(m.icon); }
+        if (m.display_name) MODEL_DISPLAY_NAMES[mid] = m.display_name;
+      }
+    }
+    if (d.env) {
+      for (const [eid, e] of Object.entries(d.env)) {
+        if (e.icon) { ENV_LOGOS[eid] = e.icon; _preloadIcon(e.icon); }
+        if (e.display_name) MODEL_DISPLAY_NAMES[eid] = e.display_name;
+      }
+    }
+    if (d.modes) {
+      for (const [mid, m] of Object.entries(d.modes)) {
+        if (m.icon) MODE_ICONS[mid] = m.icon;
+        if (m.label) MODE_LABELS[mid] = m.label;
+      }
+    }
+  } catch (e) { console.warn('Failed to load models metadata:', e); }
+}
 
 function resolveDisplayName(provider, model) {
   if (AI_IDE_PROVIDERS.has(provider) && model) {
@@ -1164,9 +1069,6 @@ function resolveModelLogo(provider) {
   if (PROVIDER_LOGOS[vendor]) return PROVIDER_LOGOS[vendor];
   return null;
 }
-
-const MODE_ICONS = { 'meta-agent': 'bx-brain', agent: 'bx-bot', plan: 'bx-edit', ask: 'bx-chat' };
-const MODE_LABELS = { 'meta-agent': 'Meta-Agent', agent: 'Agent', plan: 'Plan', ask: 'Ask' };
 
 let MODEL_OPTIONS = [
   { value: 'auto', label: 'Auto' },
@@ -1273,7 +1175,7 @@ function setTurnLimit(val) {
     } else {
       const opt = document.createElement('option');
       opt.value = String(n);
-      opt.textContent = n === 0 ? '\u221E unlimited' : n + ' rounds';
+      opt.textContent = n === 0 ? 'Unlimited' : n + ' rounds';
       sel.insertBefore(opt, sel.querySelector('[value="custom"]'));
       sel.value = String(n);
     }
@@ -1314,53 +1216,43 @@ function setDebugModeTo(on) {
   try { localStorage.setItem('debug_mode', debugMode ? '1' : '0'); } catch(e) {}
 }
 
-const THEMES = {
-  dark:      { label: 'Dark',      icon: 'bx-moon',    cls: '' },
-  light:     { label: 'Light',     icon: 'bx-sun',     cls: 'light-mode' },
-  brilliant: { label: 'Brilliant', icon: 'bx-palette',  cls: 'brilliant-mode' },
-  hacker:    { label: 'Hacker',    icon: 'bx-terminal', cls: 'hacker-mode' },
+let THEMES = {
+  dark: { label: 'Dark', icon: 'bx-moon', cls: '', favicon_color: '#5b8def' },
 };
-const BRILLIANT_PALETTES = [
-  { id: 'strawberry', icon: '🍓', label: 'Strawberry' },
-  { id: 'mango',      icon: '🥭', label: 'Mango' },
-  { id: 'blueberry',  icon: '🫐', label: 'Blueberry' },
-];
+let BRILLIANT_PALETTES = [];
 let currentTheme = localStorage.getItem('theme') || 'dark';
-if (!THEMES[currentTheme]) currentTheme = 'dark';
 let currentPalette = localStorage.getItem('brilliantPalette') || 'strawberry';
 
+async function _loadPalette() {
+  try {
+    const r = await fetch('/api/palette');
+    const d = await r.json();
+    if (!d.ok) return;
+    if (d.themes && d.themes.length) {
+      THEMES = {};
+      for (const t of d.themes) {
+        THEMES[t.id] = { label: t.label, icon: t.icon, cls: t.cls || '', favicon_color: t.favicon_color };
+      }
+    }
+    if (d.palettes && d.palettes.length) {
+      BRILLIANT_PALETTES = d.palettes.map(p => ({ id: p.id, icon: p.icon, label: p.label, favicon_color: p.favicon_color }));
+    }
+  } catch (e) { console.warn('Failed to load palette:', e); }
+  if (!THEMES[currentTheme]) currentTheme = 'dark';
+}
+
 /* ── i18n ── */
-const _I18N = {
-  zh: {
-    'Settings': '设置', 'General': '通用', 'Chat': '对话', 'Models': '模型', 'Providers': '供应商', 'Brain': '大脑',
-    'Context Compression': '上下文压缩', 'Compression Trigger': '压缩触发',
-    'Debug': '调试', 'Stop': '停止', 'New session': '新会话',
-    'Agent': '代理', 'Meta-Agent': '元认知代理', 'Plan': '计划', 'Ask': '问答', 'Auto': '自动',
-    'Color Mode': '颜色模式', 'Language': '语言', 'Currency': '货币', 'Appearance': '外观',
-    'Behavior': '行为', 'Default Round Limit': '默认轮次限制', 'History Round Folding': '历史轮次折叠',
-    'Data': '数据', 'Session Data': '会话数据', 'Data Retention': '数据保留', 'History Context Rounds': '历史上下文轮数',
-    'Configured': '已配置', 'Not configured': '未配置',
-    'Validate & Save': '验证并保存', 'Guide': '指南', 'Delete': '删除',
-    'Usage': '用量', 'Benchmarks': '基准测试',
-    'Revert all': '全部撤回', 'Accept all': '全部接受',
-    'Dark': '深色', 'Light': '浅色', 'Brilliant': '明亮',
-    'Type a message. Ctrl+Enter to send.': '输入消息。Ctrl+Enter 发送。',
-    'rounds': '轮', 'files': '文件', 'File': '文件', 'Files': '文件',
-    'modified': '已修改', 'new': '新建', 'reverted': '已撤回',
-    'Task completed': '任务完成', 'Task failed, please try again': '任务失败，请重试',
-    'Round limit reached': '已达轮数上限',
-    'Calls': '调用', 'Input Tokens': '输入令牌', 'Output Tokens': '输出令牌', 'Cost': '费用',
-    'Recent Calls': '最近调用', 'API Keys': 'API 密钥', 'Add Key': '添加密钥',
-    'Token History': '令牌历史', 'No API keys configured': '未配置 API 密钥',
-    'Providers': '供应商', 'Models': '模型',
-  },
-  ar: {
-    'Settings': 'الإعدادات', 'General': 'عام', 'Chat': 'محادثة', 'Models': 'النماذج', 'Providers': 'المزودون',
-    'Debug': 'تصحيح', 'Stop': 'إيقاف', 'New session': 'جلسة جديدة',
-    'Agent': 'الوكيل', 'Meta-Agent': 'وكيل ميتا', 'Plan': 'خطة', 'Ask': 'سؤال', 'Auto': 'تلقائي',
-  },
-};
+let _I18N = {};
 let _guiLang = localStorage.getItem('guiLang') || 'en';
+
+async function _loadI18N() {
+  try {
+    const r = await fetch('/api/i18n');
+    const d = await r.json();
+    if (d.ok && d.translations) _I18N = d.translations;
+  } catch (e) { console.warn('Failed to load i18n:', e); }
+}
+
 function _(key) {
   if (_guiLang === 'en' || !_I18N[_guiLang]) return key;
   return _I18N[_guiLang][key] || key;
@@ -1379,33 +1271,32 @@ function _refreshPillLabels() {
     modePill.setOptions(Object.keys(MODE_ICONS).map(k => ({ value: k, label: _(MODE_LABELS[k]), icon: MODE_ICONS[k] })));
   }
   if (typeof modelPill !== 'undefined' && modelPill) {
-    modelPill.setOptions(MODEL_OPTIONS.map(o => o.value === 'auto' ? { value: 'auto', label: _('Auto'), icon: 'bx-bot' } : { value: o.value, label: _(o.label), ...(MODEL_LOGOS[o.value] ? { logo: MODEL_LOGOS[o.value] } : { icon: 'bx-bot' }) }));
+    modelPill.setOptions(MODEL_OPTIONS.map(o => {
+      if (o.value === 'auto') return { value: 'auto', label: _('Auto'), icon: 'bx-bot' };
+      const logo = o.logo || MODEL_LOGOS[o.value] || resolveModelLogo(o.value);
+      return { value: o.value, label: _(o.label), ...(logo ? { logo } : { icon: 'bx-bot' }) };
+    }));
   }
   const turnSel = $('turn-limit-select');
   if (turnSel) {
     turnSel.querySelectorAll('option').forEach(opt => {
       const n = opt.value;
-      opt.textContent = n === '0' ? '\u221E ' + _('unlimited') : n + ' ' + _('rounds');
+      opt.textContent = n === '0' ? _('Unlimited') : n + ' ' + _('rounds');
     });
     turnSel.value = String(selectedTurnLimit);
   }
 }
 
-const _FAVICON_COLORS = {
-  dark:  '#5b8def',
-  light: '#3a6fd8',
-  brilliant: { strawberry: '#e85d75', mango: '#e8920b', blueberry: '#5070e0' },
-  hacker: '#00ff41',
-};
 const _FAVICON_SVG = (color) => `data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22 fill=%22${encodeURIComponent(color)}%22><path d=%22M21.928 11.607c-.202-.488-.635-.605-.928-.633V8c0-1.103-.897-2-2-2h-6V4.61c.305-.274.5-.668.5-1.11a1.5 1.5 0 0 0-3 0c0 .442.195.836.5 1.11V6H5c-1.103 0-2 .897-2 2v2.997l-.082.006A1 1 0 0 0 1.99 12v2a1 1 0 0 0 1 1H3v5c0 1.103.897 2 2 2h14c1.103 0 2-.897 2-2v-5a1 1 0 0 0 1-1v-1.938a1.006 1.006 0 0 0-.072-.455zM5 20V8h14l.001 3.996L19 12v2l.001.005.001 5.995H5z%22/><ellipse cx=%228.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><ellipse cx=%2215.5%22 cy=%2212%22 rx=%221.5%22 ry=%222%22/><path d=%22M8 16h8v2H8z%22/></svg>`;
 
 function _updateFavicon() {
   let color;
   if (currentTheme === 'brilliant') {
-    const palColors = _FAVICON_COLORS.brilliant;
-    color = palColors[currentPalette] || palColors.strawberry;
+    const pal = BRILLIANT_PALETTES.find(p => p.id === currentPalette);
+    color = (pal && pal.favicon_color) || '#e85d75';
   } else {
-    color = _FAVICON_COLORS[currentTheme] || _FAVICON_COLORS.dark;
+    const t = THEMES[currentTheme];
+    color = (t && t.favicon_color) || '#5b8def';
   }
   const link = document.getElementById('dynamic-favicon');
   if (link) link.href = _FAVICON_SVG(color);
@@ -1517,7 +1408,8 @@ function cycleTheme() {
   if (settingsTab === 'general') renderSettingsTab();
 }
 
-(function initTheme() { applyTheme(currentTheme); })();
+/* Apply default theme immediately for loading-gate; re-applied after _loadPalette() */
+if (THEMES[currentTheme]?.cls) document.body.classList.add(THEMES[currentTheme].cls);
 
 function formatDebugUsage(evt) {
   const parts = [];
@@ -4173,7 +4065,7 @@ async function init() {
         const cfgResp = await fetch('/api/model/list');
         const cfgData = await cfgResp.json();
         if (cfgData.ok && cfgData.models && cfgData.models.length > 1) {
-          MODEL_OPTIONS = cfgData.models.map(m => ({ value: m.value, label: m.label }));
+          MODEL_OPTIONS = cfgData.models.map(m => ({ value: m.value, label: m.label, logo: m.logo || null }));
           window._configuredModels = cfgData.models.filter(m => m.value !== 'auto').map(m => ({id: m.value, display: m.label}));
           window._modelPricing = {};
           cfgData.models.forEach(m => {
@@ -4186,7 +4078,11 @@ async function init() {
               };
             }
           });
-          const newOpts = MODEL_OPTIONS.map(m => m.value === 'auto' ? { value: 'auto', label: _('Auto'), icon: 'bx-bot' } : { value: m.value, label: m.label, ...(MODEL_LOGOS[m.value] ? { logo: MODEL_LOGOS[m.value] } : { icon: 'bx-bot' }) });
+          const newOpts = MODEL_OPTIONS.map(m => {
+            if (m.value === 'auto') return { value: 'auto', label: _('Auto'), icon: 'bx-bot' };
+            const logo = m.logo || MODEL_LOGOS[m.value] || resolveModelLogo(m.value);
+            return { value: m.value, label: m.label, ...(logo ? { logo } : { icon: 'bx-bot' }) };
+          });
           modelPill.setOptions(newOpts);
           if (_queuedTasks.length) _renderQueueContainer();
           return;
@@ -4195,7 +4091,9 @@ async function init() {
       await new Promise(r => setTimeout(r, 1000 * (i + 1)));
     }
   }
-  _loadModels(3);
+  await Promise.all([_loadModelsMeta(), _loadI18N(), _loadPalette()]);
+  applyTheme(currentTheme);
+  await _loadModels(3);
 
   try {
     const mst = await fetch('/api/model/state').then(r => r.json());

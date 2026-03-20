@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Any, List
 from dataclasses import dataclass
 
-_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 _DB_PATH = _DATA_DIR / "usage.db"
 _LOCK = threading.Lock()
 _LOCAL = threading.local()

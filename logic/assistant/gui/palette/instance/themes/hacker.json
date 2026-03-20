@@ -1,0 +1,8 @@
+{
+  "id": "hacker",
+  "order": 3,
+  "label": "Hacker",
+  "icon": "bx-terminal",
+  "cls": "hacker-mode",
+  "favicon_color": "#00ff41"
+}

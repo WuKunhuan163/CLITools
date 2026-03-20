@@ -1,0 +1,11 @@
+{
+  "$schema": "theme-blueprint",
+  "description": "Theme blueprint for assistant GUI. Each theme instance must provide these fields.",
+  "fields": {
+    "id":    {"type": "string", "required": true, "description": "Unique theme identifier"},
+    "label": {"type": "string", "required": true, "description": "Display label"},
+    "icon":  {"type": "string", "required": true, "description": "Boxicons class name"},
+    "cls":   {"type": "string", "required": true, "description": "CSS body class to apply (empty for default)"},
+    "favicon_color": {"type": "string", "required": true, "description": "Favicon accent color hex"}
+  }
+}

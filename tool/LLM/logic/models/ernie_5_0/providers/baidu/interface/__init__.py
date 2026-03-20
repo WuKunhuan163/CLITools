@@ -3,7 +3,7 @@
 Baidu's flagship model with reasoning and vision capabilities.
 6 CNY/M input, 24 CNY/M output (<=32K context).
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import baidu as vendor
 

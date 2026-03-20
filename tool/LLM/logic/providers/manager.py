@@ -16,7 +16,7 @@ failed models without manually removing them from the candidate list.
 
 Usage::
 
-    from tool.LLM.logic.provider_manager import get_manager
+    from tool.LLM.logic.providers.manager import get_manager
     mgr = get_manager()
 
     # Query full state snapshot (for Auto decision prompt)
@@ -34,14 +34,14 @@ import time
 import threading
 from typing import Any, Dict, List, Optional
 
-from tool.LLM.logic.key_state import (
+from tool.LLM.logic.rate.key_state import (
     AdaptiveKeySelector, KeyStatus, KeyState, get_selector,
 )
-from tool.LLM.logic.auto import (
+from tool.LLM.logic.base.auto import (
     ProviderHealth, get_health, PROVIDER_RECOVERY_RULES,
     PRIMARY_LIST, FALLBACK_LIST,
 )
-from tool.LLM.logic.rate_queue import get_queue_manager, RateQueueManager
+from tool.LLM.logic.rate.queue import get_queue_manager, RateQueueManager
 
 
 class ProviderStatus:

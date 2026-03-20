@@ -1,0 +1,12 @@
+{
+  "id": "agent_nudge_prompts",
+  "version": "1.0",
+  "description": "Nudge prompts injected when the agent stalls or needs guidance",
+  "prompts": {
+    "has_read_not_edited": "You already read the file. Now use edit_file to apply your fix. Provide start_line, end_line, and new_text. Only replace the lines that change.",
+    "described_not_applied": "You described changes but didn't apply them. First read_file to locate exact line numbers, then use edit_file with start_line, end_line, and new_text.",
+    "quality_issues_prefix": "UNRESOLVED QUALITY ISSUES — fix these before finishing:\n",
+    "verify_unread_writes": "You wrote {count} file(s) but never read them back to verify. Use read_file to confirm ALL requested changes are present: {files}",
+    "tool_call_loop": "You are repeating the same tool calls. Stop reading and SYNTHESIZE what you have learned so far. Respond to the user with your findings now."
+  }
+}

@@ -4,8 +4,8 @@ Other tools access LLM capabilities via:
     from tool.LLM.interface.main import get_provider, send, SessionContext
 """
 from tool.LLM.logic.base import LLMProvider, CostModel  # noqa: F401
-from tool.LLM.logic.rate_limiter import RateLimiter, retry_on_transient  # noqa: F401
-from tool.LLM.logic.session_context import SessionContext  # noqa: F401
+from tool.LLM.logic.rate.limiter import RateLimiter, retry_on_transient  # noqa: F401
+from tool.LLM.logic.session.context import SessionContext  # noqa: F401
 from tool.LLM.logic.registry import (  # noqa: F401
     get_provider,
     get_default_provider,
@@ -33,7 +33,7 @@ from tool.LLM.logic.config import (  # noqa: F401
     get_provider_config,
     set_provider_config,
 )
-from tool.LLM.logic.usage import (  # noqa: F401
+from tool.LLM.logic.session.usage import (  # noqa: F401
     record_usage,
     get_summary as get_usage_summary,
     get_daily_summary as get_daily_usage_summary,
@@ -198,7 +198,7 @@ def get_brain(data_dir=None):
     Returns:
         A ``Brain`` instance.
     """
-    from tool.LLM.logic.brain import Brain
+    from tool.LLM.logic.session.brain import Brain
     return Brain(data_dir=data_dir)
 
 

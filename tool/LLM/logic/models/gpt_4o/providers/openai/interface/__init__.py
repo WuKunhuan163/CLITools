@@ -6,7 +6,7 @@ Pricing:  $2.50/M input, $10/M output tokens
 
 Multimodal flagship model. 128K context, vision, tool calling.
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import openai as vendor
 

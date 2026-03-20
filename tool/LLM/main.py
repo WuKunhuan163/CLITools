@@ -207,7 +207,7 @@ def cmd_usage(args):
     CYAN = get_color("CYAN", "\033[36m")
     RESET = get_color("RESET")
 
-    from tool.LLM.logic.usage import get_summary, get_daily_summary
+    from tool.LLM.logic.session.usage import get_summary, get_daily_summary
 
     period = getattr(args, "period", "all")
     provider = getattr(args, "filter_provider", "")
@@ -254,7 +254,7 @@ def cmd_limits(args):
     get_color("DIM", "\033[2m")
     RESET = get_color("RESET")
 
-    from tool.LLM.logic.usage import (
+    from tool.LLM.logic.session.usage import (
         get_provider_limits, set_provider_limits, get_all_provider_limits,
         DEFAULT_RECORD_LIMIT, DEFAULT_CLEANUP_BATCH,
     )
@@ -366,7 +366,7 @@ def cmd_keys(args):
         return
 
     try:
-        from logic.assistant.gui.key_manager import KeyManagerWindow
+        from logic.assistant.gui.backend.key import KeyManagerWindow
         import tkinter as tk
         root = tk.Tk()
         KeyManagerWindow(root, provider=provider)

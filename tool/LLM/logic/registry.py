@@ -69,6 +69,7 @@ def list_models() -> List[Dict[str, Any]]:
         results.append({
             "model": model,
             "display_name": meta.get("display_name", model),
+            "vendor": meta.get("vendor", ""),
             "providers": providers,
             "capabilities": meta.get("capabilities", {}),
             "cost": meta.get("cost", {}),
@@ -265,5 +266,5 @@ def _ensure_builtins():
     from tool.LLM.logic.models.deepseek_reasoner.providers.deepseek.interface import DeepSeekReasonerProvider
     register("deepseek-reasoner", DeepSeekReasonerProvider, model="deepseek-reasoner")
 
-    from tool.LLM.logic.auto import AutoProvider
+    from tool.LLM.logic.base.auto import AutoProvider
     register("auto", AutoProvider)

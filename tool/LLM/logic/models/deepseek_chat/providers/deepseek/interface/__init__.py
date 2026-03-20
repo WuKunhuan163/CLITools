@@ -6,7 +6,7 @@ Pricing:  $0.28/M input (cache miss), $0.028/M (cache hit), $0.42/M output
 
 Non-thinking mode of DeepSeek V3.2. 128K context.
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import deepseek as vendor
 

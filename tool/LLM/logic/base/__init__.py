@@ -87,18 +87,39 @@ class LLMProvider(ABC):
 
     @classmethod
     def icon_path(cls) -> Optional[str]:
-        """Return absolute path to this provider's logo SVG, or None."""
-        mod_file = getattr(cls, "_module_file", None)
-        if mod_file:
-            assets_dir = os.path.join(os.path.dirname(mod_file), "assets")
-        else:
-            import inspect
-            try:
-                src = inspect.getfile(cls)
-                assets_dir = os.path.join(os.path.dirname(src), "assets")
-            except (TypeError, OSError):
-                return None
-        logo = os.path.join(assets_dir, "logo.svg")
+        """Return absolute path to this provider's logo SVG, or None.
+
+        Resolution: model dir logo.svg > provider dir logo.svg > assets/logo.svg
+        """
+        import inspect
+        try:
+            src = inspect.getfile(cls)
+        except (TypeError, OSError):
+            return None
+
+        src_dir = os.path.dirname(src)
+
+        # Walk up to find model-level logo.svg (models/<model>/logo.svg)
+        parts = src_dir.split(os.sep)
+        for i in range(len(parts) - 1, -1, -1):
+            if parts[i] == "models" and i + 1 < len(parts):
+                model_dir = os.sep.join(parts[:i + 2])
+                logo = os.path.join(model_dir, "logo.svg")
+                if os.path.isfile(logo):
+                    return logo
+                break
+
+        # Check provider dir logo.svg
+        for i in range(len(parts) - 1, -1, -1):
+            if parts[i] == "providers" and i + 1 < len(parts):
+                prov_dir = os.sep.join(parts[:i + 2])
+                logo = os.path.join(prov_dir, "logo.svg")
+                if os.path.isfile(logo):
+                    return logo
+                break
+
+        # Legacy: assets/logo.svg next to the class file
+        logo = os.path.join(src_dir, "assets", "logo.svg")
         return logo if os.path.isfile(logo) else None
 
     @abstractmethod
@@ -139,7 +160,7 @@ class LLMProvider(ABC):
             prompt_tok, completion_tok)
 
         try:
-            from tool.LLM.logic.usage import record_usage
+            from tool.LLM.logic.session.usage import record_usage
             model = result.get("model", getattr(self, "_model", self.name))
             api_key = getattr(self, "_api_key", "")
             record_usage(self.name, model, result, latency, api_key=api_key)
@@ -188,7 +209,7 @@ class LLMProvider(ABC):
                                          tools=tools):
             if not chunk.get("ok"):
                 try:
-                    from tool.LLM.logic.usage import record_usage
+                    from tool.LLM.logic.session.usage import record_usage
                     model = getattr(self, "_model", self.name)
                     api_key = getattr(self, "_api_key", "")
                     record_usage(self.name, model, chunk, 0, api_key=api_key)
@@ -258,7 +279,7 @@ class LLMProvider(ABC):
         }
 
         try:
-            from tool.LLM.logic.usage import record_usage
+            from tool.LLM.logic.session.usage import record_usage
             model = getattr(self, "_model", self.name)
             api_key = getattr(self, "_api_key", "")
             record_usage(self.name, model, result_for_record, latency, api_key=api_key)
@@ -352,7 +373,7 @@ class LLMProvider(ABC):
     def get_daily_cost(self) -> float:
         """Calculate today's estimated cost from usage records."""
         try:
-            from tool.LLM.logic.usage import get_daily_summary
+            from tool.LLM.logic.session.usage import get_daily_summary
             summary = get_daily_summary(provider=self.name)
             return self.cost_model.estimate_cost(
                 summary.get("prompt_tokens", 0),

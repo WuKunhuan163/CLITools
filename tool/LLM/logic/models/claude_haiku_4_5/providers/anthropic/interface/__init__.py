@@ -7,7 +7,7 @@ Pricing:  $1/M input, $5/M output tokens
 Fast, affordable model for high-throughput tasks.
 200K context window, vision support, tool calling.
 """
-from tool.LLM.logic.anthropic_base import AnthropicProvider
+from tool.LLM.logic.providers.anthropic.base import AnthropicProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 
 

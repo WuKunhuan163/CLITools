@@ -7,7 +7,7 @@ Pricing:  $0.28/M input, $0.42/M output tokens
 Thinking mode of DeepSeek V3.2. Produces reasoning_content.
 128K context, 64K max output.
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import deepseek as vendor
 

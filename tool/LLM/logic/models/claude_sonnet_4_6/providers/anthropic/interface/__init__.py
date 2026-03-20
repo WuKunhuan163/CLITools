@@ -7,7 +7,7 @@ Pricing:  $3/M input, $15/M output tokens
 Flagship model for complex reasoning and coding tasks.
 200K context window, vision support, tool calling.
 """
-from tool.LLM.logic.anthropic_base import AnthropicProvider
+from tool.LLM.logic.providers.anthropic.base import AnthropicProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 
 

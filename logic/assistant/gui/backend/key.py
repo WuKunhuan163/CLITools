@@ -25,7 +25,7 @@ from tool.LLM.logic.config import (
     get_api_keys, add_api_key, remove_api_key, reorder_api_keys,
     load_config,
 )
-from tool.LLM.logic.key_state import get_selector, KeyStatus
+from tool.LLM.logic.rate.key_state import get_selector, KeyStatus
 
 BG = "#1e1e2e"
 FG = "#cdd6f4"

@@ -1,0 +1,10 @@
+{
+  "$schema": "palette-blueprint",
+  "description": "Brilliant-mode palette blueprint. Each palette instance defines color overrides for the brilliant theme.",
+  "fields": {
+    "id":    {"type": "string", "required": true, "description": "Unique palette identifier"},
+    "icon":  {"type": "string", "required": true, "description": "Emoji icon for the palette selector"},
+    "label": {"type": "string", "required": true, "description": "Display label"},
+    "favicon_color": {"type": "string", "required": true, "description": "Favicon accent color hex for this palette"}
+  }
+}

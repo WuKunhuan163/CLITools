@@ -3,7 +3,7 @@
 Same pricing as 128K variant but with 32K context. Has batch discount.
 0.8 CNY/M input, 3.2 CNY/M output.
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import baidu as vendor
 

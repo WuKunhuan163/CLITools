@@ -1,8 +1,9 @@
 """Vendor-specific provider configurations.
 
-Each vendor module defines shared constants (API_URL, CONFIG_VENDOR, CONFIG_KEY_ENV)
-and optional vendor-specific logic (key validation, display name). Model providers
-import from here to avoid duplicating vendor details.
+Each vendor is a directory module under providers/ containing:
+  __init__.py  — shared constants (API_URL, CONFIG_VENDOR, CONFIG_KEY_ENV, etc.)
+  logo.svg     — vendor logo icon
+  base.py      — (optional) vendor-specific base provider class (e.g. Anthropic)
 
 Usage:
     from tool.LLM.logic.providers import baidu
@@ -12,13 +13,17 @@ Usage:
         ...
 """
 from tool.LLM.logic.providers import (
-    baidu, google, nvidia, siliconflow, tencent, zhipu
+    anthropic, baidu, deepseek, google,
+    nvidia, openai, siliconflow, tencent, zhipu,
 )
 
 VENDORS = {
+    "anthropic": anthropic,
     "baidu": baidu,
+    "deepseek": deepseek,
     "google": google,
     "nvidia": nvidia,
+    "openai": openai,
     "siliconflow": siliconflow,
     "tencent": tencent,
     "zhipu": zhipu,

@@ -6,7 +6,7 @@ Pricing:  $0.15/M input, $0.60/M output tokens
 
 Fast, affordable model. 128K context, vision, tool calling.
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import openai as vendor
 

@@ -2,7 +2,7 @@
 
 Free tier: 5 QPS (permanently free).
 """
-from tool.LLM.logic.openai_compat import OpenAICompatProvider
+from tool.LLM.logic.base.openai_compat import OpenAICompatProvider
 from tool.LLM.logic.base import CostModel, ModelCapabilities
 from tool.LLM.logic.providers import tencent as vendor
 

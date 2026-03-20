@@ -37,7 +37,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', '..'))
 
-from tool.LLM.logic.session_context import SessionContext
+from tool.LLM.logic.session.context import SessionContext
 
 _LLM_TOOL_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..')
 try:
@@ -514,7 +514,7 @@ class ConversationManager:
         if brain is not None:
             self._brain = brain
         else:
-            from tool.LLM.logic.brain import Brain
+            from tool.LLM.logic.session.brain import Brain
             self._brain = Brain()
 
         self._hooks_engine = None
@@ -569,8 +569,8 @@ class ConversationManager:
         Returns (provider, pipeline, provider_name) or None.
         """
         try:
-            from tool.LLM.logic.provider_manager import get_manager
-            from tool.LLM.logic.auto import PRIMARY_LIST
+            from tool.LLM.logic.providers.manager import get_manager
+            from tool.LLM.logic.base.auto import PRIMARY_LIST
             mgr = get_manager()
             mgr.report_result(failed_provider_name, None,
                               {"ok": False, "error_code": 429}, None)
@@ -1685,7 +1685,7 @@ class ConversationManager:
                     "text": "Choosing model\u2026",
                 })
                 try:
-                    from tool.LLM.logic.auto import auto_decide
+                    from tool.LLM.logic.base.auto import auto_decide
                     chosen, _ = auto_decide(user_prompt=text)
                     if chosen:
                         current_model = chosen
@@ -1775,7 +1775,7 @@ class ConversationManager:
                                     "text": "Switched to Auto. Re-deciding model\u2026",
                                     "level": "info"})
                         try:
-                            from tool.LLM.logic.auto import auto_decide
+                            from tool.LLM.logic.base.auto import auto_decide
                             chosen, _ = auto_decide(user_prompt=text)
                             if chosen:
                                 current_model = chosen
@@ -1994,7 +1994,7 @@ class ConversationManager:
 
                     if _llm_error is None:
                         try:
-                            from tool.LLM.logic.provider_manager import get_manager
+                            from tool.LLM.logic.providers.manager import get_manager
                             get_manager().report_result(
                                 current_model, None,
                                 {"ok": True}, None)
@@ -2009,7 +2009,7 @@ class ConversationManager:
                     failed_name = getattr(provider, 'name', current_model)
 
                     try:
-                        from tool.LLM.logic.provider_manager import get_manager
+                        from tool.LLM.logic.providers.manager import get_manager
                         get_manager().report_result(
                             failed_name, None,
                             {"ok": False, "error_code": error_code,
@@ -2022,7 +2022,7 @@ class ConversationManager:
                     _auto_retries = getattr(self, '_auto_retry_count', 0)
                     if is_auto and _auto_retries < _MAX_AUTO_RETRIES:
                         try:
-                            from tool.LLM.logic.auto import get_next_available
+                            from tool.LLM.logic.base.auto import get_next_available
                             _tried = getattr(self, '_auto_tried', set())
                             _tried.add(failed_name)
                             self._auto_tried = _tried
@@ -2423,7 +2423,7 @@ class ConversationManager:
         if not session or session.title != "New Task":
             return
         try:
-            from tool.LLM.logic.auto import auto_generate_title
+            from tool.LLM.logic.base.auto import auto_generate_title
             title = auto_generate_title(user_msg)
             if title and len(title) < 50:
                 self.rename_session(session_id, title)

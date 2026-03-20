@@ -1,0 +1,8 @@
+{
+  "id": "brilliant",
+  "order": 2,
+  "label": "Brilliant",
+  "icon": "bx-palette",
+  "cls": "brilliant-mode",
+  "favicon_color": null
+}
