@@ -9,7 +9,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from interface.tool import ToolBase
-from logic.utils import find_project_root, get_tool_module_path
+from logic._.utils import find_project_root, get_tool_module_path
 
 class TestPathResolution(unittest.TestCase):
     def test_find_project_root(self):

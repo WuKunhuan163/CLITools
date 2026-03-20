@@ -826,7 +826,7 @@ class OpenClawCLI:
             backend=self.backend,
         )
         html_gui.server = None
-        from logic.gui.html.blueprint.chatbot.server import ChatbotServer
+        from logic._.gui.html.blueprint.chatbot.server import ChatbotServer
         server = ChatbotServer(
             title="OPENCLAW",
             on_send=html_gui._on_send,

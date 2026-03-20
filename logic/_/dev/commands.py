@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional, Callable
 
 from logic._.config import get_color
-from logic.utils import get_logic_dir
+from logic._.utils import get_logic_dir
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "tool" / "template"
 
@@ -295,7 +295,7 @@ def dev_sanity_check(tool_name: str, project_root: Path, fix: bool = False, tran
     
     reqs = {
         "files": ["main.py", "setup.py", "tool.json", "README.md"],
-        "dirs": ["logic", "logic/translation", "test"]
+        "dirs": ["logic", "logic/_/translation", "test"]
     }
     missing = []
     for f in reqs["files"]:
@@ -310,7 +310,7 @@ def dev_sanity_check(tool_name: str, project_root: Path, fix: bool = False, tran
             print(_("fixed_created_logic", "Fixed: Created logic/ directory for '{name}'", name=tool_name))
             missing.remove("logic")
         
-        if "logic/translation" in missing:
+        if "logic/_/translation" in missing:
             tool_internal = get_logic_dir(tool_dir)
             trans_json = tool_internal / "translation.json"
             trans_dir = tool_internal / "translation"
@@ -323,13 +323,13 @@ def dev_sanity_check(tool_name: str, project_root: Path, fix: bool = False, tran
                             with open(trans_dir / f"{lang}.json", 'w') as lf:
                                 json.dump(items, lf, indent=2)
                     print(_("fixed_converted_translation", "Fixed: Converted logic/translation.json to logic/translation/ directory for '{name}'", name=tool_name))
-                    missing.remove("logic/translation")
+                    missing.remove("logic/_/translation")
                 except Exception as e:
                     print(f"Error fixing translation: {e}")
             else:
                 trans_dir.mkdir(parents=True, exist_ok=True)
                 print(_("fixed_created_logic_trans", "Fixed: Created empty logic/translation/ directory for '{name}'", name=tool_name))
-                missing.remove("logic/translation")
+                missing.remove("logic/_/translation")
         
         for f in list(missing):
             if f == "README.md":
@@ -475,7 +475,7 @@ def dev_audit_bin(project_root: Path, fix: bool = False) -> bool:
 
     bin_dir = project_root / "bin"
     if not bin_dir.exists():
-        from logic.utils.turing.status import fmt_warning
+        from logic._.utils.turing.status import fmt_warning
         print(fmt_warning("bin/ directory not found.", indent=0))
         return True
     
@@ -566,7 +566,7 @@ def dev_migrate_bin(project_root: Path) -> bool:
 
     bin_dir = project_root / "bin"
     if not bin_dir.exists():
-        from logic.utils.turing.status import fmt_warning
+        from logic._.utils.turing.status import fmt_warning
         print(fmt_warning("bin/ directory not found.", indent=0))
         return True
 
@@ -608,7 +608,7 @@ def dev_migrate_bin(project_root: Path) -> bool:
             print(f"  {BOLD}{BLUE}Migrated{RESET}: bin/{f.name} -> bin/{f.name}/{f.name}")
             migrated += 1
 
-            from logic.utils import register_path
+            from logic._.utils import register_path
             register_path(tool_bin_dir)
 
         elif f.name in python_extra_links:

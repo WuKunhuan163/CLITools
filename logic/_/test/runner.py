@@ -36,7 +36,7 @@ class TestRunner:
         from logic._.lang.utils import get_translation
         from logic._.config import get_color
         
-        from logic.utils import get_logic_dir
+        from logic._.utils import get_logic_dir
         
         def lookup(key, default, **kwargs):
             # Try tool-specific first
@@ -190,7 +190,7 @@ class TestRunner:
 
     def _get_python_exec(self):
         if "PYTHON" in self.dependencies:
-            from logic.utils import get_logic_dir
+            from logic._.utils import get_logic_dir
             python_utils_path = get_logic_dir(self.project_root / "tool" / "PYTHON") / "utils.py"
             if python_utils_path.exists():
                 try:
@@ -254,9 +254,9 @@ class TestRunner:
 
     def _run_parallel_tests(self, test_files, max_concurrent, timeout=60):
         """Run multiple tests using TuringWorker mechanism for multi-line progress."""
-        from logic.utils.turing.display.manager import MultiLineManager
-        from logic.utils.turing.worker import TuringWorker
-        from logic.utils.turing.logic import TuringTask, StepResult, WorkerState
+        from logic._.utils.turing.display.manager import MultiLineManager
+        from logic._.utils.turing.worker import TuringWorker
+        from logic._.utils.turing.logic import TuringTask, StepResult, WorkerState
         
         # 1. Config
         if max_concurrent == 3:
@@ -282,7 +282,7 @@ class TestRunner:
                 if stop_event.is_set(): return
                 
                 # Load test-specific CPU limit
-                from logic.utils import get_variable_from_file, get_cpu_percent
+                from logic._.utils import get_variable_from_file, get_cpu_percent
                 test_cpu_limit = get_variable_from_file(test_file, "EXPECTED_CPU_LIMIT", None)
                 if test_cpu_limit is None:
                     from logic._.config import get_setting
@@ -453,9 +453,9 @@ class TestRunner:
 
     def _run_sequential_tests(self, test_files, timeout=60):
         """Run tests one by one in order, using single-worker TuringWorker display."""
-        from logic.utils.turing.display.manager import MultiLineManager
-        from logic.utils.turing.worker import TuringWorker
-        from logic.utils.turing.logic import TuringTask, StepResult, WorkerState
+        from logic._.utils.turing.display.manager import MultiLineManager
+        from logic._.utils.turing.worker import TuringWorker
+        from logic._.utils.turing.logic import TuringTask, StepResult, WorkerState
 
         all_success = True
         all_test_pids = set()

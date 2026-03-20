@@ -554,20 +554,20 @@ Run `SKILLS show turing-machine-development` for comprehensive guidance on the T
 - **Stealth mode**: `TuringStage(stealth=True)` for silent background operations.
 
 ## 5. GUI Development
-Inherit from blueprints in `logic/gui/tkinter/blueprint/`:
+Inherit from blueprints in `logic/_/gui/tkinter/blueprint/`:
 - **`timed_bottom_bar`**: Base blueprint with timeout and standard buttons.
 - **`account_login`**: Account/Password login.
 - **`two_factor_auth`**: N-digit verification.
 - **`tutorial`**: Multi-step setup wizards. Run `SKILLS show setup-tutorial-creation` for details.
 
 Key patterns:
-- Use `logic.gui.engine.get_safe_python_for_gui()` for sandboxed environments.
-- Use `logic.gui.manager.run_gui_subprocess()` for external tool GUIs.
+- Use `logic._.gui.engine.get_safe_python_for_gui()` for sandboxed environments.
+- Use `logic._.gui.manager.run_gui_subprocess()` for external tool GUIs.
 
 ## 6. Localization (i18n)
 - **Strings**: Never hardcode user-facing strings. Use the `_()` helper.
 - **English First**: Do NOT include an `en.json`. English strings must be provided as the default argument in the code: `_("key", "Default English Text")`.
-- **Translation Files**: Place translations in `logic/translation/<lang>.json`.
+- **Translation Files**: Place translations in `logic/_/translation/<lang>.json`.
 
 ## 7. Critical Directives
 As an AI agent, you MUST follow these operational rules:
@@ -636,8 +636,8 @@ Tools import shared framework utilities from `interface.*`. See `interface/AGENT
 - `logic.config`: Centralized configuration, color management, and rule generation (`config.rule`).
 - `logic.tool`: Tool lifecycle (`base`, `setup/`), dev commands (`tool.dev`), and audit caching (`tool.audit`).
 - `logic.turing`: State machine progress display (`models/`), multi-line terminal management (`display/`), and keyboard suppression (`terminal/`).
-- `logic.utils`: Split into submodules — `display` (formatting/tables), `system` (paths/platform), `progress` (ETA/retry), `cleanup`, `logging` (SessionLogger), `timezone`. All re-exported from `logic.utils` for backward compat.
-- `logic.gui`: Tkinter blueprint framework for GUIs.
+- `logic._.utils`: Split into submodules — `display` (formatting/tables), `system` (paths/platform), `progress` (ETA/retry), `cleanup`, `logging` (SessionLogger), `timezone`. All re-exported from `logic._.utils` for backward compat.
+- `logic._.gui`: Tkinter blueprint framework for GUIs.
 - `logic.accessibility.keyboard`: Global keyboard monitoring (`monitor`) and shortcut settings (`settings`).
 - `logic.lang`: Language management, translation utilities, and audit.
 - `logic.git`: Git operations, `.gitignore` auto-generation, persistence manager, and branch utilities. **See "Auto-Generated .gitignore" below.**

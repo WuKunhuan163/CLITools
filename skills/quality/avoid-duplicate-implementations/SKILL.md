@@ -16,8 +16,8 @@ Before implementing any new functionality, search for existing code that does so
 3. **Read `AGENT.md`** and `README.md` for documented patterns
 4. **Search `skills/`** for relevant conventions
 5. **Check `logic/`** for shared utilities
-6. **Check `logic/gui/tkinter/blueprint/`** for reusable tkinter GUI components
-7. **Check `logic/gui/html/blueprint/`** for reusable HTML/web GUI components (chatbot, etc.)
+6. **Check `logic/_/gui/tkinter/blueprint/`** for reusable tkinter GUI components
+7. **Check `logic/_/gui/html/blueprint/`** for reusable HTML/web GUI components (chatbot, etc.)
 
 ## Common Duplication Patterns
 
@@ -31,7 +31,7 @@ def read_json_file(path):
         return json.load(f)
 ```
 
-Check: Does `logic/utils/` already have this?
+Check: Does `logic/_/utils/` already have this?
 
 ### Pattern 2: Parallel API Wrappers
 
@@ -42,7 +42,7 @@ Before creating a new CDP wrapper, check:
 
 ### Pattern 3: Custom GUI Instead of Blueprint
 
-Before building a new tkinter GUI, check `logic/gui/tkinter/blueprint/`:
+Before building a new tkinter GUI, check `logic/_/gui/tkinter/blueprint/`:
 - `chatbot/` — Multi-session chat with sidebar
 - `button_bar/` — Horizontal button row
 - `editable_list/` — Reorderable list with CRUD

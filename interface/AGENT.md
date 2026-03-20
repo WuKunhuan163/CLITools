@@ -9,11 +9,11 @@ Stable facade layer for cross-tool imports. **All tools MUST import from `interf
 | Module | Re-exports from | Key symbols |
 |--------|----------------|-------------|
 | `config` | `logic.config` | `get_color()`, `get_setting()`, `get_global_config()` |
-| `gui` | `logic.gui.*` | `ButtonBarWindow`, `TutorialWindow`, `BaseGUIWindow`, `TwoStepLoginWindow`, `TwoFactorAuthWindow`, `EditableListWindow`, `BottomBarWindow` |
+| `gui` | `logic._.gui.*` | `ButtonBarWindow`, `TutorialWindow`, `BaseGUIWindow`, `TwoStepLoginWindow`, `TwoFactorAuthWindow`, `EditableListWindow`, `BottomBarWindow` |
 | `lang` | `logic.lang.utils` | `get_translation()` |
 | `tool` | `logic.tool.*` | `ToolBase`, `MCPToolBase`, `ToolEngine` |
 | `turing` | `logic.turing.*` | `ProgressTuringMachine`, `TuringStage`, `TuringWorker`, `ParallelWorkerPool`, `MultiLineManager` |
-| `utils` | `logic.utils.*` | `preflight()`, `retry()`, `cleanup_old_files()`, `suggest_commands()`, `SessionLogger`, `get_current_timezone()` |
+| `utils` | `logic._.utils.*` | `preflight()`, `retry()`, `cleanup_old_files()`, `suggest_commands()`, `SessionLogger`, `get_current_timezone()` |
 | `status` | `logic.turing.status` | `fmt_status()`, `fmt_detail()`, `fmt_stage()`, `fmt_warning()`, `fmt_info()` |
 | `audit` | `logic.audit.*` | `run_full_audit()`, `print_report()`, `AuditReport`, `Finding` |
 | `registry` | Dynamic loader | `get_tool_interface(name)`, `list_tool_interfaces()` |

@@ -3,7 +3,7 @@
 Provides standardized terminal output formatters that enforce the
 minimal-emphasis rule (bold/color only on core phrases).
 """
-from logic.utils.turing.status import (
+from logic._.utils.turing.status import (
     fmt_status,
     fmt_detail,
     fmt_stage,

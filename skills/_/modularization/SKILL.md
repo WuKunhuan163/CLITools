@@ -147,7 +147,7 @@ There is **no threshold** at which backward compat becomes the right answer for 
 
 ### Real Example: logic/ Shim Cleanup (2026-03)
 
-During the logic/ directory cleanup, six backward-compat shim directories were found (`logic/turing/`, `logic/mcp/`, `logic/accessibility/`, `logic/chrome/`, `logic/asset/`, `logic/serve/`) that each contained only an `__init__.py` re-exporting from `logic/utils/`. Total callers across all six: fewer than 10. Each shim was deleted and its callers updated directly. The cleanup took minutes and eliminated six phantom modules from the import namespace.
+During the logic/ directory cleanup, six backward-compat shim directories were found (`logic/turing/`, `logic/mcp/`, `logic/accessibility/`, `logic/chrome/`, `logic/asset/`, `logic/serve/`) that each contained only an `__init__.py` re-exporting from `logic/_/utils/`. Total callers across all six: fewer than 10. Each shim was deleted and its callers updated directly. The cleanup took minutes and eliminated six phantom modules from the import namespace.
 
 ## Constructing Symmetric Systems
 

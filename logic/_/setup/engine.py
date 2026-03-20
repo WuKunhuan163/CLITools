@@ -12,13 +12,13 @@ def _git_bin():
     except ImportError:
         return "git"
 import subprocess
-from logic.utils.turing.models.progress import ProgressTuringMachine
-from logic.utils.turing.logic import TuringStage
+from logic._.utils.turing.models.progress import ProgressTuringMachine
+from logic._.utils.turing.logic import TuringStage
 from logic._.config import get_color
 
 class ToolEngine:
     def __init__(self, tool_name, project_root, parent_tool_dir=None):
-        from logic.utils import get_logic_dir
+        from logic._.utils import get_logic_dir
         self.tool_name = tool_name
         self.project_root = project_root
         self.tool_parent_dir = parent_tool_dir if parent_tool_dir else project_root / "tool"
@@ -228,7 +228,7 @@ class ToolEngine:
         ))
 
         # Start TM
-        from logic.utils import print_success_status
+        from logic._.utils import print_success_status
         self._("label_successfully_installed", "Successfully installed")
         
         # Use ephemeral=True to erase progress lines
@@ -242,7 +242,7 @@ class ToolEngine:
             except Exception:
                 pass
             if not is_dependency:
-                from logic.utils import print_success_status
+                from logic._.utils import print_success_status
                 print_success_status(f"installed {self.tool_name}")
             return True
         return False
@@ -380,7 +380,7 @@ class ToolEngine:
         python_tool_dir = self.project_root / "tool" / "PYTHON"
         python_exec = sys.executable
         if python_tool_dir.exists():
-            from logic.utils import get_logic_dir
+            from logic._.utils import get_logic_dir
             utils_path = get_logic_dir(python_tool_dir) / "utils.py"
             if utils_path.exists():
                 try:
@@ -418,7 +418,7 @@ class ToolEngine:
             return True
 
         python_exec = self._resolve_python_exec()
-        from logic.utils.turing.display.manager import _get_configured_width, truncate_to_width
+        from logic._.utils.turing.display.manager import _get_configured_width, truncate_to_width
         width = _get_configured_width()
 
         for package in pip_deps:
@@ -504,7 +504,7 @@ if str(project_root) not in sys.path:
 python_exec = sys.executable
 python_tool_dir = project_root / "tool" / "PYTHON"
 if python_tool_dir.exists():
-    from logic.utils import get_logic_dir
+    from logic._.utils import get_logic_dir
     utils_path = get_logic_dir(python_tool_dir) / "utils.py"
     if utils_path.exists():
         try:
@@ -556,7 +556,7 @@ except KeyboardInterrupt:
             st = os.stat(shortcut_path)
             os.chmod(shortcut_path, st.st_mode | stat.S_IEXEC)
             
-            from logic.utils import register_path
+            from logic._.utils import register_path
             register_path(tool_bin_dir)
             return True
         except Exception as e:

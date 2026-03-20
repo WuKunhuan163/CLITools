@@ -100,7 +100,7 @@ class AuditCommand(EcoCommand):
             run_full_audit,
         )
         from logic._.lang.detect import detect_all
-        from logic.utils.turing.status import fmt_status, fmt_detail
+        from logic._.utils.turing.status import fmt_status, fmt_detail
 
         root = self.project_root
         results = {}
@@ -184,6 +184,30 @@ class AuditCommand(EcoCommand):
             results["skills_hierarchy_issues"] = issues
             return True
 
+        def _audit_logic_structure(stage):
+            logic_dir = root / "logic"
+            bin_dir = root / "bin"
+            violations = []
+            skip = {"_", "__pycache__", "__init__"}
+            commands = set()
+            if bin_dir.exists():
+                for entry in bin_dir.iterdir():
+                    if entry.is_dir() and not entry.name.startswith("."):
+                        commands.add(entry.name.lower())
+                    elif entry.is_file() and not entry.name.startswith("."):
+                        commands.add(entry.name.lower())
+            for entry in sorted(logic_dir.iterdir()):
+                if not entry.is_dir() or entry.name in skip or entry.name.startswith("."):
+                    continue
+                if entry.name.lower() not in commands:
+                    violations.append(entry.name)
+            results["logic_structure_violations"] = violations
+            if violations:
+                stage.success_name = f"logic structure — {len(violations)} non-command dirs: {', '.join(violations)}"
+            else:
+                stage.success_name = "logic structure — compliant"
+            return True
+
         def _audit_archived(stage):
             tool_dir = root / "tool"
             archived_dir = root / "logic" / "_" / "install" / "archived"
@@ -219,6 +243,9 @@ class AuditCommand(EcoCommand):
             TuringStage("skills_hierarchy", _audit_skills_hierarchy,
                         active_status="Checking", success_status="Checked",
                         bold_part="Checking", is_sticky=True),
+            TuringStage("logic_structure", _audit_logic_structure,
+                        active_status="Checking", success_status="Checked",
+                        bold_part="Checking", is_sticky=True),
             TuringStage("archived", _audit_archived,
                         active_status="Checking", success_status="Checked",
                         bold_part="Checking", is_sticky=True),
@@ -235,7 +262,7 @@ class AuditCommand(EcoCommand):
         from interface.audit import format_imports_report, format_quality_report
         from logic._.audit.code_quality import print_report as print_code_report
         from logic._.lang.detect import format_report as format_detect_report
-        from logic.utils.turing.status import fmt_status
+        from logic._.utils.turing.status import fmt_status
 
         SEP = "\033[2m" + "─" * 60 + "\033[0m"
 
@@ -269,6 +296,15 @@ class AuditCommand(EcoCommand):
                 if len(findings) > 3:
                     print(f"    \033[2m... and {len(findings) - 3} more\033[0m")
             print(f"\n  \033[2mRun TOOL --audit --lang --detect for full report.\033[0m")
+
+        logic_violations = results.get("logic_structure_violations", [])
+        if logic_violations:
+            print(f"\n{SEP}")
+            print(f"\n\033[1m\033[33mlogic/ Structure Violations\033[0m")
+            print("Directories in logic/ that don't match a tool command in bin/:")
+            for name in logic_violations:
+                print(f"  \033[33m{name}\033[0m — should be under logic/_/ (shared infra) or match a bin/ command")
+            print(f"\n  \033[2mSee skill: symmetric-design > logic/ Module Rule\033[0m")
 
         dupes = results.get("archived_duplicates", [])
         if dupes:

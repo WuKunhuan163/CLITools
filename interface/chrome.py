@@ -2,7 +2,7 @@
 
 Provides all Chrome DevTools Protocol utilities for browser automation.
 """
-from logic.utils.chrome.session import (
+from logic._.utils.chrome.session import (
     CDP_PORT,
     CDPSession,
     is_chrome_cdp_available,

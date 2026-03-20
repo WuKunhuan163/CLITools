@@ -508,7 +508,7 @@ class CDMCPTool(ToolBase):
                     raise
 
         elif args.command == "chrome-clean":
-            from logic.utils.platform import cleanup_chrome
+            from logic._.utils.platform import cleanup_chrome
             result = cleanup_chrome()
             if result.get("killed"):
                 print(f"  {BOLD}{GREEN}Chrome processes terminated.{RESET}")

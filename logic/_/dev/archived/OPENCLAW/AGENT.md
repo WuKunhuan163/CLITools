@@ -90,9 +90,9 @@ The system prompt does NOT list all tools or skills. Instead, the agent uses `TO
 - `pipeline.py` -- Browser-based pipeline (Yuanbao): same loop but uses CDMCP DOM interaction
 
 ### Interfaces
-- `logic/gui/cli.py` -- Terminal agent (Claude Code-style): interactive prompt, inline spinners, color-coded output
-- `logic/gui/chat_html.py` -- HTML GUI adapter (routes to correct pipeline based on backend)
-- `logic/gui/chat.py` -- tkinter GUI (legacy fallback)
+- `logic/_/gui/cli.py` -- Terminal agent (Claude Code-style): interactive prompt, inline spinners, color-coded output
+- `logic/_/gui/chat_html.py` -- HTML GUI adapter (routes to correct pipeline based on backend)
+- `logic/_/gui/chat.py` -- tkinter GUI (legacy fallback)
 
 ### Protocol (`logic/protocol.py`)
 - `build_system_prompt()` -- lean prompt (no full tool listings)

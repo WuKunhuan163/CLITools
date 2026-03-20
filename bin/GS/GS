@@ -19,7 +19,7 @@ if str(project_root) not in sys.path:
 python_exec = sys.executable
 python_tool_dir = project_root / "tool" / "PYTHON"
 if python_tool_dir.exists():
-    from logic.utils import get_logic_dir
+    from logic._.utils import get_logic_dir
     utils_path = get_logic_dir(python_tool_dir) / "utils.py"
     if utils_path.exists():
         try:

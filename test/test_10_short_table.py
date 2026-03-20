@@ -6,7 +6,7 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
-from logic.utils import format_table, get_display_width
+from logic._.utils import format_table, get_display_width
 
 class TestShortTable(unittest.TestCase):
     def test_01_short_table(self):

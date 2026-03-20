@@ -8,7 +8,7 @@ description: Multi-language localization system for AITerminalTools. Covers tran
 ## Translation File Layout
 
 ```
-tool/<NAME>/logic/translation/
+tool/<NAME>/logic/_/translation/
     zh.json       # Chinese
     ja.json       # Japanese
     ko.json       # Korean
@@ -35,7 +35,7 @@ print(_("count_msg", "Found {n} items", n=5))  # Supports format args
 
 ## Adding Translations
 
-1. Create `tool/<NAME>/logic/translation/<lang>.json`:
+1. Create `tool/<NAME>/logic/_/translation/<lang>.json`:
 
 ```json
 {

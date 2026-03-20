@@ -23,7 +23,7 @@ Without interfaces:
 
 **Fix**: Add `some_function` to `tool/X/interface/main.py` with documentation. The consumer imports `from tool.X.interface.main import some_function`. Declare the dependency in the consumer's `tool.json`.
 
-**Real example**: `logic/utils/chrome/` contained Chrome CDP session management used by 8+ tools (GOOGLE, CLOUDFLARE, ASANA, ATLASSIAN, etc.). Instead of each tool importing `from logic.utils.chrome.session import ChromeSession`, the CDMCP tool exposes `from tool.GOOGLE.CDMCP.interface.main import boot_session, require_tab`.
+**Real example**: `logic/_/utils/chrome/` contained Chrome CDP session management used by 8+ tools (GOOGLE, CLOUDFLARE, ASANA, ATLASSIAN, etc.). Instead of each tool importing `from logic._.utils.chrome.session import ChromeSession`, the CDMCP tool exposes `from tool.GOOGLE.CDMCP.interface.main import boot_session, require_tab`.
 
 ### Signal 2: Tool Implementing Another Tool's Functionality
 
@@ -51,7 +51,7 @@ They should NOT contain:
 
 **Symptom**: Multiple tools duplicate the same utility function instead of importing a shared one.
 
-**Fix**: Create or extend a shared interface in `interface/`. The implementation lives in `logic/utils/` or a dedicated `logic/` submodule.
+**Fix**: Create or extend a shared interface in `interface/`. The implementation lives in `logic/_/utils/` or a dedicated `logic/` submodule.
 
 ## Interface Documentation Standards
 
@@ -117,7 +117,7 @@ After: `logic/_/hooks/IDE/Cursor/brain_inject.py` (organized in logic, blueprint
 | `from tool.X.logic.engine import func` | Bypasses interface contract | Import from `tool.X.interface.main` |
 | 500-line `interface/main.py` | Interface is doing too much | Move logic to `logic/`, keep interface thin |
 | Tool A implements Tool B's feature | Functionality scattering | Migrate to Tool B, expose interface |
-| Duplicating a utility in 3 tools | No shared interface | Create `interface/` facade over `logic/utils/` |
+| Duplicating a utility in 3 tools | No shared interface | Create `interface/` facade over `logic/_/utils/` |
 | Interface with no docstrings | Consumers can't discover API | Add type hints, docstrings, AGENT.md |
 | Changing interface without updating consumers | Silent breakage | Run `--audit imports`, update downstream docs |
 | Blueprint and instance diverging | Stale deployments | Always deploy via CLI bridge, never edit instances directly |

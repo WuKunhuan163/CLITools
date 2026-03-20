@@ -104,7 +104,7 @@ Our project's condition: We operate inside Cursor IDE, not as a standalone daemo
 
 1. **Tool Encapsulation Framework**
    - OpenClaw's "tools" are raw TypeScript functions registered in the agent loop. No packaging, no installation, no versioning.
-   - Our tools are self-contained packages with `main.py`, `setup.py`, `tool.json`, `interface/main.py`, `hooks/`, `test/`, and `logic/translation/`.
+   - Our tools are self-contained packages with `main.py`, `setup.py`, `tool.json`, `interface/main.py`, `hooks/`, `test/`, and `logic/_/translation/`.
    - Any tool can be installed, tested, audited, and versioned independently.
 
 2. **Cross-Tool Interface System**
@@ -122,7 +122,7 @@ Our project's condition: We operate inside Cursor IDE, not as a standalone daemo
 
 5. **Localization System**
    - OpenClaw is English/Chinese only, no systematic i18n.
-   - We have a full `_()` translation helper with `logic/translation/`, audit tooling, and per-tool coverage reports.
+   - We have a full `_()` translation helper with `logic/_/translation/`, audit tooling, and per-tool coverage reports.
 
 6. **Turing Machine Progress Display**
    - OpenClaw has no terminal progress system.

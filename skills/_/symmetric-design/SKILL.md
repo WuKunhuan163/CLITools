@@ -33,6 +33,13 @@ tool/<NAME>/
 
 Root mirrors this: `logic/`, `interface/`, `hooks/`, `test/`, `data/`, `skills/`, `data/_/runtime/`.
 
+**logic/ Module Rule:** The root `logic/` directory has exactly two categories of subdirectories:
+
+1. **`logic/_/`** — Shared infrastructure (config, agent, setup, hooks, utils, gui, etc.)
+2. **`logic/<COMMAND>/`** — Command-specific shared logic, where `<COMMAND>` matches an installed tool command in `bin/`. Examples: `logic/brain/` (matches `bin/BRAIN`), `logic/git/` (matches `bin/GIT`), `logic/tool/` (matches `bin/TOOL`).
+
+Nothing else is allowed at the `logic/` level except `__init__.py` and documentation. If a module is shared infrastructure (used by multiple tools, not command-specific), it belongs in `logic/_/`. If it's command-specific shared logic for a tool that's invoked as `TOOL_NAME "xxx"` (no sub-commands), it can go in `logic/<command>/main.py`.
+
 When a new tool lacks any of these directories, it's incomplete — not by convention but by design. The skeleton is the API contract for discoverability.
 
 ### 2. Naming Symmetry

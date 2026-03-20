@@ -21,11 +21,11 @@ tool/OPENCLAW/
     BOOTSTRAP.md           Centralized project context for remote agents
 
 Blueprints (shared):
-  logic/gui/html/blueprint/chatbot/    HTML-based chatbot (default)
+  logic/_/gui/html/blueprint/chatbot/    HTML-based chatbot (default)
     index.html             Dark-theme SPA with sidebar + chat + WebSocket
     server.py              ChatbotServer: HTTP + WebSocket bridge
     AGENT.md           Blueprint docs
-  logic/gui/tkinter/blueprint/chatbot/ Tkinter-based chatbot (fallback)
+  logic/_/gui/tkinter/blueprint/chatbot/ Tkinter-based chatbot (fallback)
     gui.py                 ChatbotWindow (reusable, extends BaseGUIWindow)
     AGENT.md           Blueprint docs
 ```

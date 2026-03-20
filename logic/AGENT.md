@@ -11,7 +11,7 @@ from interface.utils import retry, preflight
 
 # WRONG (in tools):
 from logic.turing.status import fmt_status  # DO NOT
-from logic.utils import retry               # DO NOT
+from logic._.utils import retry               # DO NOT
 ```
 
 ## Path Resolution (CRITICAL)
@@ -57,7 +57,7 @@ cdmcp_loader.py -> chrome/, _/config/
 
 3. **`cdmcp_loader.py`**: Must be at the top level of `logic/` because it's imported as `logic.cdmcp_loader` by all Chrome-based tools. Do not move.
 
-4. **Translation files**: Root `translation/` holds framework-wide translations. Per-tool translations go in `tool/<NAME>/logic/translation/`. GUI-specific translations go in `gui/translation/`.
+4. **Translation files**: Root `translation/` holds framework-wide translations. Per-tool translations go in `tool/<NAME>/logic/_/translation/`. GUI-specific translations go in `gui/translation/`.
 
 5. **Turing Machine `print()` prohibition**: Never use `print()` inside a `TuringStage` action — it breaks erasable line tracking. Use `stage.refresh()` for live updates.
 
@@ -68,7 +68,7 @@ cdmcp_loader.py -> chrome/, _/config/
 Before building any new tool feature, read the `AGENT.md` of ALL dependencies:
 
 - **Chrome/CDP tools**: Read `logic/chrome/AGENT.md` AND `tool/GOOGLE.CDMCP/AGENT.md`. Use `ensure_chrome()` and `boot_tool_session()` instead of manual Chrome management.
-- **GUI tools**: Read `logic/gui/AGENT.md`. Check `logic/gui/tkinter/blueprint/` for reusable components before building custom UIs.
+- **GUI tools**: Read `logic/_/gui/AGENT.md`. Check `logic/_/gui/tkinter/blueprint/` for reusable components before building custom UIs.
 - **MCP tools**: Read `logic/mcp/AGENT.md`. Check `logic/cdmcp_loader.py` for loading CDMCP modules.
 
 If a tool declares dependencies in `tool.json`, read each dependency's `AGENT.md` before writing code.
@@ -82,10 +82,10 @@ interface/AGENT.md           # FACADE LAYER — import from here in tools
 
 # Infrastructure (logic/)
 logic/tool/AGENT.md          # ToolBase, MCPToolBase, hooks, lifecycle
-logic/gui/AGENT.md           # GUI blueprints, widgets, style
+logic/_/gui/AGENT.md           # GUI blueprints, widgets, style
 logic/turing/AGENT.md        # Progress display, stages, workers
 logic/git/AGENT.md           # Git operations, .gitignore auto-gen, persistence
-logic/utils/AGENT.md         # Display, logging, system
+logic/_/utils/AGENT.md         # Display, logging, system
 logic/chrome/AGENT.md        # Chrome session, CDP
 logic/mcp/AGENT.md           # MCP infrastructure
 logic/accessibility/AGENT.md # Keyboard, paste detection

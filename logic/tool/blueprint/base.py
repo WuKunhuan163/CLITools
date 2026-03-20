@@ -15,7 +15,7 @@ class ToolBase:
         import inspect
         caller_file = Path(inspect.stack()[1].filename).resolve()
 
-        from logic.utils.resolve import setup_paths, get_tool_module_path
+        from logic._.utils.resolve import setup_paths, get_tool_module_path
         self.project_root = setup_paths(caller_file)
 
         if is_root:
@@ -44,7 +44,7 @@ class ToolBase:
         self._hooks_engine = None
 
         if not is_root and "PYTHON" in self.dependencies:
-            from logic.utils import check_and_reexecute_with_python
+            from logic._.utils import check_and_reexecute_with_python
             check_and_reexecute_with_python(self.tool_name)
 
         sys.argv[0] = self.tool_name
@@ -80,7 +80,7 @@ class ToolBase:
         if self.no_warning:
             return
         
-        from logic.utils import get_cpu_percent
+        from logic._.utils import get_cpu_percent
         from logic._.config import get_color
         
         current_cpu = get_cpu_percent(interval=0.1)
@@ -107,7 +107,7 @@ class ToolBase:
     def get_session_logger(self):
         """Returns the per-invocation SessionLogger, creating it lazily on first call."""
         if not hasattr(self, "_session_logger") or self._session_logger is None:
-            from logic.utils import SessionLogger
+            from logic._.utils import SessionLogger
             self._session_logger = SessionLogger(self.get_log_dir(), limit=64)
         return self._session_logger
 
@@ -118,7 +118,7 @@ class ToolBase:
 
     def create_progress_machine(self, stages=None, manager=None, **kwargs):
         """Create a ProgressTuringMachine pre-configured with this tool's settings."""
-        from logic.utils.turing.models.progress import ProgressTuringMachine
+        from logic._.utils.turing.models.progress import ProgressTuringMachine
         return ProgressTuringMachine(
             stages=stages,
             project_root=self.project_root,
@@ -457,7 +457,7 @@ class ToolBase:
             print(f"  {BOLD}--force{RESET}     Re-download existing files")
             return
 
-        from logic.utils.asset.migrate import migrate_logos, migrate_filetypes, migrate_all
+        from logic._.utils.asset.migrate import migrate_logos, migrate_filetypes, migrate_all
 
         synced = 0
         if target == "logos":
@@ -852,7 +852,7 @@ class ToolBase:
             return
 
         # Unknown subcmd
-        from logic.utils.fuzzy import suggest_commands
+        from logic._.utils.fuzzy import suggest_commands
         known = ["search", "skill", "guide", "map", "here", "recall", "cmds", "cmd", "info"]
         matches = suggest_commands(subcmd, known, n=2, cutoff=0.4)
         if matches:
@@ -1466,8 +1466,8 @@ class ToolBase:
 
     def run_setup(self):
         """Execute the tool's setup.py script using ProgressTuringMachine."""
-        from logic.utils.turing.models.progress import ProgressTuringMachine
-        from logic.utils.turing.logic import TuringStage
+        from logic._.utils.turing.models.progress import ProgressTuringMachine
+        from logic._.utils.turing.logic import TuringStage
         from logic._.config import get_color
         
         setup_script = self.tool_dir / "setup.py"
@@ -1552,7 +1552,7 @@ class ToolBase:
     def get_translation(self, key, default, **kwargs):
         """Get tool-specific translation with fallback to root."""
         from logic._.lang.utils import get_translation
-        from logic.utils import get_logic_dir
+        from logic._.utils import get_logic_dir
         
         tool_internal = get_logic_dir(self.tool_dir)
         # 1. Try tool-specific logic directory (e.g., tool/NAME/logic/)
@@ -1573,17 +1573,17 @@ class ToolBase:
 
     def setup_gui(self):
         """Centralized GUI environment setup."""
-        from logic.gui.engine import setup_gui_environment
+        from logic._.gui.engine import setup_gui_environment
         setup_gui_environment()
 
     def run_gui(self, python_exe, script_path, timeout, custom_id=None):
         """Unified method to launch a GUI subprocess and wait for its result."""
-        from logic.gui.manager import run_gui_subprocess
+        from logic._.gui.manager import run_gui_subprocess
         return run_gui_subprocess(self, python_exe, script_path, timeout, custom_id)
 
     def run_gui_with_fallback(self, python_exe, script_path, timeout, custom_id=None, hint=None):
         """Standard GUI launch with automatic sandbox fallback."""
-        from logic.gui.engine import is_sandboxed
+        from logic._.gui.engine import is_sandboxed
         
         # 1. Try standard GUI
         res = self.run_gui(python_exe, script_path, timeout, custom_id)
@@ -1613,7 +1613,7 @@ class ToolBase:
 
     def handle_sandbox_fallback(self, initial_content, timeout):
         """Default fallback implementation using text files."""
-        from logic.gui.manager import run_file_fallback
+        from logic._.gui.manager import run_file_fallback
         return run_file_fallback(self, initial_content, timeout)
 
     def get_fallback_initial_content(self, hint):
@@ -1683,7 +1683,7 @@ class ToolBase:
 
     def raise_success_status(self, action_msg):
         """Unified success status reporting for tools."""
-        from logic.utils import print_success_status
+        from logic._.utils import print_success_status
         print_success_status(action_msg)
 
     def print_result_if_quiet(self, returncode, stdout="", stderr=""):

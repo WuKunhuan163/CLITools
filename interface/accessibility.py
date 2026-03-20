@@ -2,7 +2,7 @@
 
 Provides keyboard accessibility monitoring and permission requests.
 """
-from logic.utils.accessibility.keyboard.monitor import (
+from logic._.utils.accessibility.keyboard.monitor import (
     check_accessibility_trusted,
     request_accessibility_permission,
 )

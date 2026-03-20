@@ -1,10 +1,10 @@
 def print_width_check(width, is_auto=False, actual_detected=True, project_root=None, translation_func=None):
     """Unified display for terminal width check."""
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))
-    from logic.utils import print_terminal_width_separator
+    from logic._.utils import print_terminal_width_separator
 
     if is_auto:
-        from logic.utils.turing.display.manager import _get_configured_width
+        from logic._.utils.turing.display.manager import _get_configured_width
         detected = _get_configured_width()
         if detected and isinstance(detected, int) and detected > 0:
             status = str(detected)

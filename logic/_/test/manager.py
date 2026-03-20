@@ -15,9 +15,9 @@ def _git_bin():
         return _git_bin()
 
 from logic._.config import get_color, get_setting, get_global_config
-from logic.utils import get_cpu_percent
-from logic.utils.turing.models.progress import ProgressTuringMachine
-from logic.utils.turing.logic import TuringStage
+from logic._.utils import get_cpu_percent
+from logic._.utils.turing.models.progress import ProgressTuringMachine
+from logic._.utils.turing.logic import TuringStage
 
 def _resolve_tool_name(name: str, project_root: Path) -> str:
     """Resolve a shortcut name (e.g. 'GDS') to the full tool name (e.g. 'GOOGLE.GDS')."""

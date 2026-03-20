@@ -311,7 +311,7 @@ class LangAuditor:
     def _get_field_translation(self, field_id, default):
         """Helper to get translated field name/definition/advice."""
         try:
-            from logic.utils import get_logic_dir
+            from logic._.utils import get_logic_dir
             logic_dir = get_logic_dir(self.project_root)
             key = f"audit_cat_{field_id}"
             return get_translation(str(logic_dir), key, default, lang_code=self.lang_code)
@@ -441,7 +441,7 @@ class LangAuditor:
         # Root keys for shadowing
         root_defined_keys = set()
         for k, instances in defined_keys.items():
-            if any("logic/translation" in inst["file_path"] for inst in instances):
+            if any("logic/_/translation" in inst["file_path"] for inst in instances):
                 root_defined_keys.add(k)
 
         # Process used keys

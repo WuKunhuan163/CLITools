@@ -134,7 +134,7 @@ def cmd_chat(args):
 
     if gui_mode == "tkinter":
         print(f"  {BOLD}{BLUE}Launching{RESET} OPENCLAW chatbot (tkinter)...")
-        from logic.gui.engine import get_safe_python_for_gui
+        from logic._.gui.engine import get_safe_python_for_gui
         import tempfile
 
         python_exe = get_safe_python_for_gui()

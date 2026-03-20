@@ -40,7 +40,7 @@ def generate_ai_rule(project_root: Path, target_tool: Optional[str] = None, tran
       (additional description)
     """
     from logic._.config import get_color
-    from logic.utils import get_logic_dir
+    from logic._.utils import get_logic_dir
     from logic._.lang.utils import get_translation
 
     _ = translation_func or (lambda k, d, **kwargs: d.format(**kwargs))

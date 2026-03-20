@@ -11,10 +11,10 @@ This tool is part of the `TOOL` ecosystem, which provides:
 - **Automatic Persistence**: The system supports automatic pushes every three commits to protect work progress. This is managed by a `post-commit` hook in the root `.git/hooks`.
 - **Shared Utilities**: Access core logic in the root `logic/` folder:
     - `logic.turing`: For building multi-stage workers with progress display (the "Turing Machine" pattern).
-    - `logic.utils`: Shared terminal utilities, RTL support, and more.
+    - `logic._.utils`: Shared terminal utilities, RTL support, and more.
     - `logic.tool.base`: Base class for standardized command handling (e.g., automated `setup` command support).
     - `logic.audit`: General-purpose audit and caching system.
-- **Localization**: Built-in support for multiple languages in `logic/translation/`. Always use the `_()` helper for user-facing strings.
+- **Localization**: Built-in support for multiple languages in `logic/_/translation/`. Always use the `_()` helper for user-facing strings.
 - **Unit Testing**: Standardized testing framework using `unittest`. Run tests in parallel with `TOOL --test VPN`.
 
 ## Development Guidelines

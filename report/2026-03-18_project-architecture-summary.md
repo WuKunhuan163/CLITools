@@ -102,7 +102,7 @@ Tests follow the `test_XX_name.py` naming convention. `TOOL --test <NAME>` switc
 
 ## Localization
 
-Multi-language support via `_()` translation helper. English strings serve as defaults in code; translations are stored in `logic/translation/<lang>.json`. The `TOOL lang audit` command checks coverage.
+Multi-language support via `_()` translation helper. English strings serve as defaults in code; translations are stored in `logic/_/translation/<lang>.json`. The `TOOL lang audit` command checks coverage.
 
 ---
 *Generated: 2026-02-28*

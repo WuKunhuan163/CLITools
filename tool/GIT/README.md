@@ -4,7 +4,7 @@ Standardized Git operations with managed execution and progress tracking.
 
 ## Features
 
-- **Progress Display**: Real-time percentage display for push and pull operations using the root `logic.utils.run_with_progress` helper.
+- **Progress Display**: Real-time percentage display for push and pull operations using the root `logic._.utils.run_with_progress` helper.
 - **Linear Branch Management**: Linear branch alignment logic (`dev` -> `tool` -> `main` -> `test`) used by the system-wide `TOOL dev sync` command.
 - **History Maintenance**: Automated commit squashing mechanism to keep the repository history lean and reduce LFS storage costs.
 - **Rolling Auto-Commits**: Integration with `USERINPUT` for automatic progress saving with rolling `#xxxx` tags.

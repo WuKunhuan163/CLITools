@@ -26,7 +26,7 @@ if str(project_root) not in sys.path:
 try:
     from logic.tool.base import ToolBase
     from logic.config import get_color
-    from logic.utils import get_logic_dir
+    from logic._.utils import get_logic_dir
 except ImportError:
     class ToolBase:
         def __init__(self, name):

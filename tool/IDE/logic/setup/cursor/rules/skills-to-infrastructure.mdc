@@ -48,11 +48,11 @@ A skill is ripe for infrastructure conversion when:
 | Skill | Infrastructure | Gap |
 |-------|---------------|-----|
 | `turing-machine-development` | `logic/turing/status.py`, `ProgressTuringMachine` | Status formatters automated; stage design still manual |
-| `error-recovery-patterns` | `logic/utils/progress.py:retry()` | Retry decorator exists; skill adds fallback/partial-failure guidance |
+| `error-recovery-patterns` | `logic/_/utils/progress.py:retry()` | Retry decorator exists; skill adds fallback/partial-failure guidance |
 | `record-cache` | `logic/audit/utils.py` AuditManager | Cache manager works; retention policy manual |
 | `session-debug-log` | `tool.log()`, SessionLogger | Logging automated; debug-file creation still manual |
-| `retention-rotation` | `logic/utils/cleanup.py:cleanup_old_files()` | Core function exists; skill adds architectural rationale |
-| `preflight-checks` | `logic/utils/preflight.py:preflight()` | Core function + helpers exist; skill adds risk assessment matrix |
+| `retention-rotation` | `logic/_/utils/cleanup.py:cleanup_old_files()` | Core function exists; skill adds architectural rationale |
+| `preflight-checks` | `logic/_/utils/preflight.py:preflight()` | Core function + helpers exist; skill adds risk assessment matrix |
 
 ### Candidates for Conversion
 
@@ -107,11 +107,11 @@ Tools should import via `interface/` (facade layer), not directly from `logic/`:
 |---------|-----------------|-------------------|
 | Code quality | `from interface.audit import run_full_audit` | `logic/audit/code_quality.py` |
 | Status formatting | `from interface.status import fmt_status, fmt_warning` | `logic/turing/status.py` |
-| Retry/backoff | `from interface.utils import retry` | `logic/utils/progress.py` |
-| Preflight checks | `from interface.utils import preflight` | `logic/utils/preflight.py` |
-| File cleanup | `from interface.utils import cleanup_old_files` | `logic/utils/cleanup.py` |
-| Fuzzy suggestions | `from interface.utils import suggest_commands` | `logic/utils/fuzzy.py` |
-| Logging | `from interface.utils import SessionLogger` | `logic/utils/logging.py` |
+| Retry/backoff | `from interface.utils import retry` | `logic/_/utils/progress.py` |
+| Preflight checks | `from interface.utils import preflight` | `logic/_/utils/preflight.py` |
+| File cleanup | `from interface.utils import cleanup_old_files` | `logic/_/utils/cleanup.py` |
+| Fuzzy suggestions | `from interface.utils import suggest_commands` | `logic/_/utils/fuzzy.py` |
+| Logging | `from interface.utils import SessionLogger` | `logic/_/utils/logging.py` |
 | Task management | `from tool.TODO.interface.main import todo_add` | `tool/TODO/logic/store.py` |
 | Import auditing | `TOOL --audit imports` | `logic/lang/audit_imports.py` |
 | Caching | `logic/audit/utils.py` AuditManager | Internal only |

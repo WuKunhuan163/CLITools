@@ -65,7 +65,7 @@ An interactive wizard that creates a new tool with pre-configured test, translat
 **Cost**: Very low (30 minutes)
 **Value**: High
 
-A shared `@retry(max_attempts=3, backoff=1.0)` decorator in `logic/utils.py` that any tool can use for flaky API calls. Currently GDS has ad-hoc retry logic; centralizing it would prevent bugs.
+A shared `@retry(max_attempts=3, backoff=1.0)` decorator in `logic/_/utils.py` that any tool can use for flaky API calls. Currently GDS has ad-hoc retry logic; centralizing it would prevent bugs.
 
 ### 4. Unified Config Viewer (`TOOL config show`)
 **Cost**: Low (1 hour)

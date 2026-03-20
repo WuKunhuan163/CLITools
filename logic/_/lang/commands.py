@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional, Callable
 
 from logic._.config import get_color
-from logic.utils import get_logic_dir, get_rate_color, format_table
+from logic._.utils import get_logic_dir, get_rate_color, format_table
 from logic._.lang.utils import get_translation
 from logic._.audit.utils import AuditManager
 
@@ -133,7 +133,7 @@ def list_languages(project_root: Path, translation_func: Optional[Callable] = No
     
     headers = [_("lang_table_name", "Language"), _("lang_table_keys", "Key Coverage"), _("lang_table_refs", "Ref Coverage")]
     table_rows = [[r['name'], r["keys"], r["refs"] + (" *" if r["is_current"] else "")] for r in rows]
-    from logic.utils.turing.display.manager import _get_configured_width
+    from logic._.utils.turing.display.manager import _get_configured_width
     width = _get_configured_width()
     table_str, _unused = format_table(headers, table_rows, max_width=width if width > 0 else None, save_dir="lang")
     print("\n" + _("lang_list_header", "Supported Languages:") + "\n" + table_str)

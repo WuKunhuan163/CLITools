@@ -11,7 +11,7 @@ description: Complete guide for developing new tools in AITerminalTools, from te
 TOOL --dev create <NAME>          # Creates tool/<NAME>/ with all required files
 ```
 
-This generates: `main.py`, `setup.py`, `tool.json`, `README.md`, `logic/`, `logic/translation/`, `test/test_00_help.py`, `test/test_01_basic.py`.
+This generates: `main.py`, `setup.py`, `tool.json`, `README.md`, `logic/`, `logic/_/translation/`, `test/test_00_help.py`, `test/test_01_basic.py`.
 
 ## 2. Universal Path Resolver Bootstrap
 
@@ -63,13 +63,13 @@ cat tool/<DEPENDENCY>/logic/AGENT.md # Internal architecture
 
 Key dependency patterns:
 - **GOOGLE.CDMCP**: Use `boot_tool_session()` and `ensure_chrome()`. Never manage Chrome manually.
-- **GUI components**: Check `logic/gui/tkinter/blueprint/` for existing blueprints before building custom UIs.
+- **GUI components**: Check `logic/_/gui/tkinter/blueprint/` for existing blueprints before building custom UIs.
 - **PYTHON**: Use `get_safe_python_for_gui()` for tkinter subprocess launching.
 
 Also read root-level dependency docs:
 - `logic/AGENT.md` — Path resolution, dependency graph, gotchas
 - `logic/chrome/AGENT.md` — CDPSession, tab helpers (if Chrome-based)
-- `logic/gui/AGENT.md` — GUI patterns, Interface I protocol (if GUI-based)
+- `logic/_/gui/AGENT.md` — GUI patterns, Interface I protocol (if GUI-based)
 
 ## 4. ToolBase Features
 
@@ -116,5 +116,5 @@ TOOL_NAME --test --list                # List tests
 ## 9. Localization
 
 - English strings as defaults in code: `_("key", "Default text")`
-- Translation files in `logic/translation/<lang>.json`
+- Translation files in `logic/_/translation/<lang>.json`
 - NO `en.json` — English is always the code default

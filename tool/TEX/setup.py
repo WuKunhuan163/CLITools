@@ -17,10 +17,10 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 try:
-    from logic.utils.turing.models.progress import ProgressTuringMachine
-    from logic.utils.turing.logic import TuringStage
+    from logic._.utils.turing.models.progress import ProgressTuringMachine
+    from logic._.utils.turing.logic import TuringStage
     from logic.config import get_color
-    from logic.utils import get_logic_dir
+    from logic._.utils import get_logic_dir
 except ImportError:
     # Fallback if logic not available
     class ProgressTuringMachine:

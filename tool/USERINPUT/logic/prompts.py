@@ -62,7 +62,7 @@ def get_default_prompts(include_ide: bool = True, include_project: bool = True) 
 
     if include_ide:
         try:
-            from logic.utils.system import is_cursor_ide
+            from logic._.utils.system import is_cursor_ide
             if is_cursor_ide():
                 from logic._.setup.IDE.cursor.prompts import IDE_CURSOR_PROMPTS
                 prompts.extend(IDE_CURSOR_PROMPTS)

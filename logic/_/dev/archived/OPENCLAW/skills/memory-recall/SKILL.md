@@ -57,7 +57,7 @@ SKILLS learn "CDMCP boot_tool_session requires closing stale sessions first, oth
 | Quality | Example | Why |
 |---------|---------|-----|
 | **Good** | "Google ListAccounts returns 200 even when auth cookie is expired — check response body for actual auth state" | Specific, actionable, names the function and the gotcha |
-| **Good** | "Tkinter init.tcl error when launching from managed Python — use logic.gui.engine.get_safe_python_for_gui() instead" | Points to the solution, not just the problem |
+| **Good** | "Tkinter init.tcl error when launching from managed Python — use logic._.gui.engine.get_safe_python_for_gui() instead" | Points to the solution, not just the problem |
 | **Bad** | "Chrome doesn't work sometimes" | Vague, not actionable |
 | **Bad** | "Be careful with rate limits" | No specifics about which API, what limit, or what to do |
 | **Bad** | "Fixed the bug" | Doesn't say what the bug was or how to avoid it |

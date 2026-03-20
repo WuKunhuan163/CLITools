@@ -45,8 +45,8 @@ The ecosystem accumulates dead code, duplicate implementations, and near-identic
 
 | Function | Location 1 | Location 2 | Resolution |
 |----------|-----------|-----------|------------|
-| `find_project_root` | `logic/utils/system.py` | `logic/utils/resolve.py` | Consolidated to `resolve.py` |
-| `get_tool_module_path` | `logic/utils/system.py` | `logic/utils/resolve.py` | Consolidated to `resolve.py` |
+| `find_project_root` | `logic/_/utils/system.py` | `logic/_/utils/resolve.py` | Consolidated to `resolve.py` |
+| `get_tool_module_path` | `logic/_/utils/system.py` | `logic/_/utils/resolve.py` | Consolidated to `resolve.py` |
 
 ## Next Steps
 

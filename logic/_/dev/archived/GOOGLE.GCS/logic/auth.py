@@ -60,7 +60,7 @@ def save_console_key(project_root, info):
 
 def get_access_token(info, scope="https://www.googleapis.com/auth/drive.readonly"):
     """Generates an access token using JWT for the service account."""
-    from logic.gui.tkinter.blueprint.tutorial.gui import log_tutorial
+    from logic._.gui.tkinter.blueprint.tutorial.gui import log_tutorial
     log_tutorial(f"AUTH: get_access_token started for {info.get('client_email')}")
     
     t0 = time.time()
@@ -91,7 +91,7 @@ def get_access_token(info, scope="https://www.googleapis.com/auth/drive.readonly
 
 def validate_folder_access(project_root, folder_id):
     """Checks if a folder ID is accessible using the saved console key."""
-    from logic.gui.tkinter.blueprint.tutorial.gui import log_tutorial
+    from logic._.gui.tkinter.blueprint.tutorial.gui import log_tutorial
     log_tutorial(f"AUTH: validate_folder_access started for {folder_id}")
     
     key_path = Path(project_root) / "data" / "google_cloud_console" / "console_key.json"

@@ -56,7 +56,7 @@ class AuditManager:
         import sys
         sys.stdout.write("\r\033[K")
         sys.stdout.flush()
-        from logic.utils.turing.status import fmt_warning
+        from logic._.utils.turing.status import fmt_warning
         print(fmt_warning(f"Using cached{type_str} data.{refresh_msg}", indent=0))
 
 class AuditBase:

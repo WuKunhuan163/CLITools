@@ -6,7 +6,7 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
-from logic.utils import format_table, get_display_width
+from logic._.utils import format_table, get_display_width
 
 class TestArabicTable(unittest.TestCase):
     def test_03_arabic_table(self):
@@ -19,7 +19,7 @@ class TestArabicTable(unittest.TestCase):
         ]
         
         # Test RTL display
-        from logic.utils import set_rtl_mode
+        from logic._.utils import set_rtl_mode
         set_rtl_mode(True)
         table_str, report_path = format_table(headers, rows)
         lines = table_str.splitlines()

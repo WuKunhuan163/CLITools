@@ -188,7 +188,7 @@ Before starting a multi-tool task:
    - Read logic/tool/template/AGENT.md for standard patterns
 
 3. Add translations:
-   - Edit tool/NEWTOOL/logic/translation/zh.json
+   - Edit tool/NEWTOOL/logic/_/translation/zh.json
 
 4. Write tests:
    - Edit tool/NEWTOOL/test/test_01_basic.py

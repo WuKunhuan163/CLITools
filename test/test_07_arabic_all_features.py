@@ -4,11 +4,11 @@ from pathlib import Path
 import os
 import sys
 
-# Add project root to path so we can import logic.utils
+# Add project root to path so we can import logic._.utils
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
-from logic.utils import format_table
+from logic._.utils import format_table
 
 class TestArabicAllFeatures(unittest.TestCase):
     def setUp(self):
@@ -35,7 +35,7 @@ class TestArabicAllFeatures(unittest.TestCase):
         
         # Simulate format_table with terminal width constraint
         # We manually call format_table with is_rtl=True
-        from logic.utils import set_rtl_mode
+        from logic._.utils import set_rtl_mode
         set_rtl_mode(True)
         output_tuple = format_table(headers, rows)
         output = output_tuple[0]
