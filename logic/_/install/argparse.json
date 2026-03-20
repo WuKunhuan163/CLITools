@@ -1,0 +1,6 @@
+{
+  "name": "install",
+  "description": "Install a tool from archive or remote",
+  "subcommands": {},
+  "$schema": "argparse/v1"
+}

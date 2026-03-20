@@ -1,0 +1,50 @@
+{
+  "name": "USERINPUT",
+  "description": "Collect user feedback via GUI. Opens a Tkinter window for multi-line input with system prompt injection, queue management, and auto-commit hooks.",
+  "subcommands": {
+    "queue": {
+      "description": "Manage the prompt queue (add, delete, reorder, list, GUI editor)",
+      "args": [
+        {"name": "--list", "help": "List all queued prompts"},
+        {"name": "--add TEXT", "help": "Add a prompt to the queue"},
+        {"name": "--delete ID", "help": "Delete a queued prompt by index"},
+        {"name": "--gui", "help": "Open the visual queue editor"},
+        {"name": "--move-up/down/to-top/to-bottom ID", "help": "Reorder a queued prompt"}
+      ]
+    },
+    "system-prompt": {
+      "description": "Manage system prompts appended to every feedback output",
+      "args": [
+        {"name": "--list", "help": "List current system prompts"},
+        {"name": "--add TEXT", "help": "Add a new system prompt"},
+        {"name": "--delete ID", "help": "Remove a system prompt by index"},
+        {"name": "--gui", "help": "Open the visual prompt editor"},
+        {"name": "--move-up/down/to-top/to-bottom ID", "help": "Reorder a system prompt"}
+      ]
+    },
+    "config": {
+      "description": "View or update USERINPUT configuration values",
+      "args": [
+        {"name": "--focus-interval N", "help": "Window focus-steal interval in seconds (min 90)"},
+        {"name": "--time-increment N", "help": "Seconds added per +Time button click"},
+        {"name": "--cpu-limit N", "help": "CPU load threshold for warnings (%)"},
+        {"name": "--cpu-timeout N", "help": "Max seconds to wait when CPU is high"}
+      ]
+    },
+    "enquiry-mode": {
+      "description": "Toggle persistent enquiry mode (bypasses queue for all calls)",
+      "args": [
+        {"name": "on", "help": "Enable — all calls bypass queue"},
+        {"name": "off", "help": "Disable — calls check queue first"},
+        {"name": "(no arg)", "help": "Show current status"}
+      ]
+    }
+  },
+  "args": [
+    {"name": "--hint TEXT", "help": "Pre-fill the feedback text area with a hint"},
+    {"name": "--timeout N", "help": "GUI timeout in seconds (default 300)"},
+    {"name": "--id ID", "help": "Custom session identifier"},
+    {"name": "--enquiry", "help": "Bypass queue for this single call"},
+    {"name": "--auto-commit-message TEXT", "help": "Progress message for auto-commit hook"}
+  ]
+}

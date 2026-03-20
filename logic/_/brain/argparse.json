@@ -1,0 +1,86 @@
+{
+  "name": "brain",
+  "description": "Agent brain: tasks, activity, context, sessions",
+  "subcommands": {
+    "list": {
+      "description": "List all tasks"
+    },
+    "add": {
+      "description": "Add a new task",
+      "args": [
+        {
+          "name": "description",
+          "type": "positional",
+          "help": "Task description"
+        }
+      ]
+    },
+    "done": {
+      "description": "Mark task as done",
+      "args": [
+        {
+          "name": "id",
+          "type": "positional",
+          "help": "Task ID"
+        }
+      ]
+    },
+    "status": {
+      "description": "Show agent progress dashboard"
+    },
+    "snapshot": {
+      "description": "Save context.md snapshot",
+      "args": [
+        {
+          "name": "summary",
+          "type": "positional",
+          "help": "Summary text"
+        }
+      ]
+    },
+    "recall": {
+      "description": "Search institutional memory",
+      "args": [
+        {
+          "name": "query",
+          "type": "positional",
+          "help": "Search query"
+        }
+      ]
+    },
+    "log": {
+      "description": "Record activity entry",
+      "args": [
+        {
+          "name": "entry",
+          "type": "positional",
+          "help": "Activity description"
+        },
+        {
+          "name": "--files",
+          "help": "Comma-separated file list"
+        },
+        {
+          "name": "--task",
+          "help": "Related task ID"
+        }
+      ]
+    },
+    "reflect": {
+      "description": "Self-check protocol + system gaps",
+      "args": [
+        {
+          "name": "--tool",
+          "help": "Also show tool-level reflection"
+        }
+      ]
+    },
+    "digest": {
+      "description": "Analyze lesson clusters for skill distillation"
+    },
+    "session": {
+      "description": "Manage brain sessions (list, create, switch, export)"
+    }
+  },
+  "$schema": "argparse/v1"
+}

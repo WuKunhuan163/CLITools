@@ -1,4 +1,4 @@
-# logic/ — Technical Reference
+# logic/ — Technical Reference for Agents
 
 ## Import Convention (CRITICAL)
 
@@ -8,95 +8,118 @@
 # CORRECT (in tools):
 from interface.status import fmt_status, fmt_warning
 from interface.utils import retry, preflight
+from interface.tool import ToolBase
 
 # WRONG (in tools):
-from logic.turing.status import fmt_status  # DO NOT
 from logic._.utils import retry               # DO NOT
+from logic._.base.blueprint.base import ToolBase  # DO NOT (use interface.tool)
 ```
 
 ## Path Resolution (CRITICAL)
 
-Every tool entry point must call `setup_paths(__file__)` from `logic.resolve` before any other imports. This ensures:
-- Project root is at `sys.path[0]`
-- Tool-local `logic/` does not shadow root `logic/`
-- Cross-tool imports via `tool.<NAME>.logic` work correctly
+Every tool entry point must call `setup_paths(__file__)` before other imports:
 
 ```python
-from logic.resolve import setup_paths
+from interface.resolve import setup_paths
 setup_paths(__file__)
 ```
 
-## Directory Organization
+## Post-Migration Architecture
 
-Root `logic/` is split into two tiers:
+All shared code now lives under `logic/_/`. The legacy top-level directories (`logic/base/`, `logic/brain/`, `logic/git/`, `logic/tool/`) have been removed. Their contents were consolidated into `logic/_/` and all imports updated to use `logic._.*`.
 
-- **`logic/_/`** — Ecosystem command modules that back symmetric CLI flags (`TOOL --<name>`):
-  `agent`, `assistant`, `audit`, `config`, `dev`, `eco`, `hooks`, `lang`, `search`, `setup`, `test`, `workspace`
+### Command Map Rule
 
-- **`logic/`** (top-level) — Infrastructure modules shared by tools and command modules:
-  `utils`, `turing`, `gui`, `tool`, `git`, `data`, `command`, `mcp`, `llm`, `brain`, `chrome`, `serve`, `translation`, `tutorial`, `accessibility`, `asset`
+Each `logic/_/<name>/` directory with a `cli.py` file **automatically** maps to a `---<name>` eco command. This is the stateless router's core mechanism — the directory structure IS the routing state.
 
-Internal cross-references use `logic._.<module>` for command modules and `logic.<module>` for infrastructure.
+Files in each command directory:
+- `cli.py` — The command endpoint (subclass of `EcoCommand`/`CliEndpoint`)
+- `argparse.json` — Declarative schema for `---help` generation and audit
+- `__init__.py` — Package marker
 
-## Package Dependencies
+### Three-Tier CLI Convention
 
 ```
-tool/blueprint/ -> _/config/, gui/, turing/, utils/, _/lang/, git/
-gui/ -> _/config/, turing/, accessibility/, asset/, translation/
-_/test/ -> _/config/, turing/, utils/, tool/
-turing/ -> _/config/, utils/
-_/lang/ -> _/config/, translation/
-cdmcp_loader.py -> chrome/, _/config/
+---<name>    Eco commands (logic/_/<name>/cli.py) — shared across all tools
+--<name>     Tool commands (argparse in tool main.py) — tool-specific
+-<name>      Decorators (-no-warning, -tool-quiet) — behavioral modifiers
+```
+
+### Key Locations
+
+| What | Where | Accessed via |
+|------|-------|-------------|
+| ToolBase | `logic/_/base/blueprint/base.py` | `interface.tool.ToolBase` |
+| MCPToolBase | `logic/_/base/blueprint/mcp.py` | `interface.tool.MCPToolBase` |
+| CliEndpoint | `logic/_/base/cli.py` | `interface.tool.CliEndpoint` |
+| Brain tasks | `logic/_/agent/brain_tasks.py` | `TOOL ---brain` or `bin/BRAIN` |
+| Brain sessions | `logic/_/brain/instance/` | `logic._.brain.instance.BrainSessionManager` |
+| Git ops | `logic/_/git/` | `interface.git` |
+| GUI blueprints | `logic/_/gui/tkinter/blueprint/` | `interface.gui` |
+| Test runner | `logic/_/test/manager.py` | `TOOL ---test` |
+| Help tree | `logic/_/help/cli.py` | `TOOL ---help` |
+
+### Brain as Eco Infrastructure
+
+BRAIN is NOT a standalone tool — it is ecosystem infrastructure accessible via:
+- `TOOL ---brain <command>` (eco command)
+- `bin/BRAIN <command>` (backward-compatible shorthand, delegates to eco)
+
+Brain data lives in `data/_/runtime/_/eco/brain/` (shared across all tools). Each tool gets its brain experience stored in `data/_/brain/` at the tool level.
+
+### __/ Co-Located Data Convention
+
+Directories named `__/` within a command endpoint hold **co-located data** specific to that endpoint: test fixtures, schema files, templates. Constraints:
+- Only the parent `cli.py` may import from `__/`
+- `__/` directories are auditable: `TOOL ---audit` checks referential integrity
+- No business logic in `__/` — only data, fixtures, and templates
+
+### argparse.json Schema
+
+```json
+{
+  "$schema": "argparse/v1",
+  "name": "command-name",
+  "description": "What this command does",
+  "subcommands": {
+    "sub": {
+      "description": "What this subcommand does",
+      "args": [
+        {"name": "positional_arg", "type": "positional", "help": "Description"},
+        {"name": "--flag", "help": "Description"}
+      ]
+    }
+  }
+}
 ```
 
 ## Key Gotchas
 
-1. **`ToolBase` location**: Canonical at `logic._.base.blueprint.base`. Always import from `logic._.base.blueprint.base`.
+1. **Config JSON files**: `config/colors.json` and `config/settings.json` are static defaults. Runtime config goes in `data/config.json`.
 
-2. **Config JSON files**: `config/colors.json` and `config/settings.json` are static defaults, not runtime data. Runtime config goes in `data/config.json` at the project root.
+2. **`cdmcp_loader.py`**: Must stay at `logic/` top level — imported as `logic.cdmcp_loader` by Chrome-based tools.
 
-3. **`cdmcp_loader.py`**: Must be at the top level of `logic/` because it's imported as `logic.cdmcp_loader` by all Chrome-based tools. Do not move.
+3. **Translation files**: Root `logic/_/translation/` holds framework-wide translations. Per-tool translations in `tool/<NAME>/logic/translation/`.
 
-4. **Translation files**: Root `translation/` holds framework-wide translations. Per-tool translations go in `tool/<NAME>/logic/_/translation/`. GUI-specific translations go in `gui/translation/`.
+4. **Turing Machine `print()` prohibition**: Never `print()` inside a `TuringStage` action.
 
-5. **Turing Machine `print()` prohibition**: Never use `print()` inside a `TuringStage` action — it breaks erasable line tracking. Use `stage.refresh()` for live updates.
+5. **No `logic/` top-level directories**: After migration, only `logic/_/` contains subdirectories. Any new shared code goes under `logic/_/<name>/`. Top-level directories that violate this rule will be flagged by `TOOL ---audit argparse`.
 
-6. **Test CPU monitoring**: `TestManager` enforces CPU limits during tests. Default: 80% threshold, 30s timeout. Override per-test with `EXPECTED_CPU_LIMIT` and `EXPECTED_TIMEOUT` at file top.
+## Sub-Package Navigation
 
-## Dependency Discovery (MANDATORY)
+Run `TOOL ---help` for the full command tree with descriptions.
 
-Before building any new tool feature, read the `AGENT.md` of ALL dependencies:
-
-- **Chrome/CDP tools**: Read `logic/chrome/AGENT.md` AND `tool/GOOGLE.CDMCP/AGENT.md`. Use `ensure_chrome()` and `boot_tool_session()` instead of manual Chrome management.
-- **GUI tools**: Read `logic/_/gui/AGENT.md`. Check `logic/_/gui/tkinter/blueprint/` for reusable components before building custom UIs.
-- **MCP tools**: Read `logic/mcp/AGENT.md`. Check `logic/cdmcp_loader.py` for loading CDMCP modules.
-
-If a tool declares dependencies in `tool.json`, read each dependency's `AGENT.md` before writing code.
-
-## Sub-Package Index
-
-Every sub-package has `README.md` and `AGENT.md`. For details, read the sub-package docs directly:
-
+For specific module docs:
 ```
-interface/AGENT.md           # FACADE LAYER — import from here in tools
-
-# Infrastructure (logic/)
-logic/tool/AGENT.md          # ToolBase, MCPToolBase, hooks, lifecycle
-logic/_/gui/AGENT.md           # GUI blueprints, widgets, style
-logic/turing/AGENT.md        # Progress display, stages, workers
-logic/_/git/AGENT.md           # Git operations, .gitignore auto-gen, persistence
-logic/_/utils/AGENT.md         # Display, logging, system
-logic/chrome/AGENT.md        # Chrome session, CDP
-logic/mcp/AGENT.md           # MCP infrastructure
-logic/accessibility/AGENT.md # Keyboard, paste detection
-
-# Ecosystem commands (logic/_/)
-logic/_/config/AGENT.md      # Global config, colors, rules
-logic/_/test/AGENT.md        # Test runner, CPU monitoring
-logic/_/lang/AGENT.md        # i18n, audit
-logic/_/audit/AGENT.md       # Code quality auditing
-logic/_/agent/AGENT.md       # Agent loop, tools, context
-logic/_/assistant/AGENT.md   # GUI assistant, std chat
-logic/_/dev/AGENT.md         # Developer commands
-logic/_/hooks/AGENT.md       # Hook engine, lifecycle hooks
+logic/_/base/AGENT.md       # ToolBase, MCPToolBase, CliEndpoint
+logic/_/brain/AGENT.md      # Brain sessions, blueprints
+logic/_/git/AGENT.md        # Git operations, .gitignore
+logic/_/gui/AGENT.md        # GUI blueprints, widgets
+logic/_/agent/AGENT.md      # Agent loop, tools, context
+logic/_/assistant/AGENT.md  # GUI assistant, prompts
+logic/_/audit/AGENT.md      # Quality auditing
+logic/_/config/AGENT.md     # Configuration, colors
+logic/_/dev/AGENT.md        # Developer commands
+logic/_/test/AGENT.md       # Test runner
+logic/_/utils/AGENT.md      # Utilities
 ```

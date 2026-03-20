@@ -42,23 +42,22 @@ If this is your first encounter with this project, follow these steps in order:
 6. **Start working.** After each task: `BRAIN reflect` (self-check), then `USERINPUT --hint` (report to user). This dual-command loop is your core rhythm.
 
 **Key commands to memorize** (all are shell commands — run them in the terminal):
-- `TOOL status` — see all tools and installation status
-- `TOOL --eco search "query"` — find anything (tools, skills, lessons, docs)
-- `TOOL --eco tool <NAME>` — deep-dive into a specific tool
-- `TOOL --eco skill <name>` — read a development skill/pattern
-- `TOOL --eco nav [path]` — navigate the skills dictionary tree (pwd-like browsing)
-- `TOOL --eco tree` — show the full skills tree structure
+- `TOOL ---help` — full command tree from argparse.json DFS traversal
+- `TOOL ---status` — see all tools and installation status
+- `TOOL ---eco search "query"` — find anything (tools, skills, lessons, docs)
+- `TOOL ---eco tool <NAME>` — deep-dive into a specific tool
+- `TOOL ---eco skill <name>` — read a development skill/pattern
+- `TOOL ---eco nav [path]` — navigate the skills dictionary tree
 - `USERINPUT --hint "summary"` — get user feedback (blocking, always call after task completion)
-- `BRAIN add/done/list` — manage tasks in brain
-- `BRAIN log "entry" [--files f1,f2] [--task id]` — record activity with optional artifact tracking
-- `BRAIN digest` — check if accumulated lessons need distillation into skills
-- `BRAIN reflect` — self-check protocol + active reminders + system gaps
-- `BRAIN status` — show progress dashboard (tasks, lessons, context age, skills)
-- `BRAIN snapshot "summary"` — auto-save context.md with tasks + recent activity
-- `BRAIN recall "keyword"` — search lessons, activity log, and context for past knowledge
-- `SKILLS learn "lesson text"` — record a non-obvious discovery or gotcha
-- `SKILLS create <name>` — create a new skill when 3+ lessons cluster on a theme
-- `TOOL --dev create <NAME>` — scaffold a new tool (when a mechanical skill should become code)
+- `TOOL ---brain add/done/list` — manage tasks in brain (or `BRAIN` shorthand)
+- `TOOL ---brain log "entry" [--files f1,f2]` — record activity
+- `TOOL ---brain reflect` — self-check protocol + system gaps
+- `TOOL ---brain status` — progress dashboard
+- `TOOL ---brain snapshot "summary"` — save context.md
+- `TOOL ---brain recall "keyword"` — search institutional memory
+- `TOOL ---skills learn "lesson text"` — record a discovery
+- `TOOL ---skills create <name>` — create a new skill
+- `TOOL ---dev create <NAME>` — scaffold a new tool
 
 **Before architectural decisions** — read the foundational skills first:
 - `TOOL --eco skill modularization` — before restructuring, splitting, or merging code
@@ -206,10 +205,18 @@ The naming rule generalizes to: when tool A migrates from source B namespace C, 
 
 ### Root Logic Organization
 
-Root `logic/` is split into two tiers:
+All shared logic lives under `logic/_/`:
 
-- **`logic/_/`** — Ecosystem command modules (symmetric CLI flags): agent, assistant, audit, config, dev, eco, hooks, lang, search, setup, test, workspace. Each backs a `TOOL --<name>` command.
-- **`logic/`** (top-level) — Infrastructure modules shared across tools: utils, turing, gui, tool, git, data, command, mcp, llm, brain, chrome, serve, translation, tutorial, accessibility, asset.
+- **`logic/_/`** — ALL shared infrastructure. Each subdirectory with a `cli.py` automatically maps to a `---<name>` eco command. Key modules: agent, assistant, audit, base, brain, config, dev, eco, git, gui, help, hooks, install, lang, list, migrate, search, setup, skills, status, test, uninstall, utils, workspace.
+
+The legacy top-level directories (`logic/base/`, `logic/brain/`, `logic/git/`, `logic/tool/`) have been removed — their contents are consolidated into `logic/_/`.
+
+**Three-tier CLI convention:**
+- `---<name>` — Eco commands shared across all tools (discovered from `logic/_/<name>/cli.py`)
+- `--<name>` — Tool-specific commands (argparse in tool's main.py)
+- `-<name>` — Decorators that modify behavior (-no-warning, -tool-quiet)
+
+Run `TOOL ---help` to see the full command tree generated from `argparse.json` files.
 
 Tools import everything via `interface/` and never reference `logic/_/` directly.
 

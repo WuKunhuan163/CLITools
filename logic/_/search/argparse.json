@@ -1,0 +1,29 @@
+{
+  "name": "search",
+  "description": "Search across tools, skills, interfaces, lessons",
+  "subcommands": {
+    "all": {
+      "description": "Search everything",
+      "args": [
+        {
+          "name": "query",
+          "type": "positional",
+          "help": "Search query"
+        }
+      ]
+    },
+    "tools": {
+      "description": "Search tools only"
+    },
+    "skills": {
+      "description": "Search skills only"
+    },
+    "interfaces": {
+      "description": "Search interfaces only"
+    },
+    "lessons": {
+      "description": "Search lessons only"
+    }
+  },
+  "$schema": "argparse/v1"
+}

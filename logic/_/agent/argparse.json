@@ -1,0 +1,36 @@
+{
+  "name": "agent",
+  "description": "LLM-powered assistant (full access mode)",
+  "subcommands": {
+    "prompt": {
+      "description": "Start a new task",
+      "args": [
+        {
+          "name": "text",
+          "type": "positional",
+          "help": "Task prompt"
+        }
+      ]
+    },
+    "feed": {
+      "description": "Continue a session",
+      "args": [
+        {
+          "name": "session_id",
+          "type": "positional",
+          "help": "Session ID"
+        }
+      ]
+    },
+    "status": {
+      "description": "Show session status"
+    },
+    "sessions": {
+      "description": "List all sessions"
+    },
+    "setup": {
+      "description": "Configure LLM provider"
+    }
+  },
+  "$schema": "argparse/v1"
+}

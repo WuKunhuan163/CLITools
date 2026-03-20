@@ -1,41 +1,53 @@
-# logic/tool — Agent Reference
+# logic/_/base/ — Framework Core
 
-## Package Layout
+## Contents
 
-```
-logic/tool/
-├── __init__.py      # empty
-├── blueprint/       # ToolBase, MCPToolBase — canonical base classes
-│   ├── base.py      # ToolBase
-│   └── mcp_base.py  # MCPToolBase
-└── template/        # README template for TOOL --dev create
-```
+- `blueprint/base.py` — `ToolBase`: base class for all tools
+- `blueprint/mcp.py` — `MCPToolBase`: base class for Chrome CDP-based tools
+- `cli.py` — `CliEndpoint`: base class for all `cli.py` command endpoints
 
-## Importing ToolBase
+## CliEndpoint Pattern
 
-Tools should import via the facade:
+Every `cli.py` in the project inherits from `CliEndpoint`. The endpoint receives a context dict and implements `dispatch(ctx)` or `handle(args)`.
+
 ```python
-from interface.tool import ToolBase, MCPToolBase
+from logic._._ import EcoCommand  # alias for CliEndpoint
+
+class MyCommand(EcoCommand):
+    name = "mycommand"
+    usage = "TOOL ---mycommand [options]"
+
+    def handle(self, args):
+        # args = remaining tokens after eco routing
+        self.success("Done.", detail="some detail")
+        return 0
 ```
 
-Internal (inside `logic/`) imports:
-```python
-from logic._.base.blueprint.base import ToolBase
-from logic._.base.blueprint.mcp_base import MCPToolBase
+## ToolBase Routing
+
+`ToolBase.handle_command_line()` performs stateless routing:
+
+1. Strip `-<decorator>` flags from argv
+2. Extract `---<eco>` tokens and dispatch via `logic/_/<name>/cli.py`
+3. Check subtool delegation (`tool/<NAME>/tool/<CMD>/main.py`)
+4. Fall through to the tool's own argparse parser
+
+## __/ Co-Located Data Convention
+
+Endpoint directories may contain a `__/` subdirectory for data tightly coupled to that endpoint:
+
+```
+logic/_/audit/
+├── cli.py           # The endpoint
+├── argparse.json    # Schema
+├── __/              # Co-located data
+│   ├── templates/   # Report templates
+│   └── fixtures/    # Test fixtures for this endpoint
+└── code_quality.py  # Implementation modules
 ```
 
-## What Was Moved
-
-These packages were refactored out of `logic/tool/` to `logic/` root:
-- `logic.hooks` (was `logic.tool.hooks`) — HooksEngine, base events
-- `logic.setup` (was `logic.tool.setup`) — ToolEngine
-- `logic.dev` (was `logic.tool.dev`) — dev commands
-- `logic.audit` (was `logic.tool.audit`) — quality auditors
-- `logic.lifecycle` (was `logic._.base.lifecycle`) — install/uninstall/list
-
-All imports project-wide now use the canonical `logic.<module>` paths. No backward-compatibility shims remain.
-
-## Gotchas
-
-- **Do not import from `logic.tool.base`** — that file was removed. Import from `logic._.base.blueprint.base`.
-- `template/` contains static README template text, not programmatically imported.
+Rules:
+- Only the parent `cli.py` (or sibling modules) may reference `__/` contents
+- No business logic in `__/` — only data, fixtures, templates, schemas
+- `TOOL ---audit` verifies referential integrity (nothing outside references `__/`)
+- This prevents `__/` from becoming a dumping ground

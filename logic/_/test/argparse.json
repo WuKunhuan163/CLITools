@@ -1,0 +1,17 @@
+{
+  "name": "test",
+  "description": "Run unit tests for tools",
+  "subcommands": {
+    "": {
+      "description": "Run tests for a tool",
+      "args": [
+        {
+          "name": "tool_name",
+          "type": "positional",
+          "help": "Tool to test"
+        }
+      ]
+    }
+  },
+  "$schema": "argparse/v1"
+}

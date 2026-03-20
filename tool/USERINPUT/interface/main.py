@@ -15,7 +15,7 @@ def get_user_feedback(hint="", timeout=300, title="Feedback"):
     - Does NOT append system prompts
     - Returns only the raw user text (str), or None on timeout/cancel/error
     """
-    from tool.USERINPUT.main import get_user_input_tkinter
+    from tool.USERINPUT.logic.cli import get_user_input_tkinter
     try:
         result = get_user_input_tkinter(
             title=title, timeout=timeout, hint_text=hint

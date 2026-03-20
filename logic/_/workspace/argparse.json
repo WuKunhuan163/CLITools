@@ -1,0 +1,6 @@
+{
+  "name": "workspace",
+  "description": "External project workspace management",
+  "subcommands": {},
+  "$schema": "argparse/v1"
+}

@@ -1,0 +1,20 @@
+{
+  "name": "queue",
+  "description": "Prompt queue — store prompts for later consumption by USERINPUT",
+  "subcommands": {
+    "list": {"description": "List all queued prompts with indices"},
+    "add": {
+      "description": "Add a text prompt to the end of the queue",
+      "args": [{"name": "TEXT", "help": "The prompt text to add"}]
+    },
+    "delete": {
+      "description": "Remove a prompt by its index",
+      "args": [{"name": "ID", "help": "Zero-based index of the prompt to delete"}]
+    },
+    "gui": {"description": "Open the visual queue editor (drag-to-reorder, add, edit, delete)"},
+    "move-up": {"description": "Move a prompt one position up", "args": [{"name": "ID", "help": "Index"}]},
+    "move-down": {"description": "Move a prompt one position down", "args": [{"name": "ID", "help": "Index"}]},
+    "move-to-top": {"description": "Move a prompt to the top", "args": [{"name": "ID", "help": "Index"}]},
+    "move-to-bottom": {"description": "Move a prompt to the bottom", "args": [{"name": "ID", "help": "Index"}]}
+  }
+}

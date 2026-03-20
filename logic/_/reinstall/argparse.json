@@ -1,0 +1,6 @@
+{
+  "name": "reinstall",
+  "description": "Reinstall a tool (uninstall + install)",
+  "subcommands": {},
+  "$schema": "argparse/v1"
+}

@@ -1,0 +1,50 @@
+{
+  "name": "skills",
+  "description": "Manage agent skills (list, show, search, learn)",
+  "subcommands": {
+    "list": {
+      "description": "List all available skills"
+    },
+    "show": {
+      "description": "Display a skill",
+      "args": [
+        {
+          "name": "name",
+          "type": "positional",
+          "help": "Skill name"
+        }
+      ]
+    },
+    "search": {
+      "description": "Search skills by keyword",
+      "args": [
+        {
+          "name": "query",
+          "type": "positional",
+          "help": "Search query"
+        }
+      ]
+    },
+    "learn": {
+      "description": "Record a lesson",
+      "args": [
+        {
+          "name": "lesson",
+          "type": "positional",
+          "help": "Lesson text"
+        }
+      ]
+    },
+    "create": {
+      "description": "Create a new skill",
+      "args": [
+        {
+          "name": "name",
+          "type": "positional",
+          "help": "Skill name"
+        }
+      ]
+    }
+  },
+  "$schema": "argparse/v1"
+}

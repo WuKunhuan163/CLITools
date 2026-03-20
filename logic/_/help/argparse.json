@@ -1,0 +1,5 @@
+{
+  "$schema": "argparse/v1",
+  "name": "help",
+  "description": "Hierarchical help from argparse.json DFS traversal"
+}

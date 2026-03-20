@@ -1,0 +1,6 @@
+{
+  "name": "status",
+  "description": "Show tool installation status",
+  "subcommands": {},
+  "$schema": "argparse/v1"
+}

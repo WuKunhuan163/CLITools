@@ -1,65 +1,82 @@
 # logic/
 
-Shared core logic for the AITerminalTools framework. Every sub-package here is used across multiple tools — tool-specific logic belongs in `tool/<NAME>/logic/` instead.
+Shared core logic for the AITerminalTools framework. All code in this directory is **internal implementation** — tools import from `interface/*`, never directly from `logic/*`.
 
-## Package Index
+## Architecture (Post-Migration)
 
-### Core Infrastructure
-| Package | Purpose | Key Exports |
-|---------|---------|-------------|
-| `tool/` | Tool base classes (blueprint, template) | `ToolBase`, `MCPToolBase` |
-| `hooks/` | Event-driven hook system | `HooksEngine`, `HookInterface`, `HookInstance` |
-| `setup/` | Tool installation and dependency resolution | `ToolEngine` |
-| `lifecycle.py` | Tool install/uninstall/list | `install_tool()`, `list_tools()` |
-| `config/` | Global configuration, colors, rule generation | `get_global_config()`, `RuleManager`, `colors.json` |
-| `gui/` | GUI framework — Tkinter blueprints, widgets, style | `BaseGUIWindow`, `TimedBottomBarGUI`, `TutorialWindow` |
+After the cleanup migration, `logic/` has a single organizational structure:
 
-### Development & Testing
-| Package | Purpose | Key Exports |
-|---------|---------|-------------|
-| `test/` | Test runner with CPU monitoring, parallel execution | `TestManager`, `TestRunner` |
-| `dev/` | Developer workflow commands | `dev_sync`, `dev_create`, `dev_audit_test` |
-| `audit/` | Quality auditing (hooks, interfaces, skills) | `audit_all_quality`, `AuditManager` |
-| `lang/` | Internationalization, language audit | `LangAuditor`, `_()` helper via tools |
+```
+logic/
+├── _/                    # ALL shared infrastructure lives here
+│   ├── base/             # ToolBase, MCPToolBase, CliEndpoint (framework core)
+│   ├── brain/            # Brain tasks, sessions, blueprints (---brain eco cmd)
+│   ├── git/              # Git operations, .gitignore management, persistence
+│   ├── agent/            # Agent loop, tools, context, guidelines
+│   ├── assistant/        # LLM assistant GUI, prompts, std tools
+│   ├── audit/            # Code quality, import rules, hooks validation
+│   ├── config/           # Global configuration, colors, settings
+│   ├── dev/              # Developer workflow (create, sync, archive)
+│   ├── eco/              # Ecosystem navigation and search
+│   ├── gui/              # Tkinter blueprint framework
+│   ├── help/             # ---help eco command (DFS argparse.json tree)
+│   ├── hooks/            # Event-driven hook engine
+│   ├── install/          # Tool installation engine
+│   ├── lang/             # Internationalization, language audit
+│   ├── list/             # Tool listing
+│   ├── migrate/          # Migration from external sources
+│   ├── reinstall/        # Reinstallation logic
+│   ├── search/           # Cross-project search index
+│   ├── setup/            # Setup and dependency resolution
+│   ├── skills/           # Skill management commands
+│   ├── status/           # Tool status display
+│   ├── test/             # Test runner with CPU monitoring
+│   ├── translation/      # Root framework translations
+│   ├── uninstall/        # Tool uninstallation
+│   ├── utils/            # Shared utilities (display, logging, system, turing)
+│   └── workspace/        # External project workspaces
+├── _.py                  # EcoCommand alias for CliEndpoint
+├── __init__.py           # Package marker
+└── (top-level .py files) # resolve.py, cdmcp_loader.py, worker.py, lifecycle.py
+```
 
-### Display & UX
-| Package | Purpose | Key Exports |
-|---------|---------|-------------|
-| `turing/` | Progress display (Turing Machine stages) | `TuringStage`, `ProgressTuringMachine`, `MultiLineManager` |
-| `utils/` | Display tables, logging, progress bars | `display_table()`, `save_list_report()`, `system_log()` |
-| `accessibility/` | Keyboard monitoring, paste-and-enter | `KeyboardMonitor`, `detect_paste_then_enter()` |
-| `terminal/` | Terminal keyboard control (shim to `turing/terminal/`) | `KeyboardSuppressor` |
+## Key Rule: logic/_/ is the Command Map
 
-### Chrome DevTools / MCP
-| Package | Purpose | Key Exports |
-|---------|---------|-------------|
-| `chrome/` | Chrome session management | `CDPSession`, `list_tabs()`, `find_tab()` |
-| `mcp/` | MCP infrastructure (browser config, Drive) | `load_browser_config()` |
-| `cdmcp_loader.py` | CDMCP session bootstrapper (top-level file) | `boot_tool_session()` |
+Every directory under `logic/_/` with a `cli.py` file corresponds to a `---<name>` eco command:
 
-### Data & Assets
-| Package | Purpose | Key Exports |
-|---------|---------|-------------|
-| `git/` | Git operations, .gitignore management | `GitIgnoreManager`, `GitPersistenceManager` |
-| `asset/` | Static assets (notification sounds) | `bell.mp3` |
-| `translation/` | Root translation files | `zh.json`, `ar.json` |
+```
+logic/_/audit/cli.py    →  TOOL ---audit
+logic/_/brain/cli.py    →  TOOL ---brain
+logic/_/dev/cli.py      →  TOOL ---dev
+logic/_/help/cli.py     →  TOOL ---help
+```
+
+This mapping is **automatic** — `ToolBase.handle_command_line()` discovers commands by traversing `logic/_/`. No registration needed.
+
+Each directory should also contain `argparse.json` — a declarative schema that powers `---help` and enables audit.
+
+## Three-Tier CLI Convention
+
+```
+---<eco>    Ecosystem commands shared across all tools (logic/_/<name>/cli.py)
+--<tool>    Tool-specific commands (argparse in main.py)
+-<modifier> Decorators that modify behavior (-no-warning, -tool-quiet)
+```
+
+## Import Convention
+
+Within `logic/`, cross-references use:
+- `from logic._.<module>...` for command modules
+- `from logic._.<module>...` for infrastructure (everything is now under `_/`)
+
+Outside `logic/`, tools always use `interface.*`.
 
 ## Top-Level Files
 
 | File | Purpose |
 |------|---------|
-| `resolve.py` | Universal `sys.path` resolver — ensures project root is at `sys.path[0]` |
+| `_.py` | Re-exports `CliEndpoint` as `EcoCommand` for convenience |
+| `resolve.py` | Universal `sys.path` resolver |
 | `cdmcp_loader.py` | CDMCP session bootstrap for Chrome-based tools |
-| `lifecycle.py` | Tool install/uninstall/list commands |
+| `lifecycle.py` | Tool install/uninstall/list operations |
 | `worker.py` | Background worker/process utilities |
-| `__init__.py` | Package marker |
-
-## Import Convention
-
-```python
-from logic.config.main import get_global_config
-from logic._.base.blueprint.base import ToolBase
-from logic.turing.stage import TuringStage
-```
-
-Each sub-package has its own `README.md` (overview) and `AGENT.md` (technical detail).

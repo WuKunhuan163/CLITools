@@ -1,0 +1,6 @@
+{
+  "name": "list",
+  "description": "List registered tools",
+  "subcommands": {},
+  "$schema": "argparse/v1"
+}

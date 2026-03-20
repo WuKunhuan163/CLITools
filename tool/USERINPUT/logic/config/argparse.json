@@ -1,0 +1,26 @@
+{
+  "name": "config",
+  "description": "View or update USERINPUT runtime configuration",
+  "subcommands": {
+    "focus-interval": {
+      "description": "Window focus-steal interval in seconds (minimum 90)",
+      "args": [{"name": "N", "help": "Interval in seconds"}]
+    },
+    "time-increment": {
+      "description": "Seconds added per +Time button click in the GUI",
+      "args": [{"name": "N", "help": "Seconds to add"}]
+    },
+    "cpu-limit": {
+      "description": "CPU load threshold for pre-launch warnings (%)",
+      "args": [{"name": "N", "help": "Percentage (e.g. 80.0)"}]
+    },
+    "cpu-timeout": {
+      "description": "Maximum seconds to wait when CPU exceeds limit",
+      "args": [{"name": "N", "help": "Seconds"}]
+    },
+    "enquiry-mode": {
+      "description": "Toggle persistent enquiry mode (bypass queue for all calls)",
+      "args": [{"name": "on|off", "help": "Enable or disable; omit for current status"}]
+    }
+  }
+}

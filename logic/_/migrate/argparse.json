@@ -1,0 +1,6 @@
+{
+  "name": "migrate",
+  "description": "Migrate tool code from external sources",
+  "subcommands": {},
+  "$schema": "argparse/v1"
+}

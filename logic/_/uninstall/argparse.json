@@ -1,0 +1,6 @@
+{
+  "name": "uninstall",
+  "description": "Uninstall a tool",
+  "subcommands": {},
+  "$schema": "argparse/v1"
+}

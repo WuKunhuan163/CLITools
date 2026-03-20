@@ -1,0 +1,49 @@
+{
+  "name": "eco",
+  "description": "Ecosystem navigation and search",
+  "subcommands": {
+    "search": {
+      "description": "Search tools, skills, lessons, docs",
+      "args": [
+        {
+          "name": "query",
+          "type": "positional",
+          "help": "Search query"
+        }
+      ]
+    },
+    "guide": {
+      "description": "Onboarding walkthrough"
+    },
+    "tool": {
+      "description": "Deep-dive into a specific tool",
+      "args": [
+        {
+          "name": "name",
+          "type": "positional",
+          "help": "Tool name"
+        }
+      ]
+    },
+    "skill": {
+      "description": "Read a development skill",
+      "args": [
+        {
+          "name": "name",
+          "type": "positional",
+          "help": "Skill name"
+        }
+      ]
+    },
+    "nav": {
+      "description": "Navigate the skills dictionary tree"
+    },
+    "tree": {
+      "description": "Show the full skills tree structure"
+    },
+    "cmds": {
+      "description": "Blueprint shortcuts"
+    }
+  },
+  "$schema": "argparse/v1"
+}
