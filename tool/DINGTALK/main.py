@@ -78,7 +78,8 @@ def _run_tutorial(name, tool):
 
     if name not in _TUTORIAL_MAP:
         print(f"  {BOLD}{RED}Unknown tutorial.{RESET} {DIM}{name}{RESET}")
-        print(f"  Available: {', '.join(_TUTORIAL_MAP.keys())}, list")
+        print(f"  Available: {', '.join(_TUTORIAL_MAP.keys())}")
+        print(f"  {DIM}Use --tutorial list to see descriptions{RESET}")
         return 1
 
     if name == "setup":
@@ -124,9 +125,14 @@ def _check_setup_prereq():
         cfg = json.loads(config_file.read_text())
     except Exception:
         return {"ok": False, "error": "Configuration file is corrupted."}
-    if not cfg.get("app_key") or not cfg.get("app_secret"):
-        return {"ok": False, "error": "Credentials not configured."}
-    return {"ok": True}
+    if cfg.get("accounts"):
+        from tool.DINGTALK.logic.api import _get_active_account
+        acct = _get_active_account(cfg)
+        if acct.get("app_key") and acct.get("app_secret"):
+            return {"ok": True}
+    elif cfg.get("app_key") and cfg.get("app_secret"):
+        return {"ok": True}
+    return {"ok": False, "error": "Credentials not configured."}
 
 
 def _print_json(data):

@@ -14,8 +14,7 @@ def run(on_step_change=None):
         {"scope": "qyapi_get_member", "name": "Get user detail info", "required": True},
         {"scope": "Contact.User.Read", "name": "Read user contact info (new API)", "required": True},
         {"scope": "qyapi_get_dept_list", "name": "List all departments", "required": False},
-        {"scope": "qyapi_get_dept_member", "name": "List department members", "required": False},
-        {"scope": "qyapi_get_org_admin_list", "name": "List organization admins", "required": False},
+        {"scope": "Contact.Dept.Read", "name": "Read department info (new API)", "required": False},
     ]
 
     description = (

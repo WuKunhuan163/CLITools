@@ -9,6 +9,7 @@ from logic.turing.status import (
     fmt_stage,
     fmt_warning,
     fmt_info,
+    get_cli_indent,
 )
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "fmt_stage",
     "fmt_warning",
     "fmt_info",
+    "get_cli_indent",
 ]

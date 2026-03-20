@@ -18,8 +18,16 @@ def check_setup_complete() -> dict:
     except Exception:
         return {"ok": False, "error": "Configuration file is corrupted."}
 
-    app_key = cfg.get("app_key", "")
-    app_secret = cfg.get("app_secret", "")
+    if cfg.get("accounts"):
+        active_phone = cfg.get("active_phone", "")
+        accounts = cfg.get("accounts", {})
+        acct = accounts.get(active_phone) or (next(iter(accounts.values())) if accounts else {})
+        app_key = acct.get("app_key", "")
+        app_secret = acct.get("app_secret", "")
+    else:
+        app_key = cfg.get("app_key", "")
+        app_secret = cfg.get("app_secret", "")
+
     if not app_key or not app_secret:
         return {"ok": False, "error": "Credentials not configured. Run: DINGTALK --tutorial setup"}
 
@@ -34,10 +42,16 @@ def validate_token() -> dict:
         return check
 
     cfg = json.loads(_CONFIG_FILE.read_text())
+    if cfg.get("accounts"):
+        active_phone = cfg.get("active_phone", "")
+        accounts = cfg.get("accounts", {})
+        acct = accounts.get(active_phone) or (next(iter(accounts.values())) if accounts else {})
+    else:
+        acct = cfg
     try:
         body = json.dumps({
-            "appKey": cfg["app_key"],
-            "appSecret": cfg["app_secret"]
+            "appKey": acct["app_key"],
+            "appSecret": acct["app_secret"]
         }).encode()
         req = urllib.request.Request(
             "https://api.dingtalk.com/v1.0/oauth2/accessToken",

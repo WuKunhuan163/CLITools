@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import shutil
 
-from logic.config import get_color
+from logic.config import get_color, get_global_config
 
 BOLD = get_color("BOLD", "\033[1m")
 DIM = get_color("DIM", "\033[2m")
@@ -35,6 +35,15 @@ _STATUS_COLORS = {
     "error": RED,
     "cancelled": DIM,
 }
+
+
+def get_cli_indent() -> int:
+    """Return the configured CLI indentation width (default 4)."""
+    val = get_global_config("cli_indent", 4)
+    try:
+        return max(0, int(val))
+    except (TypeError, ValueError):
+        return 4
 
 
 def _term_width() -> int:
@@ -84,7 +93,7 @@ def _truncate(text: str, width: int) -> str:
 # ── Public API ──────────────────────────────────────────────────────
 
 def fmt_status(label: str, complement: str = "", dim: str = "",
-               style: str = "default", indent: int = 2) -> str:
+               style: str = "default", indent: int = -1) -> str:
     """Format a one-line status message.
 
     Args:
@@ -103,6 +112,8 @@ def fmt_status(label: str, complement: str = "", dim: str = "",
         fmt_status("Saved.", dim="3 policies")  # bold + dim
         fmt_status("Failed.", complement="Try /setup.", style="error")
     """
+    if indent < 0:
+        indent = get_cli_indent()
     prefix = " " * indent
     color = {"success": GREEN, "error": RED}.get(style, "")
     parts = [f"{RESET}{prefix}{color}{BOLD}{label}{RESET}"]
@@ -114,19 +125,21 @@ def fmt_status(label: str, complement: str = "", dim: str = "",
     return _truncate(raw, _term_width())
 
 
-def fmt_detail(text: str, indent: int = 4, styled: bool = False,
+def fmt_detail(text: str, indent: int = -1, styled: bool = False,
                wrap: bool = False) -> str:
     """Format a detail/sub-info line (indented, auto-dimmed).
 
     Args:
         text: The detail content.
-        indent: Leading spaces (default 4 = 2 for parent + 2 for nesting).
+        indent: Leading spaces (default: cli_indent * 2).
         styled: If True, skip auto-dimming -- caller provides own ANSI.
         wrap: If True, wrap long lines instead of truncating.
 
     Returns:
         A fully ANSI-formatted string (no trailing newline).
     """
+    if indent < 0:
+        indent = get_cli_indent() * 2
     prefix = " " * indent
     if styled:
         raw = f"{RESET}{prefix}{text}"
@@ -210,12 +223,13 @@ def fmt_stage(label: str, desc: str = "", status: str = "active",
         label: Bold stage name (e.g., ``"Starting session..."``).
         desc: Optional description after the label.
         status: ``"active"`` | ``"done"`` | ``"error"`` | ``"cancelled"``.
-        depth: 1 = top-level (2-space indent), 2 = nested (4-space indent).
+        depth: 1 = top-level (cli_indent), 2 = nested (cli_indent * 2).
 
     Returns:
         A fully ANSI-formatted string (no trailing newline), possibly multi-line.
     """
-    indent = "    " if depth == 2 else "  "
+    base = get_cli_indent()
+    indent = " " * (base * 2 if depth == 2 else base)
     indicator = _L2 if depth == 2 else _L1
     suffix = f" {desc}" if desc else ""
     color = _STATUS_COLORS.get(status, "")
@@ -228,7 +242,7 @@ def fmt_stage(label: str, desc: str = "", status: str = "active",
     return _wrap_stage(raw, width, cont_indent=cont_indent)
 
 
-def fmt_warning(text: str, indent: int = 2) -> str:
+def fmt_warning(text: str, indent: int = -1) -> str:
     """Format a warning line: ``Warning:`` label (yellow+dim) + dimmed text.
 
     Use for non-critical notices that don't interrupt the pipeline.
@@ -236,13 +250,15 @@ def fmt_warning(text: str, indent: int = 2) -> str:
     Returns:
         A fully ANSI-formatted string (no trailing newline).
     """
+    if indent < 0:
+        indent = get_cli_indent()
     prefix = " " * indent
     return _truncate(
         f"{RESET}{prefix}{YELLOW}{DIM}Warning:{RESET} {DIM}{text}{RESET}",
         _term_width())
 
 
-def fmt_info(text: str, indent: int = 2) -> str:
+def fmt_info(text: str, indent: int = -1) -> str:
     """Format an informational notice (fully dimmed, no label).
 
     Use for supplementary context that the user may or may not need.
@@ -250,5 +266,7 @@ def fmt_info(text: str, indent: int = 2) -> str:
     Returns:
         A fully ANSI-formatted string (no trailing newline).
     """
+    if indent < 0:
+        indent = get_cli_indent()
     prefix = " " * indent
     return _truncate(f"{RESET}{prefix}{DIM}{text}{RESET}", _term_width())

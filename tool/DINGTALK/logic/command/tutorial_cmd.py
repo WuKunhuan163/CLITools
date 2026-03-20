@@ -16,9 +16,11 @@ def _make_step_callback():
     BOLD = get_color("BOLD")
     BLUE = get_color("BLUE")
     RESET = get_color("RESET")
+    from logic.turing.status import get_cli_indent
 
     def on_step_change(step_idx, total_steps, step_title):
-        msg = f"{BOLD}{BLUE}{_('turing_user_completing', 'User completing')} {step_idx + 1}/{total_steps}{RESET}: {step_title}..."
+        prefix = " " * get_cli_indent()
+        msg = f"{prefix}{BOLD}{BLUE}{_('turing_user_completing', 'User completing')} {step_idx + 1}/{total_steps}{RESET}: {step_title}..."
         sys.stdout.write(f"\r\033[K{msg}")
         sys.stdout.flush()
 

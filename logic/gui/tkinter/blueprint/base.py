@@ -565,8 +565,9 @@ class BaseGUIWindow:
                 text_widget.insert(tk.END, " ")
                 text_widget.insert(tk.END, code_text, ("code", code_tag))
                 text_widget.insert(tk.END, " \u2398 ", (copy_tag,))
-                copy_font_size = base_font[1] if isinstance(base_font, tuple) and len(base_font) > 1 else 14
-                text_widget.tag_config(copy_tag, foreground="#888888", font=(base_font[0], copy_font_size))
+                base_size = base_font[1] if isinstance(base_font, tuple) and len(base_font) > 1 else 14
+                copy_font_size = int(base_size * 1.6)
+                text_widget.tag_config(copy_tag, foreground="#666666", font=("Menlo", copy_font_size))
                 text_widget.tag_bind(copy_tag, "<Enter>", lambda e: text_widget.config(cursor="hand2"))
                 text_widget.tag_bind(copy_tag, "<Leave>", lambda e: text_widget.config(cursor="arrow"))
                 text_widget.tag_bind(copy_tag, "<Button-1>",
