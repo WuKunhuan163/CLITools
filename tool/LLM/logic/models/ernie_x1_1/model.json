@@ -1,5 +1,6 @@
 {
-  "model_id": "ernie-x1.1-preview",
+  "model_id": "ernie-x1.1",
+  "api_model_id": "ernie-x1.1-preview",
   "display_name": "ERNIE X1.1 (Preview)",
   "vendor": "baidu",
   "vendor_display": "Baidu",
@@ -29,5 +30,6 @@
     "min_interval_s": 0.5,
     "jitter_s": 0.3
   },
-  "active": true
+  "active": true,
+  "logo_brightness": 0.42
 }

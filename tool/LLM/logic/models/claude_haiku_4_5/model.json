@@ -1,5 +1,6 @@
 {
-  "model_id": "claude-haiku-4-5-20260101",
+  "model_id": "claude-haiku-4.5",
+  "api_model_id": "claude-haiku-4-5-20260101",
   "display_name": "Claude Haiku 4.5",
   "vendor": "anthropic",
   "vendor_display": "Anthropic",
@@ -36,5 +37,6 @@
     "jitter_s": 0.3
   },
   "active": false,
-  "lock_reason": "Paid model. Configure Anthropic API key to unlock."
+  "lock_reason": "Paid model. Configure Anthropic API key to unlock.",
+  "logo_brightness": 0.57
 }

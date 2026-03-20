@@ -37,11 +37,36 @@ result = retry_on_transient(
 )
 ```
 
+## Naming Convention
+
+**See `logic/naming.py` for the authoritative definition.**
+
+All model identifiers follow a strict 4-level naming protocol:
+
+| Level | Format | Example |
+|-------|--------|---------|
+| **model_key** | Canonical ID with `.` and `-` | `ernie-4.5-8k` |
+| **dir_name** | `model_key.replace(".", "_").replace("-", "_")` | `ernie_4_5_8k` |
+| **registry_name** | `<vendor>-<model_key>` | `baidu-ernie-4.5-8k` |
+| **api_model_id** | What the actual API expects | `ernie-4.5-8k-preview` |
+
+Conversion function: `from tool.LLM.logic.naming import model_key_to_dir`
+
+Each model directory MUST contain:
+- `model.json` — with `model_id` = model_key, and `api_model_id` if different
+- `info.json` — with `logo_brightness` (0-1) and `logo_source` provenance
+- `README.md` — auto-generated from model.json + info.json
+
+**Fuzzy resolution:** `fuzzy_resolve(name)` in `registry.py` handles typos and
+variant spellings for Auto decision fault tolerance. Exposed via
+`POST /api/model/resolve {"query": "..."}`.
+
 ## Directory Structure
 
 ```
 tool/LLM/
   logic/
+    naming.py              Naming convention: model_key_to_dir(), fuzzy_match_model()
     config.py              Config reads per-provider data/keys.json + data/settings.json
     registry.py            get_provider(name), list_providers(), register(name, cls)
     base/
@@ -51,12 +76,16 @@ tool/LLM/
     models/<name>/
       main.py              Provider implementation (inherits base class)
       model.json           Model metadata: capabilities, rate_limits, cost, vendor
+      info.json            Logo brightness (0-1) and logo provenance
+      README.md            Auto-generated documentation
       pipeline.py          Custom context pipeline (optional)
       <vendor>.py          Secondary vendor implementation (optional)
       logo.svg             Model-specific favicon
     providers/<vendor>/
       data/keys.json       API keys + key states (gitignored)
       data/usage.db        Per-provider usage DB (gitignored)
+      info.json            Logo brightness (0-1) and logo provenance
+      README.md            Auto-generated documentation
       logo.svg             Vendor favicon
       manager.py           Unified ProviderManager (aggregates health, keys, rate limits)
     rate/
@@ -106,10 +135,14 @@ Provider rate limits are empirically calibrated. When encountering 429s:
 
 ### Creating a New Model
 
-1. `logic/models/<model_name>/` — create directory with `model.json` + `main.py`
-2. `main.py` extends `OpenAICompatProvider` (or `LLMProvider` for custom APIs)
-3. Register in `logic/registry.py`
-4. Add `logo.svg` from official branding / open-source icon set
+1. Choose a **model_key** (e.g. `ernie-4.5-8k`). The directory name MUST be `model_key_to_dir(model_key)`.
+2. Create `logic/models/<dir_name>/` with:
+   - `model.json` — set `model_id` = model_key; set `api_model_id` if different from model_key
+   - `main.py` — extends `OpenAICompatProvider` (or `LLMProvider` for custom APIs)
+   - `info.json` — `logo_brightness` (0-1) and `logo_source` with provenance URL
+   - `logo.svg` — model-specific icon (NOT the vendor logo; use the model's own branding)
+3. Register in `logic/registry.py` with `model=<model_key>`
+4. Run `python3 tmp/gen_docs.py` to auto-generate `README.md`
 
 ### Creating a New Provider (Vendor)
 

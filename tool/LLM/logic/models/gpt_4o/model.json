@@ -5,7 +5,7 @@
   "vendor_display": "OpenAI",
   "cost": {
     "free_tier": false,
-    "input_per_1m": 2.50,
+    "input_per_1m": 2.5,
     "output_per_1m": 10.0,
     "currency": "USD"
   },
@@ -41,5 +41,6 @@
     "jitter_s": 0.3
   },
   "active": false,
-  "lock_reason": "Paid model. Configure OpenAI API key to unlock."
+  "lock_reason": "Paid model. Configure OpenAI API key to unlock.",
+  "logo_brightness": 0.15
 }

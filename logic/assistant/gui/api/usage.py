@@ -35,9 +35,10 @@ class UsageMixin:
         for m in list_models():
             mid = m["model"]
             cap = m.get("capabilities", {})
+            from tool.LLM.logic.naming import model_key_to_dir
             model_json_path = os.path.join(
                 str(_root), "tool", "LLM", "logic", "models",
-                mid.replace("-", "_").replace(".", "_"), "model.json")
+                model_key_to_dir(mid), "model.json")
             cost_info = {}
             bench_info = {}
             free_tier = False

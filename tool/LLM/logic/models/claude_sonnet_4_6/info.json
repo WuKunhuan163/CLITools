@@ -1,0 +1,9 @@
+{
+  "logo_brightness": 0.57,
+  "logo_source": {
+    "name": "Anthropic Claude mark",
+    "url": "https://lobehub.com/icons/claude",
+    "repository": "https://github.com/lobehub/lobe-icons",
+    "license": "MIT"
+  }
+}

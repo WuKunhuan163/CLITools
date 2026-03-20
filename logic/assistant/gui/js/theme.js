@@ -134,6 +134,14 @@ function _adaptLogoBrightness() {
 }
 
 function _adaptSingleLogo(img, isDarkBg) {
+  const declared = img.dataset.logoBrightness;
+  if (declared !== undefined && declared !== '') {
+    const lb = parseFloat(declared);
+    if (!isNaN(lb)) {
+      _applyLogoFilter(img, lb, isDarkBg);
+      return;
+    }
+  }
   const src = img.src;
   if (_logoAdaptCache.has(src)) {
     _applyLogoFilter(img, _logoAdaptCache.get(src), isDarkBg);

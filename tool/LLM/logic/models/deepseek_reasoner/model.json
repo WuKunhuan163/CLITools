@@ -31,5 +31,6 @@
     "jitter_s": 1.0
   },
   "active": false,
-  "lock_reason": "Paid model. Configure DeepSeek API key to unlock."
+  "lock_reason": "Paid model. Configure DeepSeek API key to unlock.",
+  "logo_brightness": 0.35
 }

@@ -21,5 +21,6 @@
     "free_tier": true
   },
   "active": false,
-  "lock_reason": "Legacy model. Replaced by ERNIE 4.5 Turbo 128K. qianfan SDK no longer supported."
+  "lock_reason": "Legacy model. Replaced by ERNIE 4.5 Turbo 128K. qianfan SDK no longer supported.",
+  "logo_brightness": 0.42
 }

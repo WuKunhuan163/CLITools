@@ -2,6 +2,8 @@
 from __future__ import annotations
 from pathlib import Path
 
+from tool.LLM.logic.naming import model_key_to_dir
+
 _dir = Path(__file__).parent.parent
 _root = _dir.parent.parent.parent
 
@@ -139,7 +141,7 @@ class ModelsMixin:
                 provs = m.get("providers", [])
                 has_key = any(p in available_providers for p in provs)
 
-                model_dir = mid.replace("-", "_").replace(".", "_")
+                model_dir = model_key_to_dir(mid)
                 model_json_path = _MODELS_DIR / model_dir / "model.json"
                 active = True
                 lock_reason = ""
@@ -203,12 +205,25 @@ class ModelsMixin:
                     icon = _asset_icon_url("providers", pid)
                 provider_meta[pid] = {"id": pid, "icon": icon}
 
-        # Build model dir logo index: dir_name -> URL
         model_dir_logos = {}
         if llm_models_dir.is_dir():
             for d in llm_models_dir.iterdir():
-                if d.is_dir() and (d / "logo.svg").is_file():
-                    model_dir_logos[d.name] = f"/llm/models/{d.name}/logo.svg"
+                if not d.is_dir() or not (d / "logo.svg").is_file():
+                    continue
+                url = f"/llm/models/{d.name}/logo.svg"
+                model_dir_logos[d.name] = url
+                mj_path = d / "model.json"
+                if mj_path.is_file():
+                    try:
+                        import json as _json
+                        mj = _json.loads(mj_path.read_text())
+                        for key in ("model_id", "api_model_id"):
+                            v = mj.get(key, "")
+                            if v:
+                                model_dir_logos[v] = url
+                                model_dir_logos[model_key_to_dir(v)] = url
+                    except Exception:
+                        pass
 
         # Fallback: asset/image/models/*.svg
         asset_model_icons = {}
@@ -235,12 +250,16 @@ class ModelsMixin:
                     mid, vendor, model_dir_logos,
                     asset_model_icons, provider_meta,
                 )
-                model_meta[mid] = {
+                entry = {
                     "id": mid,
                     "display_name": display_name,
                     "vendor": vendor,
                     "icon": icon,
                 }
+                lb = m.get("logo_brightness")
+                if lb is not None:
+                    entry["logo_brightness"] = lb
+                model_meta[mid] = entry
 
             for prov_name in _REGISTRY:
                 if prov_name == "auto" or prov_name in model_meta:
@@ -289,7 +308,9 @@ class ModelsMixin:
           2. Provider directory logo.svg (provider_meta[vendor].icon)
           3. Asset directory SVG fallback (asset_model_icons)
         """
-        dir_name = model_id.replace("-", "_").replace(".", "_")
+        if model_id in model_dir_logos:
+            return model_dir_logos[model_id]
+        dir_name = model_key_to_dir(model_id)
         if dir_name in model_dir_logos:
             return model_dir_logos[dir_name]
 
@@ -313,4 +334,29 @@ class ModelsMixin:
             return provider_meta[prefix].get("icon")
 
         return None
+
+    @staticmethod
+    def _api_model_resolve(body: dict) -> dict:
+        """Fuzzy-resolve a model/provider name query.
+
+        Body: {"query": "ernie4.5-8k"} or {"query": "glm4flash"}
+        Returns: {"ok": true, "resolved": "baidu-ernie-4.5-8k", "exact": false}
+        """
+        query = (body or {}).get("query", "").strip()
+        if not query:
+            return {"ok": False, "error": "Missing query"}
+        try:
+            from tool.LLM.logic.registry import (
+                _resolve, _REGISTRY, _ALIASES, _ensure_builtins, fuzzy_resolve,
+            )
+            _ensure_builtins()
+            exact = _resolve(query)
+            if exact in _REGISTRY:
+                return {"ok": True, "resolved": exact, "exact": True}
+            fuzzy = fuzzy_resolve(query)
+            if fuzzy:
+                return {"ok": True, "resolved": fuzzy, "exact": False}
+            return {"ok": False, "error": f"No match for '{query}'"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 

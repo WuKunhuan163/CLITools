@@ -8,9 +8,46 @@ Three tiers of context richness:
 import datetime
 import os
 import platform
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any, Dict, List, Optional, Set
 
 from logic.agent.state import AgentSession
+
+
+def _extract_keywords(text: str, min_len: int = 3) -> Set[str]:
+    """Extract lowercase alpha-numeric keywords from text."""
+    tokens = re.findall(r"[a-zA-Z0-9\u4e00-\u9fff]+", text.lower())
+    return {t for t in tokens if len(t) >= min_len}
+
+
+_GENERIC_WORDS = frozenset([
+    "the", "and", "for", "that", "this", "with", "from", "have",
+    "are", "was", "were", "but", "not", "you", "all", "can",
+    "had", "her", "one", "our", "out", "day", "get", "has", "him",
+    "his", "how", "its", "let", "may", "new", "now", "old", "see",
+    "way", "who", "did", "set", "use", "will", "help", "please",
+    "make", "create", "build", "write", "add", "fix", "run",
+    "code", "file", "project", "tool", "want", "need", "like",
+])
+
+
+def _is_related_prompt(original: str, current: str,
+                       threshold: float = 0.15) -> bool:
+    """Check whether current prompt is topically related to the original.
+
+    Uses keyword overlap ratio. Returns False when the new prompt
+    shares very few meaningful words with the original task, suggesting
+    the user has moved on to a completely different topic.
+    """
+    if not original or not current:
+        return True
+    orig_kw = _extract_keywords(original) - _GENERIC_WORDS
+    curr_kw = _extract_keywords(current) - _GENERIC_WORDS
+    if not orig_kw or not curr_kw:
+        return True
+    overlap = len(orig_kw & curr_kw)
+    denom = min(len(orig_kw), len(curr_kw))
+    return (overlap / denom) >= threshold if denom > 0 else True
 
 
 def build_runtime_header(codebase_root: str) -> str:
@@ -107,9 +144,13 @@ def build_context(session: AgentSession, user_text: str,
     if tier >= 1 and msg_num > 1:
         parts.append(build_runtime_header(cwd))
         original_prompt = getattr(session, "initial_prompt", "")
-        if original_prompt:
+        if original_prompt and _is_related_prompt(original_prompt, user_text):
             summary = original_prompt[:300]
             parts.append(f"[Original task] {summary}")
+        elif original_prompt:
+            parts.append(
+                "[New topic] The user's message appears unrelated to the "
+                "previous task. Treat it as a fresh request.")
         listing = build_directory_listing(cwd, limit=20)
         if listing:
             parts.append(

@@ -1,0 +1,9 @@
+{
+  "logo_brightness": 0.45,
+  "logo_source": {
+    "name": "Google G icon",
+    "url": "https://lobehub.com/icons/google",
+    "repository": "https://github.com/lobehub/lobe-icons",
+    "license": "MIT"
+  }
+}

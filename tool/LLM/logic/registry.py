@@ -3,8 +3,10 @@
 Central point for discovering, configuring, and instantiating LLM providers.
 Structure: models/<model>/main.py with model.json at model level.
 
-Registry names follow the pattern: <vendor>-<model> (e.g. "zhipu-glm-4-flash").
+Registry names follow the pattern: <vendor>-<model_key> (e.g. "zhipu-glm-4-flash").
 Model-level resolution: "glm-4-flash" resolves to the preferred provider.
+
+See naming.py for the full naming convention documentation.
 """
 import json
 import os
@@ -12,6 +14,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from tool.LLM.logic.base import LLMProvider
+from tool.LLM.logic.naming import model_key_to_dir, build_model_key_index
 from tool.LLM.logic.pipeline import ContextPipeline
 
 
@@ -54,26 +57,59 @@ def list_providers() -> List[Dict[str, Any]]:
     return results
 
 
+def _build_model_json_index() -> Dict[str, dict]:
+    """Scan all model directories and index model.json by multiple keys.
+
+    Uses naming convention: dir_name = model_key_to_dir(model_key).
+    """
+    index: Dict[str, dict] = {}
+    if not _MODELS_DIR.is_dir():
+        return index
+    for d in _MODELS_DIR.iterdir():
+        if not d.is_dir() or d.name.startswith("_"):
+            continue
+        mj = d / "model.json"
+        if mj.exists():
+            try:
+                data = json.loads(mj.read_text())
+                model_id = data.get("model_id", "")
+                if model_id:
+                    index[model_id] = data
+                    index[model_key_to_dir(model_id)] = data
+                api_id = data.get("api_model_id", "")
+                if api_id and api_id != model_id:
+                    index[api_id] = data
+                index[d.name] = data
+                dn = data.get("display_name", "")
+                if dn:
+                    norm = dn.lower().replace(" ", "-")
+                    index[norm] = data
+            except Exception:
+                pass
+    return index
+
+
 def list_models() -> List[Dict[str, Any]]:
     """Return info for each model with its available providers."""
     _ensure_builtins()
+    idx = _build_model_json_index()
     results = []
     for model, providers in _MODEL_PROVIDERS.items():
-        model_json_path = _MODELS_DIR / model.replace("-", "_").replace(".", "_") / "model.json"
-        meta = {}
-        if model_json_path.exists():
-            try:
-                meta = json.loads(model_json_path.read_text())
-            except Exception:
-                pass
-        results.append({
+        meta = idx.get(model, {})
+        if not meta:
+            meta = idx.get(model_key_to_dir(model), {})
+        entry = {
             "model": model,
             "display_name": meta.get("display_name", model),
             "vendor": meta.get("vendor", ""),
             "providers": providers,
             "capabilities": meta.get("capabilities", {}),
             "cost": meta.get("cost", {}),
-        })
+        }
+        lb = meta.get("logo_brightness")
+        if lb is not None:
+            entry["logo_brightness"] = lb
+        results.append(entry)
     return results
 
 
@@ -154,8 +190,29 @@ def _resolve(name: str) -> str:
     return resolved
 
 
+def fuzzy_resolve(name: str) -> Optional[str]:
+    """Try to resolve a model/provider name using fuzzy matching.
+
+    Returns the resolved registry name, or None if no match found.
+    Useful for Auto decision fault tolerance.
+    """
+    from tool.LLM.logic.naming import fuzzy_match_model
+    _ensure_builtins()
+
+    if name in _REGISTRY or name in _ALIASES:
+        return _resolve(name)
+
+    all_keys = list(_REGISTRY.keys()) + list(_ALIASES.keys()) + list(_MODEL_PROVIDERS.keys())
+    match = fuzzy_match_model(name, all_keys, threshold=0.55)
+    if match:
+        return _resolve(match)
+    return None
+
+
 def get_provider(name: str = "zhipu-glm-4-flash", **kwargs) -> LLMProvider:
     """Get a provider instance by name or model name.
+
+    Falls back to fuzzy matching if exact resolution fails.
 
     Raises:
         ValueError: If the provider name is not registered.
@@ -163,9 +220,13 @@ def get_provider(name: str = "zhipu-glm-4-flash", **kwargs) -> LLMProvider:
     _ensure_builtins()
     resolved = _resolve(name)
     if resolved not in _REGISTRY:
-        available = ", ".join(_REGISTRY.keys())
-        raise ValueError(
-            f"Unknown LLM provider '{name}'. Available: {available}")
+        fuzzy = fuzzy_resolve(name)
+        if fuzzy and fuzzy in _REGISTRY:
+            resolved = fuzzy
+        else:
+            available = ", ".join(_REGISTRY.keys())
+            raise ValueError(
+                f"Unknown LLM provider '{name}'. Available: {available}")
     return _REGISTRY[resolved](**kwargs)
 
 
@@ -228,7 +289,7 @@ def _ensure_builtins():
     register("baidu-ernie-5.0", BaiduERNIE50Provider, model="ernie-5.0")
 
     from tool.LLM.logic.models.ernie_4_5_8k.main import BaiduERNIE45Provider
-    register("baidu-ernie-4.5-8k", BaiduERNIE45Provider, model="ernie-4.5-8k-preview")
+    register("baidu-ernie-4.5-8k", BaiduERNIE45Provider, model="ernie-4.5-8k")
 
     from tool.LLM.logic.models.ernie_x1_turbo_32k.main import BaiduERNIEX1TurboProvider
     register("baidu-ernie-x1-turbo-32k", BaiduERNIEX1TurboProvider, model="ernie-x1-turbo-32k")
@@ -245,7 +306,7 @@ def _ensure_builtins():
     from tool.LLM.logic.models.hunyuan_lite.main import TencentHunyuanLiteProvider
     register("tencent-hunyuan-lite", TencentHunyuanLiteProvider, model="hunyuan-lite")
 
-    from tool.LLM.logic.models.qwen25_7b.main import SiliconFlowQwenProvider
+    from tool.LLM.logic.models.qwen2_5_7b.main import SiliconFlowQwenProvider
     register("siliconflow-qwen2.5-7b", SiliconFlowQwenProvider, model="qwen2.5-7b")
 
     from tool.LLM.logic.models.claude_sonnet_4_6.main import AnthropicClaudeSonnetProvider

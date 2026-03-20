@@ -1,0 +1,9 @@
+{
+  "logo_brightness": 0.55,
+  "logo_source": {
+    "name": "NVIDIA eye icon",
+    "url": "https://lobehub.com/icons/nvidia",
+    "repository": "https://github.com/lobehub/lobe-icons",
+    "license": "MIT"
+  }
+}

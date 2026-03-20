@@ -28,5 +28,6 @@
     "min_interval_s": 0.5,
     "jitter_s": 0.2
   },
-  "active": true
+  "active": true,
+  "logo_brightness": 0.42
 }

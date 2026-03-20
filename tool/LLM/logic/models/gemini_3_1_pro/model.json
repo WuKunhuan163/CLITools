@@ -1,5 +1,6 @@
 {
-  "model_id": "gemini-3.1-pro-preview",
+  "model_id": "gemini-3.1-pro",
+  "api_model_id": "gemini-3.1-pro-preview",
   "display_name": "Gemini 3.1 Pro (Preview)",
   "vendor": "google",
   "vendor_display": "Google",
@@ -31,5 +32,6 @@
     "jitter_s": 0.5
   },
   "active": false,
-  "lock_reason": "Paid-only preview. No free tier available."
+  "lock_reason": "Paid-only preview. No free tier available.",
+  "logo_brightness": 0.48
 }

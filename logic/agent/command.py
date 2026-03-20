@@ -311,6 +311,22 @@ def _handle_prompt_gui(args: list, tool_name: str, project_root: str,
         base_url = f"http://localhost:{existing_port}"
         print(fmt_status("Reusing GUI.", complement=f"at {base_url}"), flush=True)
 
+        try:
+            import urllib.request
+            scope_body = json.dumps({
+                "scope_name": tool_name,
+                "default_codebase": codebase,
+            }).encode()
+            req = urllib.request.Request(
+                f"{base_url}/api/scope",
+                data=scope_body,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=3)
+        except Exception:
+            pass
+
         if prompt and _has_running_session(base_url):
             RED = get_color("RED", "\033[31m")
             print(f"  {RED}{BOLD}Blocked.{RESET} A session is still running.", flush=True)

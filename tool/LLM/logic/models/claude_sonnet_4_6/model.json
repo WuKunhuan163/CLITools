@@ -1,5 +1,6 @@
 {
-  "model_id": "claude-sonnet-4-6-20260101",
+  "model_id": "claude-sonnet-4.6",
+  "api_model_id": "claude-sonnet-4-6-20260101",
   "display_name": "Claude Sonnet 4.6",
   "vendor": "anthropic",
   "vendor_display": "Anthropic",
@@ -46,5 +47,6 @@
     "jitter_s": 0.5
   },
   "active": false,
-  "lock_reason": "Paid model. Configure Anthropic API key to unlock."
+  "lock_reason": "Paid model. Configure Anthropic API key to unlock.",
+  "logo_brightness": 0.57
 }

@@ -6,7 +6,7 @@
   "cost": {
     "free_tier": false,
     "input_per_1m": 0.15,
-    "output_per_1m": 0.60,
+    "output_per_1m": 0.6,
     "currency": "USD"
   },
   "capabilities": {
@@ -36,5 +36,6 @@
     "jitter_s": 0.2
   },
   "active": false,
-  "lock_reason": "Paid model. Configure OpenAI API key to unlock."
+  "lock_reason": "Paid model. Configure OpenAI API key to unlock.",
+  "logo_brightness": 0.15
 }

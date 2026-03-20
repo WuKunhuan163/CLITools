@@ -401,14 +401,15 @@ class RateQueueManager:
         if not models_dir.is_dir():
             return RateLimits()
 
+        from tool.LLM.logic.naming import model_key_to_dir
         vendor = provider_name.split("-")[0] if "-" in provider_name else ""
         model_part = provider_name.split("-", 1)[1] if "-" in provider_name else provider_name
-        model_normalized = model_part.replace("-", "_").replace(".", "_")
+        model_dir_name = model_key_to_dir(model_part)
 
         for model_dir in models_dir.iterdir():
             if not model_dir.is_dir():
                 continue
-            if model_dir.name == model_normalized:
+            if model_dir.name == model_dir_name:
                 providers_dir = model_dir / "providers"
                 if providers_dir.is_dir():
                     for pd in providers_dir.iterdir():

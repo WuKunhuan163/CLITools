@@ -303,6 +303,8 @@ class AgentServer(
             return self._api_reverify_key(body)
         if path == "/api/provider/status":
             return self._api_provider_status(body)
+        if path == "/api/model/resolve":
+            return self._api_model_resolve(body)
 
         # ── Health check ──────────────────────────────────────
         if path == "/api/health":
@@ -315,6 +317,21 @@ class AgentServer(
             state["scope_name"] = self.scope_name
             return {"ok": True, "state": state}
         if path == "/api/scope":
+            if method == "POST" and body:
+                new_scope = body.get("scope_name", "")
+                new_codebase = body.get("default_codebase", "")
+                if new_scope:
+                    self.scope_name = new_scope
+                if new_codebase:
+                    self.default_codebase = new_codebase
+                    self._mgr._default_codebase = new_codebase
+                    from logic.assistant.sandbox import set_tool_sandbox_dir
+                    set_tool_sandbox_dir(new_codebase)
+                self._push_sse({"type": "settings_changed"})
+                resp = {"ok": True, "scope_name": self.scope_name}
+                if new_codebase:
+                    resp["workspace_path"] = new_codebase
+                return resp
             result = {"ok": True, "scope_name": self.scope_name}
             try:
                 wm = self._get_wm()

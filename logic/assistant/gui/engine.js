@@ -204,6 +204,14 @@ function renderFileIcon(filename) {
   }
   return '<i class="bx ' + icon + '"></i>';
 }
+function _modelLogoImg(url, alt, modelId) {
+  const brightness = typeof MODEL_BRIGHTNESS !== 'undefined' ? MODEL_BRIGHTNESS : {};
+  let extra = '';
+  if (modelId && brightness[modelId] !== undefined) {
+    extra = ' data-logo-brightness="' + brightness[modelId] + '"';
+  }
+  return '<img src="' + url + '" alt="' + esc(alt || '') + '" class="logo-adaptive" crossorigin="anonymous"' + extra + ' onerror="this.style.display=\'none\';var i=document.createElement(\'i\');i.className=\'bx bx-bot model-info-icon\';this.parentNode.insertBefore(i,this)">';
+}
 
 function stripDiffPrefix(line) {
   return line.replace(/^[+\-]\s*\d*\s*\|?\s?/, '').replace(/^\s*\d+\s*\|\s?/, '');
@@ -728,7 +736,7 @@ class AgentGUIEngine {
         if (r === 'cancelled' || r === 'error') {
           dotIcon = '<i class="bx bx-x-circle"></i>';
         } else if (r === 'round_limit') {
-          dotIcon = '<i class="bx bx-error-circle"></i>';
+          dotIcon = '<i class="bx bx-stop-circle"></i>';
         } else {
           dotIcon = '<i class="bx bxs-check-circle"></i>';
         }
@@ -1355,7 +1363,7 @@ class AgentGUIEngine {
       label = 'Task failed, please try again';
       cls = 'task-complete task-failed';
     } else if (reason === 'round_limit') {
-      icon = '<i class="bx bx-error-circle" style="font-size:14px;"></i>';
+      icon = '<i class="bx bx-stop-circle" style="font-size:14px;"></i>';
       const rnd = evt.round || '?';
       const lim = evt.turn_limit || '?';
       label = `Round limit reached (${rnd}/${lim})`;
@@ -1755,7 +1763,7 @@ class AgentGUIEngine {
       const name = resolveNameFn ? resolveNameFn(model) : (names[model] || model);
       let html = '';
       if (logo) {
-        html += '<img src="' + logo + '" alt="' + esc(name) + '" class="logo-adaptive" crossorigin="anonymous" onerror="this.style.display=\'none\';var i=document.createElement(\'i\');i.className=\'bx bx-bot model-info-icon\';this.parentNode.insertBefore(i,this)">';
+        html += _modelLogoImg(logo, name, model);
       } else {
         html += '<i class="bx bx-bot model-info-icon"></i>';
       }
@@ -2135,7 +2143,7 @@ class AgentGUIEngine {
     div.className = 'model-info';
     let html = '';
     if (logo) {
-      html += '<img src="' + logo + '" alt="' + esc(name) + '" class="logo-adaptive" crossorigin="anonymous" onerror="this.style.display=\'none\';var i=document.createElement(\'i\');i.className=\'bx bx-bot model-info-icon\';this.parentNode.insertBefore(i,this)">';
+      html += _modelLogoImg(logo, name, provider);
     } else {
       html += '<i class="bx bx-bot model-info-icon"></i>';
     }

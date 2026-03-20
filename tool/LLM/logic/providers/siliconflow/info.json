@@ -1,0 +1,9 @@
+{
+  "logo_brightness": 0.5,
+  "logo_source": {
+    "name": "SiliconFlow brand icon",
+    "url": "https://lobehub.com/icons/siliconcloud",
+    "repository": "https://github.com/lobehub/lobe-icons",
+    "license": "MIT"
+  }
+}

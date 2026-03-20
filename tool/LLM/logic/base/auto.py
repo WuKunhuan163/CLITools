@@ -254,12 +254,12 @@ def get_health() -> ProviderHealth:
 def _load_model_meta(provider_name: str) -> Dict:
     """Load model.json for a provider using the registry's model mapping."""
     from tool.LLM.logic.registry import _MODEL_PROVIDERS, _ensure_builtins, _MODELS_DIR as reg_models_dir
+    from tool.LLM.logic.naming import model_key_to_dir
     _ensure_builtins()
 
     for model_id, providers in _MODEL_PROVIDERS.items():
         if provider_name in providers:
-            dir_name = model_id.replace("-", "_").replace(".", "_")
-            mj = reg_models_dir / dir_name / "model.json"
+            mj = reg_models_dir / model_key_to_dir(model_id) / "model.json"
             if mj.exists():
                 try:
                     return json.loads(mj.read_text())

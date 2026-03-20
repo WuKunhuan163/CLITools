@@ -1,0 +1,9 @@
+{
+  "logo_brightness": 0.35,
+  "logo_source": {
+    "name": "DeepSeek brand icon",
+    "url": "https://lobehub.com/icons/deepseek",
+    "repository": "https://github.com/lobehub/lobe-icons",
+    "license": "MIT"
+  }
+}

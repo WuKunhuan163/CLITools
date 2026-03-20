@@ -1,5 +1,6 @@
 {
-  "model_id": "gemini-3.1-flash-lite-preview",
+  "model_id": "gemini-3.1-flash-lite",
+  "api_model_id": "gemini-3.1-flash-lite-preview",
   "display_name": "Gemini 3.1 Flash-Lite (Preview)",
   "vendor": "google",
   "vendor_display": "Google",
@@ -36,5 +37,6 @@
     "min_interval_s": 1.0,
     "jitter_s": 0.5
   },
-  "active": true
+  "active": true,
+  "logo_brightness": 0.48
 }

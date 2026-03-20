@@ -43,7 +43,7 @@ const turnLimitPill = (function() {
 
   function buildOptions() {
     const opts = TURN_LIMIT_PRESETS.map(n => ({
-      value: String(n), label: n + ' rounds', icon: 'bx-revision'
+      value: String(n), label: n + ' rounds', icon: 'bx-stop-circle'
     }));
     opts.push({ value: '0', label: 'Unlimited', icon: 'bx-infinite' });
     const isPreset = selectedTurnLimit === 0 || TURN_LIMIT_PRESETS.includes(selectedTurnLimit);

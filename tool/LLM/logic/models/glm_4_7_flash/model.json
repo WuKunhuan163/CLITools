@@ -47,5 +47,6 @@
     "source": "lmsys-chatbot-arena",
     "updated": "2026-03"
   },
-  "active": true
+  "active": true,
+  "logo_brightness": 0.3
 }

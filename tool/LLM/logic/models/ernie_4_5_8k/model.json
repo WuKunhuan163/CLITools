@@ -1,5 +1,5 @@
 {
-  "model_id": "ernie-4.5-8k-preview",
+  "model_id": "ernie-4.5-8k",
   "api_model_id": "ernie-4.5-8k-preview",
   "display_name": "ERNIE 4.5 8K",
   "vendor": "baidu",
@@ -30,5 +30,6 @@
     "min_interval_s": 0.5,
     "jitter_s": 0.2
   },
-  "active": true
+  "active": true,
+  "logo_brightness": 0.42
 }

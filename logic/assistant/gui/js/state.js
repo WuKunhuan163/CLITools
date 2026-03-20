@@ -10,6 +10,7 @@ let selectedTurnLimit = null;
 
 let PROVIDER_LOGOS = {};
 let MODEL_LOGOS = {};
+let MODEL_BRIGHTNESS = {};
 let MODEL_DISPLAY_NAMES = { 'auto': 'Auto' };
 let ENV_LOGOS = {};
 let MODE_ICONS = { 'meta-agent': 'bx-brain', agent: 'bx-bot', plan: 'bx-edit', ask: 'bx-chat' };

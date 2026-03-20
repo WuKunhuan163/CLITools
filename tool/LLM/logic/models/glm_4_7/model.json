@@ -24,5 +24,6 @@
     "updated": "2026-03"
   },
   "active": false,
-  "lock_reason": "Paid model. Configure a Zhipu API key with paid tier access."
+  "lock_reason": "Paid model. Configure a Zhipu API key with paid tier access.",
+  "logo_brightness": 0.3
 }

@@ -37,5 +37,6 @@
     "jitter_s": 0.5
   },
   "active": false,
-  "lock_reason": "Free tier quota very limited (5 RPM, 50 RPD). Persistent 429 errors. Enable billing for reliable access."
+  "lock_reason": "Free tier quota very limited (5 RPM, 50 RPD). Persistent 429 errors. Enable billing for reliable access.",
+  "logo_brightness": 0.48
 }

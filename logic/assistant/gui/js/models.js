@@ -20,6 +20,7 @@ async function _loadModelsMeta() {
       for (const [mid, m] of Object.entries(d.models)) {
         if (m.icon) { MODEL_LOGOS[mid] = m.icon; _preloadIcon(m.icon); }
         if (m.display_name) MODEL_DISPLAY_NAMES[mid] = m.display_name;
+        if (m.logo_brightness !== undefined) MODEL_BRIGHTNESS[mid] = m.logo_brightness;
       }
     }
     if (d.env) {
