@@ -37,6 +37,7 @@ class AuditCommand(EcoCommand):
         cp.add_argument("--targets", nargs="*", help="Directories to scan")
 
         sub.add_parser("skills", help="Audit skill hierarchy: README.md, AGENT.md coverage")
+        sub.add_parser("archived", help="Check for duplicate tools in tool/ and archived/")
 
         parsed = parser.parse_args(args)
         root = self.project_root
@@ -49,6 +50,10 @@ class AuditCommand(EcoCommand):
             return self._code(parsed)
         elif parsed.audit_command == "skills":
             return self._skills_audit()
+        elif parsed.audit_command == "archived":
+            from interface.dev import dev_audit_archived
+            dev_audit_archived(self.project_root)
+            return 0
         elif not args or parsed.audit_command is None:
             return self._full_flow()
         else:
@@ -179,6 +184,25 @@ class AuditCommand(EcoCommand):
             results["skills_hierarchy_issues"] = issues
             return True
 
+        def _audit_archived(stage):
+            tool_dir = root / "tool"
+            archived_dir = root / "logic" / "_" / "install" / "archived"
+            if not archived_dir.exists():
+                archived_dir = root / "logic" / "_" / "install" / "archived"
+            active = set()
+            archived = set()
+            if tool_dir.exists():
+                active = {d.name for d in tool_dir.iterdir() if d.is_dir() and not d.name.startswith(".")}
+            if archived_dir.exists():
+                archived = {d.name for d in archived_dir.iterdir() if d.is_dir() and not d.name.startswith(".")}
+            dupes = active & archived
+            results["archived_duplicates"] = sorted(dupes)
+            if dupes:
+                stage.success_name = f"archived — {len(dupes)} duplicates: {', '.join(sorted(dupes))}"
+            else:
+                stage.success_name = "archived — no duplicates"
+            return True
+
         stages = [
             TuringStage("imports", _audit_imports,
                         active_status="Auditing", success_status="Audited",
@@ -193,6 +217,9 @@ class AuditCommand(EcoCommand):
                         active_status="Scanning", success_status="Scanned",
                         bold_part="Scanning", is_sticky=True),
             TuringStage("skills_hierarchy", _audit_skills_hierarchy,
+                        active_status="Checking", success_status="Checked",
+                        bold_part="Checking", is_sticky=True),
+            TuringStage("archived", _audit_archived,
                         active_status="Checking", success_status="Checked",
                         bold_part="Checking", is_sticky=True),
         ]
@@ -242,6 +269,15 @@ class AuditCommand(EcoCommand):
                 if len(findings) > 3:
                     print(f"    \033[2m... and {len(findings) - 3} more\033[0m")
             print(f"\n  \033[2mRun TOOL --audit --lang --detect for full report.\033[0m")
+
+        dupes = results.get("archived_duplicates", [])
+        if dupes:
+            print(f"\n{SEP}")
+            print(f"\n\033[1m\033[31mArchived Tool Conflicts\033[0m")
+            print("Tools found in both tool/ and archived/:")
+            for name in dupes:
+                print(f"  \033[31m{name}\033[0m")
+            print(f"\n  \033[2mRemove from archived/ before deploying.\033[0m")
 
     def _skills_audit(self):
         """Audit the skills hierarchy for documentation coverage."""

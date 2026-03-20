@@ -11,7 +11,7 @@ The engine is responsible for:
 - **Filtering**: Matching assets to our supported platforms (macOS, Linux, Windows) and selecting the best variants (e.g., PGO+LTO builds).
 - **Versioning**: Implementing a `TAG:VERSION` syntax for precise targeting of specific releases.
 - **Parallelization**: Using a `MultiLineManager` and `TuringWorker` pool to handle concurrent downloads and Git pushes.
-- **Git Integration**: Managing the `resource/tool/PYTHON/data/install/` directory on the `tool` branch, including metadata merging and atomic pushes with rebase-retry logic.
+- **Git Integration**: Managing the `logic/_/install/resource/PYTHON/data/install/` directory on the `tool` branch, including metadata merging and atomic pushes with rebase-retry logic.
 
 ### 2. Audit and Cache System
 - **Releases Audit**: `tool/PYTHON/data/_/audit/releases/report_xxx.json` stores a comprehensive matrix of versions, releases, and platform mappings.

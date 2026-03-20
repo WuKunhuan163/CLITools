@@ -81,7 +81,7 @@ except ImportError:
     PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
     DATA_DIR = PROJECT_ROOT / "tool" / "PYTHON" / "data"
     AUDIT_DIR = DATA_DIR / "audit"
-    RESOURCE_ROOT = PROJECT_ROOT / "resource" / "tool" / "PYTHON" / "data" / "install"
+    RESOURCE_ROOT = PROJECT_ROOT / "logic" / "_" / "install" / "resource" / "PYTHON" / "data" / "install"
     TMP_INSTALL_DIR = DATA_DIR / "tmp" / "install"
     DEFAULT_CONCURRENCY = 1
 
@@ -257,7 +257,7 @@ def push_step(asset, tag, worker_id, manager, git_lock=None, force=False):
                 subprocess.run([_git_bin(), "fetch", "origin", "tool"], cwd=str(PROJECT_ROOT), capture_output=True, env=env)
                 
                 # Check if it already exists on remote with SAME release tag
-                res_rel_path = f"resource/tool/PYTHON/data/install/{v_tag}"
+                res_rel_path = f"logic/_/install/resource/PYTHON/data/install/{v_tag}"
                 if not force:
                     check_cmd = [_git_bin(), "ls-tree", "-r", "origin/tool", res_rel_path]
                     res = subprocess.run(check_cmd, cwd=str(PROJECT_ROOT), capture_output=True, text=True, env=env)

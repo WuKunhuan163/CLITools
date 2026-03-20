@@ -9,7 +9,7 @@ from pathlib import Path
 class FontManager:
     def __init__(self, project_root):
         self.project_root = Path(project_root)
-        self.resource_dir = self.project_root / "resource" / "tool" / "FONT" / "data" / "install"
+        self.resource_dir = self.project_root / "logic" / "_" / "install" / "resource" / "FONT" / "data" / "install"
         self.mapping_file = self.project_root / "tool" / "FONT" / "logic" / "font_mapping.json"
         self.mappings = self._load_mappings()
 
@@ -216,7 +216,7 @@ class FontManager:
 
     def migrate_from_tmp(self):
         """
-        Migrate files/dirs from tmp/fontsgeek/ to resource/tool/FONT/data/install/.
+        Migrate files/dirs from tmp/fontsgeek/ to logic/_/install/resource/FONT/data/install/.
         """
         tmp_dir = self.project_root / "tmp" / "fontsgeek"
         json_path = self.project_root / "tmp" / "fontsgeek.json"

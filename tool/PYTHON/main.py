@@ -96,7 +96,7 @@ def _get_remote_versions():
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(project_root))
     
     if result.returncode == 0:
-        # Extract version names from paths: resource/tool/PYTHON/data/install/{version}/PYTHON.json
+        # Extract version names from paths: logic/_/install/resource/PYTHON/data/install/{version}/PYTHON.json
         pattern = str(rel_path) + "/([^/]+)/"
         for line in result.stdout.splitlines():
             match = re.search(pattern, line)

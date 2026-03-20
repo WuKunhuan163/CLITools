@@ -64,7 +64,7 @@ def dev_reset(project_root: Path, shared_logic_dir: Path, translation_func: Opti
         subprocess.run([_git_bin(), "commit", "-m", "Reset main branch to template state"], cwd=str(project_root), capture_output=True)
         
         subprocess.run([_git_bin(), "clean", "-fd"], cwd=str(project_root), stderr=subprocess.DEVNULL)
-        for d in ["data", "tmp", "tool", "resource"]:
+        for d in ["data", "tmp", "tool", "logic/_/install/archived", "logic/_/install/resource", "resource"]:
             p = project_root / d
             if p.exists() and p.is_dir():
                 shutil.rmtree(p)
@@ -432,14 +432,14 @@ def dev_audit_test(tool_name: str, project_root: Path, fix: bool = False) -> boo
     return False
 
 def dev_audit_archived(project_root: Path) -> bool:
-    """Audit for duplicate tools between tool/ and resource/archived/ on the tool branch."""
+    """Audit for duplicate tools between tool/ and logic/_/install/archived/."""
     BOLD = get_color("BOLD", "\033[1m")
     GREEN = get_color("GREEN", "\033[32m")
     RED = get_color("RED", "\033[31m")
     RESET = get_color("RESET", "\033[0m")
 
     tool_dir = project_root / "tool"
-    archived_dir = project_root / "resource" / "archived"
+    archived_dir = project_root / "logic" / "_" / "install" / "archived"
 
     active_tools = set()
     if tool_dir.exists():
@@ -455,7 +455,7 @@ def dev_audit_archived(project_root: Path) -> bool:
 
     duplicates = active_tools & archived_tools
     if duplicates:
-        print(f"{BOLD}{RED}Found duplicate tools{RESET} in both tool/ and resource/archived/:")
+        print(f"{BOLD}{RED}Found duplicate tools{RESET} in both tool/ and logic/_/install/archived/:")
         for name in sorted(duplicates):
             print(f"  {name}")
         return False

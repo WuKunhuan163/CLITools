@@ -12,7 +12,7 @@ AUDIT_DIR = DATA_DIR / "audit"
 PROJECT_ROOT = PYTHON_TOOL_DIR.parent.parent
 
 # Resource directory in 'tool' branch
-RESOURCE_ROOT = PROJECT_ROOT / "resource" / "tool" / "PYTHON" / "data" / "install"
+RESOURCE_ROOT = PROJECT_ROOT / "logic" / "_" / "install" / "resource" / "PYTHON" / "data" / "install"
 
 # Temporary download/install directory
 TMP_INSTALL_DIR = DATA_DIR / "tmp" / "install"

@@ -110,7 +110,7 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
 
     tm = ProgressTuringMachine(project_root=project_root, tool_name="TOOL")
 
-    # 2. dev -> tool (archive all tools, preserve resource/)
+    # 2. dev -> tool (archive all tools, preserve install resources)
     def align_tool(stage: TuringStage):
         try:
             if not run_git(["checkout", "tool"], project_root, stage): return False
@@ -121,16 +121,41 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
 
             if not run_git(["reset", "--hard", "dev"], project_root, stage): return False
 
-            # Restore resource/ from old tool branch
+            # Restore install resources from old tool branch
             if old_tool_sha:
+                subprocess.run(
+                    [_git_bin(), "checkout", old_tool_sha, "--", "logic/_/install/"],
+                    cwd=str(project_root), capture_output=True, text=True
+                )
+                # Backward compat: old tool branches may still have resource/
                 subprocess.run(
                     [_git_bin(), "checkout", old_tool_sha, "--", "resource/"],
                     cwd=str(project_root), capture_output=True, text=True
                 )
+                old_resource = project_root / "resource"
+                if old_resource.exists():
+                    new_install = project_root / "logic" / "_" / "install"
+                    old_archived = old_resource / "archived"
+                    old_tool_res = old_resource / "tool"
+                    if old_archived.exists():
+                        dest = new_install / "archived"
+                        dest.mkdir(parents=True, exist_ok=True)
+                        for item in old_archived.iterdir():
+                            target = dest / item.name
+                            if not target.exists():
+                                shutil.copytree(item, target, dirs_exist_ok=True) if item.is_dir() else shutil.copy2(item, target)
+                    if old_tool_res.exists():
+                        dest = new_install / "resource"
+                        dest.mkdir(parents=True, exist_ok=True)
+                        for item in old_tool_res.iterdir():
+                            target = dest / item.name
+                            if not target.exists():
+                                shutil.copytree(item, target, dirs_exist_ok=True) if item.is_dir() else shutil.copy2(item, target)
+                    shutil.rmtree(old_resource)
 
-            # Archive all tools from tool/ -> resource/archived/
+            # Archive all tools from tool/ -> logic/_/install/archived/
             tool_dir = project_root / "tool"
-            archived_dir = project_root / "resource" / "archived"
+            archived_dir = project_root / "logic" / "_" / "install" / "archived"
             if tool_dir.exists():
                 archived_dir.mkdir(parents=True, exist_ok=True)
                 for td in tool_dir.iterdir():
@@ -186,7 +211,7 @@ def align_branches_logic(project_root: Path, quiet=False, translation_func: Opti
             tool_tree = res.stdout.strip()
             subprocess.run([_git_bin(), "read-tree", tool_tree], cwd=str(project_root), env=env, check=True, capture_output=True)
             
-            restricted = ["tool", "resource", "data", "tmp", "bin"]
+            restricted = ["tool", "logic/_/install", "resource", "data", "tmp", "bin"]
             for folder in restricted:
                 subprocess.run([_git_bin(), "rm", "-rf", "--cached", "--ignore-unmatch", folder], cwd=str(project_root), env=env, capture_output=True)
             

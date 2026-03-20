@@ -27,7 +27,7 @@ GitHub imposes a 10 GB Git LFS storage quota. The `lfs_gc` hook (`hooks/instance
 2. `lfs_gc` expires reflog, runs `git gc --prune=now`, then `git lfs prune`.
 3. Force push orphans old LFS objects on GitHub; they are eventually GC'd.
 
-Large binary files (`*.tar.zst`) are tracked via LFS (`.gitattributes`). The `resource/tool/PYTHON/data/install/` directory on the `tool` branch is the primary LFS consumer.
+Large binary files (`*.tar.zst`) are tracked via LFS (`.gitattributes`). The `logic/_/install/resource/PYTHON/data/install/` directory on the `tool` branch is the primary LFS consumer.
 
 ## Operation Rules
 - **Direct Git**: In high-load environments, use `/usr/bin/git` to avoid wrapper overhead and potential process limits.

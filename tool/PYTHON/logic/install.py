@@ -35,7 +35,7 @@ except ImportError:
     PROJECT_ROOT = _curr.parent.parent.parent
     PYTHON_TOOL_DIR = PROJECT_ROOT / "tool" / "PYTHON"
     DATA_DIR = PYTHON_TOOL_DIR / "data"
-    RESOURCE_ROOT = PROJECT_ROOT / "resource" / "tool" / "PYTHON" / "data" / "install"
+    RESOURCE_ROOT = PROJECT_ROOT / "logic" / "_" / "install" / "resource" / "PYTHON" / "data" / "install"
     INSTALL_DIR = DATA_DIR / "install"
     TMP_INSTALL_DIR = PROJECT_ROOT / "tmp" / "install"
 

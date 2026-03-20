@@ -25,7 +25,10 @@
 **/tmp/
 
 # --- Resource Management ---
-# resource/ is only tracked on the tool branch (preserved by align_tool via git add -f)
+# Install resources (archived tools, binary assets) only tracked on the tool branch
+# (preserved by align_tool via git add -f)
+/logic/_/install/archived/
+/logic/_/install/resource/
 **/resource/
 
 # --- Python Patterns ---

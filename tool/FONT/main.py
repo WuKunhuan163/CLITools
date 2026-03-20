@@ -96,7 +96,7 @@ def main():
             print(f"{BLUE}Fetching{RESET} font '{family}' from remote resource...", end="", flush=True)
             
             # Use git checkout to get the font from origin/tool
-            rel_path = f"resource/tool/FONT/data/install/{norm_name}"
+            rel_path = f"logic/_/install/resource/FONT/data/install/{norm_name}"
             try:
                 subprocess.run([_git_bin(), "fetch", "origin", "tool"], capture_output=True, check=True)
                 res = subprocess.run([_git_bin(), "checkout", "origin/tool", "--", rel_path], capture_output=True, text=True)

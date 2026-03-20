@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 
 
 SKIP_DIRS = {"venv", ".git", "build", "dist", "tmp", "installations", "install",
-             "node_modules", "bin", "resource", "data", "site-packages", "__pycache__"}
+             "node_modules", "bin", "archived", "resource", "data", "site-packages", "__pycache__"}
 
 _ANSI_RE = re.compile(r'^\\033\[|^\033\[|^\\x1b\[|^\x1b\[')
 _PATH_RE = re.compile(r'^[/.]|\\|\.py$|\.json$|\.md$|\.txt$')

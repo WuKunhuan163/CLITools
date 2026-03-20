@@ -322,21 +322,25 @@ class ToolEngine:
             except Exception as e:
                 last_err = str(e)
 
-        # 2. Fallback: try resource/archived/ on tool branches
-        archived_path = f"resource/archived/{self.tool_name}"
-        for branch in ["tool", "origin/tool"]:
-            try:
-                cmd = [_git_bin(), "checkout", branch, "--", archived_path]
-                res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
-                if res.returncode == 0:
-                    import shutil
-                    src = self.project_root / archived_path
-                    if src.exists() and (src / "main.py").exists():
-                        shutil.copytree(str(src), str(self.tool_dir), dirs_exist_ok=True)
-                        shutil.rmtree(str(src))
-                        return True
-            except Exception:
-                pass
+        # 2. Fallback: try archived tools on tool branches
+        archived_paths = [
+            f"logic/_/install/archived/{self.tool_name}",
+            f"resource/archived/{self.tool_name}",  # backward compat
+        ]
+        for archived_path in archived_paths:
+            for branch in ["tool", "origin/tool"]:
+                try:
+                    cmd = [_git_bin(), "checkout", branch, "--", archived_path]
+                    res = subprocess.run(cmd, capture_output=True, cwd=str(self.project_root), text=True)
+                    if res.returncode == 0:
+                        import shutil
+                        src = self.project_root / archived_path
+                        if src.exists() and (src / "main.py").exists():
+                            shutil.copytree(str(src), str(self.tool_dir), dirs_exist_ok=True)
+                            shutil.rmtree(str(src))
+                            return True
+                except Exception:
+                    pass
 
         if stage: stage.error_brief = last_err
         return False

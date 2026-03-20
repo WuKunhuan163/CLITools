@@ -42,7 +42,7 @@ class LangAuditor:
 
         for py_file in self.project_root.rglob("*.py"):
             parts = py_file.parts
-            if any(p in parts for p in ["venv", ".git", "build", "dist", "tmp", "installations", "install", "node_modules", "bin", "resource", "data", "site-packages"]):
+            if any(p in parts for p in ["venv", ".git", "build", "dist", "tmp", "installations", "install", "node_modules", "bin", "archived", "resource", "data", "site-packages"]):
                 continue
 
             try:
@@ -337,7 +337,7 @@ class LangAuditor:
         for py_file in self.project_root.rglob("*.py"):
             # Exclude non-source directories
             parts = py_file.parts
-            if any(p in parts for p in ["venv", ".git", "build", "dist", "tmp", "installations", "install", "node_modules", "bin", "resource", "data", "site-packages"]):
+            if any(p in parts for p in ["venv", ".git", "build", "dist", "tmp", "installations", "install", "node_modules", "bin", "archived", "resource", "data", "site-packages"]):
                 continue
             
             try:

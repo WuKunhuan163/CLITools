@@ -5,7 +5,7 @@
 - `DATA_DIR`: `tool/PYTHON/data/` — runtime data
 - `INSTALL_DIR`: `tool/PYTHON/data/install/` — downloaded Python binaries
 - `AUDIT_DIR`: `tool/PYTHON/data/_/audit/` — scan/audit results
-- `RESOURCE_ROOT`: `resource/tool/PYTHON/data/install/` — bundled installers
+- `RESOURCE_ROOT`: `logic/_/install/resource/PYTHON/data/install/` — bundled installers
 
 ## install.py
 

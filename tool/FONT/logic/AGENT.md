@@ -6,7 +6,7 @@
 FontManager(project_root)
 ```
 
-- `resource_dir`: `resource/tool/FONT/data/install/` — bundled font archives
+- `resource_dir`: `logic/_/install/resource/FONT/data/install/` — bundled font archives
 - `mapping_file`: `tool/FONT/logic/font_mapping.json` — font name to file mapping
 - Downloads fonts from Google Fonts or extracts from bundled resources
 - Installs to system font directories

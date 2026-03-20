@@ -17,24 +17,24 @@ The `_dev_sync` function orchestrates the synchronization through a series of `T
     -   **Mechanism**: `git add -A` followed by `git commit -m "Auto-commit before sync on '{start_branch}'"`.
 
 2.  **Align `tool` from `dev` (Preserving Resources)**:
-    -   **Action**: The `tool` branch is updated to match the `dev` branch, but with a critical difference: the `resource/` directory from `origin/tool` is explicitly preserved. This is crucial for tools like `PYTHON` that manage large binary assets via Git LFS in the `resource/` directory.
+    -   **Action**: The `tool` branch is updated to match the `dev` branch, but with a critical difference: the `logic/_/install/` directory from `origin/tool` is explicitly preserved. This is crucial for tools like `PYTHON` that manage large binary assets via Git LFS in the `logic/_/install/` directory.
     -   **Mechanism**: This is achieved using a **Side-Index Git Operation**.
         -   A temporary Git index (`.git/index_sync_tool`) is used.
         -   The `dev` branch's tree is written to this temporary index.
-        -   The `resource/` directory from `origin/tool` is then read into this same temporary index, effectively merging `dev`'s content with `origin/tool`'s `resource/`.
+        -   The `logic/_/install/` directory from `origin/tool` is then read into this same temporary index, effectively merging `dev`'s content with `origin/tool`'s `logic/_/install/`.
         -   A new commit is created from this merged tree on the `tool` branch.
         -   The `refs/heads/tool` is updated to point to this new commit.
-    -   **Work Loss Prevention**: By using a side-index and explicitly preserving `origin/tool:resource`, local `resource/` content (which might be large LFS files) is not overwritten or deleted, and the `tool` branch's history remains consistent with its intended purpose.
+    -   **Work Loss Prevention**: By using a side-index and explicitly preserving `origin/tool:resource`, local `logic/_/install/` content (which might be large LFS files) is not overwritten or deleted, and the `tool` branch's history remains consistent with its intended purpose.
 
 3.  **Align `main` from `tool` (Framework Only)**:
     -   **Action**: The `main` branch is updated to reflect the `tool` branch, but it is stripped of all tool-specific code and development artifacts. This ensures `main` remains a clean representation of the core framework.
     -   **Mechanism**: Another **Side-Index Git Operation** is used.
         -   A temporary Git index (`.git/index_sync_main`) is used.
         -   The `tool` branch's tree is written to this temporary index.
-        -   Specific "restricted" folders (`tool`, `resource`, `data`, `tmp`, `bin`) are explicitly removed from this temporary index using `git rm -rf --cached --ignore-unmatch`. This removes them from Git's tracking for the `main` branch but leaves them on disk as untracked files, preventing accidental deletion of local development data.
+        -   Specific "restricted" folders (`tool`, `logic/_/install`, `data`, `tmp`, `bin`) are explicitly removed from this temporary index using `git rm -rf --cached --ignore-unmatch`. This removes them from Git's tracking for the `main` branch but leaves them on disk as untracked files, preventing accidental deletion of local development data.
         -   A new commit is created from this stripped tree on the `main` branch.
         -   The `refs/heads/main` is updated to point to this new commit.
-    -   **Work Loss Prevention**: `git rm --cached` is used instead of `rm -rf` to ensure that these directories are only removed from Git's index for the `main` branch, not from the local filesystem. This prevents deletion of local `tool/` directories, `data/`, `resource/`, etc., which are essential for `dev` branch development.
+    -   **Work Loss Prevention**: `git rm --cached` is used instead of `rm -rf` to ensure that these directories are only removed from Git's index for the `main` branch, not from the local filesystem. This prevents deletion of local `tool/` directories, `data/`, `logic/_/install/`, etc., which are essential for `dev` branch development.
 
 4.  **Align `test` from `tool`**:
     -   **Action**: The `test` branch is made identical to the `tool` branch.

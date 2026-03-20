@@ -242,16 +242,16 @@ All tools inherit from `logic.tool.base.ToolBase`. Key features:
 
 ## 4. Branch Synchronization & Alignment
 This project uses a linear four-stage branch strategy: `dev -> tool -> main -> test`.
-- **`dev`**: Active development branch. Does NOT contain `resource/` (gitignored).
-- **`tool`**: Staging branch for tool testing. Contains `resource/tool/` (binary assets like fonts, Python builds) and `resource/archived/` (archived tools). The `resource/` directory is preserved from the previous tool branch during sync.
-- **`main`**: Production-ready framework only (no `tool/`, `resource/`, `data/`, `bin/`, `tmp/`).
+- **`dev`**: Active development branch. Does NOT contain `logic/_/install/` (gitignored).
+- **`tool`**: Staging branch for tool testing. Contains `logic/_/install/resource/` (binary assets like fonts, Python builds) and `logic/_/install/archived/` (archived tools). The `logic/_/install/` directory is preserved from the previous tool branch during sync.
+- **`main`**: Production-ready framework only (no `tool/`, `logic/_/install/`, `data/`, `bin/`, `tmp/`).
 - **`test`**: Branch used for automated unit testing (mirrors tool).
 
 ### Tool Installation Sources
 `TOOL install <NAME>` searches for tool source in this order:
 1. Local `tool/<NAME>/main.py` (already exists)
 2. Git branches: `dev`, `tool`, `origin/tool`, `origin/dev` → `tool/<NAME>/`
-3. Fallback: `tool`/`origin/tool` → `resource/archived/<NAME>/` (copied to `tool/<NAME>/`)
+3. Fallback: `tool`/`origin/tool` → `logic/_/install/archived/<NAME>/` (copied to `tool/<NAME>/`)
 
 ### Synchronization & Developer Commands
 Both `TOOL dev <command>` (legacy) and `TOOL --dev <command>` (preferred) syntax are supported:
