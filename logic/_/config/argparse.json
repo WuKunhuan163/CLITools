@@ -1,0 +1,23 @@
+{
+  "$schema": "argparse/v1",
+  "name": "config",
+  "description": "Global configuration management",
+  "subcommands": {
+    "show": {
+      "description": "Display current configuration"
+    },
+    "set": {
+      "description": "Set a configuration value",
+      "args": [
+        {"name": "key", "type": "positional", "help": "Configuration key"},
+        {"name": "value", "type": "positional", "help": "Value to set"}
+      ]
+    },
+    "get": {
+      "description": "Get a single configuration value",
+      "args": [
+        {"name": "key", "type": "positional", "help": "Configuration key"}
+      ]
+    }
+  }
+}

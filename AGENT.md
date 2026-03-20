@@ -911,7 +911,7 @@ For full guidance, read `SKILLS show mcp-development` and `SKILLS show cdmcp-web
 1. Create tool: `TOOL --dev create <NAME>`
 2. **tool.json**: Add `"PYTHON"` and `"GOOGLE.CDMCP"` to `"dependencies"`. Add `"websocket-client"` to `"pip_dependencies"`.
 3. **Root tool.json**: Add the tool name to the `"tools"` array.
-4. **main.py**: Use `MCPToolBase("NAME", session_name="name")` from `logic.tool.blueprint.mcp`.
+4. **main.py**: Use `MCPToolBase("NAME", session_name="name")` from `logic.base.blueprint.mcp`.
 5. **logic/chrome/api.py**: All CDP operations. Use `boot_tool_session()` + `session.require_tab()` + `CDPSession(ws)`.
 6. **setup.py**: Verify `_r` (not `project_root`) in the path resolver.
 7. Install: Run `<NAME> setup`.

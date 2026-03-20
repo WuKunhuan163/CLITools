@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+"""Setup script for {name}."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from logic._.setup.engine import ToolEngine
+
+
+def setup():
+    project_root = Path(__file__).resolve().parent.parent.parent
+    engine = ToolEngine("{name}", project_root)
+    return engine.install()
+
+
+if __name__ == "__main__":
+    setup()

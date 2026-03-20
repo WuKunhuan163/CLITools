@@ -41,7 +41,7 @@ from logic._.agent.state import (
 #   True  → TOOL --ask ... works (--assistant omitted)
 #   False → TOOL --assistant --ask ... required
 #
-# Both are imported by logic/tool/blueprint/base.py for dispatch.
+# Both are imported by logic/base/blueprint/base.py for dispatch.
 ALLOW_IMPLICIT_PROMPT = True
 ALLOW_ASSISTANT_SHORTHAND = True
 

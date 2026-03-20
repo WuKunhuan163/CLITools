@@ -170,7 +170,7 @@ Tiers are **syntactically unambiguous** — `---dev`, `--dev`, and `-dev` are th
 
 #### Implementation
 
-The base tool at `logic/tool/blueprint/base.py` handles all three tiers in `handle_command_line()`:
+The base tool at `logic/base/blueprint/base.py` handles all three tiers in `handle_command_line()`:
 
 1. Decorators (`-*`) stripped from `sys.argv`
 2. All `---` tokens collected into a list; the registered handler is found (unordered)

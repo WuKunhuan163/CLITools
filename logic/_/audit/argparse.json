@@ -1,0 +1,22 @@
+{
+  "$schema": "argparse/v1",
+  "name": "audit",
+  "description": "Code quality audits",
+  "subcommands": {
+    "code": {
+      "description": "Static analysis and code quality check"
+    },
+    "imports": {
+      "description": "Check import rule compliance"
+    },
+    "argparse": {
+      "description": "Check argparse conformance with 3-tier convention",
+      "args": [
+        {"name": "--fix", "action": "store_true", "help": "Auto-fix violations"}
+      ]
+    },
+    "entropy": {
+      "description": "Information entropy analysis"
+    }
+  }
+}

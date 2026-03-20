@@ -51,7 +51,7 @@ cdmcp_loader.py -> chrome/, _/config/
 
 ## Key Gotchas
 
-1. **`ToolBase` location**: Canonical at `logic.tool.blueprint.base`. Always import from `logic.tool.blueprint.base`.
+1. **`ToolBase` location**: Canonical at `logic.base.blueprint.base`. Always import from `logic.base.blueprint.base`.
 
 2. **Config JSON files**: `config/colors.json` and `config/settings.json` are static defaults, not runtime data. Runtime config goes in `data/config.json` at the project root.
 

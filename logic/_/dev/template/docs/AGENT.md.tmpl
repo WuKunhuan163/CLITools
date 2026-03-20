@@ -1,0 +1,54 @@
+# {name} — Agent Reference
+
+## Command Tiers
+
+| Tier | Prefix | Example |
+|------|--------|---------|
+| Eco (shared) | `---` | `{short_name} ---dev info`, `{short_name} ---test`, `{short_name} ---audit code` |
+| Tool-specific | `--` | `{short_name} --<subcommand>` |
+| Decorator | `-` | `{short_name} -no-warning` |
+| Positional | none | `{short_name} "query text"` |
+
+## Structure
+
+```
+tool/{name}/
+├── main.py            # Entry point
+├── tool.json          # Metadata & dependencies
+├── logic/             # Business logic modules
+├── interface/         # Public API (main.py)
+│   └── main.py
+├── hooks/             # Event-driven extensions
+│   ├── interface/     # Hook event definitions
+│   └── instance/      # Hook implementations
+├── test/              # Unit tests (test_*.py)
+├── data/              # Persistent data (gitignored)
+├── README.md          # User docs
+└── AGENT.md           # This file
+```
+
+## Development
+
+```bash
+TOOL ---dev sanity-check {name}       # Verify structure
+TOOL ---dev audit-test {name}         # Audit test naming
+TOOL ---audit argparse                # Three-tier conformance
+```
+
+## File Roles
+
+| File | Purpose |
+|------|---------|
+| `main.py` | Entry point — inherits ToolBase, launches stateless argparse routing |
+| `logic/**/cli.py` | Command endpoints — concrete handlers discovered by directory structure |
+| `interface/main.py` | Public API for cross-tool imports |
+
+**Rule:** If `main.py` has non-trivial logic, decompose it into `cli.py` endpoints under `logic/`.
+
+## Config
+
+Check `refactor_aggressiveness` before adding backward-compat shims:
+```bash
+TOOL ---config show
+```
+When `refactor_aggressiveness = 1` (default): no shims, clean breaks only.

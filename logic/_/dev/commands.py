@@ -10,7 +10,7 @@ from typing import Optional, Callable
 from logic._.config import get_color
 from logic._.utils import get_logic_dir
 
-_TEMPLATE_DIR = Path(__file__).resolve().parent.parent.parent / "tool" / "template"
+_TEMPLATE_DIR = Path(__file__).resolve().parent / "template"
 
 
 def _git_bin():

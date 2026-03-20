@@ -1,0 +1,29 @@
+{
+  "$schema": "argparse/v1",
+  "name": "dev",
+  "description": "Developer utilities",
+  "subcommands": {
+    "create": {
+      "description": "Create a new tool from template",
+      "args": [
+        {"name": "tool_name", "type": "positional", "help": "Name of the tool to create"}
+      ]
+    },
+    "scaffold": {
+      "description": "Scaffold entry point directories with blueprints",
+      "args": [
+        {"name": "tool_name", "type": "positional", "help": "Target tool name"},
+        {"name": "cmd_path", "type": "positional", "help": "Command path (e.g. provider/add)"}
+      ]
+    },
+    "info": {
+      "description": "Show development branch info"
+    },
+    "sync": {
+      "description": "Sync dev → tool → main → test"
+    },
+    "reset": {
+      "description": "Reset main/test branches"
+    }
+  }
+}
