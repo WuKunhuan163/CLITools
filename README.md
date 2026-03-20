@@ -18,6 +18,16 @@ An assistant with metacognitive development capability exhibits two alternating 
 
 These traits co-evolve like human civilization's relationship with tools: create better tools, use them to improve the environment, the improved environment enables new tools. Early humans mastered fire; we no longer study fire — we study AI. Similarly, once an assistant builds reliable infrastructure for a pattern, it stops re-deriving that pattern and moves on to harder problems. The knowledge pipeline (`Lesson → Skill → Infrastructure → Hook`) is the formalization of this cycle.
 
+## For AI Agents
+
+**If you are an AI assistant working in this codebase, read [`for_agent.md`](for_agent.md) first.** It contains the bootstrap protocol, key commands, session phases, and everything you need to operate effectively. Start at Section 0.
+
+Quick reference:
+- `TOOL --eco guide` — onboarding walkthrough
+- `TOOL --eco nav` — browse the skills dictionary tree
+- `TOOL --eco search "query"` — find tools, skills, lessons, docs
+- `SKILLS show <name>` — read a specific development skill
+
 ## Quick Start
 
 ```bash

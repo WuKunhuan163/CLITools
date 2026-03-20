@@ -25,6 +25,7 @@ class GitIgnoreManager:
             "!/tool.json",
             "!/README.md",
             "!/for_agent.md",
+            "!/AGENTS.md",
             "",
             "# --- Framework Directories ---",
             "!/logic/",

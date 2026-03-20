@@ -1,10 +1,12 @@
 # AITerminalTools: Guide for AI Agents
 
-Welcome to the `AITerminalTools` ecosystem. This guide is designed to provide you with the essential context and technical framework needed to develop, maintain, and interact with tools in this project.
+> **TL;DR**: This is a 60+ tool CLI ecosystem with symmetric architecture.  
+> Read `runtime/brain/context.md` for session state.  
+> Run `TOOL --eco search "your task"` before coding.  
+> Run `USERINPUT --hint "summary"` after every task.  
+> Browse skills: `TOOL --eco nav` / `TOOL --eco tree`.
 
 ## 0. Agent Bootstrap Protocol (Start Here)
-
-    - **Palindrome Check Function**: `is_palindrome(s: str) -> bool` in `logic/main.py` checks if a string reads the same forwards and backwards.
 
 **Project layout** (symmetric design — root mirrors each tool):
 ```
