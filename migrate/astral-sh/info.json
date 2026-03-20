@@ -1,0 +1,10 @@
+{
+  "name": "astral-sh",
+  "source": "https://github.com/astral-sh/python-build-standalone",
+  "description": "Standalone Python builds from astral-sh for portable Python installation",
+  "levels": ["infrastructure"],
+  "target_tool": "PYTHON",
+  "platforms": ["macos-arm64", "macos", "linux64", "linux64-musl", "windows-amd64"],
+  "last_checked": null,
+  "version": "2026-03-17"
+}

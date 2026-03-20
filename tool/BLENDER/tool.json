@@ -1,0 +1,12 @@
+{
+  "name": "BLENDER",
+  "version": "1.0.0-draft",
+  "description": "CLI harness for Blender - run 3D modeling, animation, and rendering via blender --background --python",
+  "source": "CLI-Anything",
+  "upstream": "https://github.com/HKUDS/CLI-Anything/tree/main/blender",
+  "status": "draft",
+  "dependencies": [
+    "click>=8.1",
+    "prompt-toolkit>=3.0"
+  ]
+}

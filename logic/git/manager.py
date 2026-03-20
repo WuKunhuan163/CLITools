@@ -33,6 +33,7 @@ class GitIgnoreManager:
             "!/runtime/",
             "!/hooks/",
             "!/workspace/",
+            "!/migrate/",
             "",
             "# --- Transient Directories ---",
             "**/data/",

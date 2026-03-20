@@ -1,0 +1,13 @@
+{
+  "name": "CLI-Anything",
+  "source": "https://github.com/HKUDS/CLI-Anything",
+  "description": "Agent-native CLI harnesses for professional software (Blender, GIMP, LibreOffice, etc.)",
+  "levels": ["draft-tool", "skills", "info"],
+  "tools": [
+    "audacity", "blender", "comfyui", "drawio", "gimp",
+    "inkscape", "kdenlive", "libreoffice", "mermaid",
+    "obs-studio", "shotcut", "zoom", "anygen"
+  ],
+  "last_checked": null,
+  "version": "2026-03-17"
+}

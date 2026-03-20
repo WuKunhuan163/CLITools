@@ -1132,6 +1132,63 @@ def _print_eco_dashboard():
     print(f"  {DIM}TOOL --eco guide for onboarding.{RESET}\n")
 
 
+def _tool_migrate_handler(args):
+    """Handle TOOL --migrate --<level> <domain> [options]."""
+    from logic.command.migrate import list_domains, execute_migration, MIGRATION_LEVELS, get_domain_info
+
+    if not args or args[0] in ["-h", "--help", "help"]:
+        print(f"{BOLD}TOOL --migrate{RESET} — Migration framework\n")
+        print(f"  Usage: TOOL --migrate --<level> <domain> [options]\n")
+        print(f"  {BOLD}Levels{RESET}")
+        for lv in MIGRATION_LEVELS:
+            print(f"    --{lv}")
+        print(f"\n  {BOLD}Domains{RESET}")
+        for d in list_domains():
+            name = d.get("domain", "?")
+            desc = d.get("description", "")[:60]
+            levels = ", ".join(d.get("levels", []))
+            print(f"    {name:20s} [{levels}]")
+            if desc:
+                print(f"    {DIM}{desc}{RESET}")
+        print(f"\n  {BOLD}Examples{RESET}")
+        print(f"    TOOL --migrate --draft-tool CLI-Anything blender")
+        print(f"    TOOL --migrate --infrastructure astral-sh --version 3.12 --platform macos-arm64")
+        print(f"    TOOL --migrate --draft-tool CLI-Anything --all")
+        return
+
+    level = None
+    domain = None
+    remaining = []
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg.startswith("--") and arg[2:] in MIGRATION_LEVELS:
+            level = arg[2:]
+        elif domain is None and not arg.startswith("-"):
+            domain = arg
+        else:
+            remaining.append(arg)
+        i += 1
+
+    if not level:
+        print(f"  {BOLD}{RED}Missing level.{RESET} Use --<level> (e.g. --draft-tool, --infrastructure)")
+        return
+
+    if not domain:
+        print(f"  {BOLD}{RED}Missing domain.{RESET} Specify a domain name (e.g. CLI-Anything, astral-sh)")
+        return
+
+    info = get_domain_info(domain)
+    if not info:
+        print(f"  {BOLD}{RED}Unknown domain.{RESET} {DIM}{domain}{RESET}")
+        print(f"  Available: {', '.join(d['domain'] for d in list_domains())}")
+        return
+
+    code = execute_migration(domain, level, remaining)
+    sys.exit(code)
+
+
 # Maps --flag to handler function
 _TOOL_FLAG_HANDLERS = {
     "--dev": lambda args: _tool_dev_handler(args),
@@ -1152,6 +1209,7 @@ _TOOL_FLAG_HANDLERS = {
     "--assistant": lambda args: _root_tool._handle_assistant(args),
     "--setup": lambda args: _root_tool.run_setup(),
     "--skills": lambda args: _root_tool._handle_skills_command(args),
+    "--migrate": lambda args: _tool_migrate_handler(args),
     "--create-workspace": lambda args: _workspace_handler("create", args),
     "--delete-workspace": lambda args: _workspace_handler("delete", args),
     "--open-workspace": lambda args: _workspace_handler("open", args),
@@ -1199,6 +1257,7 @@ def _print_tool_help():
     print(f"    --test <sub>               Run tests")
     print(f"    --config <sub>             Manage global configuration")
     print(f"    --rule <sub>               AI rule management")
+    print(f"    --migrate --<level> <domain>  Migration framework (tool, infrastructure, skills)")
     print(f"\n  {BOLD}Assistant{RESET}")
     print(f"    --agent <prompt>           Agent mode")
     print(f"    --ask <prompt>             Ask mode (read-only)")
