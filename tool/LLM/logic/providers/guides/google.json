@@ -1,0 +1,15 @@
+{
+  "vendor": "google",
+  "name": "Google AI",
+  "url": "https://aistudio.google.com/",
+  "docs_url": "https://ai.google.dev/gemini-api/docs",
+  "key_portal_url": "https://aistudio.google.com/apikey",
+  "steps": [
+    "Visit <a href=\"https://aistudio.google.com/apikey\" target=\"_blank\">Google AI Studio</a>",
+    "Sign in with your Google account",
+    "Click \"Create API Key\"",
+    "Copy the generated key",
+    "Paste it above and click \"Validate & Save\""
+  ],
+  "notes": "Free tier: 15 RPM, 1M TPM, 1500 RPD. Region-restricted (no direct CN/HK access). May require VPN or proxy."
+}

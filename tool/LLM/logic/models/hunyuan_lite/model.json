@@ -1,0 +1,30 @@
+{
+  "model_id": "hunyuan-lite",
+  "display_name": "Hunyuan Lite",
+  "vendor": "tencent",
+  "capabilities": {
+    "tool_calling": false,
+    "vision": false,
+    "streaming": true,
+    "system_prompt": true,
+    "max_context_tokens": 4096,
+    "max_output_tokens": 2048,
+    "reasoning": false
+  },
+  "rate_limits": {
+    "free": {
+      "rpm": 60,
+      "qps": 5
+    }
+  },
+  "cost": {
+    "free_tier": true
+  },
+  "benchmarks": {
+    "arena_elo": 1080,
+    "arena_rank": 78,
+    "source": "lmsys-chatbot-arena",
+    "updated": "2026-03"
+  },
+  "active": true
+}

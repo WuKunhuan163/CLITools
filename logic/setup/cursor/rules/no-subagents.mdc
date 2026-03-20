@@ -1,0 +1,23 @@
+---
+description: Prohibit Cursor built-in subagents (Task tool). Do all work inline or via OPENCLAW mechanisms.
+alwaysApply: true
+---
+
+# No Cursor Built-in Subagents
+
+NEVER use the Task tool to launch subagents. This project uses its own agent orchestration via OPENCLAW.
+
+## Rules
+
+1. **Write a temporary script for batch operations** instead of launching subagents. For bulk find-and-replace, file renaming, or repetitive edits across many files, write a Python script in `tmp/` that performs the operation, prints each change for verification, and exits. This is faster, more accurate, and costs nothing. Example: replacing hardcoded paths in 20+ files is a single `tmp/batch_replace.py` run, not a subagent.
+2. **Do all work inline** using direct tool calls (Read, Write, Shell, Grep, Glob, etc.).
+3. **Never delegate to Task/subagent_type** regardless of task complexity.
+4. For parallel exploration, use multiple direct tool calls in a single message instead.
+5. If a task seems too large, break it into sequential steps done inline.
+
+## Rationale
+
+This project provides its own agent infrastructure (OPENCLAW CLI, tool interfaces, skills) that will replace Cursor's built-in subagent mechanism. Using built-in subagents:
+- Costs 2x credits even with `model: "fast"`
+- Loses context that inline tool calls preserve
+- Duplicates orchestration that OPENCLAW already provides

@@ -1,0 +1,13 @@
+{
+  "name": "SENTRY",
+  "version": "1.0.0",
+  "description": "Sentry error monitoring via Chrome DevTools Protocol",
+  "purpose": "Access Sentry organizations, projects, and issues via CDP using the authenticated session and same-origin API.",
+  "dependencies": [
+    "PYTHON",
+    "GOOGLE.CDMCP"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
+  ]
+}

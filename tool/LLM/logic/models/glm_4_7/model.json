@@ -1,0 +1,28 @@
+{
+  "model_id": "glm-4.7",
+  "display_name": "GLM-4.7",
+  "vendor": "zhipu",
+  "capabilities": {
+    "tool_calling": true,
+    "vision": false,
+    "streaming": true,
+    "system_prompt": true,
+    "max_context_tokens": 128000,
+    "max_output_tokens": 4096,
+    "reasoning": true
+  },
+  "cost": {
+    "free_tier": false,
+    "input_per_1k": 0.005,
+    "output_per_1k": 0.005,
+    "currency": "CNY"
+  },
+  "benchmarks": {
+    "arena_elo": 1250,
+    "arena_rank": 25,
+    "source": "lmsys-chatbot-arena",
+    "updated": "2026-03"
+  },
+  "active": false,
+  "lock_reason": "Paid model. Configure a Zhipu API key with paid tier access."
+}

@@ -1,0 +1,13 @@
+{
+  "name": "YOUTUBE",
+  "version": "1.1.0",
+  "description": "YouTube video search, info, subtitles via official API; browser automation via CDMCP",
+  "purpose": "Search videos, get video info/comments/subtitles using YouTube Data API v3. Browser playback control via CDMCP for interactive sessions.",
+  "dependencies": [
+    "PYTHON",
+    "GOOGLE.CDMCP"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
+  ]
+}

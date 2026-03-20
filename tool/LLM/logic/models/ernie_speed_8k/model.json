@@ -1,0 +1,31 @@
+{
+  "model_id": "ernie-speed-8k",
+  "display_name": "ERNIE Speed Pro 128K",
+  "vendor": "baidu",
+  "capabilities": {
+    "tool_calling": true,
+    "vision": false,
+    "streaming": true,
+    "system_prompt": true,
+    "max_context_tokens": 131072,
+    "max_output_tokens": 4096,
+    "reasoning": false
+  },
+  "rate_limits": {
+    "free": {
+      "rpm": 10000,
+      "tpm": 800000
+    }
+  },
+  "cost": {
+    "free_tier": true
+  },
+  "benchmarks": {
+    "arena_elo": 1100,
+    "arena_rank": 70,
+    "source": "lmsys-chatbot-arena",
+    "updated": "2026-03"
+  },
+  "active": false,
+  "lock_reason": "Persistent 429 TPM rate limit on free tier. May require Baidu account with active Qianfan service."
+}

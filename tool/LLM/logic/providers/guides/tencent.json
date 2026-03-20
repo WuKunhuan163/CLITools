@@ -1,0 +1,15 @@
+{
+  "vendor": "tencent",
+  "name": "Tencent (Hunyuan)",
+  "url": "https://console.cloud.tencent.com/hunyuan/start",
+  "docs_url": "https://cloud.tencent.com/document/product/1729/111007",
+  "key_portal_url": "https://console.cloud.tencent.com/hunyuan/start",
+  "steps": [
+    "Visit <a href=\"https://cloud.tencent.com/\" target=\"_blank\">Tencent Cloud Console</a> and complete real-name auth",
+    "Go to <a href=\"https://console.cloud.tencent.com/hunyuan/start\" target=\"_blank\">Hunyuan &gt; API Key</a> page",
+    "Click \"Create API Key\" to generate a key",
+    "Copy the generated key (used as Bearer token with the <a href=\"https://cloud.tencent.com/document/product/1729/111007\" target=\"_blank\">OpenAI-compatible endpoint</a>)",
+    "Paste it above and click \"Validate & Save\""
+  ],
+  "notes": "Free tier: Hunyuan-Lite (5 QPS). OpenAI-compatible endpoint. Does NOT support tool calling."
+}

@@ -1,0 +1,61 @@
+# --- Framework Core ---
+/*
+!/main.py
+!/setup.py
+!/tool.json
+!/README.md
+!/for_agent.md
+!/for_agent_reflection.md
+!/.gitignore
+!/.gitattributes
+
+# --- Framework Directories ---
+!/logic/
+!/interface/
+!/bin/
+!/test/
+!/tool/
+!/report/
+!/skills/
+!/research/
+!/runtime/
+
+# --- Transient Directories ---
+**/data/
+**/logs/
+**/tmp/
+
+# --- Resource Management ---
+# resource/ is only tracked on the tool branch (preserved by align_tool via git add -f)
+**/resource/
+
+# --- Python Patterns ---
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- System Patterns ---
+.DS_Store
+Thumbs.db
+
+# --- Tool Specific Rules ---
+# PYTHON
+!/tool/PYTHON/
+/tool/PYTHON/data/*
+!/tool/PYTHON/data/install/
+/tool/PYTHON/logs/
+
+# VPN
+!/tool/VPN/
+/tool/VPN/data/
+/tool/VPN/logs/
+
+# iCloud.iCloudPD
+/tool/iCloud.iCloudPD/data/

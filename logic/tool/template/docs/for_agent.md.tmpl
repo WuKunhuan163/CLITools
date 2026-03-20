@@ -1,0 +1,32 @@
+# {name} — Agent Quick Reference
+
+## Built-in Commands
+
+| Command | Description |
+|---------|-------------|
+| `{short_name} --demo` | Run demo countdown |
+| `{short_name} --setup` | Run tool setup |
+| `{short_name} --test` | Run unit tests |
+| `{short_name} --dev <cmd>` | Developer commands |
+| `{short_name} --rule` | Show AI rules |
+| `{short_name} hooks list` | List available hooks |
+| `{short_name} skills list` | List tool skills |
+
+## MCP Commands Convention
+
+If this tool implements CDMCP browser automation, all MCP commands must use the `--mcp-` prefix.
+For example: `{short_name} --mcp-boot`, `{short_name} --mcp-status`, `{short_name} --mcp-navigate <target>`.
+The base class transparently rewrites `--mcp-<cmd>` to bare subcommands for argparse compatibility.
+
+## Hooks
+
+This tool supports the hooks system. See `{short_name} hooks list` for available events and instances.
+
+## Interface
+
+Other tools can import this tool's interface:
+```python
+from interface import get_interface
+iface = get_interface("{name}")
+info = iface.get_info()
+```

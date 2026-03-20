@@ -1,0 +1,15 @@
+{
+  "vendor": "nvidia",
+  "name": "NVIDIA",
+  "url": "https://build.nvidia.com/",
+  "docs_url": "https://docs.api.nvidia.com/",
+  "key_portal_url": "https://build.nvidia.com/",
+  "steps": [
+    "Visit <a href=\"https://build.nvidia.com/\" target=\"_blank\">NVIDIA Build</a> (not NGC)",
+    "Sign in with your NVIDIA developer account",
+    "Click any model, then click \"Get API Key\"",
+    "The key starts with <code>nvapi-</code> (NGC keys do <strong>not</strong> work)",
+    "Paste it above and click \"Validate & Save\""
+  ],
+  "notes": "Free tier: ~40 RPM. Keys from build.nvidia.com only (not NGC). MIT/NVIDIA Open Model License."
+}

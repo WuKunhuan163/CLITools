@@ -1,0 +1,23 @@
+{
+  "name": "FONT",
+  "version": "1.0.0",
+  "description": "Font management and analysis tool",
+  "purpose": "Identify, download, deploy, and analyze font heuristics for layout analysis.",
+  "dependencies": [
+    "PYTHON"
+  ],
+  "pip_dependencies": [
+    "fonttools",
+    "requests",
+    "fpdf2",
+    "pymupdf",
+    "numpy",
+    "pillow"
+  ],
+  "usage": [
+    "FONT list",
+    "FONT install",
+    "FONT analyze <name>",
+    "FONT get <name>"
+  ]
+}

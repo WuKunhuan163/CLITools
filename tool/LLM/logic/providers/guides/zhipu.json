@@ -1,0 +1,15 @@
+{
+  "vendor": "zhipu",
+  "name": "Zhipu AI",
+  "url": "https://open.bigmodel.cn/",
+  "docs_url": "https://bigmodel.cn/dev/api/normal-model/glm-4",
+  "key_portal_url": "https://open.bigmodel.cn/usercenter/apikeys",
+  "steps": [
+    "Visit <a href=\"https://open.bigmodel.cn/\" target=\"_blank\">Zhipu AI Open Platform</a>",
+    "Register or log in to your account",
+    "Go to <a href=\"https://open.bigmodel.cn/usercenter/apikeys\" target=\"_blank\">API Keys</a> page",
+    "Click \"Create API Key\" and copy the key",
+    "Paste it above and click \"Validate & Save\""
+  ],
+  "notes": "Free tier includes GLM-4-Flash and GLM-4.7-Flash. Paid tier required for GLM-4.7."
+}

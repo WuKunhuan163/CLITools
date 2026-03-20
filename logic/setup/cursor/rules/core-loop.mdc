@@ -1,0 +1,39 @@
+# Core Agent Loop — BRAIN reflect + USERINPUT
+
+After completing ANY task, error fix, or significant action, execute this two-step loop:
+
+```bash
+# Step 1: Self-check
+python3 bin/BRAIN reflect
+
+# Step 2: Report to user (IMPORTANT: set block_until_ms high — user needs time to type)
+python3 tool/USERINPUT/main.py --hint "summary of what was done"
+# When using Shell tool: block_until_ms: 120000
+```
+
+## Rules
+
+1. **Never end your turn** without executing both `BRAIN reflect` and `USERINPUT`.
+2. `BRAIN reflect` shows your self-check protocol, active reminders, and system gaps. Read and act on them.
+3. `USERINPUT` is a blocking CLI call — wait for the user's response. If it times out, `sleep 30` and retry.
+4. After USERINPUT returns feedback, act on it, then repeat the loop.
+5. When logging completed work, use `BRAIN log "what happened" --files "path1,path2"` to track artifacts.
+6. Run `BRAIN snapshot "summary"` after milestones to persist state for future sessions.
+
+## Why This Matters
+
+This loop is the agent's heartbeat. Without it:
+- The user has no feedback channel
+- System gaps go unnoticed
+- Cross-session continuity breaks down
+- Quality checks are skipped
+
+## Quick Reference
+
+```bash
+BRAIN reflect          # Self-check + gaps + reminders
+BRAIN log "entry"      # Record activity
+BRAIN recall "keyword" # Find past work
+BRAIN snapshot "msg"   # Save state for next session
+USERINPUT --hint "..."  # Report to user (blocking)
+```

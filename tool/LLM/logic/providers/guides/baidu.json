@@ -1,0 +1,16 @@
+{
+  "vendor": "baidu",
+  "name": "Baidu (Qianfan)",
+  "url": "https://console.bce.baidu.com/qianfan/overview",
+  "docs_url": "https://cloud.baidu.com/doc/qianfan/s/rmh4stp0j",
+  "key_portal_url": "https://console.bce.baidu.com/iam/#/iam/apikey/list",
+  "steps": [
+    "Complete <strong>real-name authentication</strong> on <a href=\"https://console.bce.baidu.com/\" target=\"_blank\">Baidu Cloud Console</a>",
+    "Activate the <a href=\"https://console.bce.baidu.com/qianfan/overview\" target=\"_blank\">Qianfan ModelBuilder</a> service (千帆大模型平台)",
+    "Go to <a href=\"https://console.bce.baidu.com/iam/#/iam/apikey/list\" target=\"_blank\">IAM &gt; API Key</a> page",
+    "Click \"Create API Key\" — select <strong>Qianfan ModelBuilder</strong> as the associated service",
+    "Copy the key (format: <code>bce-v3/ALTAK-...</code>)",
+    "Paste it above and click \"Validate & Save\""
+  ],
+  "notes": "Free tier: ERNIE Speed/Lite series permanently free (10000 RPM, 800K TPM). Requires real-name auth and Qianfan service activation."
+}

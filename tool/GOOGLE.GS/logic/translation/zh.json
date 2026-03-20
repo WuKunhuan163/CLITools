@@ -1,0 +1,16 @@
+{
+  "search_query": "正在搜索",
+  "found_results": "找到 {count} 条结果",
+  "no_results": "没有找到结果",
+  "error": "错误",
+  "saved": "已保存",
+  "booted": "已启动",
+  "boot_failed": "启动失败",
+  "next_page": "下一页",
+  "prev_page": "上一页",
+  "cited_by": "被引用",
+  "no_pdf": "没有可用的PDF",
+  "profile": "个人资料",
+  "library": "我的图书馆",
+  "author_search": "搜索作者"
+}

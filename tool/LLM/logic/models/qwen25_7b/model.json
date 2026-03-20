@@ -1,0 +1,30 @@
+{
+  "model_id": "Qwen/Qwen2.5-7B-Instruct",
+  "display_name": "Qwen 2.5 7B",
+  "vendor": "siliconflow",
+  "capabilities": {
+    "tool_calling": true,
+    "vision": false,
+    "streaming": true,
+    "system_prompt": true,
+    "max_context_tokens": 32768,
+    "max_output_tokens": 4096,
+    "reasoning": false
+  },
+  "rate_limits": {
+    "free": {
+      "rpm": 100,
+      "rps": 3
+    }
+  },
+  "cost": {
+    "free_tier": true
+  },
+  "benchmarks": {
+    "arena_elo": 1155,
+    "arena_rank": 50,
+    "source": "lmsys-chatbot-arena",
+    "updated": "2026-03"
+  },
+  "active": true
+}

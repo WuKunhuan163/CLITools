@@ -1,0 +1,21 @@
+# Strategy Pivot — Recognize Repeated Failures
+
+When the same approach fails 3+ times, stop and change strategy entirely.
+
+## Pivot Patterns
+
+| Failing Approach | Pivot To |
+|-----------------|----------|
+| Browser/DOM automation | Backend API endpoint |
+| GUI interaction | CLI tool or script |
+| Direct file manipulation | Template + generator |
+| External API flaky | Local cache + fallback |
+| Complex regex/parsing | Structured format (JSON, AST) |
+
+## Rules
+
+1. **Count failures.** If a method fails 3 times, it probably won't work on the 4th. Stop.
+2. **Search before pivoting.** Run `TOOL --search all "<alternative approach>"` to find existing solutions.
+3. **Record the dead end.** Run `SKILLS learn "Approach X fails because Y. Use Z instead."` so future agents skip this path.
+4. **Build infrastructure.** If the pivot creates something reusable (e.g., a backend API endpoint), put it in `logic/` with an `interface/` API so other tools can use it too.
+5. **Don't escalate prematurely.** Try fixing the original approach first (read source, fix bugs). Only pivot when the root cause is a fundamental limitation, not a fixable bug.

@@ -1,0 +1,635 @@
+#!/usr/bin/env python3
+"""BRAIN — CLI for managing runtime/brain/ task list and agent progress.
+
+Usage:
+    BRAIN list                     List all tasks
+    BRAIN add "task description"   Add a new task
+    BRAIN done <id>                Mark task as done
+    BRAIN progress <id>            Mark task as in_progress
+    BRAIN verify <id>              Mark task as verify_pending
+    BRAIN delete <id>              Delete a task
+    BRAIN clear-done               Remove all done tasks
+    BRAIN clear-all                Remove all tasks
+    BRAIN migrate                  Migrate old tasks.md format to JSON
+    BRAIN note <id> "note text"    Add/update notes for a task
+    BRAIN status                   Show agent progress dashboard
+    BRAIN snapshot "summary"       Auto-save context.md with a summary
+    BRAIN recall "query"           Search lessons, activity log, and context for a keyword
+    BRAIN log "entry" [--files f1,f2] [--task id]
+                                   Append an activity log entry with optional artifact tracking
+    BRAIN digest                   Check accumulated lessons for distillation opportunities
+    BRAIN reflect [--tool NAME]    Self-reflection: show self-check protocol + current system gaps
+"""
+import sys
+from pathlib import Path
+
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from logic.agent.brain_tasks import (
+    add_task, update_task, complete_task, delete_task,
+    clear_done, clear_all, list_tasks, migrate_from_md
+)
+
+try:
+    from interface.config import get_color
+    BOLD = get_color("BOLD")
+    GREEN = get_color("GREEN")
+    RED = get_color("RED")
+    DIM = get_color("DIM")
+    RESET = get_color("RESET")
+except ImportError:
+    BOLD = GREEN = RED = DIM = RESET = ""
+
+ROOT = str(project_root)
+
+STATUS_DISPLAY = {
+    "in_progress": f"{BOLD}IN_PROGRESS{RESET}",
+    "pending": "pending",
+    "done": f"{GREEN}done{RESET}",
+    "verify_pending": f"{BOLD}VERIFY_PENDING{RESET}",
+}
+
+
+def cmd_list():
+    tasks = list_tasks(ROOT)
+    if not tasks:
+        print(f"{BOLD}Brain{RESET}: no tasks.")
+        return
+    active = [t for t in tasks if t["status"] != "done"]
+    done = [t for t in tasks if t["status"] == "done"]
+
+    if active:
+        for t in active:
+            sd = STATUS_DISPLAY.get(t["status"], t["status"])
+            print(f"  #{t['id']:>3}  [{sd}]  {t['content']}")
+            if t.get("notes"):
+                print(f"        {DIM}{t['notes']}{RESET}")
+    if done:
+        if active:
+            print()
+        for t in done[-5:]:
+            print(f"  {DIM}#{t['id']:>3}  [done]  {t['content']}{RESET}")
+    print(f"\n{DIM}{len(active)} active, {len(done)} done{RESET}")
+
+
+def cmd_add(content):
+    t = add_task(ROOT, content)
+    print(f"{BOLD}{GREEN}Added{RESET} #{t['id']}: {content}")
+
+
+def cmd_done(task_id):
+    t = complete_task(ROOT, task_id)
+    if t:
+        print(f"{BOLD}{GREEN}Done{RESET} #{task_id}: {t['content']}")
+    else:
+        print(f"{BOLD}{RED}Not found{RESET}: #{task_id}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_progress(task_id):
+    t = update_task(ROOT, task_id, status="in_progress")
+    if t:
+        print(f"{BOLD}In progress{RESET} #{task_id}: {t['content']}")
+    else:
+        print(f"{BOLD}{RED}Not found{RESET}: #{task_id}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_verify(task_id):
+    t = update_task(ROOT, task_id, status="verify_pending")
+    if t:
+        print(f"{BOLD}Verify pending{RESET} #{task_id}: {t['content']}")
+    else:
+        print(f"{BOLD}{RED}Not found{RESET}: #{task_id}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_delete(task_id):
+    if delete_task(ROOT, task_id):
+        print(f"{BOLD}{GREEN}Deleted{RESET} #{task_id}.")
+    else:
+        print(f"{BOLD}{RED}Not found{RESET}: #{task_id}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_clear_done():
+    n = clear_done(ROOT)
+    print(f"{BOLD}{GREEN}Cleared{RESET} {n} done tasks.")
+
+
+def cmd_clear_all():
+    n = clear_all(ROOT)
+    print(f"{BOLD}{GREEN}Cleared{RESET} {n} tasks (all).")
+
+
+def cmd_note(task_id, note_text):
+    t = update_task(ROOT, task_id, notes=note_text)
+    if t:
+        print(f"{BOLD}Updated{RESET} #{task_id} notes.")
+    else:
+        print(f"{BOLD}{RED}Not found{RESET}: #{task_id}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_migrate():
+    n = migrate_from_md(ROOT)
+    if n:
+        print(f"{BOLD}{GREEN}Migrated{RESET} {n} tasks from tasks.md to tasks.json.")
+    else:
+        print(f"{BOLD}Nothing to migrate{RESET} (tasks.json already exists or tasks.md empty).")
+
+
+def cmd_status():
+    """Show agent progress dashboard: tasks, lessons, skills, context age."""
+    import time as _time
+    tasks = list_tasks(ROOT)
+    active = [t for t in tasks if t["status"] != "done"]
+    done = [t for t in tasks if t["status"] == "done"]
+    in_progress = [t for t in tasks if t["status"] == "in_progress"]
+
+    print(f"\n  {BOLD}Agent Brain Dashboard{RESET}")
+    print(f"  {'─' * 40}")
+
+    # Tasks summary
+    print(f"  {BOLD}Tasks{RESET}: {len(active)} active, {len(done)} done")
+    if in_progress:
+        for t in in_progress:
+            print(f"    {GREEN}>{RESET} #{t['id']}: {t['content']}")
+
+    # Lessons count
+    lessons_file = Path(ROOT) / "runtime" / "experience" / "lessons.jsonl"
+    lesson_count = 0
+    recent_lesson = ""
+    if lessons_file.exists():
+        lines = [l for l in lessons_file.read_text().strip().split("\n") if l.strip()]
+        lesson_count = len(lines)
+        if lines:
+            try:
+                import json
+                last = json.loads(lines[-1])
+                recent_lesson = last.get("lesson", "")[:80]
+            except Exception:
+                pass
+    print(f"  {BOLD}Lessons{RESET}: {lesson_count} total")
+    if recent_lesson:
+        print(f"    {DIM}Latest: {recent_lesson}{RESET}")
+
+    # Context age
+    context_file = Path(ROOT) / "runtime" / "brain" / "context.md"
+    if context_file.exists():
+        age_sec = _time.time() - context_file.stat().st_mtime
+        if age_sec < 60:
+            age_str = f"{int(age_sec)}s ago"
+        elif age_sec < 3600:
+            age_str = f"{int(age_sec/60)}m ago"
+        else:
+            age_str = f"{int(age_sec/3600)}h{int((age_sec%3600)/60)}m ago"
+        print(f"  {BOLD}Context{RESET}: updated {age_str}")
+    else:
+        print(f"  {BOLD}Context{RESET}: {RED}not initialized{RESET}")
+
+    # Skills count
+    skills_dir = Path(ROOT) / "skills" / "core"
+    skill_count = 0
+    if skills_dir.exists():
+        skill_count = sum(1 for d in skills_dir.iterdir() if d.is_dir() and (d / "SKILL.md").exists())
+    print(f"  {BOLD}Skills{RESET}: {skill_count} core skills")
+
+    print(f"  {'─' * 40}\n")
+
+
+def cmd_snapshot(summary: str):
+    """Auto-save a context.md snapshot with the provided summary."""
+    import time as _time
+    context_file = Path(ROOT) / "runtime" / "brain" / "context.md"
+    context_file.parent.mkdir(parents=True, exist_ok=True)
+
+    tasks = list_tasks(ROOT)
+    active = [t for t in tasks if t["status"] != "done"]
+    in_progress = [t for t in active if t["status"] == "in_progress"]
+    done_recent = [t for t in tasks if t["status"] == "done"][-5:]
+
+    lines = [
+        "# Current Context",
+        "",
+        f"**Last updated:** {_time.strftime('%Y-%m-%d %H:%M')}",
+        f"**Working on:** {in_progress[0]['content'] if in_progress else 'No active task'}",
+        f"**Summary:** {summary}",
+        "",
+    ]
+
+    if active:
+        lines.append("## Active Tasks")
+        for t in active:
+            status = "IN_PROGRESS" if t["status"] == "in_progress" else t["status"]
+            lines.append(f"- [{status}] #{t['id']}: {t['content']}")
+        lines.append("")
+
+    if done_recent:
+        lines.append("## Recently Completed")
+        for t in done_recent:
+            lines.append(f"- #{t['id']}: {t['content']}")
+        lines.append("")
+
+    import json as _json
+    activity_file = Path(ROOT) / "runtime" / "brain" / "activity.jsonl"
+    if activity_file.exists():
+        recent_activities = []
+        for line in activity_file.read_text().strip().split("\n"):
+            if not line.strip():
+                continue
+            try:
+                recent_activities.append(_json.loads(line))
+            except Exception:
+                continue
+        recent_activities = recent_activities[-10:]
+        if recent_activities:
+            lines.append("## Recent Activity")
+            for act in recent_activities:
+                ts = act.get("timestamp", "")[:16]
+                entry = act.get("entry", "")[:100]
+                files = act.get("files", [])
+                file_str = f" → {', '.join(files)}" if files else ""
+                lines.append(f"- [{ts}] {entry}{file_str}")
+            lines.append("")
+
+    context_file.write_text("\n".join(lines), encoding="utf-8")
+    print(f"{BOLD}{GREEN}Snapshot saved.{RESET} {DIM}{context_file}{RESET}")
+
+
+def cmd_recall(query: str):
+    """Search lessons, activity log, and context for a keyword."""
+    import json as _json
+    query_lower = query.lower()
+    found = []
+
+    lessons_file = Path(ROOT) / "runtime" / "experience" / "lessons.jsonl"
+    if lessons_file.exists():
+        for line in lessons_file.read_text().strip().split("\n"):
+            if not line.strip():
+                continue
+            try:
+                obj = _json.loads(line)
+                lesson_text = obj.get("lesson", "")
+                context_text = obj.get("context", "")
+                if query_lower in lesson_text.lower() or query_lower in context_text.lower():
+                    sev = obj.get("severity", "info")
+                    tool = obj.get("tool", "")
+                    ts = obj.get("timestamp", "")[:10]
+                    prefix = f"[{sev}]" + (f" [{tool}]" if tool else "")
+                    found.append(f"  {DIM}{ts}{RESET} {prefix} {lesson_text[:120]}")
+            except Exception:
+                continue
+
+    activity_file = Path(ROOT) / "runtime" / "brain" / "activity.jsonl"
+    if activity_file.exists():
+        for line in activity_file.read_text().strip().split("\n"):
+            if not line.strip():
+                continue
+            try:
+                obj = _json.loads(line)
+                entry = obj.get("entry", "")
+                if query_lower in entry.lower():
+                    ts = obj.get("timestamp", "")[:16]
+                    files = obj.get("files", [])
+                    file_hint = f" [{', '.join(files)}]" if files else ""
+                    found.append(f"  {DIM}{ts}{RESET} [activity]{file_hint} {entry[:120]}")
+            except Exception:
+                continue
+
+    context_file = Path(ROOT) / "runtime" / "brain" / "context.md"
+    if context_file.exists():
+        content = context_file.read_text()
+        if query_lower in content.lower():
+            for i, line in enumerate(content.split("\n")):
+                if query_lower in line.lower():
+                    found.append(f"  {DIM}context.md:{i+1}{RESET} {line.strip()[:120]}")
+
+    if found:
+        print(f"{BOLD}Recall{RESET}: {len(found)} matches for '{query}'")
+        for f_item in found[:20]:
+            print(f_item)
+    else:
+        print(f"{BOLD}Recall{RESET}: no matches for '{query}'")
+
+
+def cmd_log(entry: str, files: list = None, task: str = None):
+    """Append an activity log entry to runtime/brain/activity.jsonl.
+
+    Args:
+        entry: Free-text activity description (what, result, observations)
+        files: Optional list of file paths created/modified as artifacts
+        task: Optional task ID or description this activity relates to
+    """
+    import json as _json
+    import time as _time
+    log_file = Path(ROOT) / "runtime" / "brain" / "activity.jsonl"
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "timestamp": _time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "entry": entry,
+    }
+    if files:
+        record["files"] = files
+    if task:
+        record["task"] = task
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(_json.dumps(record, ensure_ascii=False) + "\n")
+    detail_parts = []
+    if files:
+        detail_parts.append(f"files: {', '.join(files)}")
+    if task:
+        detail_parts.append(f"task: {task}")
+    detail = f" ({'; '.join(detail_parts)})" if detail_parts else ""
+    print(f"{BOLD}{GREEN}Logged.{RESET} {DIM}{entry[:80]}{detail}{RESET}")
+
+
+def cmd_digest():
+    """Scan accumulated lessons and suggest distillation opportunities.
+
+    Groups lessons by tool and theme, identifies clusters of 3+ entries
+    that could be consolidated into skills or infrastructure.
+    """
+    import json as _json
+    from collections import Counter
+
+    lessons_file = Path(ROOT) / "runtime" / "experience" / "lessons.jsonl"
+    if not lessons_file.exists():
+        print(f"{BOLD}No lessons found.{RESET}")
+        return
+
+    tool_counts = Counter()
+    keywords = Counter()
+    total = 0
+
+    for line in lessons_file.read_text(encoding="utf-8").strip().split("\n"):
+        if not line.strip():
+            continue
+        try:
+            obj = _json.loads(line)
+            total += 1
+            tool = obj.get("tool", "general")
+            if tool:
+                tool_counts[tool] += 1
+            text = (obj.get("lesson", "") + " " + obj.get("context", "")).lower()
+            for word in text.split():
+                if len(word) > 4 and word.isalpha():
+                    keywords[word] += 1
+        except Exception:
+            continue
+
+    print(f"{BOLD}Digest:{RESET} {total} lessons total\n")
+
+    if tool_counts:
+        print(f"{BOLD}By tool:{RESET}")
+        for tool, count in tool_counts.most_common(10):
+            marker = " ← consolidate?" if count >= 3 else ""
+            print(f"  {tool}: {count}{marker}")
+        print()
+
+    frequent = [(w, c) for w, c in keywords.most_common(20) if c >= 3]
+    consolidation_tools = [t for t, c in tool_counts.most_common(10) if c >= 3]
+    if frequent or consolidation_tools:
+        if frequent:
+            print(f"{BOLD}Recurring themes (3+):{RESET}")
+            for word, count in frequent:
+                print(f"  {word}: {count}")
+            print()
+        print(f"{BOLD}Action required:{RESET}")
+        if consolidation_tools:
+            for tool in consolidation_tools:
+                print(f"  {BOLD}SKILLS create {tool}-patterns{RESET}")
+                print(f"    {DIM}Consolidate {tool_counts[tool]} lessons about {tool}{RESET}")
+        if frequent:
+            theme = frequent[0][0]
+            print(f"  {BOLD}SKILLS create {theme}-guide{RESET}")
+            print(f"    {DIM}Consolidate lessons about '{theme}'{RESET}")
+        print()
+        print(f"{DIM}Review: TOOL --search lessons \"<theme>\" then create skill.{RESET}")
+        print(f"{DIM}If the skill describes a mechanical process, build it as infrastructure:{RESET}")
+        print(f"{DIM}  TOOL --dev create <NAME> (for new tools){RESET}")
+        print(f"{DIM}  logic/<module>/ + interface/main.py (for shared functions){RESET}")
+    else:
+        print(f"{DIM}No recurring themes yet. Keep recording lessons.{RESET}")
+
+
+def cmd_reflect(tool_name: str = None):
+    """Show self-check protocol and current system gaps from for_agent_reflection.md.
+
+    This is the agent's proactive self-improvement command. Call it after completing
+    tasks to evaluate behavior and identify ecosystem gaps to fix.
+
+    Args:
+        tool_name: Optional tool name to also show tool-level reflection.
+    """
+    reflection_file = Path(ROOT) / "for_agent_reflection.md"
+    if not reflection_file.exists():
+        print(f"{BOLD}{RED}Not found.{RESET} {DIM}for_agent_reflection.md{RESET}")
+        return
+
+    content = reflection_file.read_text(encoding="utf-8")
+
+    # Extract Self-Check Protocol
+    if "## Self-Check Protocol" in content:
+        start = content.index("## Self-Check Protocol")
+        rest = content[start:]
+        end = rest.find("\n## ", 1)
+        if end < 0:
+            end = len(rest)
+        protocol = rest[:end].strip()
+        print(f"\n{BOLD}Self-Check Protocol{RESET}\n")
+        for line in protocol.split("\n")[2:]:
+            if line.startswith("**"):
+                name = line.split("**")[1] if "**" in line else line
+                print(f"  {BOLD}{name}{RESET}")
+            elif line.startswith("- "):
+                print(f"    {DIM}{line[2:]}{RESET}")
+        print()
+
+    # Active reminders (on-demand rules, matching what system prompts provide)
+    print(f"{BOLD}Active Reminders{RESET}")
+    reminders = [
+        "Minimal emphasis: bold status labels only, no emojis",
+        "Search TOOL --search all before creating anything new",
+        "Use absolute paths in tool call arguments",
+        "Fix bugs at source; debug via tmp/ scripts",
+        "After structural changes: update README.md + for_agent.md",
+        "After each task: BRAIN log, BRAIN reflect, USERINPUT --hint",
+    ]
+    for r in reminders:
+        print(f"  {DIM}{r}{RESET}")
+    print()
+
+    # Check for creation opportunities (lesson clusters)
+    import json as _json_r
+    from collections import Counter as _Counter_r
+    lessons_file = Path(ROOT) / "runtime" / "experience" / "lessons.jsonl"
+    if lessons_file.exists():
+        tool_counts = _Counter_r()
+        for line in lessons_file.read_text(encoding="utf-8").strip().split("\n"):
+            if not line.strip():
+                continue
+            try:
+                obj = _json_r.loads(line)
+                tool = obj.get("tool", "general")
+                if tool:
+                    tool_counts[tool] += 1
+            except Exception:
+                continue
+        clusters = [(t, c) for t, c in tool_counts.most_common(5) if c >= 3]
+        if clusters:
+            print(f"{BOLD}Creation Opportunities{RESET}")
+            for tool, count in clusters:
+                print(f"  {DIM}{count} lessons on {tool} — run:{RESET} {BOLD}SKILLS create {tool}-patterns{RESET}")
+            print(f"  {DIM}Or build infrastructure: TOOL --dev create <NAME>{RESET}")
+            print()
+
+    # Extract Current System Gaps
+    if "## Current System Gaps" in content:
+        start = content.index("## Current System Gaps")
+        rest = content[start:]
+        end = rest.find("\n## ", 1)
+        if end < 0:
+            end = len(rest)
+        gaps_section = rest[:end].strip()
+        gap_lines = []
+        for line in gaps_section.split("\n"):
+            if line.startswith("**Gap:"):
+                cleaned = line.lstrip("*").strip()
+                if cleaned.startswith("Gap:"):
+                    cleaned = cleaned[4:].strip()
+                dash = cleaned.find("—")
+                if dash > 0:
+                    name = cleaned[:dash].strip().rstrip("*")
+                    desc = cleaned[dash + 1:].strip().rstrip("*")
+                    gap_lines.append((name, desc))
+        if gap_lines:
+            print(f"{BOLD}Current System Gaps ({len(gap_lines)}){RESET}")
+            for name, desc in gap_lines:
+                print(f"  {BOLD}{name}{RESET}")
+                print(f"    {DIM}{desc[:100]}{RESET}")
+            print()
+            print(f"{DIM}Fix at least one gap, then update for_agent_reflection.md, then USERINPUT --hint.{RESET}")
+        else:
+            print(f"{BOLD}{GREEN}No system gaps!{RESET}")
+    # Tool-level reflection (when --tool is specified)
+    if tool_name:
+        tool_reflection = Path(ROOT) / "tool" / tool_name / "for_agent_reflection.md"
+        if tool_reflection.exists():
+            tool_content = tool_reflection.read_text(encoding="utf-8")
+            print(f"{BOLD}Tool Reflection: {tool_name}{RESET}")
+            if "## Known Gaps" in tool_content:
+                start = tool_content.index("## Known Gaps")
+                rest = tool_content[start:]
+                end = rest.find("\n## ", 1)
+                if end < 0:
+                    end = len(rest)
+                gaps = rest[:end].strip()
+                for line in gaps.split("\n")[2:]:
+                    if line.strip():
+                        print(f"  {DIM}{line.strip()}{RESET}")
+            elif "## Observations" in tool_content:
+                start = tool_content.index("## Observations")
+                rest = tool_content[start:]
+                end = rest.find("\n## ", 1)
+                if end < 0:
+                    end = len(rest)
+                obs = rest[:end].strip()
+                for line in obs.split("\n")[2:]:
+                    if line.strip():
+                        print(f"  {DIM}{line.strip()}{RESET}")
+            else:
+                print(f"  {DIM}No gaps or observations recorded yet.{RESET}")
+            print(f"  {DIM}Edit: tool/{tool_name}/for_agent_reflection.md{RESET}")
+            print()
+        else:
+            print(f"{BOLD}Tool Reflection: {tool_name}{RESET}")
+            print(f"  {DIM}No for_agent_reflection.md yet. Create one:{RESET}")
+            print(f"  {DIM}Copy template from logic/tool/template/docs/for_agent_reflection.md.tmpl{RESET}")
+            print()
+
+    print(f"{DIM}Next: USERINPUT --hint (report results to user){RESET}")
+    print()
+
+
+def main():
+    args = sys.argv[1:]
+    if not args or args[0] in ("-h", "--help", "help"):
+        print(__doc__)
+        return
+
+    cmd = args[0]
+
+    if cmd == "list":
+        cmd_list()
+    elif cmd == "add" and len(args) >= 2:
+        cmd_add(" ".join(args[1:]))
+    elif cmd == "done" and len(args) >= 2:
+        cmd_done(int(args[1]))
+    elif cmd == "progress" and len(args) >= 2:
+        cmd_progress(int(args[1]))
+    elif cmd == "verify" and len(args) >= 2:
+        cmd_verify(int(args[1]))
+    elif cmd == "delete" and len(args) >= 2:
+        cmd_delete(int(args[1]))
+    elif cmd == "clear-done":
+        cmd_clear_done()
+    elif cmd == "clear-all":
+        cmd_clear_all()
+    elif cmd == "note" and len(args) >= 3:
+        cmd_note(int(args[1]), " ".join(args[2:]))
+    elif cmd == "migrate":
+        cmd_migrate()
+    elif cmd == "status":
+        cmd_status()
+    elif cmd == "snapshot" and len(args) >= 2:
+        cmd_snapshot(" ".join(args[1:]))
+    elif cmd == "recall" and len(args) >= 2:
+        cmd_recall(" ".join(args[1:]))
+    elif cmd == "log" and len(args) >= 2:
+        log_args = args[1:]
+        files_list = None
+        task_ref = None
+        entry_parts = []
+        i = 0
+        while i < len(log_args):
+            if log_args[i] == "--files" and i + 1 < len(log_args):
+                files_list = [f.strip() for f in log_args[i + 1].split(",")]
+                i += 2
+            elif log_args[i] == "--task" and i + 1 < len(log_args):
+                task_ref = log_args[i + 1]
+                i += 2
+            else:
+                entry_parts.append(log_args[i])
+                i += 1
+        cmd_log(" ".join(entry_parts), files=files_list, task=task_ref)
+    elif cmd == "digest":
+        cmd_digest()
+    elif cmd == "reflect":
+        reflect_args = args[1:]
+        tool_arg = None
+        i = 0
+        while i < len(reflect_args):
+            if reflect_args[i] == "--tool" and i + 1 < len(reflect_args):
+                tool_arg = reflect_args[i + 1]
+                i += 2
+            else:
+                i += 1
+        cmd_reflect(tool_name=tool_arg)
+    else:
+        import difflib
+        known = ["list", "add", "done", "progress", "verify", "delete",
+                 "clear-done", "clear-all", "note", "migrate", "status",
+                 "snapshot", "recall", "log", "digest", "reflect"]
+        matches = difflib.get_close_matches(cmd, known, n=2, cutoff=0.5)
+        print(f"{BOLD}{RED}Unknown command{RESET}: {cmd}", file=sys.stderr)
+        if matches:
+            print(f"  Did you mean: {', '.join(matches)}?", file=sys.stderr)
+        print(__doc__)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

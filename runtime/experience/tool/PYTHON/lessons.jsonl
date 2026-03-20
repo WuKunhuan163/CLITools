@@ -1,0 +1,1 @@
+{"timestamp": "2026-03-11T12:43:03.237034", "lesson": "在异常处理中使用 sys.exit() 时必须传入退出码参数。sys.exit() 无参数会使用当前线程的退出码，导致错误码不可预测。应始终使用 sys.exit(code) 明确指定退出码。", "severity": "critical", "tool": "PYTHON"}

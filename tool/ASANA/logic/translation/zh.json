@@ -1,0 +1,10 @@
+{
+  "tool_description": "通过 Chrome DevTools Protocol 管理 Asana",
+  "cmd_me": "显示用户信息",
+  "cmd_workspaces": "列出工作空间",
+  "cmd_projects": "列出项目",
+  "cmd_tasks": "列出任务",
+  "cmd_create_task": "创建任务",
+  "cmd_create_project": "创建项目",
+  "no_tab": "未找到 Asana 标签页"
+}

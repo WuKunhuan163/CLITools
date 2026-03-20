@@ -1,0 +1,13 @@
+{
+  "name": "MIRO",
+  "version": "1.0.0",
+  "description": "Miro collaborative whiteboard via CDMCP",
+  "purpose": "Access Miro boards, sticky notes, diagrams, and collaborative features via the authenticated miro.com session.",
+  "dependencies": [
+    "PYTHON",
+    "GOOGLE.CDMCP"
+  ],
+  "pip_dependencies": [
+    "websocket-client"
+  ]
+}

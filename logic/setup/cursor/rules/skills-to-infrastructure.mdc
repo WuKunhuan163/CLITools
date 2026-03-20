@@ -1,0 +1,117 @@
+---
+description: Encourages converting descriptive skills into automated infrastructure, tools, and functions.
+globs:
+  - "skills/**/*.md"
+  - "logic/**/*.py"
+  - "tool/SKILLS/**/*.py"
+alwaysApply: true
+---
+
+# Skills → Infrastructure Evolution
+
+## Principle
+
+Skills are documentation-first guides. As the project matures, descriptive patterns
+in skills should become **automated functions, CLI commands, or validation hooks**
+so that agents can call them programmatically rather than reading prose.
+
+## When to Convert
+
+A skill is ripe for infrastructure conversion when:
+1. It describes a **repeatable, mechanical process** (e.g. "check for unused imports")
+2. Multiple agents or tools follow the **same steps** each time
+3. The skill's checklist can be expressed as a **function with inputs/outputs**
+4. The pattern has been validated through **at least 3 real uses**
+
+## Conversion Checklist
+
+1. **Identify the automation target**: What specific action does the skill describe?
+2. **Create/extend a function** in `logic/` (shared) or `tool/<NAME>/logic/` (tool-specific)
+3. **Expose via interface** if cross-tool usage is expected
+4. **Add CLI entry point** in `main.py` or tool's `main.py`
+5. **Update the skill** to reference the new function/command
+6. **Keep the skill** as design rationale — remove only the step-by-step recipe
+
+## Current Conversion Status
+
+### Fully Automated (skill = documentation for the tool)
+
+| Skill | Infrastructure |
+|-------|---------------|
+| `code-quality-review` | `TOOL --audit code`, `logic/audit/code_quality.py` |
+| `localization` | `TOOL --lang audit`, `logic/lang/audit.py` |
+| `unit-test-conventions` | `TOOL --dev audit-test`, `logic/dev/commands.py` |
+| `tool-development-workflow` | `TOOL --dev create`, `logic/dev/commands.py` |
+
+### Partially Automated (infrastructure exists, skill adds context)
+
+| Skill | Infrastructure | Gap |
+|-------|---------------|-----|
+| `turing-machine-development` | `logic/turing/status.py`, `ProgressTuringMachine` | Status formatters automated; stage design still manual |
+| `error-recovery-patterns` | `logic/utils/progress.py:retry()` | Retry decorator exists; skill adds fallback/partial-failure guidance |
+| `record-cache` | `logic/audit/utils.py` AuditManager | Cache manager works; retention policy manual |
+| `session-debug-log` | `tool.log()`, SessionLogger | Logging automated; debug-file creation still manual |
+| `retention-rotation` | `logic/utils/cleanup.py:cleanup_old_files()` | Core function exists; skill adds architectural rationale |
+| `preflight-checks` | `logic/utils/preflight.py:preflight()` | Core function + helpers exist; skill adds risk assessment matrix |
+
+### Candidates for Conversion
+
+| Skill | Proposed Infrastructure |
+|-------|----------------------|
+| `directory-audit-strategy` | `TOOL --audit structure` command |
+| `naming-conventions` | Naming convention linter/validator |
+
+### Pure Guidance (keep as skills)
+
+| Skill | Reason |
+|-------|--------|
+| `avoid-duplicate-implementations` | Behavioral — cannot be automated |
+| `exploratory-testing` | Process methodology for unknowns |
+| `task-orchestration` | High-level planning guidance |
+| `skill-creation-guide` | Meta-documentation |
+| `cdmcp-web-exploration` | Exploration methodology |
+| `mcp-development` | Architectural guide |
+| `setup-tutorial-creation` | GUI development guide |
+| `standard-command-development` | Three-layer architecture guide |
+| `development-report` | Writing convention |
+| `tool-interface` | Cross-tool API design guide |
+| `naming-conventions` | Style reference (candidate for linter) |
+| `recipes` | Workflow examples — reference only |
+| `openclaw` | Self-improvement loop guidance |
+| `skills-index` | Index/catalog — reference only |
+
+### AI-IDE Skills (Cursor-specific)
+
+| Skill | Generalizable? | Status |
+|-------|---------------|--------|
+| `create-rule` | Partially — `TOOL --rule create` exists | Keep as Cursor guide |
+| `create-skill` | Yes — `SKILLS` tool handles creation | Skill references SKILLS tool |
+| `create-subagent` | No — Cursor-specific Task tool | Keep as Cursor guide |
+| `migrate-to-skills` | No — Cursor .mdc format specific | Keep as Cursor guide |
+| `update-cursor-settings` | Partially — concept generic, path Cursor-specific | Keep as Cursor guide |
+
+## Agent Guidance
+
+When developing, periodically ask:
+- "Am I following a skill's steps manually that could be a function call?"
+- "Am I writing the same boilerplate pattern for the 3rd+ time?"
+- "Could `TOOL --audit code` or `TOOL --lang audit` catch this automatically?"
+
+If yes, create the infrastructure first, then use it.
+
+## Infrastructure Locations
+
+Tools should import via `interface/` (facade layer), not directly from `logic/`:
+
+| Purpose | Interface Import | Internal Location |
+|---------|-----------------|-------------------|
+| Code quality | `from interface.audit import run_full_audit` | `logic/audit/code_quality.py` |
+| Status formatting | `from interface.status import fmt_status, fmt_warning` | `logic/turing/status.py` |
+| Retry/backoff | `from interface.utils import retry` | `logic/utils/progress.py` |
+| Preflight checks | `from interface.utils import preflight` | `logic/utils/preflight.py` |
+| File cleanup | `from interface.utils import cleanup_old_files` | `logic/utils/cleanup.py` |
+| Fuzzy suggestions | `from interface.utils import suggest_commands` | `logic/utils/fuzzy.py` |
+| Logging | `from interface.utils import SessionLogger` | `logic/utils/logging.py` |
+| Task management | `from tool.TODO.interface.main import todo_add` | `tool/TODO/logic/store.py` |
+| Import auditing | `TOOL --audit imports` | `logic/lang/audit_imports.py` |
+| Caching | `logic/audit/utils.py` AuditManager | Internal only |

@@ -1,0 +1,15 @@
+{
+  "vendor": "siliconflow",
+  "name": "SiliconFlow",
+  "url": "https://cloud.siliconflow.com/",
+  "docs_url": "https://docs.siliconflow.cn/quickstart",
+  "key_portal_url": "https://cloud.siliconflow.com/me/account/ak",
+  "steps": [
+    "Visit <a href=\"https://cloud.siliconflow.com/\" target=\"_blank\">SiliconFlow Cloud</a> and register (supports email, SMS, GitHub, Google)",
+    "Go to <a href=\"https://cloud.siliconflow.com/me/account/ak\" target=\"_blank\">Account &gt; API Keys</a>",
+    "Click \"Create API Key\" and copy it (format: <code>sk-...</code>)",
+    "Paste it above and click \"Validate & Save\"",
+    "<em>Note: Keys from <code>cloud.siliconflow.com</code> use the <code>api.siliconflow.com</code> endpoint. Keys from <code>cloud.siliconflow.cn</code> use <code>api.siliconflow.cn</code>.</em>"
+  ],
+  "notes": "Free tier: select open-source models (3 RPS, 100 RPM). Qwen 2.5 7B is free."
+}
