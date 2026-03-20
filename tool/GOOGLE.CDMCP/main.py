@@ -1108,7 +1108,7 @@ def _play_alert_bell():
     """Play bell.mp3 to alert the user (non-blocking). Falls back to system sound."""
     import subprocess, sys as _sys
     from pathlib import Path as _Path
-    bell_mp3 = _Path(__file__).resolve().parent.parent.parent / "logic" / "asset" / "audio" / "bell.mp3"
+    bell_mp3 = _Path(__file__).resolve().parent.parent.parent / "logic" / "_" / "utils" / "asset" / "audio" / "bell.mp3"
     if bell_mp3.exists():
         subprocess.Popen(["afplay", str(bell_mp3)],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

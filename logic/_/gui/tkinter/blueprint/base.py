@@ -72,7 +72,7 @@ class BaseGUIWindow:
         
         # Shared behavior state
         self.focus_interval = focus_interval
-        self.bell_path = str(Path(__file__).resolve().parent.parent.parent.parent.parent / "asset" / "audio" / "bell.mp3")
+        self.bell_path = str(Path(__file__).resolve().parent.parent.parent.parent.parent / "logic" / "_" / "utils" / "asset" / "audio" / "bell.mp3")
         self.is_triggering_subtool = False
         self.add_time_increment = 60 # Default
         self.submit_btn = None # To be linked in setup_common_bottom_bar

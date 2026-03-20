@@ -408,7 +408,7 @@ def run_file_fallback(tool_instance, initial_content: str, timeout: int) -> Opti
     print(full_msg, flush=True)
     
     # 4. Polling loop
-    tool_instance.project_root / "logic" / "asset" / "audio" / "bell.mp3"
+    tool_instance.project_root / "logic" / "_" / "utils" / "asset" / "audio" / "bell.mp3"
     
     # Try to get focus interval from config
     fi = 90
