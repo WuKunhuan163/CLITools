@@ -21,7 +21,7 @@ def _cdp_enabled():
 
 
 def _tab_exists():
-    from tool.GMAIL.logic.chrome.api import find_gmail_tab
+    from tool.GMAIL.logic.utils.chrome.api import find_gmail_tab
     return find_gmail_tab() is not None
 
 
@@ -36,13 +36,13 @@ SKIP_TAB = "No Gmail tab found"
 @unittest.skipUnless(_TAB_OK, SKIP_TAB)
 class TestGmailAuthState(unittest.TestCase):
     def test_get_auth_state(self):
-        from tool.GMAIL.logic.chrome.api import get_auth_state
+        from tool.GMAIL.logic.utils.chrome.api import get_auth_state
         r = get_auth_state()
         self.assertIn("authenticated", r)
         self.assertTrue(r.get("ok"))
 
     def test_email_detected(self):
-        from tool.GMAIL.logic.chrome.api import get_auth_state
+        from tool.GMAIL.logic.utils.chrome.api import get_auth_state
         r = get_auth_state()
         if r.get("authenticated"):
             self.assertIsNotNone(r.get("email"))
@@ -52,7 +52,7 @@ class TestGmailAuthState(unittest.TestCase):
 @unittest.skipUnless(_TAB_OK, SKIP_TAB)
 class TestGmailPageInfo(unittest.TestCase):
     def test_get_page_info(self):
-        from tool.GMAIL.logic.chrome.api import get_page_info
+        from tool.GMAIL.logic.utils.chrome.api import get_page_info
         r = get_page_info()
         self.assertTrue(r.get("ok"), f"get_page_info failed: {r}")
         self.assertIn("mail.google.com", r.get("url", ""))
@@ -62,7 +62,7 @@ class TestGmailPageInfo(unittest.TestCase):
 @unittest.skipUnless(_TAB_OK, SKIP_TAB)
 class TestGmailInbox(unittest.TestCase):
     def test_get_inbox(self):
-        from tool.GMAIL.logic.chrome.api import get_inbox
+        from tool.GMAIL.logic.utils.chrome.api import get_inbox
         r = get_inbox(limit=5)
         self.assertTrue(r.get("ok"), f"get_inbox failed: {r}")
         self.assertIsInstance(r.get("emails"), list)

@@ -41,7 +41,7 @@ def main():
     RED = get_color("RED")
     RESET = get_color("RESET")
 
-    from tool.ATLASSIAN.logic.chrome.api import (
+    from tool.ATLASSIAN.logic.utils.chrome.api import (
         get_me, get_notifications, get_user_preferences,
     )
 

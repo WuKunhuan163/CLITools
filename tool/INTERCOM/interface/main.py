@@ -8,7 +8,7 @@ Exposes Intercom functions for other tools::
         get_page_info,
     )
 """
-from tool.INTERCOM.logic.chrome.api import (  # noqa: F401
+from tool.INTERCOM.logic.utils.chrome.api import (  # noqa: F401
     find_intercom_tab,
     get_auth_state,
     get_page_info,

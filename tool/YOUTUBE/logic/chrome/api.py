@@ -30,7 +30,7 @@ from interface.chrome import (
     capture_screenshot,
 )
 
-from tool.YOUTUBE.logic.chrome.state_machine import (
+from tool.YOUTUBE.logic.utils.chrome.state_machine import (
     YTState, TranscriptState, get_machine,
 )
 

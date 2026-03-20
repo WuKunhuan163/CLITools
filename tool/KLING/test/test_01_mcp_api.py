@@ -21,7 +21,7 @@ def _cdp_enabled():
 
 
 def _tab_exists():
-    from tool.KLING.logic.chrome.api import find_kling_tab
+    from tool.KLING.logic.utils.chrome.api import find_kling_tab
     return find_kling_tab() is not None
 
 
@@ -38,7 +38,7 @@ class TestKlingUserInfo(unittest.TestCase):
 
     def test_get_user_info(self):
         """get_user_info returns userId, userName, email from localStorage."""
-        from tool.KLING.logic.chrome.api import get_user_info
+        from tool.KLING.logic.utils.chrome.api import get_user_info
         r = get_user_info()
         self.assertTrue(r.get("ok"), f"get_user_info failed: {r}")
         d = r.get("data", {})
@@ -52,7 +52,7 @@ class TestKlingPoints(unittest.TestCase):
 
     def test_get_points(self):
         """get_points returns a points value from DOM."""
-        from tool.KLING.logic.chrome.api import get_points
+        from tool.KLING.logic.utils.chrome.api import get_points
         r = get_points()
         self.assertTrue(r.get("ok"), f"get_points failed: {r}")
         self.assertIsNotNone(r.get("data", {}).get("points"))
@@ -64,7 +64,7 @@ class TestKlingPageInfo(unittest.TestCase):
 
     def test_get_page_info(self):
         """get_page_info returns title and URL."""
-        from tool.KLING.logic.chrome.api import get_page_info
+        from tool.KLING.logic.utils.chrome.api import get_page_info
         r = get_page_info()
         self.assertTrue(r.get("ok"), f"get_page_info failed: {r}")
         self.assertIn("url", r)

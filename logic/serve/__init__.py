@@ -1,9 +1,2 @@
-"""Shared local HTTP serving utilities.
-
-Provides ``LocalHTMLServer`` for single-file dashboards and
-``find_free_port`` for port discovery.  Used by LLM dashboard,
-OPENCLAW GUIs, and CDMCP blueprint servers.
-"""
-from logic.serve.html_server import LocalHTMLServer, find_free_port, list_running_servers
-
-__all__ = ["LocalHTMLServer", "find_free_port", "list_running_servers"]
+"""Backward compatibility shim — moved to logic/gui/serve."""
+from logic.gui.serve import *  # noqa: F401,F403

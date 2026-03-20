@@ -107,7 +107,7 @@ def main():
     Y = get_color("YELLOW")
     E = get_color("RESET")
 
-    from tool.LUCIDCHART.logic.chrome import api
+    from tool.LUCIDCHART.logic.utils.chrome import api
 
     if args.command == "boot":
         r = api.boot_session()

@@ -130,7 +130,7 @@ def open_settings_gui(parent: Optional[tk.Tk] = None):
 
     Uses macOS-style capture: click a field, press a key combo to assign it.
     """
-    from logic.accessibility.keyboard.monitor import is_available, check_accessibility_trusted
+    from logic.utils.accessibility.keyboard.monitor import is_available, check_accessibility_trusted
 
     standalone = parent is None
     if standalone:

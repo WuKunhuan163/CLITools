@@ -20,12 +20,12 @@ except Exception:
 @pytest.mark.skipif(not CDP_AVAILABLE, reason="Chrome CDP not available")
 class TestNodeOperations:
     def _node_texts(self):
-        from tool.XMIND.logic.chrome.api import get_map_nodes
+        from tool.XMIND.logic.utils.chrome.api import get_map_nodes
         r = get_map_nodes()
         return [n["text"] for n in r.get("nodes", [])]
 
     def test_add_and_delete_node(self):
-        from tool.XMIND.logic.chrome.api import add_node, delete_node
+        from tool.XMIND.logic.utils.chrome.api import add_node, delete_node
         r = add_node(parent_text="Central Topic", text="UnitTestNode")
         assert r.get("ok"), f"add_node failed: {r}"
         time.sleep(1)
@@ -39,7 +39,7 @@ class TestNodeOperations:
         assert "UnitTestNode" not in nodes, f"Node still present in {nodes}"
 
     def test_edit_node(self):
-        from tool.XMIND.logic.chrome.api import add_node, edit_node, delete_node
+        from tool.XMIND.logic.utils.chrome.api import add_node, edit_node, delete_node
         add_node(parent_text="Central Topic", text="EditMe")
         time.sleep(1)
 
@@ -53,7 +53,7 @@ class TestNodeOperations:
         time.sleep(1)
 
     def test_undo_redo(self):
-        from tool.XMIND.logic.chrome.api import add_node, undo, redo, delete_node
+        from tool.XMIND.logic.utils.chrome.api import add_node, undo, redo, delete_node
         add_node(parent_text="Central Topic", text="UndoTest")
         time.sleep(1)
 

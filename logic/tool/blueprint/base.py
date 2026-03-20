@@ -457,7 +457,7 @@ class ToolBase:
             print(f"  {BOLD}--force{RESET}     Re-download existing files")
             return
 
-        from logic.asset.migrate import migrate_logos, migrate_filetypes, migrate_all
+        from logic.utils.asset.migrate import migrate_logos, migrate_filetypes, migrate_all
 
         synced = 0
         if target == "logos":

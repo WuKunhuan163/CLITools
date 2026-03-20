@@ -21,7 +21,7 @@ def _cdp_enabled():
 
 
 def _tab_exists():
-    from tool.INTERCOM.logic.chrome.api import find_intercom_tab
+    from tool.INTERCOM.logic.utils.chrome.api import find_intercom_tab
     return find_intercom_tab() is not None
 
 
@@ -38,7 +38,7 @@ class TestIntercomAuthState(unittest.TestCase):
 
     def test_get_auth_state(self):
         """get_auth_state returns authentication info."""
-        from tool.INTERCOM.logic.chrome.api import get_auth_state
+        from tool.INTERCOM.logic.utils.chrome.api import get_auth_state
         r = get_auth_state()
         self.assertIn("authenticated", r)
         self.assertIn("pageTitle", r)
@@ -50,7 +50,7 @@ class TestIntercomPageInfo(unittest.TestCase):
 
     def test_get_page_info(self):
         """get_page_info returns title and URL."""
-        from tool.INTERCOM.logic.chrome.api import get_page_info
+        from tool.INTERCOM.logic.utils.chrome.api import get_page_info
         r = get_page_info()
         self.assertTrue(r.get("ok"), f"get_page_info failed: {r}")
         self.assertIn("url", r)

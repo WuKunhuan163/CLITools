@@ -194,7 +194,7 @@ def main():
     get_color("BLUE")
     E = get_color("RESET")
 
-    from tool.BILIBILI.logic.chrome import api
+    from tool.BILIBILI.logic.utils.chrome import api
 
     if args.command == "boot":
         r = api.boot_session()

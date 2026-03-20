@@ -155,7 +155,7 @@ def main():
     # ------------------------------------------------------------------
 
     elif args.command == "status":
-        from tool.GMAIL.logic.chrome.api import get_auth_state
+        from tool.GMAIL.logic.utils.chrome.api import get_auth_state
         r = get_auth_state()
         creds = r.get("credentials_configured", False)
         auth = r.get("authenticated", False)
@@ -171,7 +171,7 @@ def main():
             print(f"\n  Run {BOLD}GMAIL auth{RESET} to authorize.")
 
     elif args.command == "page":
-        from tool.GMAIL.logic.chrome.api import get_page_info
+        from tool.GMAIL.logic.utils.chrome.api import get_page_info
         r = get_page_info()
         if r.get("ok"):
             print(f"  Title:   {r.get('title', '?')}")
@@ -185,7 +185,7 @@ def main():
     # ------------------------------------------------------------------
 
     elif args.command == "inbox":
-        from tool.GMAIL.logic.chrome.api import get_inbox
+        from tool.GMAIL.logic.utils.chrome.api import get_inbox
         r = get_inbox(limit=args.limit)
         if r.get("ok"):
             emails = r.get("emails", [])
@@ -202,7 +202,7 @@ def main():
             print(f"  {RED}Error:{RESET} {r.get('error', 'Requires authentication')}")
 
     elif args.command == "labels":
-        from tool.GMAIL.logic.chrome.api import get_labels
+        from tool.GMAIL.logic.utils.chrome.api import get_labels
         r = get_labels()
         if r.get("ok"):
             labels = r.get("labels", [])
@@ -215,7 +215,7 @@ def main():
             print(f"  {RED}Error:{RESET} {r.get('error', 'Unknown')}")
 
     elif args.command == "search":
-        from tool.GMAIL.logic.chrome.api import search_emails
+        from tool.GMAIL.logic.utils.chrome.api import search_emails
         r = search_emails(args.query, limit=args.limit)
         if r.get("ok"):
             emails = r.get("emails", [])
@@ -232,7 +232,7 @@ def main():
             print(f"  {RED}Error:{RESET} {r.get('error', 'Unknown')}")
 
     elif args.command == "read":
-        from tool.GMAIL.logic.chrome.api import get_message_body
+        from tool.GMAIL.logic.utils.chrome.api import get_message_body
         r = get_message_body(args.msg_id)
         if r.get("ok"):
             print(f"  {BOLD}From:{RESET}    {r.get('from', '?')}")
@@ -244,7 +244,7 @@ def main():
             print(f"  {RED}Error:{RESET} {r.get('error', 'Unknown')}")
 
     elif args.command == "message":
-        from tool.GMAIL.logic.chrome.api import get_message
+        from tool.GMAIL.logic.utils.chrome.api import get_message
         r = get_message(args.msg_id)
         if r.get("ok"):
             from tool.GMAIL.logic.gmail_api import _extract_header
@@ -264,7 +264,7 @@ def main():
     # ------------------------------------------------------------------
 
     elif args.command == "send":
-        from tool.GMAIL.logic.chrome.api import send_email
+        from tool.GMAIL.logic.utils.chrome.api import send_email
         r = send_email(args.to, subject=args.subject, body=args.body,
                        cc=args.cc, bcc=args.bcc)
         if r.get("ok") and r.get("sent"):
@@ -275,7 +275,7 @@ def main():
             print(f"  {RED}Error:{RESET} {r.get('error', 'Send failed')}")
 
     elif args.command == "trash":
-        from tool.GMAIL.logic.chrome.api import delete_email
+        from tool.GMAIL.logic.utils.chrome.api import delete_email
         r = delete_email(args.msg_id)
         if r.get("ok") and r.get("deleted"):
             print(f"  {GREEN}Moved to Trash{RESET}: {args.msg_id}")
@@ -283,7 +283,7 @@ def main():
             print(f"  {RED}Error:{RESET} {r.get('error', 'Unknown')}")
 
     elif args.command == "mark-read":
-        from tool.GMAIL.logic.chrome.api import mark_read
+        from tool.GMAIL.logic.utils.chrome.api import mark_read
         r = mark_read(args.msg_id)
         if r.get("ok"):
             print(f"  {GREEN}Marked as read{RESET}: {args.msg_id}")
@@ -291,7 +291,7 @@ def main():
             print(f"  {RED}Error:{RESET} {r.get('error', 'Unknown')}")
 
     elif args.command == "mark-unread":
-        from tool.GMAIL.logic.chrome.api import mark_unread
+        from tool.GMAIL.logic.utils.chrome.api import mark_unread
         r = mark_unread(args.msg_id)
         if r.get("ok"):
             print(f"  {GREEN}Marked as unread{RESET}: {args.msg_id}")
@@ -299,7 +299,7 @@ def main():
             print(f"  {RED}Error:{RESET} {r.get('error', 'Unknown')}")
 
     elif args.command == "star":
-        from tool.GMAIL.logic.chrome.api import star
+        from tool.GMAIL.logic.utils.chrome.api import star
         r = star(args.msg_id)
         if r.get("ok"):
             print(f"  {GREEN}Starred{RESET}: {args.msg_id}")
@@ -307,7 +307,7 @@ def main():
             print(f"  {RED}Error:{RESET} {r.get('error', 'Unknown')}")
 
     elif args.command == "unstar":
-        from tool.GMAIL.logic.chrome.api import unstar
+        from tool.GMAIL.logic.utils.chrome.api import unstar
         r = unstar(args.msg_id)
         if r.get("ok"):
             print(f"  {GREEN}Unstarred{RESET}: {args.msg_id}")

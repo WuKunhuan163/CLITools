@@ -21,7 +21,7 @@ def _cdp_enabled():
 
 
 def _asana_tab_exists():
-    from tool.ASANA.logic.chrome.api import find_asana_tab
+    from tool.ASANA.logic.utils.chrome.api import find_asana_tab
     return find_asana_tab() is not None
 
 
@@ -38,7 +38,7 @@ class TestAsanaMe(unittest.TestCase):
 
     def test_get_me(self):
         """get_me returns user name, email, and workspaces."""
-        from tool.ASANA.logic.chrome.api import get_me
+        from tool.ASANA.logic.utils.chrome.api import get_me
         r = get_me()
         data = r.get("data", {})
         self.assertTrue(data, f"get_me failed: {r}")
@@ -53,7 +53,7 @@ class TestAsanaWorkspaces(unittest.TestCase):
 
     def test_list_workspaces(self):
         """list_workspaces returns a data list."""
-        from tool.ASANA.logic.chrome.api import list_workspaces
+        from tool.ASANA.logic.utils.chrome.api import list_workspaces
         r = list_workspaces()
         ws = r.get("data", [])
         self.assertIsInstance(ws, list)
@@ -68,7 +68,7 @@ class TestAsanaProjects(unittest.TestCase):
 
     def test_list_projects(self):
         """list_projects returns a data list (may be empty)."""
-        from tool.ASANA.logic.chrome.api import list_workspaces, list_projects
+        from tool.ASANA.logic.utils.chrome.api import list_workspaces, list_projects
         ws = list_workspaces().get("data", [])
         if not ws:
             self.skipTest("No workspaces available")
@@ -82,7 +82,7 @@ class TestAsanaTasks(unittest.TestCase):
 
     def test_list_tasks(self):
         """list_tasks returns a data list (may be empty)."""
-        from tool.ASANA.logic.chrome.api import list_workspaces, list_tasks
+        from tool.ASANA.logic.utils.chrome.api import list_workspaces, list_tasks
         ws = list_workspaces().get("data", [])
         if not ws:
             self.skipTest("No workspaces available")

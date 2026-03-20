@@ -8,7 +8,7 @@ Exposes Atlassian functions for other tools to import::
         get_notifications,
     )
 """
-from tool.ATLASSIAN.logic.chrome.api import (  # noqa: F401
+from tool.ATLASSIAN.logic.utils.chrome.api import (  # noqa: F401
     find_atlassian_tab,
     get_me,
     get_notifications,

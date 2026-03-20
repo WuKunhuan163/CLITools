@@ -81,7 +81,7 @@ def main():
     get_color("YELLOW")
     RESET = get_color("RESET")
 
-    from tool.CHARTCUBE.logic.chrome.api import (
+    from tool.CHARTCUBE.logic.utils.chrome.api import (
         boot_session, get_status, get_page_info, navigate_step,
         use_sample_data, click_next, select_chart_type,
         generate_chart, scan_elements, select_columns,

@@ -264,7 +264,7 @@ class GoogleTool(ToolBase):
         login_args, _ = p.parse_known_args(extra_args)
 
         if login_args.json:
-            from tool.GOOGLE.logic.mcp.login import run_mcp_login
+            from tool.GOOGLE.logic.utils.mcp.login import run_mcp_login
             return run_mcp_login(email=login_args.email, as_json=True)
 
         from interface.chrome import is_chrome_cdp_available

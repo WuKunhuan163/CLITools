@@ -25,7 +25,7 @@ from tool.YOUTUBE.logic.youtube_api import (  # noqa: F401
     extract_video_id,
 )
 
-from tool.YOUTUBE.logic.chrome.api import (  # noqa: F401
+from tool.YOUTUBE.logic.utils.chrome.api import (  # noqa: F401
     get_auth_state,
     get_page_info,
     search_videos,

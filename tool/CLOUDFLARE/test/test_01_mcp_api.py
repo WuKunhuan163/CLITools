@@ -21,7 +21,7 @@ def _cdp_enabled():
 
 
 def _cf_tab_exists():
-    from tool.CLOUDFLARE.logic.chrome.api import find_cloudflare_tab
+    from tool.CLOUDFLARE.logic.utils.chrome.api import find_cloudflare_tab
     return find_cloudflare_tab() is not None
 
 
@@ -38,7 +38,7 @@ class TestCloudflareUser(unittest.TestCase):
 
     def test_get_user(self):
         """get_user returns email and username."""
-        from tool.CLOUDFLARE.logic.chrome.api import get_user
+        from tool.CLOUDFLARE.logic.utils.chrome.api import get_user
         r = get_user()
         self.assertTrue(r.get("success"), f"get_user failed: {r}")
         self.assertIn("email", r.get("result", {}))
@@ -50,7 +50,7 @@ class TestCloudflareAccount(unittest.TestCase):
 
     def test_get_account(self):
         """get_account returns account name and ID."""
-        from tool.CLOUDFLARE.logic.chrome.api import get_account
+        from tool.CLOUDFLARE.logic.utils.chrome.api import get_account
         r = get_account()
         self.assertTrue(r.get("success"), f"get_account failed: {r}")
         self.assertIn("id", r.get("result", {}))
@@ -63,7 +63,7 @@ class TestCloudflareZones(unittest.TestCase):
 
     def test_list_zones(self):
         """list_zones returns a result list (may be empty)."""
-        from tool.CLOUDFLARE.logic.chrome.api import list_zones
+        from tool.CLOUDFLARE.logic.utils.chrome.api import list_zones
         r = list_zones(per_page=5)
         self.assertTrue(r.get("success"), f"list_zones failed: {r}")
         self.assertIsInstance(r.get("result"), list)
@@ -75,7 +75,7 @@ class TestCloudflareWorkers(unittest.TestCase):
 
     def test_list_workers(self):
         """list_workers returns a result list (may be empty)."""
-        from tool.CLOUDFLARE.logic.chrome.api import list_workers
+        from tool.CLOUDFLARE.logic.utils.chrome.api import list_workers
         r = list_workers()
         self.assertTrue(r.get("success"), f"list_workers failed: {r}")
         self.assertIsInstance(r.get("result"), list)
@@ -87,7 +87,7 @@ class TestCloudflarePages(unittest.TestCase):
 
     def test_list_pages(self):
         """list_pages_projects returns a result list (may be empty)."""
-        from tool.CLOUDFLARE.logic.chrome.api import list_pages_projects
+        from tool.CLOUDFLARE.logic.utils.chrome.api import list_pages_projects
         r = list_pages_projects()
         self.assertTrue(r.get("success"), f"list_pages failed: {r}")
         self.assertIsInstance(r.get("result"), list)

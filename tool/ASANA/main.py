@@ -65,7 +65,7 @@ def main():
     RED = get_color("RED")
     RESET = get_color("RESET")
 
-    from tool.ASANA.logic.chrome.api import (
+    from tool.ASANA.logic.utils.chrome.api import (
         get_me, list_workspaces, list_projects, list_tasks,
         create_task, create_project, complete_task, search_tasks,
     )

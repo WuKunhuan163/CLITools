@@ -24,13 +24,13 @@ def _cdp_available():
 class TestYouTubeAuth(unittest.TestCase):
     @unittest.skipUnless(_cdp_available(), "Chrome CDP not running")
     def test_auth_state(self):
-        from tool.YOUTUBE.logic.chrome.api import get_auth_state
+        from tool.YOUTUBE.logic.utils.chrome.api import get_auth_state
         r = get_auth_state()
         self.assertIn("authenticated", r)
 
     @unittest.skipUnless(_cdp_available(), "Chrome CDP not running")
     def test_page_info(self):
-        from tool.YOUTUBE.logic.chrome.api import get_page_info
+        from tool.YOUTUBE.logic.utils.chrome.api import get_page_info
         r = get_page_info()
         # May be ok=False if no YT tab open, that's fine
         self.assertIsInstance(r, dict)
@@ -39,7 +39,7 @@ class TestYouTubeAuth(unittest.TestCase):
 class TestYouTubeSubtitlesAPI(unittest.TestCase):
     def test_fetch_subtitles_known_video(self):
         """Fetch subtitles for a well-known video with captions."""
-        from tool.YOUTUBE.logic.chrome.api import fetch_subtitles_api
+        from tool.YOUTUBE.logic.utils.chrome.api import fetch_subtitles_api
         # Rick Astley - Never Gonna Give You Up (has English captions)
         r = fetch_subtitles_api("dQw4w9WgXcQ")
         if r.get("ok"):
@@ -50,7 +50,7 @@ class TestYouTubeSubtitlesAPI(unittest.TestCase):
             self.assertIn("error", r)
 
     def test_fetch_subtitles_invalid_id(self):
-        from tool.YOUTUBE.logic.chrome.api import fetch_subtitles_api
+        from tool.YOUTUBE.logic.utils.chrome.api import fetch_subtitles_api
         r = fetch_subtitles_api("INVALID_VIDEO_ID_12345")
         self.assertFalse(r.get("ok"))
 

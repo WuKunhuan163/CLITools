@@ -9,7 +9,7 @@ Exposes Asana management functions for other tools to import::
         create_task,
     )
 """
-from tool.ASANA.logic.chrome.api import (  # noqa: F401
+from tool.ASANA.logic.utils.chrome.api import (  # noqa: F401
     find_asana_tab,
     get_me,
     list_workspaces,

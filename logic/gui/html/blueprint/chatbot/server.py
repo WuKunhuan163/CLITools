@@ -174,7 +174,7 @@ def _serialize_session(s):
 def _find_free_port(start=8765, end=8800):
     """Find a free TCP port. Delegates to shared utility when available."""
     try:
-        from logic.serve import find_free_port
+        from logic.gui.serve import find_free_port
         return find_free_port(start, end)
     except ImportError:
         pass
@@ -358,7 +358,7 @@ class ChatbotServer:
         url = f"http://localhost:{self.port}/"
         opened = False
         try:
-            from logic.chrome.session import open_tab, CDP_PORT
+            from logic.utils.chrome.session import open_tab, CDP_PORT
             opened = open_tab(url, port=CDP_PORT)
         except Exception:
             pass

@@ -10,7 +10,7 @@ from logic._._ import EcoCommand
 
 class EcoNavCommand(EcoCommand):
     name = "eco"
-    usage = "TOOL --eco [search|tool|skill|map|here|guide|recall|cmds|cmd]"
+    usage = "TOOL --eco [search|tool|skill|nav|tree|map|here|guide|recall|cmds|cmd]"
 
     def handle(self, args):
         subcmd = args[0] if args else ""
@@ -28,6 +28,8 @@ class EcoNavCommand(EcoCommand):
             "tool": lambda: self._tool(rest),
             "skill": lambda: self._skill(rest),
             "skills": lambda: self._skills_list(rest),
+            "nav": lambda: self._skills_nav(rest),
+            "tree": lambda: self._skills_tree(),
             "map": self._map,
             "here": lambda: self._here(rest),
             "guide": self._guide,
@@ -58,6 +60,8 @@ class EcoNavCommand(EcoCommand):
         print(f"    --eco search <query>       Semantic search across all knowledge")
         print(f"    --eco tool <name>          Deep-dive into a specific tool")
         print(f"    --eco skill <name>         Read a development skill/pattern")
+        print(f"    --eco nav [path]           Navigate skills dictionary tree (pwd-like)")
+        print(f"    --eco tree                 Show full skills tree structure")
         print(f"    --eco map                  Ecosystem directory structure")
         print(f"    --eco here [cwd]           Context-aware help for current directory")
         print(f"\n  {self.BOLD}Remember{self.RESET}")
@@ -208,6 +212,18 @@ class EcoNavCommand(EcoCommand):
             print(f"\n  Use '{self.tool_name} --eco skill <name>' to view a skill.")
         else:
             self.info("No skills configured.")
+
+    def _skills_nav(self, rest):
+        """Delegate to SkillsCommand.nav for dictionary-tree navigation."""
+        from logic._.skills.command import SkillsCommand
+        sc = SkillsCommand(project_root=self.project_root, tool_name=self.tool_name)
+        sc._nav(" ".join(rest) if rest else "")
+
+    def _skills_tree(self):
+        """Delegate to SkillsCommand.tree for full tree display."""
+        from logic._.skills.command import SkillsCommand
+        sc = SkillsCommand(project_root=self.project_root, tool_name=self.tool_name)
+        sc._tree()
 
     def _map(self):
         from interface.eco import eco_map

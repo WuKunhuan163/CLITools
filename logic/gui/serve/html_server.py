@@ -9,7 +9,7 @@ Supports Server-Sent Events (SSE) for real-time streaming of LLM tokens
 and agent protocol events to browser clients.
 
 Usage:
-    from logic.serve.html_server import LocalHTMLServer
+    from logic.gui.serve.html_server import LocalHTMLServer
 
     server = LocalHTMLServer(
         html_path="/path/to/dashboard.html",

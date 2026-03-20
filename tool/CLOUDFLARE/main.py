@@ -48,7 +48,7 @@ def main():
     RED = get_color("RED")
     RESET = get_color("RESET")
 
-    from tool.CLOUDFLARE.logic.chrome.api import (
+    from tool.CLOUDFLARE.logic.utils.chrome.api import (
         get_user, get_account, list_zones, list_dns_records,
         list_workers, list_pages_projects, list_kv_namespaces,
     )

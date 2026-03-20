@@ -1,5 +1,5 @@
 """SHOWDOC Tool Interface -- ShowDoc via Chrome CDP."""
-from tool.SHOWDOC.logic.chrome.api import (  # noqa: F401
+from tool.SHOWDOC.logic.utils.chrome.api import (  # noqa: F401
     # Session
     boot_session,
     get_session_status,

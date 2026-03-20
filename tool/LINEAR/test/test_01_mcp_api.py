@@ -21,7 +21,7 @@ def _cdp_enabled():
 
 
 def _tab_exists():
-    from tool.LINEAR.logic.chrome.api import find_linear_tab
+    from tool.LINEAR.logic.utils.chrome.api import find_linear_tab
     return find_linear_tab() is not None
 
 
@@ -38,7 +38,7 @@ class TestLinearAuthState(unittest.TestCase):
 
     def test_get_auth_state(self):
         """get_auth_state returns authentication and org info."""
-        from tool.LINEAR.logic.chrome.api import get_auth_state
+        from tool.LINEAR.logic.utils.chrome.api import get_auth_state
         r = get_auth_state()
         self.assertTrue(r.get("ok"), f"get_auth_state failed: {r}")
         self.assertIn("authenticated", r)
@@ -51,7 +51,7 @@ class TestLinearUserInfo(unittest.TestCase):
 
     def test_get_user_info(self):
         """get_user_info returns accountId and email from localStorage."""
-        from tool.LINEAR.logic.chrome.api import get_user_info
+        from tool.LINEAR.logic.utils.chrome.api import get_user_info
         r = get_user_info()
         self.assertTrue(r.get("ok"), f"get_user_info failed: {r}")
         d = r.get("data", {})
@@ -65,7 +65,7 @@ class TestLinearPageInfo(unittest.TestCase):
 
     def test_get_page_info(self):
         """get_page_info returns title and URL."""
-        from tool.LINEAR.logic.chrome.api import get_page_info
+        from tool.LINEAR.logic.utils.chrome.api import get_page_info
         r = get_page_info()
         self.assertTrue(r.get("ok"), f"get_page_info failed: {r}")
         self.assertIn("url", r)

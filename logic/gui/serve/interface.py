@@ -7,14 +7,14 @@ Provides shared utilities for any tool that needs to serve HTML locally:
 - list_running_servers: discover all active LocalHTMLServer instances
 
 Usage:
-    from logic.serve.interface import LocalHTMLServer, find_free_port
+    from logic.gui.serve.interface import LocalHTMLServer, find_free_port
 
     server = LocalHTMLServer(html_path="dashboard.html", title="My Dashboard")
     server.start()
     server.open_browser()
 """
 
-from logic.serve.html_server import (
+from logic.gui.serve.html_server import (
     LocalHTMLServer,
     find_free_port,
     list_running_servers,

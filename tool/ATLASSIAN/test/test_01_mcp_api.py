@@ -21,7 +21,7 @@ def _cdp_enabled():
 
 
 def _atlassian_tab_exists():
-    from tool.ATLASSIAN.logic.chrome.api import find_atlassian_tab
+    from tool.ATLASSIAN.logic.utils.chrome.api import find_atlassian_tab
     return find_atlassian_tab() is not None
 
 
@@ -38,7 +38,7 @@ class TestAtlassianMe(unittest.TestCase):
 
     def test_get_me(self):
         """get_me returns user name, email, and account status."""
-        from tool.ATLASSIAN.logic.chrome.api import get_me
+        from tool.ATLASSIAN.logic.utils.chrome.api import get_me
         r = get_me()
         self.assertTrue(r.get("ok"), f"get_me failed: {r}")
         data = r.get("data", {})
@@ -54,7 +54,7 @@ class TestAtlassianNotifications(unittest.TestCase):
 
     def test_get_notifications(self):
         """get_notifications returns a data structure with hasUnread."""
-        from tool.ATLASSIAN.logic.chrome.api import get_notifications
+        from tool.ATLASSIAN.logic.utils.chrome.api import get_notifications
         r = get_notifications(max_count=5)
         self.assertTrue(r.get("ok"), f"get_notifications failed: {r}")
         data = r.get("data", {})
@@ -67,7 +67,7 @@ class TestAtlassianPreferences(unittest.TestCase):
 
     def test_get_user_preferences(self):
         """get_user_preferences returns locale and account info."""
-        from tool.ATLASSIAN.logic.chrome.api import get_user_preferences
+        from tool.ATLASSIAN.logic.utils.chrome.api import get_user_preferences
         r = get_user_preferences()
         self.assertTrue(r.get("ok"), f"get_user_preferences failed: {r}")
         data = r.get("data", {})

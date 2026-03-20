@@ -94,7 +94,12 @@ _TOOL_FLAG_HANDLERS = {
     "--eco": lambda args: _eco_cmd("eco", args),
     "--assistant": lambda args: _root_tool._handle_assistant(args),
     "--setup": lambda args: _root_tool.run_setup(),
-    "--skills": lambda args: _eco_cmd("eco", ["skill"] + args if args else ["skills"]),
+    "--skills": lambda args: (
+        _eco_cmd("eco", [args[0]] + args[1:]) if args and args[0] in ("nav", "tree")
+        else _eco_cmd("eco", ["skills"]) if args and args[0] == "list"
+        else _eco_cmd("eco", ["skill"] + args[1:]) if args and args[0] == "show"
+        else _eco_cmd("eco", ["skill"] + args if args else ["skills"])
+    ),
     "--migrate": lambda args: _eco_cmd("migrate", args),
     "--workspace": lambda args: _workspace_dispatch(args),
 }

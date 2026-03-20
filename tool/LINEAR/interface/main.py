@@ -8,7 +8,7 @@ Exposes Linear functions for other tools::
         get_user_info,
     )
 """
-from tool.LINEAR.logic.chrome.api import (  # noqa: F401
+from tool.LINEAR.logic.utils.chrome.api import (  # noqa: F401
     find_linear_tab,
     get_auth_state,
     get_user_info,

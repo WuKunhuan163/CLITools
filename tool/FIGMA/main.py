@@ -167,7 +167,7 @@ def main():
     get_color("BLUE")
     RESET = get_color("RESET")
 
-    from tool.FIGMA.logic.chrome import api
+    from tool.FIGMA.logic.utils.chrome import api
 
     def _ok(msg): print(f"  {BOLD}{GREEN}{msg}{RESET}")
     def _err(r): print(f"  {BOLD}{RED}Failed{RESET}: {r.get('error', '?')}")

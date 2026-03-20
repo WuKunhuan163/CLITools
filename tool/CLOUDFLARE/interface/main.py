@@ -8,7 +8,7 @@ Exposes Cloudflare management functions for other tools to import::
         list_zones,
     )
 """
-from tool.CLOUDFLARE.logic.chrome.api import (  # noqa: F401
+from tool.CLOUDFLARE.logic.utils.chrome.api import (  # noqa: F401
     find_cloudflare_tab,
     get_user,
     get_account,

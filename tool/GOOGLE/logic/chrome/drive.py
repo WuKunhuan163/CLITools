@@ -11,7 +11,7 @@ from interface.chrome import (
     CDPSession, CDP_PORT,
     is_chrome_cdp_available,
 )
-from tool.GOOGLE.logic.chrome.colab import find_colab_tab
+from tool.GOOGLE.logic.utils.chrome.colab import find_colab_tab
 
 DRIVE_MIME_TYPES = {
     "colab": "application/vnd.google.colaboratory",

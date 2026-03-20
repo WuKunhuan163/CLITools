@@ -6,7 +6,7 @@ web-based interaction (e.g., Google Colab, Drive UI operations).
 This module provides configuration and common patterns. Actual browser
 tool calls are made by the AI agent through MCP tool invocations.
 """
-from logic.mcp.config import is_cursor_environment, is_browser_mcp_available
+from logic.utils.mcp.config import is_cursor_environment, is_browser_mcp_available
 
 
 class BrowserSize:

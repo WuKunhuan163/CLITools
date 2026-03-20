@@ -20,7 +20,7 @@ except Exception:
 @pytest.mark.skipif(not CDP_AVAILABLE, reason="Chrome CDP not available")
 class TestExport:
     def test_export_png_triggers_dialog(self):
-        from tool.XMIND.logic.chrome.api import export_map, _ensure_session
+        from tool.XMIND.logic.utils.chrome.api import export_map, _ensure_session
         from interface.chrome import real_click
         r = export_map("png")
         assert r.get("ok"), f"export failed: {r}"
@@ -44,18 +44,18 @@ class TestExport:
             time.sleep(0.5)
 
     def test_export_invalid_format(self):
-        from tool.XMIND.logic.chrome.api import export_map
+        from tool.XMIND.logic.utils.chrome.api import export_map
         r = export_map("xyz")
         assert not r.get("ok")
         assert "Unknown format" in r.get("error", "")
 
     def test_zoom_fit(self):
-        from tool.XMIND.logic.chrome.api import fit_map
+        from tool.XMIND.logic.utils.chrome.api import fit_map
         r = fit_map()
         assert r.get("ok"), f"fit_map failed: {r}"
 
     def test_zoom_actual(self):
-        from tool.XMIND.logic.chrome.api import zoom
+        from tool.XMIND.logic.utils.chrome.api import zoom
         r = zoom("actual")
         assert r.get("ok"), f"zoom actual failed: {r}"
 

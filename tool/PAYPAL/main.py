@@ -40,7 +40,7 @@ def main():
     YELLOW = get_color("YELLOW")
     RESET = get_color("RESET")
 
-    from tool.PAYPAL.logic.chrome.api import (
+    from tool.PAYPAL.logic.utils.chrome.api import (
         get_auth_state, get_page_info, get_account_info, get_recent_activity,
     )
 

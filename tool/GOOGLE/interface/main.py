@@ -32,14 +32,14 @@ from interface.chrome import (  # noqa: F401
 )
 
 # ---- Colab integration ----
-from tool.GOOGLE.logic.chrome.colab import (  # noqa: F401
+from tool.GOOGLE.logic.utils.chrome.colab import (  # noqa: F401
     find_colab_tab,
     reopen_colab_tab,
     inject_and_execute,
 )
 
 # ---- Google Drive via CDP ----
-from tool.GOOGLE.logic.chrome.drive import (  # noqa: F401
+from tool.GOOGLE.logic.utils.chrome.drive import (  # noqa: F401
     DRIVE_MIME_TYPES,
     create_notebook,
     create_drive_file,
@@ -49,7 +49,7 @@ from tool.GOOGLE.logic.chrome.drive import (  # noqa: F401
 )
 
 # ---- OAuth automation ----
-from tool.GOOGLE.logic.chrome.oauth import (  # noqa: F401
+from tool.GOOGLE.logic.utils.chrome.oauth import (  # noqa: F401
     handle_oauth_if_needed,
     close_oauth_tabs,
     has_oauth_dialog,
@@ -58,7 +58,7 @@ from tool.GOOGLE.logic.chrome.oauth import (  # noqa: F401
 )
 
 # ---- Login state ----
-from tool.GOOGLE.logic.chrome.login import (  # noqa: F401
+from tool.GOOGLE.logic.utils.chrome.login import (  # noqa: F401
     check_login_state,
     sign_in,
     sign_out,

@@ -1,5 +1,5 @@
 """GMAIL Tool Interface — Gmail via official Gmail API (OAuth2)."""
-from tool.GMAIL.logic.chrome.api import (  # noqa: F401
+from tool.GMAIL.logic.utils.chrome.api import (  # noqa: F401
     find_gmail_tab,
     get_auth_state,
     get_page_info,

@@ -19,7 +19,7 @@ from interface.chrome import (
     CDPSession, CDP_PORT,
 )
 
-from tool.XMIND.logic.chrome.state_machine import (
+from tool.XMIND.logic.utils.chrome.state_machine import (
     XMState, get_machine,
 )
 

@@ -16,7 +16,7 @@ from interface.cdmcp import (
     load_cdmcp_interact,
 )
 
-from tool.LUCIDCHART.logic.chrome.state_machine import (
+from tool.LUCIDCHART.logic.utils.chrome.state_machine import (
     LucidState, get_machine,
 )
 

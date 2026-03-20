@@ -41,7 +41,7 @@ def main():
     RED = get_color("RED")
     RESET = get_color("RESET")
 
-    from tool.YUQUE.logic.chrome.api import (
+    from tool.YUQUE.logic.utils.chrome.api import (
         boot_session, get_status, get_page_info, scan_elements,
     )
 

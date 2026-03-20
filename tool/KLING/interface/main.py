@@ -8,7 +8,7 @@ Exposes Kling functions for other tools::
         get_points,
     )
 """
-from tool.KLING.logic.chrome.api import (  # noqa: F401
+from tool.KLING.logic.utils.chrome.api import (  # noqa: F401
     find_kling_tab,
     get_user_info,
     get_points,

@@ -39,7 +39,7 @@ def main():
     YELLOW = get_color("YELLOW")
     RESET = get_color("RESET")
 
-    from tool.LINEAR.logic.chrome.api import (
+    from tool.LINEAR.logic.utils.chrome.api import (
         get_auth_state, get_user_info, get_page_info,
     )
 

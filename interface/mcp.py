@@ -2,9 +2,9 @@
 
 Provides MCPToolConfig and environment detection for MCP-backed tools.
 """
-from logic.mcp.config import MCPToolConfig, is_cursor_environment, get_mcp_descriptors_dir
-from logic.mcp.browser import BrowserMCPConfig, BrowserSize, build_resize_args
-from logic.mcp.drive_create import build_create_workflow, get_supported_types, build_upload_workflow
+from logic.utils.mcp.config import MCPToolConfig, is_cursor_environment, get_mcp_descriptors_dir
+from logic.utils.mcp.browser import BrowserMCPConfig, BrowserSize, build_resize_args
+from logic.utils.mcp.drive_create import build_create_workflow, get_supported_types, build_upload_workflow
 
 __all__ = [
     "MCPToolConfig",

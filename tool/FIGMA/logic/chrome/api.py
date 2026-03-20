@@ -20,7 +20,7 @@ from interface.cdmcp import (
     load_cdmcp_interact,
 )
 
-from tool.FIGMA.logic.chrome.state_machine import (
+from tool.FIGMA.logic.utils.chrome.state_machine import (
     FigmaState, get_machine,
 )
 

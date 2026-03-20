@@ -2,7 +2,7 @@
 
 Provides functions to load CDMCP (Chrome DevTools MCP) modules.
 """
-from logic.chrome.loader import (
+from logic.utils.chrome.loader import (
     load_cdmcp,
     load_cdmcp_overlay,
     load_cdmcp_sessions,

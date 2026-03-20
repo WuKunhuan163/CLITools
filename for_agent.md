@@ -43,7 +43,8 @@ If this is your first encounter with this project, follow these steps in order:
 - `TOOL --eco search "query"` — find anything (tools, skills, lessons, docs)
 - `TOOL --eco tool <NAME>` — deep-dive into a specific tool
 - `TOOL --eco skill <name>` — read a development skill/pattern
-- `SKILLS list --core` — list project skills only (use `SKILLS show <name>` to load)
+- `TOOL --eco nav [path]` — navigate the skills dictionary tree (pwd-like browsing)
+- `TOOL --eco tree` — show the full skills tree structure
 - `USERINPUT --hint "summary"` — get user feedback (blocking, always call after task completion)
 - `BRAIN add/done/list` — manage tasks in brain
 - `BRAIN log "entry" [--files f1,f2] [--task id]` — record activity with optional artifact tracking
@@ -55,6 +56,11 @@ If this is your first encounter with this project, follow these steps in order:
 - `SKILLS learn "lesson text"` — record a non-obvious discovery or gotcha
 - `SKILLS create <name>` — create a new skill when 3+ lessons cluster on a theme
 - `TOOL --dev create <NAME>` — scaffold a new tool (when a mechanical skill should become code)
+
+**Before architectural decisions** — read the foundational skills first:
+- `TOOL --eco skill modularization` — before restructuring, splitting, or merging code
+- `TOOL --eco skill symmetric-design` — before creating directories, naming resources
+- `TOOL --eco skill meta-agent` — before deciding how to record/promote knowledge
 
 **Session phases** — know what you're doing and why:
 

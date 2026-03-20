@@ -21,7 +21,7 @@ def _cdp_enabled():
 
 
 def _tab_exists():
-    from tool.WPS.logic.chrome.api import find_wps_tab
+    from tool.WPS.logic.utils.chrome.api import find_wps_tab
     return find_wps_tab() is not None
 
 
@@ -36,7 +36,7 @@ SKIP_TAB = "No WPS tab found"
 @unittest.skipUnless(_TAB_OK, SKIP_TAB)
 class TestWPSAuthState(unittest.TestCase):
     def test_get_auth_state(self):
-        from tool.WPS.logic.chrome.api import get_auth_state
+        from tool.WPS.logic.utils.chrome.api import get_auth_state
         r = get_auth_state()
         self.assertIn("authenticated", r)
 
@@ -45,7 +45,7 @@ class TestWPSAuthState(unittest.TestCase):
 @unittest.skipUnless(_TAB_OK, SKIP_TAB)
 class TestWPSPageInfo(unittest.TestCase):
     def test_get_page_info(self):
-        from tool.WPS.logic.chrome.api import get_page_info
+        from tool.WPS.logic.utils.chrome.api import get_page_info
         r = get_page_info()
         self.assertTrue(r.get("ok"), f"get_page_info failed: {r}")
         self.assertIn("url", r)

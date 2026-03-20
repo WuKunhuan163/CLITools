@@ -24,7 +24,7 @@ def _cdp_available():
 @unittest.skipUnless(_cdp_available(), "Chrome CDP not running")
 class TestMCPState(unittest.TestCase):
     def test_get_mcp_state(self):
-        from tool.YOUTUBE.logic.chrome.api import get_mcp_state
+        from tool.YOUTUBE.logic.utils.chrome.api import get_mcp_state
         r = get_mcp_state()
         self.assertIsInstance(r, dict)
         if r.get("ok"):
@@ -33,7 +33,7 @@ class TestMCPState(unittest.TestCase):
             self.assertIn("machine_state", r)
 
     def test_session_status(self):
-        from tool.YOUTUBE.logic.chrome.api import get_session_status
+        from tool.YOUTUBE.logic.utils.chrome.api import get_session_status
         r = get_session_status()
         self.assertIn("state", r)
         self.assertIn("cdp_available", r)
@@ -42,17 +42,17 @@ class TestMCPState(unittest.TestCase):
 @unittest.skipUnless(_cdp_available(), "Chrome CDP not running")
 class TestPlayback(unittest.TestCase):
     def test_play(self):
-        from tool.YOUTUBE.logic.chrome.api import play
+        from tool.YOUTUBE.logic.utils.chrome.api import play
         r = play()
         self.assertIsInstance(r, dict)
 
     def test_pause(self):
-        from tool.YOUTUBE.logic.chrome.api import pause
+        from tool.YOUTUBE.logic.utils.chrome.api import pause
         r = pause()
         self.assertIsInstance(r, dict)
 
     def test_volume_get(self):
-        from tool.YOUTUBE.logic.chrome.api import volume
+        from tool.YOUTUBE.logic.utils.chrome.api import volume
         r = volume()
         self.assertIsInstance(r, dict)
         if r.get("ok"):
@@ -60,14 +60,14 @@ class TestPlayback(unittest.TestCase):
             self.assertIn("muted", r)
 
     def test_speed_get(self):
-        from tool.YOUTUBE.logic.chrome.api import speed
+        from tool.YOUTUBE.logic.utils.chrome.api import speed
         r = speed()
         self.assertIsInstance(r, dict)
         if r.get("ok"):
             self.assertIn("speed", r)
 
     def test_captions_check(self):
-        from tool.YOUTUBE.logic.chrome.api import captions
+        from tool.YOUTUBE.logic.utils.chrome.api import captions
         r = captions()
         self.assertIsInstance(r, dict)
         if r.get("ok"):
@@ -77,17 +77,17 @@ class TestPlayback(unittest.TestCase):
 @unittest.skipUnless(_cdp_available(), "Chrome CDP not running")
 class TestNavigation(unittest.TestCase):
     def test_navigate_known_target(self):
-        from tool.YOUTUBE.logic.chrome.api import navigate
+        from tool.YOUTUBE.logic.utils.chrome.api import navigate
         r = navigate("home")
         self.assertIsInstance(r, dict)
 
     def test_navigate_invalid(self):
-        from tool.YOUTUBE.logic.chrome.api import navigate
+        from tool.YOUTUBE.logic.utils.chrome.api import navigate
         r = navigate("not_a_valid_section")
         self.assertFalse(r.get("ok"))
 
     def test_get_recommendations(self):
-        from tool.YOUTUBE.logic.chrome.api import get_recommendations
+        from tool.YOUTUBE.logic.utils.chrome.api import get_recommendations
         r = get_recommendations(limit=3)
         self.assertIsInstance(r, dict)
 

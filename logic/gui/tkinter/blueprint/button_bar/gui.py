@@ -97,7 +97,7 @@ class ButtonBarWindow(BaseGUIWindow):
         delayed_buttons = []
         self._keyboard_available = self._check_keyboard_capture()
         try:
-            from logic.accessibility.keyboard.monitor import _log
+            from logic.utils.accessibility.keyboard.monitor import _log
             _log(f"ButtonBar.setup_ui: keyboard_available={self._keyboard_available}")
         except Exception:
             pass
@@ -186,7 +186,7 @@ class ButtonBarWindow(BaseGUIWindow):
         event tap is known to be unreliable.
         """
         try:
-            from logic.accessibility.keyboard.monitor import is_available, check_accessibility_trusted, _log, _init_log
+            from logic.utils.accessibility.keyboard.monitor import is_available, check_accessibility_trusted, _log, _init_log
             _init_log()
             avail = is_available()
             trusted = check_accessibility_trusted()
@@ -220,7 +220,7 @@ class ButtonBarWindow(BaseGUIWindow):
             return alive
         except Exception as e:
             try:
-                from logic.accessibility.keyboard.monitor import _log
+                from logic.utils.accessibility.keyboard.monitor import _log
                 _log(f"ButtonBar._check_keyboard_capture: exception {e}")
             except Exception:
                 pass
@@ -234,7 +234,7 @@ class ButtonBarWindow(BaseGUIWindow):
         """
         def _flog(msg):
             try:
-                from logic.accessibility.keyboard.monitor import _log
+                from logic.utils.accessibility.keyboard.monitor import _log
                 _log(msg)
             except Exception:
                 pass
@@ -262,11 +262,11 @@ class ButtonBarWindow(BaseGUIWindow):
         or no Accessibility permissions), falling back to focus detection
         and timer only.
         """
-        from logic.accessibility.keyboard.monitor import _log
+        from logic.utils.accessibility.keyboard.monitor import _log
         if not self._keyboard_available:
             _log("ButtonBar: skipping global key listener (keyboard capture unavailable)")
             return
-        from logic.accessibility.keyboard.monitor import start_paste_enter_listener
+        from logic.utils.accessibility.keyboard.monitor import start_paste_enter_listener
         _log("ButtonBar: starting paste+enter global listener")
         self._global_listener = start_paste_enter_listener(
             lambda: self.root.after(0, lambda: self._unlock_delayed_buttons(reason="paste_enter_detected"))
@@ -281,7 +281,7 @@ class ButtonBarWindow(BaseGUIWindow):
         """
         def _klog(msg):
             try:
-                from logic.accessibility.keyboard.monitor import _log
+                from logic.utils.accessibility.keyboard.monitor import _log
                 _log(msg)
             except Exception:
                 pass
@@ -296,7 +296,7 @@ class ButtonBarWindow(BaseGUIWindow):
         self.root.bind("<Key>", on_tk_key)
 
     def _stop_global_key_listener(self):
-        from logic.accessibility.keyboard.monitor import stop_listener
+        from logic.utils.accessibility.keyboard.monitor import stop_listener
         if hasattr(self, '_global_listener'):
             stop_listener(self._global_listener)
             self._global_listener = None
@@ -307,7 +307,7 @@ class ButtonBarWindow(BaseGUIWindow):
             return
         self._buttons_unlocked = True
         try:
-            from logic.accessibility.keyboard.monitor import _log
+            from logic.utils.accessibility.keyboard.monitor import _log
             _log(f"ButtonBar: unlocking buttons (reason={reason})")
         except Exception:
             pass

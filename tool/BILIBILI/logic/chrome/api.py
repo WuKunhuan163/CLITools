@@ -23,7 +23,7 @@ from interface.cdmcp import (
     load_cdmcp_interact,
 )
 
-from tool.BILIBILI.logic.chrome.state_machine import (
+from tool.BILIBILI.logic.utils.chrome.state_machine import (
     BiliState, get_machine,
 )
 

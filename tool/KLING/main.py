@@ -40,7 +40,7 @@ def main():
     YELLOW = get_color("YELLOW")
     RESET = get_color("RESET")
 
-    from tool.KLING.logic.chrome.api import (
+    from tool.KLING.logic.utils.chrome.api import (
         get_user_info, get_points, get_page_info, get_generation_history,
     )
 

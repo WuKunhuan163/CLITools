@@ -97,7 +97,7 @@ def main():
     get_color("BLUE")
     RESET = get_color("RESET")
 
-    from tool.XMIND.logic.chrome.api import (
+    from tool.XMIND.logic.utils.chrome.api import (
         get_auth_state, get_page_info, get_maps, get_sidebar,
         boot_session, get_session_status, create_map, open_map,
         add_node, edit_node, delete_node, take_screenshot,
@@ -126,7 +126,7 @@ def main():
             print(f"  Error: {RED}{s['error']}{RESET}")
 
     elif args.command == "recover":
-        from tool.XMIND.logic.chrome.api import _recover as do_recover
+        from tool.XMIND.logic.utils.chrome.api import _recover as do_recover
         r = do_recover()
         if r:
             print(f"  {BOLD}{GREEN}Recovered{RESET} XMind session.")

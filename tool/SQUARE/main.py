@@ -39,7 +39,7 @@ def main():
     YELLOW = get_color("YELLOW")
     RESET = get_color("RESET")
 
-    from tool.SQUARE.logic.chrome.api import (
+    from tool.SQUARE.logic.utils.chrome.api import (
         get_auth_state, get_page_info, get_dashboard_info,
     )
 

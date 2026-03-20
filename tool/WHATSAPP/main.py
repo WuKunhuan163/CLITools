@@ -48,7 +48,7 @@ def main():
     YELLOW = get_color("YELLOW")
     RESET = get_color("RESET")
 
-    from tool.WHATSAPP.logic.chrome.api import (
+    from tool.WHATSAPP.logic.utils.chrome.api import (
         get_auth_state, get_page_info, get_chats, get_profile,
         search_contact, send_message, send_to_contact,
     )

@@ -41,7 +41,7 @@ RESET = get_color("RESET")
 
 
 def cmd_boot(args):
-    from tool.SHOWDOC.logic.chrome.api import boot_session
+    from tool.SHOWDOC.logic.utils.chrome.api import boot_session
     print(f"  {BOLD}{BLUE}Booting{RESET} ShowDoc CDMCP session...", flush=True)
     result = boot_session(args.port)
     if result.get("ok"):
@@ -51,7 +51,7 @@ def cmd_boot(args):
 
 
 def cmd_status(args):
-    from tool.SHOWDOC.logic.chrome.api import get_session_status, get_auth_state
+    from tool.SHOWDOC.logic.utils.chrome.api import get_session_status, get_auth_state
     status = get_session_status(args.port)
 
     print(f"  {BOLD}Chrome CDP{RESET}: {'available' if status['cdp_available'] else 'unavailable'} (port {args.port})")
@@ -72,7 +72,7 @@ def cmd_status(args):
 
 
 def cmd_user(args):
-    from tool.SHOWDOC.logic.chrome.api import get_user_info
+    from tool.SHOWDOC.logic.utils.chrome.api import get_user_info
     result = get_user_info(args.port)
     if result.get("error"):
         print(f"  {BOLD}{RED}Error{RESET}: {result['error']}")
@@ -87,7 +87,7 @@ def cmd_user(args):
 
 
 def cmd_projects(args):
-    from tool.SHOWDOC.logic.chrome.api import get_projects
+    from tool.SHOWDOC.logic.utils.chrome.api import get_projects
     result = get_projects(args.port)
     if result.get("error"):
         print(f"  {BOLD}{RED}Error{RESET}: {result['error']}")
@@ -108,7 +108,7 @@ def cmd_projects(args):
 
 
 def cmd_project(args):
-    from tool.SHOWDOC.logic.chrome.api import get_project_info
+    from tool.SHOWDOC.logic.utils.chrome.api import get_project_info
     result = get_project_info(args.item_id, args.port)
     if result.get("error"):
         print(f"  {BOLD}{RED}Error{RESET}: {result['error']}")
@@ -147,7 +147,7 @@ def cmd_project(args):
 
 
 def cmd_catalog(args):
-    from tool.SHOWDOC.logic.chrome.api import get_catalog
+    from tool.SHOWDOC.logic.utils.chrome.api import get_catalog
     result = get_catalog(args.item_id, args.port)
     if result.get("error"):
         print(f"  {BOLD}{RED}Error{RESET}: {result['error']}")
@@ -165,7 +165,7 @@ def cmd_catalog(args):
 
 
 def cmd_page(args):
-    from tool.SHOWDOC.logic.chrome.api import get_page_content
+    from tool.SHOWDOC.logic.utils.chrome.api import get_page_content
     result = get_page_content(args.page_id, args.port)
     if result.get("error"):
         print(f"  {BOLD}{RED}Error{RESET}: {result['error']}")
@@ -191,11 +191,11 @@ def cmd_page(args):
 
 def cmd_goto(args):
     if args.page_id:
-        from tool.SHOWDOC.logic.chrome.api import navigate_to_page
+        from tool.SHOWDOC.logic.utils.chrome.api import navigate_to_page
         print(f"  {BOLD}{BLUE}Navigating{RESET} to page {args.page_id}...", flush=True)
         result = navigate_to_page(args.item_id, args.page_id, args.port)
     else:
-        from tool.SHOWDOC.logic.chrome.api import navigate_to_project
+        from tool.SHOWDOC.logic.utils.chrome.api import navigate_to_project
         print(f"  {BOLD}{BLUE}Navigating{RESET} to project {args.item_id}...", flush=True)
         result = navigate_to_project(args.item_id, args.port)
 
@@ -208,7 +208,7 @@ def cmd_goto(args):
 
 
 def cmd_home(args):
-    from tool.SHOWDOC.logic.chrome.api import navigate_home
+    from tool.SHOWDOC.logic.utils.chrome.api import navigate_home
     print(f"  {BOLD}{BLUE}Navigating{RESET} to dashboard...", flush=True)
     result = navigate_home(args.port)
     if result.get("ok"):
@@ -218,7 +218,7 @@ def cmd_home(args):
 
 
 def cmd_screenshot(args):
-    from tool.SHOWDOC.logic.chrome.api import take_screenshot
+    from tool.SHOWDOC.logic.utils.chrome.api import take_screenshot
     output = args.output
     result = take_screenshot(args.port, output)
     if result.get("ok"):
@@ -228,7 +228,7 @@ def cmd_screenshot(args):
 
 
 def cmd_search(args):
-    from tool.SHOWDOC.logic.chrome.api import search_project
+    from tool.SHOWDOC.logic.utils.chrome.api import search_project
     result = search_project(args.item_id, args.keyword, args.port)
     if result.get("error"):
         print(f"  {BOLD}{RED}Error{RESET}: {result['error']}")
@@ -249,7 +249,7 @@ def cmd_search(args):
 
 
 def cmd_save_page(args):
-    from tool.SHOWDOC.logic.chrome.api import save_page
+    from tool.SHOWDOC.logic.utils.chrome.api import save_page
     content = args.content
     if args.file:
         with open(args.file, "r") as f:
@@ -269,7 +269,7 @@ def cmd_save_page(args):
 
 
 def cmd_delete_page(args):
-    from tool.SHOWDOC.logic.chrome.api import delete_page
+    from tool.SHOWDOC.logic.utils.chrome.api import delete_page
     print(f"  {BOLD}{BLUE}Deleting{RESET} page {args.page_id}...", flush=True)
     result = delete_page(args.page_id, args.item_id, args.port)
     if result.get("ok"):
@@ -279,7 +279,7 @@ def cmd_delete_page(args):
 
 
 def cmd_create_project(args):
-    from tool.SHOWDOC.logic.chrome.api import create_project
+    from tool.SHOWDOC.logic.utils.chrome.api import create_project
     print(f"  {BOLD}{BLUE}Creating{RESET} project '{args.name}'...", flush=True)
     result = create_project(args.name, item_type=args.type, description=args.description,
                             password=args.password, port=args.port)
@@ -290,7 +290,7 @@ def cmd_create_project(args):
 
 
 def cmd_create_catalog(args):
-    from tool.SHOWDOC.logic.chrome.api import create_catalog
+    from tool.SHOWDOC.logic.utils.chrome.api import create_catalog
     print(f"  {BOLD}{BLUE}Creating{RESET} catalog '{args.name}'...", flush=True)
     result = create_catalog(args.item_id, args.name, parent_cat_id=args.parent, port=args.port)
     if result.get("ok"):
@@ -300,7 +300,7 @@ def cmd_create_catalog(args):
 
 
 def cmd_delete_catalog(args):
-    from tool.SHOWDOC.logic.chrome.api import delete_catalog
+    from tool.SHOWDOC.logic.utils.chrome.api import delete_catalog
     print(f"  {BOLD}{BLUE}Deleting{RESET} catalog {args.cat_id}...", flush=True)
     result = delete_catalog(args.cat_id, args.item_id, args.port)
     if result.get("ok"):
@@ -310,7 +310,7 @@ def cmd_delete_catalog(args):
 
 
 def cmd_star(args):
-    from tool.SHOWDOC.logic.chrome.api import star_project, unstar_project
+    from tool.SHOWDOC.logic.utils.chrome.api import star_project, unstar_project
     if args.action == "star":
         result = star_project(args.item_id, args.port)
     else:

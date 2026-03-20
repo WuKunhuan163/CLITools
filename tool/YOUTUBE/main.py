@@ -212,7 +212,7 @@ def main():
             print(f"  Then run:   YOUTUBE config --api-key <YOUR_KEY>")
         return
 
-    from tool.YOUTUBE.logic.chrome import api
+    from tool.YOUTUBE.logic.utils.chrome import api
 
     if args.command == "boot":
         r = api.boot_session()

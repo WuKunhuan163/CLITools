@@ -19,26 +19,26 @@ except Exception:
 @pytest.mark.skipif(not CDP_AVAILABLE, reason="Chrome CDP not available")
 class TestXMindState:
     def test_session_status(self):
-        from tool.XMIND.logic.chrome.api import get_session_status
+        from tool.XMIND.logic.utils.chrome.api import get_session_status
         r = get_session_status()
         assert r.get("ok") is True
         assert "state" in r
 
     def test_mcp_state(self):
-        from tool.XMIND.logic.chrome.api import get_mcp_state
+        from tool.XMIND.logic.utils.chrome.api import get_mcp_state
         r = get_mcp_state()
         assert r.get("ok") is True
         assert "nodes" in r or "node_count" in r
         assert "url" in r
 
     def test_get_map_nodes(self):
-        from tool.XMIND.logic.chrome.api import get_map_nodes
+        from tool.XMIND.logic.utils.chrome.api import get_map_nodes
         r = get_map_nodes()
         assert r.get("ok") is True
         assert isinstance(r.get("nodes"), list)
 
     def test_get_auth_state(self):
-        from tool.XMIND.logic.chrome.api import get_auth_state
+        from tool.XMIND.logic.utils.chrome.api import get_auth_state
         r = get_auth_state()
         assert r.get("ok") is True
         assert "authenticated" in r

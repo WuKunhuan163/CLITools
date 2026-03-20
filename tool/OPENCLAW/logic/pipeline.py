@@ -9,7 +9,7 @@ import time
 import threading
 from typing import Optional, Callable
 
-from tool.OPENCLAW.logic.chrome import api as yuanbao
+from tool.OPENCLAW.logic.utils.chrome import api as yuanbao
 from tool.OPENCLAW.logic.sandbox import execute_command, get_project_summary
 from tool.OPENCLAW.logic.protocol import (
     build_system_prompt, build_task_message, build_feedback_message,
