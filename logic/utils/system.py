@@ -112,9 +112,7 @@ def get_python_tool_exec():
     except:
         return None
 
-def get_python_exec():
-    """Alias for get_python_tool_exec for backward compatibility."""
-    return get_python_tool_exec()
+get_python_exec = get_python_tool_exec
 
 def check_and_reexecute_with_python(tool_name, version=None):
     """
@@ -153,37 +151,7 @@ def get_logic_dir(base_dir):
     """Returns the logic directory path for a given base directory."""
     return Path(base_dir) / "logic"
 
-def find_project_root(start_path: Path) -> Path:
-    """
-    Robustly find the project root from any starting path.
-    Look for indicators unique to the root of AITerminalTools.
-    """
-    curr = start_path.resolve()
-    if curr.is_file():
-        curr = curr.parent
-    
-    temp_curr = curr
-    while temp_curr != temp_curr.parent:
-        if (temp_curr / "bin" / "TOOL").exists() and (temp_curr / "tool.json").exists():
-            return temp_curr
-        temp_curr = temp_curr.parent
-        
-    temp_curr = curr
-    while temp_curr != temp_curr.parent:
-        if (temp_curr / "tool.json").exists() and (temp_curr / "logic").is_dir() and (temp_curr / "tool").is_dir():
-            if temp_curr.parent.name != "tool":
-                return temp_curr
-        temp_curr = temp_curr.parent
-        
-    return curr
-
-def get_tool_module_path(tool_dir: Path, project_root: Path) -> str:
-    """Returns the python module path for a tool relative to project root."""
-    try:
-        rel = tool_dir.relative_to(project_root)
-        return ".".join(rel.parts)
-    except ValueError:
-        return ""
+from logic.utils.resolve import find_project_root, get_tool_module_path  # canonical implementations
 
 def get_module_relative_path(module_name: str) -> str:
     """

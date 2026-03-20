@@ -371,10 +371,10 @@ class LocalHTMLServer:
         opened = False
         try:
             if auto_boot:
-                from logic.chrome.session import auto_acquire_tab, CDP_PORT
+                from logic.utils.chrome.session import auto_acquire_tab, CDP_PORT
                 opened = auto_acquire_tab(url, port=CDP_PORT)
             else:
-                from logic.chrome.session import open_tab, CDP_PORT
+                from logic.utils.chrome.session import open_tab, CDP_PORT
                 opened = open_tab(url, port=CDP_PORT)
         except Exception:
             pass

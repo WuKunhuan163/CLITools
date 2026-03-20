@@ -105,8 +105,8 @@ When a file grows too large:
 1. Identify the distinct responsibilities within the file
 2. Create a subdirectory with the same name as the file
 3. Move each responsibility into its own file within the subdirectory
-4. Create `__init__.py` that re-exports the public API for backward compatibility
-5. Update imports across the codebase (write a `tmp/batch_*.py` script for bulk updates)
+4. Create `__init__.py` that re-exports the public API
+5. Update **all** callers directly (write a `tmp/batch_*.py` script for bulk updates)
 
 Example: `logic/_/agent/command.py` (500+ lines) should become:
 
@@ -117,6 +117,37 @@ logic/_/agent/
 ├── tools.py        # Tool execution
 └── loop.py         # Main agent loop
 ```
+
+## Bold Refactoring: No Backward Compatibility for Internal Code
+
+When moving, renaming, or restructuring internal modules:
+
+1. **Update all callers directly.** Don't create re-export shims, backward-compatibility wrappers, or "legacy location" aliases. Use `grep` to find every import, update them all, and delete the old path.
+2. **Write a batch script** (`tmp/batch_rename_imports.py`) for changes touching 10+ files. This is faster and more reliable than manual edits.
+3. **Delete dead paths immediately.** After migration, `rm -rf` the old directory. Never leave empty `__init__.py` files that re-export from the new location.
+4. **Don't hedge with "deprecated" comments.** If code is moved, it's moved. The old location ceases to exist. Git preserves history for anyone who needs to understand the change.
+
+### Why No Shims?
+
+Backward-compat shims accumulate silently. Each one is "just one file" but collectively they:
+- Create two valid import paths for the same code, confusing both humans and agents
+- Silently fail when the target module changes its API
+- Make dead code detection impossible (the shim looks "used" because callers import from it)
+- Violate the single-responsibility principle at the module level
+
+### Decision Rule
+
+| Callers | Action |
+|---------|--------|
+| 0–5 | Update callers inline, delete old path |
+| 6–20 | Write `tmp/batch_*.py` script, update all, delete old path |
+| 20+ | Write batch script, update all, delete old path (no exceptions) |
+
+There is **no threshold** at which backward compat becomes the right answer for internal code. External-facing APIs (published interfaces consumed by users or external tools) may warrant deprecation periods, but internal module reorganization never does.
+
+### Real Example: logic/ Shim Cleanup (2026-03)
+
+During the logic/ directory cleanup, six backward-compat shim directories were found (`logic/turing/`, `logic/mcp/`, `logic/accessibility/`, `logic/chrome/`, `logic/asset/`, `logic/serve/`) that each contained only an `__init__.py` re-exporting from `logic/utils/`. Total callers across all six: fewer than 10. Each shim was deleted and its callers updated directly. The cleanup took minutes and eliminated six phantom modules from the import namespace.
 
 ## Constructing Symmetric Systems
 

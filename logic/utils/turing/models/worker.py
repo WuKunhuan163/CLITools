@@ -183,7 +183,7 @@ class ParallelWorkerPool:
 
     def map(self, tasks: List[Tuple[Callable, str]], timeout: Optional[int] = None) -> List[bool]:
         """
-        Backward compatibility for map interface used in some tools.
+        Convenience interface: submit (func, task_id) pairs.
         tasks: List of (func, task_id)
         """
         formatted_tasks = [

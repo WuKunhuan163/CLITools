@@ -1,15 +1,16 @@
 {
-  "name": "TEX",
-  "version": "0.1.0",
-  "description": "Report compilation tool. Converts Markdown reports to PDF.",
-  "dependencies": [],
-  "pip_dependencies": [
-    "fpdf2"
+  "description": "Local LaTeX compilation and template management.",
+  "purpose": "Provide local TeX compilation without external dependencies, and manage various journal templates.",
+  "dependencies": [
+    "PYTHON"
   ],
-  "pip_dependencies_optional": [],
-  "commands": {
-    "compile": "Compile a Markdown report to PDF",
-    "list": "List available reports",
-    "template": "Show report template"
-  }
+  "pip_dependencies": [
+    "tinytex"
+  ],
+  "usage": [
+    "TEX compile <file.tex> [--output <dir>]",
+    "TEX list",
+    "TEX template <name> [--target <dir>]"
+  ]
 }
+

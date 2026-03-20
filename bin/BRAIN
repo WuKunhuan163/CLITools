@@ -35,7 +35,7 @@ project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from logic.agent.brain_tasks import (
+from logic._.agent.brain_tasks import (
     add_task, update_task, complete_task, delete_task,
     clear_done, clear_all, list_tasks, migrate_from_md
 )

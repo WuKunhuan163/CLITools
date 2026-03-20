@@ -68,5 +68,13 @@ When you find existing code:
 1. Verify it covers your use case (or can be extended)
 2. Import via `interface/main.py` (cross-tool) or `logic/` (same tool)
 3. If extending, add the new capability to the existing function
-4. Update callers to use the unified implementation
-5. Remove the duplicate code
+4. Update **all** callers to use the unified implementation
+5. **Delete** the duplicate code — don't leave it commented out or behind a flag
+
+## Bold Cleanup
+
+When removing duplicates or migrating code:
+- **Never** create backward-compat shims, re-export wrappers, or "legacy" aliases. Update all callers directly.
+- **Never** leave old code "just in case." Git preserves history.
+- For bulk import updates across many files, write a `tmp/batch_*.py` script rather than editing manually.
+- See `modularization` skill > "Bold Refactoring" for the full rationale.

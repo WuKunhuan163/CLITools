@@ -598,6 +598,3 @@ except KeyboardInterrupt:
             if self.tool_dir.exists(): shutil.rmtree(self.tool_dir)
             return not (tool_bin_dir.exists() or self.tool_dir.exists())
         except: return False
-
-
-from logic._.dev.resource import fetch_resource  # noqa: F401 — re-export for backward compatibility

@@ -144,7 +144,7 @@ class KnowledgeManager:
             path = self.experience_dir / "lessons.jsonl"
         _append_jsonl(path, entry)
 
-        # Also append to global for backward compatibility
+        # Also append to aggregate global index
         global_path = self.experience_dir / "lessons.jsonl"
         if tool and path != global_path:
             _append_jsonl(global_path, entry)

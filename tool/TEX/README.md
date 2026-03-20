@@ -1,26 +1,36 @@
-# TEX
+# TEX Tool
 
-Report compilation tool for AITerminalTools. Converts Markdown reports to PDF.
+Local LaTeX compilation and project bootstrapping.
+
+## Features
+
+- **Local Compilation**: Compile `.tex` files to PDF without needing an account on Overleaf.
+- **Project Templates**: Start new research papers with industry-standard templates (ACM, IEEE, Nature, Science, NeurIPS).
+- **Collision Management**: Automatically avoids overwriting existing directories by adding a random hash suffix.
+- **Symmetrical Design**: Part of the `TOOL` ecosystem with standardized command handling.
 
 ## Usage
 
+### List Available Templates
 ```bash
-TEX compile report/2026-03-15_topic.md          # Compile to PDF
-TEX compile report/2026-03-15_topic.md --output ./  # Custom output dir
-TEX list                                          # List root reports
-TEX list openclaw                                 # List namespaced reports
-TEX template                                      # Show report template
+TEX list
 ```
 
-## Output
+### Create Project from Template
+```bash
+TEX template ACM --target ./my_paper
+```
 
-PDFs are generated in `report/pdf/` by default.
+### Compile to PDF
+```bash
+TEX compile main.tex --output ./build
+```
 
-## Dependencies
+## Installation
 
-- `markdown` — Markdown to HTML conversion
-- `weasyprint` — HTML to PDF rendering (requires system dependencies)
+This tool depends on `pdflatex`. If not found in your system's PATH, you can run:
+```bash
+TEX setup
+```
+to install a lightweight local TeX distribution (TinyTeX).
 
-## Future
-
-Full LaTeX support via tectonic or texlive for advanced typesetting.
