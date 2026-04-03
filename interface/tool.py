@@ -11,7 +11,7 @@ IDE functions delegate to tool/IDE/interface/ for detection and deployment.
 from interface.base import ToolBase, MCPToolBase, CliEndpoint
 from logic._.setup.engine import ToolEngine
 from logic._.dev.resource import fetch_resource
-from tool.USERINPUT.logic.prompts import get_default_prompts
+# from tool.USERINPUT.logic.prompts import get_default_prompts
 
 from tool.IDE.interface.main import detect_cursor as detect_cursor_ide
 from tool.IDE.interface.main import deploy_cursor
@@ -23,7 +23,7 @@ __all__ = [
     "CliEndpoint",
     "ToolEngine",
     "fetch_resource",
-    "get_default_prompts",
+    # "get_default_prompts",
     "detect_cursor_ide",
     "deploy_cursor",
     "detect_ai_ides",

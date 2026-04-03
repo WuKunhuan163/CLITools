@@ -12,7 +12,8 @@ while curr != curr.parent:
         break
     curr = curr.parent
 else:
-    project_root = Path("/Applications/AITerminalTools")
+    # Use the known path where CLITools0 is currently located
+    project_root = Path("/Applications/Workspace/CLITools0")
 
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
