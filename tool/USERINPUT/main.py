@@ -185,7 +185,7 @@ class UserInputWindow(BaseGUIWindow):
                 
                 env = os.environ.copy()
                 env["PYTHONPATH"] = f"{PROJECT_ROOT}:{env.get('PYTHONPATH', '')}"
-                cmd = [sys.executable, str(PROJECT_ROOT / "bin" / fd_bin), "--multiple", "--title", "Select Entities"]
+                cmd = [sys.executable, str(PROJECT_ROOT / "bin" / "FILEDIALOG" / fd_bin), "--multiple", "--title", "Select Entities"]
                 
                 try:
                     res = subprocess.run(cmd, capture_output=True, text=True, env=env)
